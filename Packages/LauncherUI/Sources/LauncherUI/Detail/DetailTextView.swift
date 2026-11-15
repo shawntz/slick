@@ -85,9 +85,9 @@ final class DetailTextView: NSView, NSTextViewDelegate {
     }
 
     /// Shows a whole text body.
-    func show(text: String, markdown: Bool, monospaced: Bool) {
+    func show(text: String, markdown: Bool, monospaced: Bool, lineBreaks: MarkdownLineBreaks = .standard) {
         kind = markdown ? .markdown : .plain(monospaced: monospaced)
-        document = MarkdownDocument(markdown ? text : "")
+        document = MarkdownDocument(markdown ? text : "", lineBreaks: lineBreaks)
         if !markdown { plainText = text }
         rebuild()
         textView.scroll(.zero)

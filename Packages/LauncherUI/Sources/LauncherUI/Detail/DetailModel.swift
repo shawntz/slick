@@ -42,6 +42,11 @@ nonisolated public enum DetailBody: Sendable, Equatable {
         }
     }
 
+    var isMarkdown: Bool {
+        if case .markdown = self { return true }
+        return false
+    }
+
     /// Whether two bodies are the same kind of text, so one can extend the other.
     func isSameTextKind(as other: DetailBody) -> Bool {
         switch (self, other) {
@@ -79,14 +84,29 @@ nonisolated public enum MetadataItem: Sendable, Equatable {
     case separator
 }
 
+/// How a Markdown body reads a newline inside a paragraph, a list item or a quote.
+nonisolated public enum MarkdownLineBreaks: Sendable, Equatable, Hashable {
+    /// Markdown's own rule: the lines join with a space, and a line that ends in two spaces or a
+    /// backslash breaks there.
+    case standard
+    /// Every newline breaks the line, for plain text shown as Markdown, such as a snippet. A blank
+    /// line still starts a new paragraph.
+    case everyNewline
+}
+
 /// Everything a detail pane shows.
 nonisolated public struct DetailContent: Sendable, Equatable {
     public var body: DetailBody?
     public var metadata: [MetadataItem]
+    /// How a Markdown body reads a newline inside a paragraph. Other bodies ignore it.
+    public var markdownLineBreaks: MarkdownLineBreaks
 
-    public init(body: DetailBody? = nil, metadata: [MetadataItem] = []) {
+    public init(
+        body: DetailBody? = nil, metadata: [MetadataItem] = [], markdownLineBreaks: MarkdownLineBreaks = .standard
+    ) {
         self.body = body
         self.metadata = metadata
+        self.markdownLineBreaks = markdownLineBreaks
     }
 
     public static let empty = DetailContent()

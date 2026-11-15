@@ -28,26 +28,39 @@ nonisolated enum MarkdownBlock: Sendable, Equatable {
 }
 
 /// Parses the Markdown that answers and notes use: ATX headings, paragraphs, bulleted and numbered
-/// lists, block quotes, fenced code, rules, and inline strong, emphasis, code and links.
+/// lists, block quotes, fenced code, rules, hard line breaks, and inline strong, emphasis, code and
+/// links.
 ///
 /// Each line is classified on its own, so a block can only grow at the end of the document. That
 /// is what makes streaming cheap: `MarkdownDocument` re-parses only the last block.
 nonisolated enum MarkdownParser {
+    /// What a hard line break becomes in a block's text: a line separator, which breaks the line
+    /// inside the paragraph, so the paragraph keeps its indents and adds no spacing.
+    static let hardBreak: Character = "\u{2028}"
+
+    /// A block and the UTF-8 offset of the line it starts on.
+    typealias PlacedBlock = (block: MarkdownBlock, start: Int)
+
     /// The blocks of `source`, each with the UTF-8 offset of the line it starts on.
-    static func blocks(_ source: Substring) -> [(block: MarkdownBlock, start: Int)] {
-        var result: [(block: MarkdownBlock, start: Int)] = []
+    static func blocks(_ source: Substring, lineBreaks: MarkdownLineBreaks = .standard) -> [PlacedBlock] {
+        var result: [PlacedBlock] = []
         var paragraph: (lines: [Substring], start: Int)?
         var item: (marker: String, depth: Int, lines: [Substring], start: Int)?
         var quote: (lines: [Substring], start: Int)?
         var code: (lines: [Substring], start: Int, fence: Character, length: Int, indent: Int)?
 
         func flush() {
-            if let open = paragraph { result.append((.paragraph(inlines(joined(open.lines))), open.start)) }
+            if let open = paragraph {
+                result.append((.paragraph(inlines(joined(open.lines, lineBreaks))), open.start))
+            }
             if let open = item {
                 result.append(
-                    (.listItem(marker: open.marker, depth: open.depth, inlines(joined(open.lines))), open.start))
+                    (
+                        .listItem(marker: open.marker, depth: open.depth, inlines(joined(open.lines, lineBreaks))),
+                        open.start
+                    ))
             }
-            if let open = quote { result.append((.quote(inlines(joined(open.lines))), open.start)) }
+            if let open = quote { result.append((.quote(inlines(joined(open.lines, lineBreaks))), open.start)) }
             paragraph = nil
             item = nil
             quote = nil
@@ -110,9 +123,29 @@ nonisolated enum MarkdownParser {
 
     // MARK: Block syntax
 
-    /// Lines of one paragraph join with a space, as Markdown's soft line breaks do.
-    private static func joined(_ lines: [Substring]) -> String {
-        lines.map { $0.trimmingTrailingWhitespace() }.joined(separator: " ")
+    /// The lines of one paragraph, list item or quote as one text. A line joins the next with a
+    /// space, as Markdown's soft line break does, unless it ends in a hard break: two or more
+    /// spaces, or a backslash that is not itself escaped. With `.everyNewline` every line break is
+    /// hard. The last line never ends in a break, so its trailing spaces and backslash stay as
+    /// Markdown says: the spaces are dropped and the backslash is literal.
+    private static func joined(_ lines: [Substring], _ lineBreaks: MarkdownLineBreaks) -> String {
+        var text = ""
+        for (index, line) in lines.enumerated() {
+            var trimmed = line.trimmingTrailingWhitespace()
+            guard index < lines.count - 1 else {
+                text += trimmed
+                break
+            }
+            var isHard = lineBreaks == .everyNewline || line.reversed().prefix { $0 == " " }.count >= 2
+            let backslashes = line.last == "\\" ? line.reversed().prefix { $0 == "\\" }.count : 0
+            if backslashes % 2 == 1 {
+                trimmed = trimmed.dropLast()
+                isHard = true
+            }
+            text += trimmed
+            text.append(isHard ? hardBreak : " ")
+        }
+        return text
     }
 
     private static func fence(in line: Substring) -> (char: Character, length: Int, info: Substring)? {
@@ -204,7 +237,8 @@ nonisolated enum MarkdownParser {
                 let length = chars[index...].prefix { $0 == "`" }.count
                 if let close = closingBackticks(chars, from: index + length, length: length) {
                     flush()
-                    var code = String(chars[(index + length)..<close])
+                    // A line break inside a code span is a space, as Markdown says.
+                    var code = String(chars[(index + length)..<close].map { $0 == hardBreak ? " " : $0 })
                     if code.count >= 2, code.first == " ", code.last == " " {
                         code = String(code.dropFirst().dropLast())
                     }

@@ -73,13 +73,17 @@ public final class DetailPane: NSView, LauncherContentView {
         let old = content
         content = newContent
         if let body = newContent.body, let text = body.text {
-            if let oldBody = old.body, oldBody.isSameTextKind(as: body), let oldText = oldBody.text,
+            // A Markdown body read with other line breaks is a new body.
+            let sameBreaks = old.markdownLineBreaks == newContent.markdownLineBreaks || !body.isMarkdown
+            if sameBreaks, let oldBody = old.body, oldBody.isSameTextKind(as: body), let oldText = oldBody.text,
                 text.utf8.count > oldText.utf8.count, text.hasPrefix(oldText)
             {
                 textView.append(String(text.utf8.dropFirst(oldText.utf8.count)) ?? "")
-            } else if old.body != body {
+            } else if old.body != body || !sameBreaks {
                 switch body {
-                case .markdown: textView.show(text: text, markdown: true, monospaced: false)
+                case .markdown:
+                    textView.show(
+                        text: text, markdown: true, monospaced: false, lineBreaks: newContent.markdownLineBreaks)
                 case .monospaced: textView.show(text: text, markdown: false, monospaced: true)
                 case .richText(let rich): textView.show(rich: rich)
                 default: textView.show(text: text, markdown: false, monospaced: false)
