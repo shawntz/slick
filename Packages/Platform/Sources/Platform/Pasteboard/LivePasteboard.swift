@@ -15,8 +15,10 @@ import Synchronization
 ///   managers and this app's own history skip it. ``CopyOptions/concealed`` adds the concealed
 ///   marker.
 /// - ``paste(_:charactersAfterCursor:)`` writes, closes the panel through the hook the app sets,
-///   waits until another app is frontmost, then sends Command-V and one Left press per character
-///   to leave after the insertion point.
+///   waits until another app is frontmost and no window of this app has key focus, then sends
+///   Command-V and one Left press per character to leave after the insertion point. When this app
+///   keeps key focus, it throws ``PasteError/targetDidNotActivate`` instead of pasting into its
+///   own hidden panel; the text stays on the pasteboard.
 /// - ``recentText(offset:)`` asks the clipboard history the app registers with
 ///   ``setHistoryReader(_:)``. Without one it answers from the current text and the texts this
 ///   service saw since launch.
@@ -27,6 +29,8 @@ nonisolated public final class LivePasteboard: PasteboardService {
     public let ownBundleID: String
     /// Images larger than this are left out of entries.
     public let maximumImageBytes: Int
+    /// RTF larger than this is left out of entries; the plain text stays.
+    public let maximumRichTextBytes: Int
 
     private let board: PasteboardBox
     private let queue = DispatchQueue(label: "platform.pasteboard", qos: .utility)
@@ -65,7 +69,8 @@ nonisolated public final class LivePasteboard: PasteboardService {
         anotherAppIsFrontmost: @escaping @Sendable () async -> Bool = { true },
         ownBundleID: String = Brand.bundleID,
         pollInterval: Duration = .milliseconds(250),
-        maximumImageBytes: Int = 16 << 20
+        maximumImageBytes: Int = 16 << 20,
+        maximumRichTextBytes: Int = 16 << 20
     ) {
         board = PasteboardBox(pasteboard)
         poll = PollState(lastSeen: pasteboard.changeCount)
@@ -77,6 +82,7 @@ nonisolated public final class LivePasteboard: PasteboardService {
         self.ownBundleID = ownBundleID
         self.pollInterval = pollInterval
         self.maximumImageBytes = maximumImageBytes
+        self.maximumRichTextBytes = maximumRichTextBytes
     }
 
     deinit {
@@ -138,7 +144,8 @@ nonisolated public final class LivePasteboard: PasteboardService {
             if verdict.isConcealed { return nil }
             let source = pasteboard.string(forType: NSPasteboard.PasteboardType(PasteboardMarkers.source))
             if !verdict.mayRecord, source != ownBundleID { return nil }
-            let contents = PasteboardContents.read(from: pasteboard, maximumImageBytes: maximumImageBytes)
+            let contents = PasteboardContents.read(
+                from: pasteboard, maximumImageBytes: maximumImageBytes, maximumRichTextBytes: maximumRichTextBytes)
             guard !contents.isEmpty else { return nil }
             return PasteboardEntry(
                 contents: contents, sourceBundleID: source, date: date, changeCount: pasteboard.changeCount)
@@ -216,7 +223,8 @@ nonisolated public final class LivePasteboard: PasteboardService {
         guard permissions.status(of: .pasteboard) == .granted else { return }
         let source = pasteboard.string(forType: NSPasteboard.PasteboardType(PasteboardMarkers.source))
         guard source != ownBundleID else { return }
-        let contents = PasteboardContents.read(from: pasteboard, maximumImageBytes: maximumImageBytes)
+        let contents = PasteboardContents.read(
+            from: pasteboard, maximumImageBytes: maximumImageBytes, maximumRichTextBytes: maximumRichTextBytes)
         guard !contents.isEmpty else { return }
         let entry = PasteboardEntry(
             contents: contents, sourceBundleID: source ?? sourceApplication(), date: clock.now, changeCount: count)
@@ -253,20 +261,35 @@ nonisolated public final class LivePasteboard: PasteboardService {
         await onQueue { [board] in body(board.pasteboard) }
     }
 
-    /// Waits up to `timeout` for an app other than this process to be frontmost, checking every
-    /// 10 ms on the main thread. The panel never activates the app, so this is usually true at once.
+    /// Waits up to `timeout` until a paste would reach another app, checking every 10 ms on the
+    /// main thread: ``isReadyToPaste(frontmostProcessID:ownProcessID:ownWindowIsKey:)``. The panel
+    /// never activates the app, so another app is usually frontmost at once; key focus leaves the
+    /// panel a moment after it closes.
     public static func waitForAnotherApp(
-        ownProcessID: pid_t = ProcessInfo.processInfo.processIdentifier, timeout: Duration = .seconds(1)
+        ownProcessID: pid_t = ProcessInfo.processInfo.processIdentifier, timeout: Duration = .seconds(1),
+        ownWindowIsKey: @escaping @Sendable () -> Bool = { false }
     ) -> @Sendable () async -> Bool {
         {
             let deadline = ContinuousClock.now + timeout
             while true {
                 let frontmost = await MainActor.run { NSWorkspace.shared.frontmostApplication?.processIdentifier }
-                if let frontmost, frontmost != ownProcessID { return true }
+                if isReadyToPaste(
+                    frontmostProcessID: frontmost, ownProcessID: ownProcessID, ownWindowIsKey: ownWindowIsKey())
+                {
+                    return true
+                }
                 guard ContinuousClock.now < deadline else { return false }
                 try? await Task.sleep(for: .milliseconds(10))
             }
         }
+    }
+
+    /// True when Command-V would reach another app: one is frontmost, and no window of this app
+    /// holds key focus. The launcher's panel takes key focus without activating the app, so the
+    /// frontmost app alone does not say where a keystroke goes.
+    public static func isReadyToPaste(frontmostProcessID: pid_t?, ownProcessID: pid_t, ownWindowIsKey: Bool) -> Bool {
+        guard let frontmostProcessID, frontmostProcessID != ownProcessID else { return false }
+        return !ownWindowIsKey
     }
 }
 

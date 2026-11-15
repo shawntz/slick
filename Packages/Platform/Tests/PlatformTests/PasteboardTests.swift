@@ -217,6 +217,42 @@ import Testing
         withExtendedLifetime(folder) {}
     }
 
+    /// A browser's copy carries HTML and plain text but no RTF. The HTML is never read: the plain
+    /// text is kept. A copy of HTML alone gives no entry.
+    @Test func htmlIsNeverReadAndItsPlainTextIsKept() async {
+        defer { board.releaseGlobally() }
+        let service = makeService()
+        await service.withPasteboard { board in
+            let item = NSPasteboardItem()
+            item.setString("<b>synthetic</b>", forType: .html)
+            item.setString("synthetic", forType: .string)
+            board.clearContents()
+            board.writeObjects([item])
+        }
+        #expect(await service.read()?.contents == [.text("synthetic")])
+
+        await service.withPasteboard { board in
+            board.clearContents()
+            board.setString("<b>synthetic</b>", forType: .html)
+        }
+        #expect(await service.read() == nil)
+    }
+
+    @Test func richTextOverTheLimitKeepsOnlyThePlainText() async {
+        defer { board.releaseGlobally() }
+        let service = LivePasteboard(
+            pasteboard: board, permissions: permissions, poster: poster, clock: FakeClock(),
+            ownBundleID: "com.example.self", maximumRichTextBytes: 8)
+        await service.withPasteboard { board in
+            let item = NSPasteboardItem()
+            item.setData(Data("{\\rtf1 synthetic}".utf8), forType: .rtf)
+            item.setString("synthetic", forType: .string)
+            board.clearContents()
+            board.writeObjects([item])
+        }
+        #expect(await service.read()?.contents == [.text("synthetic")])
+    }
+
     @Test func markersAreReadTheWayNspasteboardOrgDescribes() {
         #expect(PasteboardMarkers.verdict(for: ["public.utf8-plain-text"]).mayRecord)
         #expect(PasteboardMarkers.verdict(for: [PasteboardMarkers.concealed]).isConcealed)

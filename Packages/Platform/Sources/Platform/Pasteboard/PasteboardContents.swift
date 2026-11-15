@@ -50,8 +50,17 @@ nonisolated enum PasteboardContents {
 
     /// What the pasteboard holds, richest first: files alone, or an image, styled text, a URL and
     /// plain text, as far as each is there. Large or unused representations, such as web archives,
-    /// are never read. An image over `maximumImageBytes` is left out.
-    static func read(from board: NSPasteboard, maximumImageBytes: Int) -> [PasteboardContent] {
+    /// are never read. An image over `maximumImageBytes` is left out, and so is RTF over
+    /// `maximumRichTextBytes`; the plain text stays.
+    ///
+    /// HTML is never read. A copy from a browser or a web view usually carries HTML and plain text
+    /// but no RTF, and is kept as plain text. Keeping its styles would need an HTML parser: the
+    /// system's runs WebKit on the main thread, and a hand-written one would parse what any web
+    /// page can put on the pasteboard. Kit has no HTML content either. So the plain text is what
+    /// history keeps and pastes back.
+    static func read(
+        from board: NSPasteboard, maximumImageBytes: Int, maximumRichTextBytes: Int = 16 << 20
+    ) -> [PasteboardContent] {
         let types = Set(board.types ?? [])
         if types.contains(.fileURL),
             let urls = board.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
@@ -67,7 +76,7 @@ nonisolated enum PasteboardContents {
             contents.append(.image(data, typeIdentifier: type.rawValue))
         }
         let plain = types.contains(.string) ? board.string(forType: .string) : nil
-        if types.contains(.rtf), let rtf = board.data(forType: .rtf), let plain {
+        if types.contains(.rtf), let plain, let rtf = board.data(forType: .rtf), rtf.count <= maximumRichTextBytes {
             contents.append(.richText(rtf: rtf, plain: plain))
         }
         if types.contains(.URL), let text = board.string(forType: .URL), let url = URL(string: text), url.scheme != nil
