@@ -129,6 +129,10 @@ nonisolated public final class FaviconFolder: Sendable {
 /// Images at `https` URLs, downloaded once through the HTTP service and kept on disk. Nothing is
 /// downloaded while the `fetchRemoteIcons` setting is off; an image already on disk is still used.
 /// A failed download is not tried again until ``forgetFailures()``.
+///
+/// A download follows redirects to any host, because sites often serve their icon from another
+/// one, such as `www.` or a content network. The request carries no key and nothing the user typed.
+/// It never follows a redirect from `https` to `http`.
 nonisolated public final class RemoteImageStore: Sendable {
     /// The largest image accepted.
     public static let maximumBytes = 4 << 20
@@ -184,7 +188,7 @@ nonisolated public final class RemoteImageStore: Sendable {
 
     private func download(_ url: URL, to file: URL) async -> Data? {
         do {
-            let response = try await http.send(HTTPRequest(url, timeout: .seconds(15)))
+            let response = try await http.send(HTTPRequest(url, timeout: .seconds(15), redirects: .anyHost))
             guard (200..<300).contains(response.status), !response.body.isEmpty,
                 response.body.count <= Self.maximumBytes,
                 let source = CGImageSourceCreateWithData(response.body as CFData, nil),

@@ -12,6 +12,8 @@ nonisolated final class StubURLProtocol: URLProtocol, @unchecked Sendable {
         /// When true the response never finishes, so a test can cancel it.
         var keepsOpen = false
         var failure: URLError.Code?
+        /// When set, the URL answers with this redirect status and a `Location` header naming it.
+        var redirect: (target: URL, status: Int)?
     }
 
     private struct Registry {
@@ -71,6 +73,10 @@ nonisolated final class StubURLProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didFailWithError: URLError(failure))
             return
         }
+        if let redirect = stub.redirect {
+            answerWithRedirect(from: url, to: redirect.target, status: redirect.status, stub: stub)
+            return
+        }
         let response = HTTPURLResponse(
             url: url, statusCode: stub.status, httpVersion: "HTTP/1.1", headerFields: stub.headers)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -78,6 +84,23 @@ nonisolated final class StubURLProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didLoad: chunk)
         }
         if !stub.keepsOpen { client?.urlProtocolDidFinishLoading(self) }
+    }
+
+    /// Reports the redirect, then goes on as if it were the final response. `URLSession` ignores the
+    /// rest when its delegate follows the redirect, and delivers it when the delegate refuses: a
+    /// protocol that stops after the redirect leaves a refused request waiting forever.
+    private func answerWithRedirect(from url: URL, to target: URL, status: Int, stub: Stub) {
+        let response = HTTPURLResponse(
+            url: url, statusCode: status, httpVersion: "HTTP/1.1",
+            headerFields: stub.headers.merging(["Location": target.absoluteString]) { _, location in location })!
+        var next = request
+        next.url = target
+        client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        for chunk in stub.chunks {
+            client?.urlProtocol(self, didLoad: chunk)
+        }
+        client?.urlProtocolDidFinishLoading(self)
     }
 
     override func stopLoading() {
