@@ -4,16 +4,53 @@ import LauncherUITesting
 
 /// Prints the latency tables and checks the budgets, measured inside an app bundle:
 /// summon strategies (with key status, against ScreenCaptureKit display times), updating nine
-/// changed rows, the lens glide and the glass height animation.
+/// changed rows, a keystroke split into its parts, the lens glide, the glass height animation and
+/// the components.
 ///
-/// Batches keep the panel on screen under two seconds, and each summon holds key status for
-/// about 120 ms.
+/// `parts=summon,rows,keystroke,motion,components` picks the parts; all run by default. Only the
+/// summon part takes key status, about 120 ms per summon. Every other batch waits for 15 s of idle
+/// input first, shows the panel in a corner without key status, and stays on screen under two
+/// seconds.
 enum BenchMode {
+    static let allParts = ["summon", "rows", "keystroke", "motion", "components"]
+
+    /// Waits until nobody has touched the keyboard or mouse for 15 s. False when that never
+    /// happens within half an hour or the idle time cannot be read.
+    static func idle() async -> Bool {
+        await IdleGate.wait(seconds: 15, interval: 1, until: Date().addingTimeInterval(1800))
+    }
+
     static func run(_ options: DemoOptions) async -> Bool {
         let cycles = options.int("summons", 18)
+        let parts = Set(options.string("parts", allParts.joined(separator: ",")).split(separator: ",").map(String.init))
         var verdicts: [String] = []
         var passed = true
+        if parts.contains("summon") {
+            passed = await summon(cycles: cycles, verdicts: &verdicts) && passed
+        }
+        if parts.contains("rows") {
+            passed = await rows(verdicts: &verdicts) && passed
+        }
+        if parts.contains("keystroke") {
+            // `compare=1` first types without the list's line cache, for a before and after.
+            if options.int("compare", 0) == 1 {
+                _ = await keystroke(passes: options.int("passes", 3), lineCache: false, verdicts: &verdicts)
+            }
+            passed = await keystroke(passes: options.int("passes", 3), lineCache: true, verdicts: &verdicts) && passed
+        }
+        if parts.contains("motion") {
+            await motion()
+        }
+        if parts.contains("components") {
+            passed = await components(verdicts: &verdicts) && passed
+        }
+        say("\n## Budgets")
+        for verdict in verdicts { say(verdict) }
+        return passed
+    }
 
+    private static func summon(cycles: Int, verdicts: inout [String]) async -> Bool {
+        var passed = true
         say("## Summon (key status, n=\(cycles) per row; times from the trigger, ms)")
         var summonTable = TextTable([
             "strategy", "ramp", "path excl. makeKey p50/p99", "makeKey p50/p99", "first pixels p50/p99",
@@ -43,7 +80,10 @@ enum BenchMode {
                     "summon path (default strategy) excluding makeKey, with pointer check: p50 %.3f, p99 %.3f ms (budget 1 ms): %@",
                 path.p50 + pointer.p50, summonP99, summonOK ? "PASS" : "FAIL"))
         passed = passed && summonOK
+        return passed
+    }
 
+    private static func rows(verdicts: inout [String]) async -> Bool {
         say("\n## Updating nine changed rows (apply + draw + commit, n=160, one update every 8 ms)")
         var updateTable = TextTable(["variant", "main-thread CPU min / p50 / p99 ms", "wall min / p50 / p99 ms"])
         let plain = await RowUpdateBench.deterministic(halo: false)
@@ -60,8 +100,38 @@ enum BenchMode {
             String(
                 format: "nine changed rows, main-thread CPU: p50 %.3f, p99 %.3f ms (budget 2 / 4.5 ms): %@",
                 plain.cpu.p50, plain.cpu.p99, updateOK ? "PASS" : "FAIL"))
-        passed = passed && updateOK
+        return updateOK
+    }
 
+    private static func keystroke(passes: Int, lineCache: Bool, verdicts: inout [String]) async -> Bool {
+        let cache = lineCache ? "" : ", without the line cache"
+        say("\n## A keystroke split into its parts (main-thread CPU, ms; typed into the field editor\(cache))")
+        guard let split = await KeystrokeBench.run(passes: passes, lineCache: lineCache) else {
+            verdicts.append("keystroke split: no idle moment; not measured: FAIL")
+            return false
+        }
+        var table = TextTable(["part", "n", "min / p50 / p99"])
+        for (name, samples) in [
+            ("field editor", split.fieldEditor), ("update: filter, apply, selection, action bar", split.update),
+            ("list draw", split.listDraw), ("rest of the panel's draw", split.otherDraw),
+            ("Core Animation commit", split.commit), ("draw and commit", split.drawAndCommit),
+            ("whole keystroke", split.whole),
+        ] {
+            table.add([name, "\(samples.count)", triple(samples)])
+        }
+        say(table.render())
+        say("longest time on screen in one batch: \(format(split.longestBatch, 2)) s")
+        let whole = LatencySummary(split.whole)
+        let ok = LatencyBudget.keystroke.violation(whole, label: "keystroke") == nil
+        verdicts.append(
+            String(
+                format:
+                    "keystroke typed into the field editor%@, main-thread CPU: p50 %.3f, p99 %.3f ms (budget 3 / 5 ms): %@",
+                cache, whole.p50, whole.p99, ok ? "PASS" : "FAIL"))
+        return ok
+    }
+
+    private static func motion() async {
         say("\n## Lens glide (main-thread CPU per move, call + commit, ms)")
         let glide = await MotionBench.lensGlide()
         say(glide.map { "\($0.style): \(triple($0.summary))" }.joined(separator: "\n"))
@@ -73,7 +143,10 @@ enum BenchMode {
                 format:
                     "%d animations, %d ticks, main-thread CPU per tick %.3f ms, longest gap between ticks %.2f ms (refresh %.2f ms)",
                 height.animations, height.ticks, height.cpuPerTick, height.longestGap, height.refresh))
+    }
 
+    private static func components(verdicts: inout [String]) async -> Bool {
+        var passed = true
         say("\n## Components (main-thread CPU, apply + draw + commit, ms)")
         var componentTable = TextTable(["measure", "n", "min / p50 / p99", "budget p50 / p99", "note"])
         let card = await ComponentBench.actionCard()
@@ -93,9 +166,6 @@ enum BenchMode {
             passed = passed && ok
         }
         say(componentTable.render())
-
-        say("\n## Budgets")
-        for verdict in verdicts { say(verdict) }
         return passed
     }
 

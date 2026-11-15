@@ -16,6 +16,8 @@ final class DemoScene: QueryFieldDelegate {
     /// Pad results to this many rows with unmatched items, as a large catalog would fill them,
     /// so the glass height stays the same while typing. Zero shows only the matches.
     var minimumRows = 0
+    /// Main-thread CPU spent in text-change updates since the bench last reset it.
+    var updateNanoseconds: UInt64 = 0
 
     init(theme: Theme = .standard, strategy: SummonStrategy = .layerOpacity) {
         surface = LauncherSurface(theme: theme)
@@ -101,9 +103,11 @@ final class DemoScene: QueryFieldDelegate {
     // MARK: QueryFieldDelegate
 
     func queryField(_ field: QueryField, didChangeText text: String) {
+        let start = LatencyClock.threadCPUNanoseconds()
         summoner.probe.begin(.keystroke, eventTimestamp: NSApp.currentEvent?.timestamp)
         update(for: text)
         summoner.probe.markApplied()
+        updateNanoseconds += LatencyClock.threadCPUNanoseconds() - start
     }
 
     func queryField(_ field: QueryField, perform command: QueryCommand) -> Bool {

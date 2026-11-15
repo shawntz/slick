@@ -4,7 +4,7 @@ import LauncherUITesting
 
 /// The cost of showing nine rows that all changed: the keystroke path's list work.
 enum RowUpdateBench {
-    /// A scene shown without key status, already showing nine rows.
+    /// A scene without key status, already showing nine rows, not yet summoned.
     private static func makeScene(halo: Bool) -> (scene: DemoScene, contents: [ListContent]) {
         var theme = Theme.standard
         if halo {
@@ -17,31 +17,38 @@ enum RowUpdateBench {
         let contents = (0..<8).map { scene.catalog.rotatingContent(step: $0) }
         scene.list.apply(contents[7])
         scene.surface.updateHeight(animated: false)
-        scene.summoner.summon()
         return (scene, contents)
     }
 
-    /// Apply, then an explicit display and commit, 160 times about a frame apart. Returns the
-    /// main thread's CPU time per update, the budget's measure, and the wall time, which also
-    /// counts waiting for the render server to accept the commit.
+    /// Apply, then an explicit display and commit, 160 times about a frame apart, in three
+    /// batches that each wait for idle input. Returns the main thread's CPU time per update, the
+    /// budget's measure, and the wall time, which also counts waiting for the render server to
+    /// accept the commit.
     static func deterministic(halo: Bool) async -> (cpu: LatencySummary, wall: LatencySummary) {
         let (scene, contents) = makeScene(halo: halo)
-        await pause(ms: 50)
         var cpu: [Double] = []
         var wall: [Double] = []
-        for step in 0..<180 {
-            let cpuStart = LatencyClock.threadCPUNanoseconds()
-            let start = LatencyClock.now()
-            scene.list.apply(contents[step % contents.count])
-            scene.surface.panel.displayIfNeeded()
-            CATransaction.flush()
-            if step >= 20 {
-                wall.append(LatencyClock.ms(start, LatencyClock.now()))
-                cpu.append(Double(LatencyClock.threadCPUNanoseconds() - cpuStart) / 1e6)
+        var step = 0
+        for _ in 0..<3 {
+            guard await BenchMode.idle() else { break }
+            scene.summoner.summon()
+            await pause(ms: 50)
+            for _ in 0..<60 {
+                let cpuStart = LatencyClock.threadCPUNanoseconds()
+                let start = LatencyClock.now()
+                scene.list.apply(contents[step % contents.count])
+                scene.surface.panel.displayIfNeeded()
+                CATransaction.flush()
+                if step >= 20 {
+                    wall.append(LatencyClock.ms(start, LatencyClock.now()))
+                    cpu.append(Double(LatencyClock.threadCPUNanoseconds() - cpuStart) / 1e6)
+                }
+                step += 1
+                await pause(ms: 8)
             }
-            await pause(ms: 8)
+            scene.summoner.dismiss(returnFocus: false)
+            await pause(ms: 300)
         }
-        scene.summoner.dismiss(returnFocus: false)
         scene.surface.panel.orderOut(nil)
         await pause(ms: 300)
         return (LatencySummary(cpu), LatencySummary(wall))
@@ -57,11 +64,10 @@ enum RowUpdateBench {
             waiter.resume()
         }
         var step = 0
-        for batch in 0..<2 {
-            if batch > 0 {
-                scene.summoner.summon()
-                await pause(ms: 50)
-            }
+        for _ in 0..<2 {
+            guard await BenchMode.idle() else { break }
+            scene.summoner.summon()
+            await pause(ms: 50)
             for _ in 0..<40 {
                 scene.summoner.probe.begin(.keystroke)
                 scene.list.apply(contents[step % contents.count])

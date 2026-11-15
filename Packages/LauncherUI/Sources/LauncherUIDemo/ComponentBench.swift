@@ -3,8 +3,8 @@ import LauncherUI
 import LauncherUITesting
 
 /// Main-thread cost of the part 2 components, measured like the row update: the work, then an
-/// explicit display and commit, timed as the main thread's CPU. The panel shows without key status
-/// and each batch stays on screen under two seconds.
+/// explicit display and commit, timed as the main thread's CPU. The panel shows without key status,
+/// each batch waits for 15 s of idle input, and each stays on screen under two seconds.
 enum ComponentBench {
     struct Result {
         let label: String
@@ -15,15 +15,22 @@ enum ComponentBench {
 
     static let gridQueries = ["amber", "harbor sage", "tide", "zephyr", "quartz moss", "lumen"]
 
-    /// A scene showing `content`, summoned without key status in the corner.
+    /// A scene showing `content` without key status in the corner, not yet summoned.
     private static func makeScene(_ content: any LauncherContentView) -> DemoScene {
         let scene = DemoScene()
         scene.summoner.prewarm()
         scene.summoner.takesKeyStatus = false
         scene.surface.setContent(content, animated: false)
         scene.surface.updateHeight(animated: false)
-        scene.summoner.summon()
         return scene
+    }
+
+    /// Summons once the Mac has been idle for 15 s. False when it never was.
+    private static func show(_ scene: DemoScene) async -> Bool {
+        guard await BenchMode.idle() else { return false }
+        scene.summoner.summon()
+        await pause(ms: 50)
+        return true
     }
 
     private static func finish(_ scene: DemoScene) async {
@@ -64,13 +71,9 @@ enum ComponentBench {
         let grid = GridView()
         let scene = makeScene(grid)
         grid.apply(contents.last ?? .empty)
-        await pause(ms: 50)
         var samples: [Double] = []
         for round in 0..<3 {
-            if round > 0 {
-                scene.summoner.summon()
-                await pause(ms: 50)
-            }
+            guard await show(scene) else { break }
             for (step, content) in contents.enumerated() {
                 let cpu = timed(scene) {
                     grid.apply(content)
@@ -106,12 +109,10 @@ enum ComponentBench {
         var samples: [Double] = []
         let perBatch = 120
         for batch in stride(from: 0, to: chunks.count, by: perBatch) {
-            if batch > 0 {
-                scene.summoner.summon()
-                await pause(ms: 50)
-            } else {
+            if batch == 0 {
                 split.detail.apply(DetailContent(body: .markdown(""), metadata: SyntheticComponents.metadata))
             }
+            guard await show(scene) else { break }
             for chunk in chunks[batch..<min(batch + perBatch, chunks.count)] {
                 samples.append(timed(scene) { split.detail.append(chunk) })
                 await pause(ms: 8)
@@ -135,6 +136,11 @@ enum ComponentBench {
         list.apply(SyntheticCatalog().rootContent())
         scene.surface.updateHeight(animated: false)
         scene.surface.accessibilityOverride = DisplayAccessibility(reduceMotion: true)
+        guard await show(scene) else {
+            await finish(scene)
+            let none = Result(label: "action card open", cpu: LatencySummary([]), budget: .keystroke, note: "no idle")
+            return (none, none)
+        }
         let firstOpen = timed(scene) { scene.surface.present(ActionCardView(content: SyntheticComponents.actions)) }
         scene.surface.dismissOverlay()
         let card = ActionCardView(content: SyntheticComponents.actions)
@@ -159,8 +165,7 @@ enum ComponentBench {
             if step == 21 {
                 scene.summoner.dismiss(returnFocus: false)
                 await pause(ms: 500)
-                scene.summoner.summon()
-                await pause(ms: 50)
+                guard await show(scene) else { break }
             }
         }
         await finish(scene)
