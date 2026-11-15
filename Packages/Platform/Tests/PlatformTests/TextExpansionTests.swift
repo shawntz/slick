@@ -15,14 +15,16 @@ import Testing
     let secure = FakeSecureInput()
     let frontmost = Locked<String?>("com.example.editor")
     let focus = FocusFeed()
+    let ownKey = Locked(false)
 
     func makeCenter() -> TextExpansionCenter {
         let frontmost = frontmost
         let focus = focus
+        let ownKey = ownKey
         return TextExpansionCenter(
             permissions: permissions, source: source, poster: poster, secureInput: secure,
             frontmostBundleID: { frontmost.value }, focusChanges: { focus.stream() },
-            clickRecheckDelay: .milliseconds(10))
+            clickRecheckDelay: .milliseconds(10), ownAppIsKey: { ownKey.value })
     }
 
     static let snippets: @Sendable (String) async -> ExpansionResult = { keyword in
@@ -190,6 +192,104 @@ import Testing
         try await waitUntil { focus.listenerCount == 0 }
     }
 
+    /// Found in review: the launcher's own search field takes key focus while another app stays
+    /// frontmost. Typing ";si" there and "g" in the next app deleted that app's text.
+    @Test func typingInThisAppsOwnWindowNeverExpandsAndIsForgotten() async throws {
+        let center = makeCenter()
+        _ = await center.start(keywords: [";sig"], options: ExpansionOptions(), expand: Self.snippets)
+        source.type(";si")
+        ownKey.value = true
+        source.type("g ;sig")
+        ownKey.value = false
+        source.type("g")
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(poster.posted.isEmpty)
+        source.type(" ;sig")
+        try await waitUntil { poster.posted.count == 5 }
+        await center.stop()
+    }
+
+    @Test func everyStartAndStopIsReportedEvenWhenTheStatusStaysTheSame() async {
+        let center = makeCenter()
+        var statuses = center.statusChanges().makeAsyncIterator()
+        _ = await center.start(keywords: [";sig"], options: ExpansionOptions(), expand: Self.snippets)
+        #expect(await statuses.next() == .running)
+        _ = await center.start(keywords: [";br"], options: ExpansionOptions(), expand: Self.snippets)
+        #expect(await statuses.next() == .running)
+        await center.stop()
+        #expect(await statuses.next() == .stopped)
+        await center.stop()
+        #expect(await statuses.next() == .stopped)
+    }
+
+    /// Found in review: when Accessibility went away while running, nothing was typed and the status
+    /// still said running until the next start.
+    @Test func aFailedExpansionReportsMissingAccessibilityAndResumesAfterTheGrant() async throws {
+        let center = makeCenter()
+        var statuses = center.statusChanges().makeAsyncIterator()
+        _ = await center.start(keywords: [";sig"], options: ExpansionOptions(), expand: Self.snippets)
+        #expect(await statuses.next() == .running)
+        poster.isAllowed = false
+        permissions.set(.accessibility, to: .denied)
+        source.type(";sig")
+        #expect(await statuses.next() == .needsPermission(.accessibility))
+        #expect(source.stopCount == 1)
+        poster.isAllowed = true
+        permissions.set(.accessibility, to: .granted)
+        #expect(await statuses.next() == .running)
+        #expect(source.startCount == 2)
+        await center.stop()
+    }
+
+    /// A tap macOS refuses while the permission reads granted never changes the permission's
+    /// stream, so another app coming forward tries again.
+    @Test func aRefusedTapIsTriedAgainWhenAnotherAppComesForward() async throws {
+        source.refusesToStart = true
+        let center = makeCenter()
+        var statuses = center.statusChanges().makeAsyncIterator()
+        #expect(
+            await center.start(keywords: [";sig"], options: ExpansionOptions(), expand: Self.snippets)
+                == .needsPermission(.inputMonitoring))
+        #expect(await statuses.next() == .needsPermission(.inputMonitoring))
+        try await waitUntil { focus.listenerCount == 1 }
+        source.refusesToStart = false
+        focus.send()
+        #expect(await statuses.next() == .running)
+        await center.stop()
+        try await waitUntil { focus.listenerCount == 0 && permissions.openStreamCount == 0 }
+    }
+
+    /// A focus stream that ends at once, as outside `live`, must not end the wait: that would try
+    /// again in a loop without pause.
+    @Test func aFocusStreamThatEndsLeavesTheWaitToThePermission() async throws {
+        permissions.set(.inputMonitoring, to: .notDetermined)
+        let focusStreams = Counter()
+        let center = TextExpansionCenter(
+            permissions: permissions, source: source, poster: poster, secureInput: secure,
+            focusChanges: {
+                focusStreams.increment()
+                return AsyncStream { $0.finish() }
+            })
+        _ = await center.start(keywords: [";sig"], options: ExpansionOptions(), expand: Self.snippets)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(focusStreams.value == 1)
+        var statuses = center.statusChanges().makeAsyncIterator()
+        permissions.set(.inputMonitoring, to: .granted)
+        #expect(await statuses.next() == .running)
+        await center.stop()
+    }
+
+    @Test func aModifierKeyChecksSecureInputAgain() async throws {
+        let center = makeCenter()
+        var statuses = center.statusChanges().makeAsyncIterator()
+        _ = await center.start(keywords: [";sig"], options: ExpansionOptions(), expand: Self.snippets)
+        #expect(await statuses.next() == .running)
+        secure.set(SecureInputState(isOn: true, owner: "Example Passwords"))
+        source.send(.modifiers)
+        #expect(await statuses.next() == .blockedBySecureInput(owner: "Example Passwords"))
+        await center.stop()
+    }
+
     @Test func revokedAccessibilityTypesNothing() async throws {
         let center = makeCenter()
         _ = await center.start(keywords: [";sig"], options: ExpansionOptions(), expand: Self.snippets)
@@ -208,9 +308,16 @@ nonisolated final class FakeKeySource: KeyEventSource {
         var starts = 0
         var stops = 0
         var startedOnMainThread: Bool?
+        var refuses = false
     }
 
     private let state = Mutex(State())
+
+    /// When true, ``start(_:)`` fails, as when macOS refuses the tap.
+    var refusesToStart: Bool {
+        get { state.withLock { $0.refuses } }
+        set { state.withLock { $0.refuses = newValue } }
+    }
 
     var startCount: Int { state.withLock { $0.starts } }
     var stopCount: Int { state.withLock { $0.stops } }
@@ -219,12 +326,13 @@ nonisolated final class FakeKeySource: KeyEventSource {
 
     func start(_ handler: @escaping @Sendable (TypingEvent) -> Void) -> Bool {
         let onMain = Thread.isMainThread
-        state.withLock { state in
+        return state.withLock { state in
+            guard !state.refuses else { return false }
             if state.handler == nil { state.starts += 1 }
             state.handler = handler
             state.startedOnMainThread = (state.startedOnMainThread ?? false) || onMain
+            return true
         }
-        return true
     }
 
     func stop() {
@@ -290,5 +398,21 @@ nonisolated final class Locked<Value: Sendable>: Sendable {
 
     func withLock<Result: Sendable>(_ body: (inout Value) -> Result) -> Result {
         mutex.withLock { body(&$0) }
+    }
+}
+
+/// The tap's handoff from its thread. No tap is made.
+@Suite(.timeLimit(.minutes(1))) struct TapHandoffTests {
+    /// Found in review: when the tap thread took longer than start waited, start reported failure
+    /// while the late tap kept running and nothing could stop it.
+    @Test func aValueOfferedAfterTheCallerGaveUpIsRefused() {
+        let late = TapHandoff<Int>()
+        #expect(late.take() == nil)
+        #expect(!late.offer(1))
+        #expect(late.take() == nil)
+
+        let onTime = TapHandoff<Int>()
+        #expect(onTime.offer(2))
+        #expect(onTime.take() == 2)
     }
 }

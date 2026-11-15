@@ -57,7 +57,7 @@ nonisolated public final class EventTapSource: KeyEventSource, @unchecked Sendab
         guard CGPreflightListenEventAccess() else { return false }
         self.handler = handler
         let ready = DispatchSemaphore(value: 0)
-        let made = Made()
+        let handoff = TapHandoff<Running>()
         let thread = Thread { [self] in
             let mask: CGEventMask =
                 (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
@@ -72,10 +72,21 @@ nonisolated public final class EventTapSource: KeyEventSource, @unchecked Sendab
                 ready.signal()
                 return
             }
-            let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
+            guard let source = CFMachPortCreateRunLoopSource(nil, tap, 0) else {
+                CFMachPortInvalidate(tap)
+                ready.signal()
+                return
+            }
             CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+            // When start gave up waiting, nobody could ever stop this tap, so it goes at once. Once
+            // handed over, the source is in the loop, so a stop that invalidates the tap ends the
+            // loop even before it runs.
+            guard handoff.offer(Running(tap: tap, runLoop: CFRunLoopGetCurrent())) else {
+                CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+                CFMachPortInvalidate(tap)
+                return
+            }
             CGEvent.tapEnable(tap: tap, enable: true)
-            made.value = Running(tap: tap, runLoop: CFRunLoopGetCurrent())
             ready.signal()
             CFRunLoopRun()
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
@@ -85,7 +96,8 @@ nonisolated public final class EventTapSource: KeyEventSource, @unchecked Sendab
         thread.qualityOfService = .userInteractive
         thread.start()
         _ = ready.wait(timeout: .now() + 2)
-        running = made.value
+        running = handoff.take()
+        if running == nil { self.handler = nil }
         return running != nil
     }
 
@@ -94,6 +106,9 @@ nonisolated public final class EventTapSource: KeyEventSource, @unchecked Sendab
         defer { lock.unlock() }
         guard let running else { return }
         CGEvent.tapEnable(tap: running.tap, enable: false)
+        // Invalidating removes the tap from its run loop, so the thread ends even when it had not
+        // started running the loop yet, when stopping it alone would do nothing.
+        CFMachPortInvalidate(running.tap)
         CFRunLoopStop(running.runLoop)
         self.running = nil
     }
@@ -111,9 +126,32 @@ nonisolated public final class EventTapSource: KeyEventSource, @unchecked Sendab
         handler(typing)
     }
 
-    /// Carries the tap from its thread to `start`.
-    private final class Made: @unchecked Sendable {
-        var value: Running?
+}
+
+/// Carries a value from a thread that makes it to a caller that waits a limited time. Once the
+/// caller took nothing, a late value is refused, and the thread must undo what it made.
+nonisolated final class TapHandoff<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    /// Guarded by `lock`.
+    private var value: Value?
+    /// Guarded by `lock`.
+    private var isAbandoned = false
+
+    /// Called by the thread. False when the caller already gave up.
+    func offer(_ value: Value) -> Bool {
+        lock.withLock {
+            guard !isAbandoned else { return false }
+            self.value = value
+            return true
+        }
+    }
+
+    /// Called by the caller once it stops waiting. Nil when nothing came, and then nothing will.
+    func take() -> Value? {
+        lock.withLock {
+            if value == nil { isAbandoned = true }
+            return value
+        }
     }
 }
 

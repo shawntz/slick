@@ -8,7 +8,12 @@ import Synchronization
 /// - ``start(keywords:options:expand:)`` never prompts. Without Input Monitoring or Accessibility
 ///   it returns ``TextExpansionStatus/needsPermission(_:)``, creates no tap, and keeps one
 ///   permission stream open until the user grants it; then it starts by itself and
-///   ``statusChanges()`` reports `.running`.
+///   ``statusChanges()`` reports `.running`. While it waits, it also tries again each time
+///   another app comes forward, which covers a tap macOS refused while the permission reads
+///   granted.
+/// - ``statusChanges()`` reports every start and stop, even one that leaves the status as it was,
+///   and every change a permission or secure input makes. A permission taken away while running
+///   is found when another app comes forward, or at once when typing an expansion fails.
 /// - Start, stop and keyword updates run one at a time on a serial queue, never on the caller's
 ///   thread, in the order they are called, so the last start or stop wins. Creating the tap and
 ///   checking the permissions can wait on the system for milliseconds.
@@ -17,7 +22,10 @@ import Synchronization
 ///   keyword, then hands the run to the runner the host sets with ``setCommandRunner(_:)``.
 ///   Nothing expands while an excluded app is frontmost.
 /// - Secure input is checked when typing starts, when another app comes forward, shortly after a
-///   click, and on the first key after it was seen on, so no timer runs while the user is idle.
+///   click, on every modifier key, and on the first key after it was seen on, so no timer runs
+///   while the user is idle.
+/// - Typing into this app's own windows, such as the launcher's search field, never expands and
+///   is forgotten, so it cannot complete a keyword in the app that comes next.
 nonisolated public final class TextExpansionCenter: TextExpansionService {
     public typealias Handler = @Sendable (String) async -> ExpansionResult
     public typealias CommandRunner = @Sendable (ItemID, [String: String]) async -> Void
@@ -45,6 +53,7 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
     private let secureInput: any SecureInputReader
     private let frontmostBundleID: @Sendable () -> String?
     private let focusChanges: @Sendable () -> AsyncStream<Void>
+    private let ownAppIsKey: @Sendable () -> Bool
     private let clickRecheckDelay: Duration
     private let state = Mutex(State())
     /// Runs starts, stops and keyword updates one at a time. Each call is queued before it
@@ -58,7 +67,10 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
     ///   - poster: What types the expansion.
     ///   - secureInput: Reads whether another app hides keystrokes.
     ///   - frontmostBundleID: The frontmost app other than this one, for excluded apps.
-    ///   - focusChanges: A stream that yields when another app comes forward.
+    ///   - focusChanges: A stream that yields when another app comes forward, or when key focus
+    ///     enters or leaves this app's windows.
+    ///   - ownAppIsKey: True while one of this app's windows has key focus, so typing goes to
+    ///     this app.
     public init(
         permissions: any PermissionService,
         source: any KeyEventSource,
@@ -66,7 +78,8 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
         secureInput: any SecureInputReader,
         frontmostBundleID: @escaping @Sendable () -> String? = { nil },
         focusChanges: @escaping @Sendable () -> AsyncStream<Void> = { AsyncStream { $0.finish() } },
-        clickRecheckDelay: Duration = .milliseconds(300)
+        clickRecheckDelay: Duration = .milliseconds(300),
+        ownAppIsKey: @escaping @Sendable () -> Bool = { false }
     ) {
         self.permissions = permissions
         self.source = source
@@ -75,6 +88,7 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
         self.frontmostBundleID = frontmostBundleID
         self.focusChanges = focusChanges
         self.clickRecheckDelay = clickRecheckDelay
+        self.ownAppIsKey = ownAppIsKey
     }
 
     deinit {
@@ -102,7 +116,7 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
                     state.buffer.update(keywords: keywords)
                     state.buffer.options = options
                 }
-                continuation.resume(returning: activate())
+                continuation.resume(returning: activate(reportingUnchanged: true))
             }
         }
     }
@@ -135,7 +149,7 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
         state.withLock { $0.request = nil }
         stopWaitingForPermission()
         stopListening()
-        setStatus(.stopped)
+        setStatus(.stopped, reportingUnchanged: true)
     }
 
     public func status() async -> TextExpansionStatus {
@@ -154,19 +168,16 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
     // MARK: Starting and stopping
 
     /// Starts listening when a request stands and every permission is there, or waits for the
-    /// missing one. On `operations`.
-    private func activate() -> TextExpansionStatus {
+    /// missing one. On `operations`. A start reports its status even when it did not change.
+    private func activate(reportingUnchanged: Bool = false) -> TextExpansionStatus {
         guard state.withLock({ $0.request != nil }) else { return .stopped }
         if let missing = missingPermission() {
-            stopListening()
-            waitForPermission(missing)
-            return setStatus(.needsPermission(missing))
+            return waitAfterLosing(missing, reportingUnchanged: reportingUnchanged)
         }
         stopWaitingForPermission()
         if !state.withLock({ $0.isListening }) {
             guard source.start({ [weak self] event in self?.receive(event) }) else {
-                waitForPermission(.inputMonitoring)
-                return setStatus(.needsPermission(.inputMonitoring))
+                return waitAfterLosing(.inputMonitoring, reportingUnchanged: reportingUnchanged)
             }
             state.withLock { state in
                 state.isListening = true
@@ -174,7 +185,16 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
             }
             watchFocus()
         }
-        return setStatus(currentRunningStatus())
+        return setStatus(currentRunningStatus(), reportingUnchanged: reportingUnchanged)
+    }
+
+    /// Stops listening and waits for the permission. On `operations`.
+    @discardableResult private func waitAfterLosing(
+        _ permission: Permission, reportingUnchanged: Bool = false
+    ) -> TextExpansionStatus {
+        stopListening()
+        waitForPermission(permission)
+        return setStatus(.needsPermission(permission), reportingUnchanged: reportingUnchanged)
     }
 
     private func stopListening() {
@@ -198,20 +218,38 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
         return nil
     }
 
-    /// Keeps one permission stream open until the permission is granted, then starts. On
-    /// `operations`.
+    /// Keeps one permission stream open until the permission is granted, then starts. Another app
+    /// coming forward also tries again, because a tap can fail while the permission reads granted,
+    /// and then the stream never changes. On `operations`.
     private func waitForPermission(_ permission: Permission) {
         guard state.withLock({ $0.waitingFor != permission }) else { return }
         stopWaitingForPermission()
         let changes = permissions.changes(of: permission)
+        let focus = focusChanges()
         let wait = Task.detached { [weak self] in
-            for await status in changes where status == .granted {
-                guard let self, !Task.isCancelled else { return }
-                self.operations.async {
-                    self.state.withLock { $0.waitingFor = nil }
-                    _ = self.activate()
+            // True when the grant came or another app came forward; false when both streams
+            // ended without either, such as a focus stream that never yields, or a cancel.
+            let woke = await withTaskGroup(of: Bool.self) { group -> Bool in
+                group.addTask {
+                    for await status in changes where status == .granted { return true }
+                    return false
                 }
-                return
+                group.addTask {
+                    for await _ in focus { return true }
+                    return false
+                }
+                for await woke in group where woke {
+                    group.cancelAll()
+                    return true
+                }
+                return false
+            }
+            guard woke, let self, !Task.isCancelled else { return }
+            self.operations.async {
+                // A newer wait or a stop may have replaced this one meanwhile.
+                guard self.state.withLock({ $0.waitingFor == permission }) else { return }
+                self.state.withLock { $0.waitingFor = nil }
+                _ = self.activate()
             }
         }
         state.withLock { state in
@@ -254,13 +292,15 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
         return secure.isOn ? .blockedBySecureInput(owner: secure.owner) : .running
     }
 
-    /// Sets the status and tells the streams when it changed.
-    @discardableResult private func setStatus(_ status: TextExpansionStatus) -> TextExpansionStatus {
+    /// Sets the status and tells the streams when it changed, or always with `reportingUnchanged`.
+    @discardableResult private func setStatus(
+        _ status: TextExpansionStatus, reportingUnchanged: Bool = false
+    ) -> TextExpansionStatus {
         let changed = state.withLock { state -> Bool in
             defer { state.status = status }
             return state.status != status
         }
-        if changed { statuses.send(status) }
+        if changed || reportingUnchanged { statuses.send(status) }
         return status
     }
 
@@ -292,6 +332,12 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
 
     /// Takes one event from the source, on its thread.
     private func receive(_ event: TypingEvent) {
+        if event.isKey, ownAppIsKey() {
+            // Typing in this app's own window. Never expand there, and forget it, so it cannot
+            // complete a keyword in the app that comes next.
+            state.withLock { $0.buffer.reset() }
+            return
+        }
         let (match, request, blocked) = state.withLock {
             state -> (KeywordMatch?, Request?, Bool) in
             guard state.isListening, let request = state.request else { return (nil, nil, false) }
@@ -301,7 +347,7 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
         }
         switch event {
         case .click: recheckSecureInput(after: clickRecheckDelay)
-        case .focusChanged: recheckSecureInput(after: nil)
+        case .focusChanged, .modifiers: recheckSecureInput(after: nil)
         default: if blocked && event.isKey { recheckSecureInput(after: nil) }
         }
         guard let match, let request else { return }
@@ -321,7 +367,11 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
         do {
             try await poster.post(plan.keystrokes)
         } catch {
-            // Accessibility went away: nothing was typed, and the next start reports it.
+            // Accessibility went away: nothing was typed. Say so now and wait for it.
+            operations.async { [self] in
+                guard state.withLock({ $0.request != nil && $0.isListening }) else { return }
+                waitAfterLosing(.accessibility)
+            }
             return
         }
         if let command = plan.command, let runner = state.withLock({ $0.commandRunner }) {
