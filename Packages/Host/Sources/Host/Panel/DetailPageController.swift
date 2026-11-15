@@ -70,6 +70,7 @@ import LauncherUI
 
     public func pageDidAppear(in host: any PageHost) {
         self.host = host
+        presenter.rowMapper = host.rowMapper
         watchActions()
         guard !hasStarted else { return }
         hasStarted = true
@@ -78,6 +79,10 @@ import LauncherUI
     }
 
     public func pageDidDisappear() {}
+
+    public func iconsDidChange() {
+        presenter.iconsDidChange()
+    }
 
     public func panelDidHide() {
         isPanelHidden = true

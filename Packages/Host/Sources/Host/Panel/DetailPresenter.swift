@@ -8,13 +8,22 @@ import QuickLookThumbnailing
 ///
 /// Mapping is synchronous. Anything that reads a file or decodes runs off the main thread after
 /// the text and metadata are drawn: images, Quick Look thumbnails for previews, and rich text,
-/// which shows its plain form until its runs are converted. A newer detail cancels those loads.
+/// which shows its plain form until its runs are read. A newer detail cancels those loads. Text
+/// keeps its ANSI colours, which the pane draws within the theme's contrast rule. A metadata label
+/// with an icon draws the icon before its value, from the ``IconProvider`` when the page set
+/// ``rowMapper``; an icon that is not ready yet draws when the provider signals.
 @MainActor final class DetailPresenter {
     let pane: DetailPane
+    /// Looks up metadata icons. Without it only SF Symbols draw.
+    var rowMapper: RowMapper?
     /// What the pane shows now, as Kit sees it.
     private(set) var detail: Detail?
     private var generation = 0
     private var resourceTask: Task<Void, Never>?
+    /// The body that replaced the detail's own once loaded, such as rich text read from RTF.
+    private var loadedBody: LauncherUI.DetailBody?
+    /// Metadata icons that were not ready when the detail drew.
+    private var missingIcons = false
 
     init(pane: DetailPane) {
         self.pane = pane
@@ -25,12 +34,14 @@ import QuickLookThumbnailing
         generation += 1
         resourceTask?.cancel()
         resourceTask = nil
+        loadedBody = nil
         self.detail = detail
         guard let detail else {
+            missingIcons = false
             pane.apply(.empty)
             return
         }
-        let content = Self.content(detail)
+        let content = Self.content(detail, icons: metadataIcons(detail))
         pane.apply(content)
         guard let load = Self.resource(for: detail.body) else { return }
         let current = generation
@@ -39,16 +50,46 @@ import QuickLookThumbnailing
             guard let self, current == generation, !Task.isCancelled else { return }
             switch loaded {
             case .image(let image): pane.setImage(image)
-            case .markdown(let markdown):
-                pane.apply(DetailContent(body: .markdown(markdown), metadata: content.metadata))
+            case .richText(let rich):
+                loadedBody = .richText(rich)
+                pane.apply(DetailContent(body: .richText(rich), metadata: content.metadata))
             case .none: break
             }
         }
     }
 
-    /// Appends streamed text to a text body that is already showing.
+    /// Appends streamed text to a text body that is already showing. ANSI codes stay: the pane
+    /// draws them as colour and keeps a code cut between two appends.
     func append(_ text: String, plainText: Bool) {
-        pane.append(plainText ? Self.strippingTerminalCodes(text) : text)
+        pane.append(text)
+    }
+
+    /// Icons may be ready now: draws the metadata again when one was missing.
+    func iconsDidChange() {
+        guard missingIcons, let detail else { return }
+        var content = Self.content(detail, icons: metadataIcons(detail))
+        if let loadedBody { content.body = loadedBody }
+        pane.apply(content)
+    }
+
+    /// The card icons of the detail's metadata labels that can draw now, by Kit icon.
+    private func metadataIcons(_ detail: Detail) -> [Icon: CardIcon] {
+        var icons: [Icon: CardIcon] = [:]
+        missingIcons = false
+        for item in detail.metadata {
+            guard case .label(_, _, let icon?) = item, icons[icon] == nil else { continue }
+            if let card = rowMapper?.cardIcon(icon) ?? Self.symbolIcon(icon) {
+                icons[icon] = card
+            } else {
+                missingIcons = true
+            }
+        }
+        return icons
+    }
+
+    nonisolated static func symbolIcon(_ icon: Icon) -> CardIcon? {
+        if case .symbol(let name, _) = icon { return .symbol(name) }
+        return nil
     }
 
     /// Cancels any resource still loading.
@@ -61,15 +102,16 @@ import QuickLookThumbnailing
     // MARK: Mapping
 
     /// A Kit detail as LauncherUI draws it. Image bodies start empty and fill in when loaded.
-    nonisolated static func content(_ detail: Detail) -> DetailContent {
-        DetailContent(body: detail.body.map(body), metadata: detail.metadata.map(metadata))
+    /// `icons` draws metadata icons; a label whose icon is missing from it draws without one, except
+    /// an SF Symbol, which needs no lookup.
+    nonisolated static func content(_ detail: Detail, icons: [Icon: CardIcon] = [:]) -> DetailContent {
+        DetailContent(body: detail.body.map(body), metadata: detail.metadata.map { metadata($0, icons: icons) })
     }
 
     nonisolated static func body(_ body: Kit.DetailBody) -> LauncherUI.DetailBody {
         switch body {
         case .markdown(let text): .markdown(text)
-        case .text(let text, let monospaced):
-            monospaced ? .monospaced(strippingTerminalCodes(text)) : .text(strippingTerminalCodes(text))
+        case .text(let text, let monospaced): monospaced ? .monospaced(text) : .text(text)
         case .richText(_, let plain): .text(plain)
         case .image: .image(nil)
         case .preview(let url): .file(name: url.lastPathComponent, thumbnail: nil)
@@ -78,9 +120,15 @@ import QuickLookThumbnailing
         }
     }
 
-    nonisolated static func metadata(_ item: Kit.MetadataItem) -> LauncherUI.MetadataItem {
+    nonisolated static func metadata(_ item: Kit.MetadataItem, icons: [Icon: CardIcon] = [:]) -> LauncherUI.MetadataItem
+    {
         switch item {
-        case .label(let label, let value, _): .label(label, value: value)
+        case .label(let label, let value, let icon):
+            if let card = icon.flatMap({ icons[$0] ?? symbolIcon($0) }) {
+                .iconLabel(label, value: value, icon: card)
+            } else {
+                .label(label, value: value)
+            }
         case .link(let label, let text, let url): .link(label, text: text, url: url.absoluteString)
         case .tags(let label, let tags):
             .tags(label, tags.map { MetadataTag($0.text, color: RowMapper.themeColor($0.color ?? .secondary)) })
@@ -101,26 +149,6 @@ import QuickLookThumbnailing
         }
     }
 
-    /// Removes ANSI escape sequences such as colour codes, which the pane cannot draw as colour
-    /// yet, so a script's output does not show them as text.
-    nonisolated static func strippingTerminalCodes(_ text: String) -> String {
-        guard text.unicodeScalars.contains("\u{1B}") else { return text }
-        var result = String.UnicodeScalarView()
-        var iterator = text.unicodeScalars.makeIterator()
-        while let scalar = iterator.next() {
-            guard scalar == "\u{1B}" else {
-                result.append(scalar)
-                continue
-            }
-            guard let next = iterator.next() else { break }
-            guard next == "[" else { continue }
-            while let code = iterator.next() {
-                if (0x40...0x7E).contains(code.value) { break }
-            }
-        }
-        return String(result)
-    }
-
     /// Escapes the characters Markdown would read as markup.
     nonisolated static func escapedMarkdown(_ text: String) -> String {
         var escaped = ""
@@ -136,7 +164,7 @@ import QuickLookThumbnailing
 
     enum Loaded: Sendable {
         case image(CGImage?)
-        case markdown(String)
+        case richText(RichText)
         case none
     }
 
@@ -145,7 +173,7 @@ import QuickLookThumbnailing
         switch body {
         case .image(let source): { .image(await loadImage(source)) }
         case .preview(let url): { .image(await thumbnail(url)) }
-        case .richText(let rtf, _): { (await markdown(fromRTF: rtf)).map(Loaded.markdown) ?? Loaded.none }
+        case .richText(let rtf, _): { (await richText(fromRTF: rtf)).map(Loaded.richText) ?? Loaded.none }
         default: nil
         }
     }
@@ -171,38 +199,21 @@ import QuickLookThumbnailing
         return representation?.cgImage
     }
 
-    /// Rich text as Markdown: bold, italic, monospaced runs and links keep their meaning; fonts,
-    /// sizes and colours follow the theme, so the text keeps its contrast on the glass.
-    @concurrent nonisolated static func markdown(fromRTF data: Data) async -> String? {
+    /// Rich text read from RTF: its runs with their fonts, relative sizes, traits, colours and
+    /// links. The pane keeps sizes and colours within the theme's rules. Sizes are taken relative to
+    /// the size most of the text uses.
+    @concurrent nonisolated static func richText(fromRTF data: Data) async -> RichText? {
         guard
             let text = try? NSAttributedString(
                 data: data, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil)
         else { return nil }
-        let string = text.string as NSString
-        var markdown = ""
-        text.enumerateAttributes(in: NSRange(location: 0, length: text.length)) { attributes, range, _ in
-            let run = string.substring(with: range)
-            let traits = (attributes[.font] as? NSFont)?.fontDescriptor.symbolicTraits ?? []
-            let link: String? =
-                (attributes[.link] as? URL)?.absoluteString ?? (attributes[.link] as? String)
-            // Markup cannot span a line break: style each line of the run on its own.
-            let lines = run.components(separatedBy: "\n")
-            for (index, line) in lines.enumerated() {
-                if index > 0 { markdown += "\n" }
-                guard !line.trimmingCharacters(in: .whitespaces).isEmpty else {
-                    markdown += line
-                    continue
-                }
-                var piece = traits.contains(.monoSpace) ? "`\(line)`" : escapedMarkdown(line)
-                if !traits.contains(.monoSpace) {
-                    if traits.contains(.bold) { piece = "**\(piece)**" }
-                    if traits.contains(.italic) { piece = "*\(piece)*" }
-                }
-                if let link { piece = "[\(piece)](\(link))" }
-                markdown += piece
-            }
+        var characters: [CGFloat: Int] = [:]
+        text.enumerateAttribute(.font, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+            guard let font = value as? NSFont else { return }
+            characters[font.pointSize, default: 0] += range.length
         }
-        return markdown
+        let bodySize = characters.max { $0.value < $1.value || ($0.value == $1.value && $0.key > $1.key) }?.key ?? 12
+        return RichText(text, bodySize: Double(bodySize))
     }
 }
 

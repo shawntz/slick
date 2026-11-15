@@ -136,7 +136,7 @@ import Testing
         #expect(source.followUps.isEmpty)
     }
 
-    @Test func richTextShowsPlainThenItsRunsAsMarkdown() async throws {
+    @Test func richTextShowsPlainThenItsStyledRuns() async throws {
         let fixture = await PanelFixture.make()
         defer { fixture.close() }
         let styled = NSMutableAttributedString(string: "Plain ", attributes: [.font: NSFont.systemFont(ofSize: 12)])
@@ -146,7 +146,54 @@ import Testing
         let page = try #require(
             fixture.open(.detail(DetailPage(detail: Detail(.richText(rtf: rtf, plain: "Plain bold")))))
                 as? DetailPageController)
-        #expect(await waitUntil { page.pane.content.body == .markdown("Plain **bold**") })
+        #expect(
+            await waitUntil {
+                guard case .richText(let rich) = page.pane.content.body else { return false }
+                return rich.plainText == "Plain bold" && rich.runs.map(\.isBold) == [false, true]
+                    && rich.runs.allSatisfy { $0.sizeScale == 1 }
+            })
+    }
+
+    /// A script's output keeps its colour codes, whole or cut between two appends, for the pane to
+    /// draw as colour.
+    @Test func streamedTextKeepsItsColourCodes() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let source = Streamer()
+        let page = try #require(openDetail(fixture, source))
+        source.current?.yield(.replace(Detail(.text("", monospaced: true))))
+        page.drawPendingUpdates()
+        source.current?.yield(.append("\u{1B}[3"))
+        source.current?.yield(.append("1mred\u{1B}[0m"))
+        #expect(await waitUntil { page.detail.body == .text("\u{1B}[31mred\u{1B}[0m", monospaced: true) })
+        page.drawPendingUpdates()
+        #expect(page.pane.bodyText == "red", "the pane draws the codes as colour, not as text")
+    }
+
+    /// A metadata label's icon draws before its value: a symbol at once, an app icon when the
+    /// icon provider has it.
+    @Test func metadataIconsDrawBeforeTheirValues() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let app = Icon.app(bundleID: "com.example.editor")
+        fixture.icons.holdBack(app)
+        let detail = Detail(
+            .markdown("Body"),
+            metadata: [
+                .label("Kind", value: "Folder", icon: .symbol("folder")),
+                .label("Opens In", value: "Editor", icon: app),
+            ])
+        let page = try #require(fixture.open(.detail(DetailPage(detail: detail))) as? DetailPageController)
+        #expect(await waitUntil { page.pane.content.metadata.count == 2 })
+        #expect(page.pane.content.metadata[0] == .iconLabel("Kind", value: "Folder", icon: .symbol("folder")))
+        #expect(page.pane.content.metadata[1] == .label("Opens In", value: "Editor"))
+        fixture.icons.deliverHeldIcons()
+        #expect(
+            await waitUntil {
+                if case .iconLabel(_, _, .image) = page.pane.content.metadata[1] { return true }
+                return false
+            })
+        #expect(page.pane.content.body == .markdown("Body"))
     }
 
     @Test func reloadStartsTheStreamAgain() async throws {
@@ -176,12 +223,15 @@ import Testing
                     .color("Accent", .rgba(red: 0, green: 0.5, blue: 1, alpha: 1)), .date("Created", date),
                     .separator,
                 ]))
-        #expect(content.body == .monospaced("red text"))
-        #expect(content.metadata[0] == .label("Size", value: "2 KB"))
+        #expect(content.body == .monospaced("\u{1B}[31mred\u{1B}[0m text"), "the pane draws the codes as colour")
+        #expect(content.metadata[0] == .iconLabel("Size", value: "2 KB", icon: .symbol("doc")))
         #expect(content.metadata[1] == .link("Site", text: "example.com", url: "https://example.com"))
         #expect(
             content.metadata[2] == .color("Accent", ThemeColor(red: 0, green: 0.5, blue: 1, alpha: 1), text: "#0080FF"))
         #expect(content.metadata[4] == .separator)
+        #expect(
+            DetailMapping.content(Detail(.richText(rtf: Data(), plain: "Plain"))).body == .text("Plain"),
+            "rich text shows its plain form while its runs are read")
         #expect(
             DetailMapping.content(Detail(.link(URL(string: "https://example.com/a_b")!))).body
                 == .markdown("[https://example.com/a\\_b](https://example.com/a_b)"))
