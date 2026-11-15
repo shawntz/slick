@@ -515,16 +515,27 @@ impl Engine {
     /// Forgets the learned row of one query (the raw text, folded here), so typing it ranks by
     /// text again. The rows of shorter queries it is a prefix of keep their credit. Returns
     /// whether the query had a row.
+    ///
+    /// The learner drops the forgotten query's text. A shorter row that only that text named, such
+    /// as "ter" after forgetting "term", gets its own text back through a logged query definition,
+    /// so the inspector can still list and forget it.
     pub fn forget_query(&self, query: &str) -> Result<bool, EngineError> {
         let folded = String::from_utf8(Query::new(query).full).unwrap_or_default();
         let mut st = self.write()?;
-        let records = st.learner.forget_query(&folded);
+        let before: Vec<String> = st.learner.queries().to_vec();
+        let mut records = st.learner.forget_query(&folded);
         if records.is_empty() {
             return Ok(false);
         }
+        records.extend(crate::stats::rename_orphan_rows(&mut st.learner, &before));
         self.log(records);
         st.refresh(&self.params.rank);
         Ok(true)
+    }
+
+    /// The headline numbers of the learning inspector.
+    pub fn summary(&self) -> Result<crate::stats::Summary, EngineError> {
+        Ok(crate::stats::summary(&self.read()?.learner))
     }
 
     /// A first-run seed: a light virtual use of `key` at Unix time `at`.

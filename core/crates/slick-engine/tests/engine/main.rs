@@ -7,6 +7,7 @@ mod concurrency;
 mod contract;
 mod fixtures;
 mod fuzzy;
+mod inspector;
 mod persistence;
 mod recovery;
 mod rng;

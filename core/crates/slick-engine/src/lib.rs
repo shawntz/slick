@@ -24,4 +24,5 @@ pub use rank::{RankParams, kind};
 pub use session::{FIELD_NONE, FIELD_USER_ALIAS, Hit, Session, hit_flags};
 pub use slick_predict::Source;
 pub use slick_predict::hash::fnv1a as key_of;
+pub use stats::Summary;
 pub use store::pause_snapshots_for_tests;
