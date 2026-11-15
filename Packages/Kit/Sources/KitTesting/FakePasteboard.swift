@@ -9,6 +9,11 @@ public final class FakePasteboard: PasteboardService {
     public struct Paste: Hashable, Sendable {
         public var content: PasteboardContent
         public var charactersAfterCursor: Int
+
+        public init(content: PasteboardContent, charactersAfterCursor: Int = 0) {
+            self.content = content
+            self.charactersAfterCursor = charactersAfterCursor
+        }
     }
 
     private struct State {

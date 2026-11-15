@@ -38,11 +38,13 @@ public struct TemplateEnvironment: Sendable {
     }
 
     /// An environment over a feature's services: its clock, the pasteboard's recent text (from the
-    /// clipboard history when one is on) and the selection service.
+    /// clipboard history when one is on) and the selection service. A test passes `makeUUID` to pin
+    /// what `{uuid}` gives.
     public init(
         context: FeatureContext,
         arguments: [String: String] = [:],
-        snippet: @escaping @Sendable (_ name: String) async -> String? = { _ in nil }
+        snippet: @escaping @Sendable (_ name: String) async -> String? = { _ in nil },
+        makeUUID: @escaping @Sendable () -> UUID = { UUID() }
     ) {
         let clock = context.clock
         let pasteboard = context.pasteboard
@@ -51,7 +53,7 @@ public struct TemplateEnvironment: Sendable {
             now: clock.now, timeZone: clock.timeZone, locale: clock.locale, arguments: arguments,
             clipboard: { await pasteboard.recentText(offset: $0) },
             selection: { await selection.currentSelection()?.text },
-            snippet: snippet)
+            snippet: snippet, makeUUID: makeUUID)
     }
 
     var calendar: Calendar {

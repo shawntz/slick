@@ -23,6 +23,7 @@ public final class FakeServices: Sendable {
     public let textExpansion = FakeTextExpansion()
 
     private let overrides = Mutex(ServiceOverrides())
+    private let processReplacement = Mutex<(any ProcessService)?>(nil)
 
     /// - Parameters:
     ///   - clock: The clock every fake stamps time with.
@@ -42,11 +43,20 @@ public final class FakeServices: Sendable {
         overrides.withLock { $0[key] = value }
     }
 
+    /// Makes every context made from these fakes run processes through `service` instead of
+    /// ``processes``, such as a wrapper that records cancellations and forwards to ``processes``.
+    /// Set it before the feature is made: the feature's context and the harness's action contexts
+    /// both get it.
+    public func replaceProcesses(with service: any ProcessService) {
+        processReplacement.withLock { $0 = service }
+    }
+
     /// The fakes as Kit's service container.
     public var services: Services {
         Services(
             pasteboard: pasteboard, workspace: workspace, hotkeys: hotkeys, permissions: permissions,
-            processes: processes, http: http, storage: storage, settings: settings, secrets: secrets, clock: clock,
+            processes: processReplacement.withLock { $0 } ?? processes, http: http, storage: storage,
+            settings: settings, secrets: secrets, clock: clock,
             usage: usage, fuzzyIndex: fuzzyIndex, selection: selection, fileWatcher: fileWatcher,
             fileDialogs: fileDialogs, textExpansion: textExpansion, overrides: overrides.withLock { $0 })
     }
