@@ -78,6 +78,25 @@ import Testing
         #expect(SelectionReader.fileURL(in: element, depth: 0) == nil)
     }
 
+    /// Found in review: thousands of selected rows, each with a deep tree and no file URL, made one
+    /// search send hundreds of thousands of messages to the other app.
+    @Test func oneSearchMakesABoundedNumberOfReads() {
+        let reads = Counter()
+        func tree(depth: Int) -> any AccessibilityElement {
+            CountingElement(reads: reads, children: depth == 0 ? [] : (0..<32).map { _ in tree(depth: depth - 1) })
+        }
+        let rows = (0..<1_000).map { _ in tree(depth: 2) }
+        let list = FakeElement(["AXSelectedRows": .elements(rows)])
+        #expect(SelectionReader.selection(in: list, isDirectory: { _ in false }) == nil)
+        #expect(reads.value <= SelectionReader.maximumReads)
+
+        // The first items still come back when the list is long.
+        let file = URL(filePath: "/synthetic/first.txt")
+        let long = FakeElement(
+            ["AXSelectedRows": .elements([FakeElement(["AXURL": .url(file)])] + rows)])
+        #expect(SelectionReader.selection(in: long, isDirectory: { _ in false }) == .files([file]))
+    }
+
     func service(
         _ focused: FakeElement, _ permissions: FakePermissions, folders: Set<String> = []
     ) -> AccessibilitySelection {
@@ -101,5 +120,21 @@ nonisolated final class FakeElement: AccessibilityElement {
     func value(of attribute: String) -> AccessibilityValue? {
         readCount.withLock { $0 += 1 }
         return attributes[attribute]
+    }
+}
+
+/// An element with children and no URL. Counts reads in a shared counter.
+nonisolated final class CountingElement: AccessibilityElement {
+    private let reads: Counter
+    private let children: [any AccessibilityElement]
+
+    init(reads: Counter, children: [any AccessibilityElement]) {
+        self.reads = reads
+        self.children = children
+    }
+
+    func value(of attribute: String) -> AccessibilityValue? {
+        reads.increment()
+        return attribute == "AXChildren" ? .elements(children) : nil
     }
 }

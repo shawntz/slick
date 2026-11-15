@@ -55,6 +55,10 @@ nonisolated public struct NoSelection: SelectionService {
 }
 
 /// Finds the selection in an accessibility tree. Pure apart from the elements it reads.
+///
+/// Each read is a message to another app, so a search is bounded: at most ``maximumItems``
+/// selected items and ``maximumReads`` reads in all. A list of thousands of selected rows, or a
+/// deep tree without file URLs, ends early with what was found so far.
 nonisolated enum SelectionReader {
     static let selectedText = "AXSelectedText"
     static let selectedRows = "AXSelectedRows"
@@ -63,16 +67,38 @@ nonisolated enum SelectionReader {
     static let url = "AXURL"
     /// How deep below a selected item the reader looks for its URL.
     static let searchDepth = 3
+    /// The most selected items read.
+    static let maximumItems = 200
+    /// The most attribute reads one search makes.
+    static let maximumReads = 600
+
+    /// The reads a search has left.
+    final class Budget {
+        private(set) var remaining: Int
+
+        init(reads: Int = SelectionReader.maximumReads) {
+            remaining = reads
+        }
+
+        /// Reads the attribute when reads are left, and counts it.
+        func value(of attribute: String, in element: any AccessibilityElement) -> AccessibilityValue? {
+            guard remaining > 0 else { return nil }
+            remaining -= 1
+            return element.value(of: attribute)
+        }
+    }
 
     /// Selected text, as a URL when it is exactly one web address, else the selected files.
-    static func selection(in focused: (any AccessibilityElement)?, isDirectory: (URL) -> Bool) -> Selection? {
+    static func selection(
+        in focused: (any AccessibilityElement)?, isDirectory: (URL) -> Bool, budget: Budget = Budget()
+    ) -> Selection? {
         guard let focused else { return nil }
-        if case .text(let text)? = focused.value(of: selectedText),
+        if case .text(let text)? = budget.value(of: selectedText, in: focused),
             !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             return textSelection(text)
         }
-        let files = selectedFiles(in: focused)
+        let files = selectedFiles(in: focused, budget: budget)
         guard !files.isEmpty else { return nil }
         return .files(files.map { directoryAware($0, isDirectory: isDirectory) })
     }
@@ -89,35 +115,38 @@ nonisolated enum SelectionReader {
     }
 
     /// The file URLs of the selected rows or children, in order, without duplicates.
-    static func selectedFiles(in focused: any AccessibilityElement) -> [URL] {
+    static func selectedFiles(in focused: any AccessibilityElement, budget: Budget = Budget()) -> [URL] {
         var items: [any AccessibilityElement] = []
         for attribute in [selectedRows, selectedChildren] {
-            if case .elements(let found)? = focused.value(of: attribute), !found.isEmpty {
+            if case .elements(let found)? = budget.value(of: attribute, in: focused), !found.isEmpty {
                 items = found
                 break
             }
         }
         var seen = Set<String>()
         var urls: [URL] = []
-        for item in items {
-            guard let url = fileURL(in: item, depth: 0), seen.insert(url.standardizedFileURL.path).inserted else {
-                continue
-            }
+        for item in items.prefix(maximumItems) {
+            guard budget.remaining > 0 else { break }
+            guard let url = fileURL(in: item, depth: 0, budget: budget),
+                seen.insert(url.standardizedFileURL.path).inserted
+            else { continue }
             urls.append(url)
         }
         return urls
     }
 
     /// The first file URL on the element or below it.
-    static func fileURL(in element: any AccessibilityElement, depth: Int) -> URL? {
-        switch element.value(of: url) {
+    static func fileURL(in element: any AccessibilityElement, depth: Int, budget: Budget = Budget()) -> URL? {
+        switch budget.value(of: url, in: element) {
         case .url(let found)? where found.isFileURL: return found
         case .text(let text)?: if let found = URL(string: text), found.isFileURL { return found }
         default: break
         }
-        guard depth < searchDepth, case .elements(let children)? = element.value(of: children) else { return nil }
+        guard depth < searchDepth, case .elements(let children)? = budget.value(of: children, in: element) else {
+            return nil
+        }
         for child in children.prefix(32) {
-            if let found = fileURL(in: child, depth: depth + 1) { return found }
+            if let found = fileURL(in: child, depth: depth + 1, budget: budget) { return found }
         }
         return nil
     }
