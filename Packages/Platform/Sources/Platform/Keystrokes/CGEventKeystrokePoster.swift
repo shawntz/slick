@@ -30,46 +30,59 @@ nonisolated public struct CGEventKeystrokePoster: KeystrokePoster {
 
     @concurrent public func post(_ strokes: [Keystroke]) async throws {
         guard canPost() else { throw PasteError.permissionMissing(.accessibility) }
+        var pasteKey = Key.v.code
+        if strokes.contains(.paste) {
+            pasteKey = await MainActor.run { KeyboardLayout.keyCode(producing: "v") } ?? Key.v.code
+        }
         let source = CGEventSource(stateID: .combinedSessionState)
+        let events = try Self.events(for: strokes, pasteKey: pasteKey) { code, isDown in
+            CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: isDown)
+        }
+        for event in events {
+            send(event)
+            try? await Task.sleep(for: interval)
+        }
+    }
+
+    /// What a post throws when macOS did not make an event. Nothing was typed then.
+    public static let eventUnavailable = ActionFailure(
+        "Could Not Send Keystrokes", message: "macOS did not make the keystrokes, so nothing was typed. Try again.")
+
+    /// Every event the strokes need, made before any is sent, so a paste or an expansion never
+    /// stops halfway, such as after deleting a keyword and before typing its text. Throws
+    /// ``eventUnavailable`` when `make` returns nil for any of them.
+    static func events(
+        for strokes: [Keystroke], pasteKey: CGKeyCode, make: (CGKeyCode, Bool) -> CGEvent?
+    ) throws -> [CGEvent] {
+        var events: [CGEvent] = []
+        func press(_ code: CGKeyCode, _ flags: CGEventFlags, typing units: [UniChar]? = nil) throws {
+            for isDown in [true, false] {
+                guard let event = make(code, isDown) else { throw eventUnavailable }
+                event.flags = flags
+                if let units {
+                    units.withUnsafeBufferPointer { buffer in
+                        event.keyboardSetUnicodeString(stringLength: buffer.count, unicodeString: buffer.baseAddress)
+                    }
+                }
+                events.append(event)
+            }
+        }
         for stroke in strokes {
             switch stroke {
             case .paste:
-                let code = await MainActor.run { KeyboardLayout.keyCode(producing: "v") } ?? Key.v.code
-                await press(KeyCombo(Key(code: code), .command), source: source)
+                try press(pasteKey, flags(for: .command))
             case .key(let combo):
-                await press(combo, source: source)
+                try press(combo.key.code, flags(for: combo.modifiers))
             case .text(let text):
-                for piece in Self.pieces(of: text) {
+                for piece in pieces(of: text) {
                     switch piece {
-                    case .lineBreak: await press(KeyCombo(.return), source: source)
-                    case .characters(let units): await type(units, source: source)
+                    case .lineBreak: try press(Key.return.code, [])
+                    case .characters(let units): try press(0, [], typing: units)
                     }
                 }
             }
         }
-    }
-
-    private func press(_ combo: KeyCombo, source: CGEventSource?) async {
-        let flags = Self.flags(for: combo.modifiers)
-        for isDown in [true, false] {
-            guard let event = CGEvent(keyboardEventSource: source, virtualKey: combo.key.code, keyDown: isDown)
-            else { continue }
-            event.flags = flags
-            send(event)
-            try? await Task.sleep(for: interval)
-        }
-    }
-
-    private func type(_ units: [UniChar], source: CGEventSource?) async {
-        for isDown in [true, false] {
-            guard let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: isDown) else { continue }
-            event.flags = []
-            units.withUnsafeBufferPointer { buffer in
-                event.keyboardSetUnicodeString(stringLength: buffer.count, unicodeString: buffer.baseAddress)
-            }
-            send(event)
-            try? await Task.sleep(for: interval)
-        }
+        return events
     }
 
     private func send(_ event: CGEvent) {

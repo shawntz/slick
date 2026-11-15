@@ -48,6 +48,8 @@ nonisolated public final class RecordingKeystrokePoster: KeystrokePoster {
     private struct State {
         var posted: [Keystroke] = []
         var isAllowed = true
+        var failure: (any Error & Sendable)?
+        var refused: [[Keystroke]] = []
     }
 
     private let state = Mutex(State())
@@ -67,13 +69,27 @@ nonisolated public final class RecordingKeystrokePoster: KeystrokePoster {
         set { state.withLock { $0.isAllowed = newValue } }
     }
 
+    /// Every post that threw, oldest first.
+    public var refused: [[Keystroke]] {
+        state.withLock { $0.refused }
+    }
+
+    /// An error every post throws, with nothing posted, as when macOS cannot make the events.
+    public var failure: (any Error & Sendable)? {
+        get { state.withLock { $0.failure } }
+        set { state.withLock { $0.failure = newValue } }
+    }
+
     public func canPost() -> Bool {
         isAllowed
     }
 
     public func post(_ strokes: [Keystroke]) async throws {
         try state.withLock { state in
-            guard state.isAllowed else { throw PasteError.permissionMissing(.accessibility) }
+            guard state.isAllowed, state.failure == nil else {
+                state.refused.append(strokes)
+                throw state.failure ?? PasteError.permissionMissing(.accessibility)
+            }
             state.posted += strokes
         }
     }

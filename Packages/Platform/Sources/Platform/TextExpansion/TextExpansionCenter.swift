@@ -366,12 +366,16 @@ nonisolated public final class TextExpansionCenter: TextExpansionService {
         guard let plan = state.withLock({ $0.buffer.finish(match, with: result) }) else { return }
         do {
             try await poster.post(plan.keystrokes)
-        } catch {
+        } catch PasteError.permissionMissing {
             // Accessibility went away: nothing was typed. Say so now and wait for it.
             operations.async { [self] in
                 guard state.withLock({ $0.request != nil && $0.isListening }) else { return }
                 waitAfterLosing(.accessibility)
             }
+            return
+        } catch {
+            // macOS made no events, so nothing was typed and the keyword stays as the user typed
+            // it. Listening goes on; reporting a missing permission here would be wrong.
             return
         }
         if let command = plan.command, let runner = state.withLock({ $0.commandRunner }) {
