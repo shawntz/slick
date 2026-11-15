@@ -63,12 +63,12 @@ import Testing
         #expect(kinds[5] == .date(includesTime: false))
         #expect(kinds[6] == .filePath(placeholder: "", buttonTitle: "Choose…"))
         #expect(kinds[7] == .tags(placeholder: ""))
-        #expect(kinds[8] == .filePath(placeholder: "Bundle ID", buttonTitle: "Choose…"))
+        #expect(kinds[8] == .application(placeholder: "Choose an app", apps: []), "apps load when the page shows")
         #expect(kinds[9] == .description("Note"))
         #expect(kinds[10] == .separator)
         #expect(FormPageController.item(fields[0]).value == .text("one"))
         #expect(FormPageController.item(fields[4]).value == .option("1"))
-        #expect(FormPageController.item(fields[8]).value == .text("com.example.editor"))
+        #expect(FormPageController.item(fields[8]).value == .option("com.example.editor"))
     }
 
     @Test func aMissingRequiredFieldIsShownWithoutValidating() async throws {
@@ -136,20 +136,46 @@ import Testing
         #expect(fixture.runtime.fakes.fileDialogs.openRequests.first?.title == "Choose an icon")
     }
 
-    @Test func anApplicationFieldStoresTheBundleID() async throws {
+    /// The application field picks from the apps root search knows, in a menu inside the panel,
+    /// and stores the bundle ID. No file dialog and no read of an app bundle.
+    @Test func anApplicationFieldPicksFromTheAppsRootSearchKnows() async throws {
         let fixture = await PanelFixture.make()
         defer { fixture.close() }
-        let app = fixture.runtime.fakes.storage.root.appending(path: "Sample Editor.app")
-        let contents = app.appending(path: "Contents")
-        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
-        let plist: [String: Any] = ["CFBundleIdentifier": "com.example.sample-editor", "CFBundlePackageType": "APPL"]
-        try (plist as NSDictionary).write(to: contents.appending(path: "Info.plist"))
-        let form = FormPage(title: "Pick", fields: [.application("app", title: "App")]) { _, _ in .keepOpen }
+        fixture.runtime.runtime.register([FeatureRegistration(SampleApps.self)])
+        let form = FormPage(
+            title: "Pick", fields: [.application("app", title: "App", initial: "com.example.writer")]
+        ) { _, _ in .keepOpen }
         let page = try openForm(fixture, form)
-        fixture.runtime.fakes.fileDialogs.filesToChoose = [app]
-        page.form.onChooseFile?("app")
-        #expect(await waitUntil { page.values.text("app") == "com.example.sample-editor" })
-        #expect(fixture.runtime.fakes.fileDialogs.openRequests.first?.allowedTypes == ["app"])
+        #expect(await waitUntil { page.applications.count == 2 })
+        #expect(page.applications.map(\.title) == ["Editor", "Writer"])
+        #expect(page.applications.map(\.id) == ["com.example.editor", "com.example.writer"])
+        #expect(page.applications.allSatisfy { $0.icon != nil }, "icons come from the icon provider")
+        guard case .application(_, let apps) = page.form.content.items[0].kind else {
+            Issue.record("not an application picker")
+            return
+        }
+        #expect(apps == page.applications)
+        #expect(page.values.text("app") == "com.example.writer")
+        page.fill("app", .text("com.example.editor"))
+        #expect(page.values.text("app") == "com.example.editor")
+        #expect(fixture.runtime.fakes.fileDialogs.openRequests.isEmpty)
+    }
+
+    @Test func placeholdersAndTagSuggestionsReachTheForm() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let form = FormPage(
+            title: "Snippet",
+            fields: [
+                .text("name", title: "Name"),
+                .multiline("text", title: "Text", highlightsPlaceholders: true),
+                .tags("tags", title: "Tags", suggestions: ["work", "home"]),
+            ]
+        ) { _, _ in .keepOpen }
+        let page = try openForm(fixture, form)
+        let items = page.form.content.items
+        #expect(items.map(\.highlightsPlaceholders) == [false, true, false])
+        #expect(items[2].suggestions == ["work", "home"])
     }
 
     @Test func requiresAsksForThePermissionBeforeValidating() async throws {

@@ -1,5 +1,6 @@
 import AppKit
 import Kit
+import KitHosting
 import LauncherUI
 
 /// A form a command pushed, drawn by LauncherUI's ``FormView``.
@@ -9,8 +10,10 @@ import LauncherUI
 /// then the required fields at once, then ``FormPage/validate``, and shows each ``FieldError``
 /// under its field. The first field with an error takes focus, with the error's range selected.
 /// Editing a field clears its error. When the values are fine, ``FormPage/submit`` runs through the
-/// pipeline like any action, so its outcome, its toasts and its errors behave the same. File and
-/// application fields choose through ``FileDialogService``.
+/// pipeline like any action, so its outcome, its toasts and its errors behave the same. File fields
+/// choose through ``FileDialogService``. An application field picks from the apps root search
+/// knows, in a menu inside the panel, loaded when the page appears. Text fields colour `{...}`
+/// placeholders when the field asks for it, and tag fields offer their suggestions.
 @MainActor public final class FormPageController: PageController {
     public let page: FormPage
     public let origin: RunOrigin
@@ -31,6 +34,7 @@ import LauncherUI
     private var chosenFiles: [String: [URL]] = [:]
     private var lastFocusedID: String?
     private var isClosed = false
+    private var appsTask: Task<Void, Never>?
 
     public init(page: FormPage, origin: RunOrigin) {
         self.page = page
@@ -59,6 +63,7 @@ import LauncherUI
         self.host = host
         // The first field at first, then the field that had focus when a page covered the form.
         form.focus(lastFocusedID)
+        loadApps(host)
     }
 
     public func pageDidDisappear() {
@@ -67,6 +72,45 @@ import LauncherUI
 
     public func pageWillClose() {
         isClosed = true
+        appsTask?.cancel()
+        appsTask = nil
+    }
+
+    /// The apps an application field offers, once loaded. Empty until then, for tests.
+    public private(set) var applications: [MenuOption] = []
+
+    /// Loads the apps root search knows, from the catalog of the feature that owns the `app`
+    /// namespace, once, and puts them in every application field. An app's icon is looked up, never
+    /// read from disk; one that is not ready draws without an icon.
+    private func loadApps(_ host: any PageHost) {
+        guard appsTask == nil, applications.isEmpty,
+            page.fields.contains(where: { if case .application = $0.kind { true } else { false } })
+        else { return }
+        let sources = host.runtime.enabledFeatures.flatMap(\.catalogSources).filter {
+            $0.namespace == ItemID.ReservedNamespace.app
+        }
+        guard !sources.isEmpty else { return }
+        let mapper = host.rowMapper
+        appsTask = Task { [weak self] in
+            var rows: [Row] = []
+            for source in sources {
+                if let loaded = try? await source.rows() { rows += loaded }
+            }
+            guard let self, !isClosed, !Task.isCancelled else { return }
+            var seen: Set<String> = []
+            let apps =
+                rows
+                .filter { $0.id.namespace == ItemID.ReservedNamespace.app && seen.insert($0.id.key).inserted }
+                .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                .map { MenuOption(id: $0.id.key, title: $0.title, icon: mapper.cardIcon($0.icon)) }
+            applications = apps
+            for index in items.indices {
+                if case .application(let placeholder, _) = items[index].kind {
+                    items[index].kind = .application(placeholder: placeholder, apps: apps)
+                }
+            }
+            form.apply(FormContent(items: items))
+        }
     }
 
     // MARK: Input
@@ -125,7 +169,10 @@ import LauncherUI
             chosenFiles[id] = urls
             items[index].value = .text(Self.display(urls))
         }
-        if case .dropdown = items[index].kind, case .text(let option) = value { items[index].value = .option(option) }
+        switch (items[index].kind, value) {
+        case (.dropdown, .text(let option)), (.application, .text(let option)): items[index].value = .option(option)
+        default: break
+        }
         form.apply(FormContent(items: items))
         fieldDidChange(id)
     }
@@ -201,14 +248,6 @@ import LauncherUI
                 guard let self, !urls.isEmpty, !isClosed else { return }
                 fill(id, .files(urls))
             }
-        case .application:
-            let request = OpenDialogRequest(title: field.title, allowedTypes: ["app"])
-            Task { [weak self] in
-                guard let url = await dialogs.chooseFiles(request).first else { return }
-                let bundleID = await Self.bundleID(of: url) ?? url.deletingPathExtension().lastPathComponent
-                guard let self, !isClosed else { return }
-                fill(id, .text(bundleID))
-            }
         default:
             break
         }
@@ -225,23 +264,23 @@ import LauncherUI
         urls.map(\.path).joined(separator: ", ")
     }
 
-    @concurrent nonisolated static func bundleID(of url: URL) async -> String? {
-        Bundle(url: url)?.bundleIdentifier
-    }
-
     // MARK: Mapping
 
     /// A Kit field as a form row.
     public nonisolated static func item(_ field: FormField) -> FormItem {
         let kind: FormItem.Kind
         var value: LauncherUI.FormValue?
+        var highlightsPlaceholders = false
+        var suggestions: [String] = []
         switch field.kind {
-        case .text(let placeholder, let initial, _):
+        case .text(let placeholder, let initial, let highlights):
             kind = .text(placeholder: placeholder ?? "")
             value = .text(initial)
-        case .multiline(let placeholder, let initial, _):
+            highlightsPlaceholders = highlights
+        case .multiline(let placeholder, let initial, let highlights):
             kind = .multiline(placeholder: placeholder ?? "")
             value = .text(initial)
+            highlightsPlaceholders = highlights
         case .password(let placeholder):
             kind = .secure(placeholder: placeholder ?? "")
         case .checkbox(let label, let initial):
@@ -255,17 +294,21 @@ import LauncherUI
             value = .date(initial)
         case .files(let request):
             kind = .filePath(placeholder: request.title ?? "", buttonTitle: HostStrings.choose)
-        case .tags(_, let initial):
+        case .tags(let offered, let initial):
             kind = .tags(placeholder: "")
             value = .tags(initial)
+            suggestions = offered
         case .application(let initial):
-            kind = .filePath(placeholder: HostStrings.bundleIDPlaceholder, buttonTitle: HostStrings.choose)
-            value = .text(initial ?? "")
+            kind = .application(placeholder: HostStrings.applicationPlaceholder, apps: [])
+            value = .option(initial)
         case .description(let text):
             kind = .description(text)
         case .separator:
             kind = .separator
         }
-        return FormItem(id: field.id, label: field.title, kind: kind, value: value, info: field.info)
+        var item = FormItem(id: field.id, label: field.title, kind: kind, value: value, info: field.info)
+        item.highlightsPlaceholders = highlightsPlaceholders
+        item.suggestions = suggestions
+        return item
     }
 }
