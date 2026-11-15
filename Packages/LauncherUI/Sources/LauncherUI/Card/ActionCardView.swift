@@ -41,6 +41,12 @@ public final class ActionCardView: CardSurface, PanelOverlay {
         list.select(0)
     }
 
+    /// Keep typeset lines across draws. Benchmarks turn it off to compare.
+    @_spi(Testing) public var usesLineCache: Bool {
+        get { list.usesLineCache }
+        set { list.usesLineCache = newValue }
+    }
+
     let filterField = PanelTextField()
     let list = CardListView()
     private let divider = NSView()

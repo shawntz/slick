@@ -19,6 +19,11 @@ final class CardListView: NSView {
     private(set) var layoutModel = ListLayout(content: .empty, metrics: Theme.standard.list, maxHeight: 0)
     private(set) var theme: ResolvedTheme?
     private var symbols: [String: CGImage] = [:]
+    /// Typeset titles, headers and keycaps kept across draws, so showing the card again or
+    /// filtering it does not typeset them again. Cleared when the theme changes.
+    let lineCache = RowLineCache()
+    /// Benchmarks turn it off to compare.
+    var usesLineCache = true
     private static let symbolCacheLimit = 64
     private(set) var hasIcons = false
     /// Rows across sections. Selection uses it, so it works before the first layout.
@@ -42,6 +47,7 @@ final class CardListView: NSView {
 
     func apply(_ theme: ResolvedTheme) {
         self.theme = theme
+        lineCache.removeAll()
         // Rendered symbols are keyed by colour, so they stay valid across themes; only bound them.
         if symbols.count > Self.symbolCacheLimit { symbols.removeAll() }
         relayout()
@@ -197,8 +203,11 @@ final class CardListView: NSView {
     private func drawHeader(_ title: String, in rect: CGRect, theme: ResolvedTheme, context: CGContext, scale: CGFloat)
     {
         let card = theme.theme.card
-        let line = CTLineCreateWithAttributedString(
-            RowTypesetter.attributed(title, font: theme.card.sectionFont, color: theme.sectionHeader))
+        let make = {
+            CTLineCreateWithAttributedString(
+                RowTypesetter.attributed(title, font: theme.card.sectionFont, color: theme.sectionHeader))
+        }
+        let line = usesLineCache ? lineCache.line(.init(text: title, role: .header), make: make) : make()
         let origin = CGPoint(
             x: CGFloat(card.horizontalPadding),
             y: RowTypesetter.snap(rect.minY + CGFloat(card.sectionHeaderBaseline), scale))
@@ -241,17 +250,23 @@ final class CardListView: NSView {
             right = frame.minX - CGFloat(card.iconGap)
         }
         right = KeycapRenderer.draw(
-            item.keys, right: right, top: rect.minY, height: rect.height, theme: theme, context: context, scale: scale)
+            item.keys, right: right, top: rect.minY, height: rect.height, theme: theme, context: context, scale: scale,
+            lines: usesLineCache ? lineCache : nil)
 
         let font = theme.card.rowFont
-        let string =
-            item.isDestructive
-            ? RowTypesetter.attributed(item.title, font: font, color: color)
-            : RowTypesetter.emphasized(
-                item.title, highlights: item.titleHighlights, emphasizesMatches: true, font: font, theme: theme)
-        let line = RowTypesetter.truncate(
-            CTLineCreateWithAttributedString(string), to: max(0, right - x - CGFloat(card.iconGap)), font: font,
-            color: color)
+        let make = {
+            CTLineCreateWithAttributedString(
+                item.isDestructive
+                    ? RowTypesetter.attributed(item.title, font: font, color: color)
+                    : RowTypesetter.emphasized(
+                        item.title, highlights: item.titleHighlights, emphasizesMatches: true, font: font, theme: theme)
+            )
+        }
+        let key = RowLineCache.Key(
+            text: item.title, role: .title(emphasized: !item.isDestructive),
+            highlights: item.isDestructive ? [] : item.titleHighlights, color: item.isDestructive ? color : nil)
+        let full = usesLineCache ? lineCache.line(key, make: make) : make()
+        let line = RowTypesetter.truncate(full, to: max(0, right - x - CGFloat(card.iconGap)), font: font, color: color)
         let baseline = RowTypesetter.snap(rect.minY + RowTypesetter.baseline(centering: font, in: rect.height), scale)
         RowRenderer.draw(.init(line: line, origin: CGPoint(x: x, y: baseline)), context)
     }

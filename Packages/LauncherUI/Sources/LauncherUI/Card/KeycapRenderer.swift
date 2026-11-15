@@ -13,15 +13,16 @@ enum KeycapRenderer {
     }
 
     /// Draws `keys` ending at `right`, centred in `height` from `top`. Returns the left edge.
+    /// `lines` keeps each key's typeset line for the next draw.
     @discardableResult
     static func draw(
         _ keys: [String], right: CGFloat, top: CGFloat, height: CGFloat, theme: ResolvedTheme, fill: CGColor? = nil,
-        context: CGContext, scale: CGFloat
+        context: CGContext, scale: CGFloat, lines: RowLineCache? = nil
     ) -> CGFloat {
         let list = theme.theme.list
         var x = right
         for key in keys.reversed() {
-            let text = line(key, theme)
+            let text = lines?.line(.init(text: key, role: .keycap)) { line(key, theme) } ?? line(key, theme)
             let width = capWidth(text, list)
             let capHeight = CGFloat(list.keycapHeight)
             let frame = CGRect(
