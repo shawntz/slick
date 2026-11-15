@@ -13,6 +13,7 @@ struct OnboardingView: View {
                 switch model.step {
                 case .welcome: WelcomeStep()
                 case .hotkey: HotkeyStep(model: model)
+                case .features: FeaturesStep(model: model)
                 case .permissions: PermissionsStep(model: model)
                 case .theme: ThemeStep(model: model)
                 case .done: DoneStep(model: model)
@@ -87,20 +88,104 @@ private struct HotkeyStep: View {
     let model: OnboardingModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Choose your hotkey").font(.title).fontWeight(.semibold)
-            Text("Press it anywhere to open the launcher. Click the field, then press the keys.")
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Choose Your Hotkey").font(.title).fontWeight(.semibold)
             HStack {
-                Text("Hotkey")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Hotkey")
+                    Text("Press it anywhere to open \(Brand.name).")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
-                HotkeyRecorder(model: model.hotkey)
+                HotkeyRecorder(model: model.hotkey, showsHeldNote: !isWaiting)
             }
             .padding(14)
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
-            Label(model.spotlightNote, systemImage: "info.circle")
+            switch model.hotkeyGuide {
+            case .waiting(let wait):
+                WaitingGuide(model: model, wait: wait)
+            case .freed(let combo):
+                Label(SpotlightShortcutGuide.freedLine(combo), systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .fontWeight(.medium)
+            case .none:
+                Text("To use another hotkey, click the field and press the keys.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var isWaiting: Bool {
+        if case .waiting = model.hotkeyGuide { return true }
+        return false
+    }
+}
+
+/// What to do while a macOS shortcut holds the launcher hotkey, and a line that says it waits.
+private struct WaitingGuide: View {
+    let model: OnboardingModel
+    let wait: LauncherHotkeyWait
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(SpotlightShortcutGuide.waitingNote(wait))
+                .fixedSize(horizontal: false, vertical: true)
+            if wait.isSpotlight {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(SpotlightShortcutGuide.steps.enumerated()), id: \.offset) { index, text in
+                        Text("\(index + 1). \(text)")
+                    }
+                }
+                .foregroundStyle(.secondary)
+            }
+            Button(SpotlightShortcutGuide.openButton) { model.openKeyboardSettings() }
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(SpotlightShortcutGuide.waitingLine(wait)).foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            Text("Or record another hotkey instead: click the field and press the keys.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct FeaturesStep: View {
+    let model: OnboardingModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Optional Features").font(.title).fontWeight(.semibold)
+            Text("These stay off until you turn them on. You can change this later in Settings, under Features.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            ScrollView {
+                VStack(spacing: 10) {
+                    ForEach(model.optionalFeatures) { feature in
+                        Toggle(
+                            isOn: Binding(
+                                get: { feature.isEnabled },
+                                set: { enabled in Task { await model.setEnabled(enabled, feature: feature.id) } })
+                        ) {
+                            HStack(alignment: .top, spacing: 12) {
+                                IconView(icon: feature.icon, size: 22, resolver: model.icons)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(feature.name).fontWeight(.medium)
+                                    Text(feature.summary)
+                                        .font(.callout)
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                        .toggleStyle(.switch)
+                        .padding(12)
+                        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+            }
         }
     }
 }
@@ -162,7 +247,7 @@ private struct ThemeStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Pick a look").font(.title).fontWeight(.semibold)
+            Text("Pick a Look").font(.title).fontWeight(.semibold)
             Text("You can edit any theme later in Settings, under Appearance.").foregroundStyle(.secondary)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
                 ForEach(model.themes) { named in
@@ -198,8 +283,14 @@ private struct DoneStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("You are set").font(.largeTitle).fontWeight(.semibold)
-            if let combo = model.hotkey.combo {
+            Text("You Are Set").font(.largeTitle).fontWeight(.semibold)
+            if case .waiting(let wait) = model.hotkeyGuide {
+                Text(
+                    "Open the launcher from the menu bar item for now. \(wait.combo.displayString) opens it as soon as \(wait.owner) lets go of it."
+                )
+                .font(.title3)
+                .fixedSize(horizontal: false, vertical: true)
+            } else if let combo = model.hotkey.combo {
                 Text("Press \(combo.displayString) to open the launcher.").font(.title3)
             } else {
                 Text("Open the launcher from the menu bar item. You can set a hotkey in Settings.").font(.title3)
