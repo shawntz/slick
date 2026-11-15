@@ -324,20 +324,27 @@ nonisolated public enum ThemeStoreError: Error, Equatable, LocalizedError {
 // MARK: - Built-in themes
 
 extension Theme {
-    /// Neutral grey glass in dark mode, a flat fill lens and a graphite accent.
+    /// Neutral grey glass in dark mode, a flat fill lens and a graphite accent. In light mode the
+    /// lens is a mid graphite fill, dense enough to show over a white or busy backdrop.
     public static let graphite = Theme.standard.variant(
         darkTint: rgb(0x1C1D20, alpha: 0.55), accent: rgb(0x5A5F66),
-        lens: LensMetrics(style: .fill, horizontalInset: 8, cornerRadius: 10), tintsFillLens: false)
+        lens: LensMetrics(style: .fill, horizontalInset: 8, cornerRadius: 10), tintsFillLens: false,
+        lightLensFill: rgb(0x787D85, alpha: 0.28))
 
-    /// Glass tinted toward blue-green in dark mode, a rounder glass lens and a deep teal accent.
+    /// Glass tinted toward blue-green in dark mode, a rounder glass lens and a deep teal accent. In
+    /// light mode the lens is tinted sea green, away from the system blue that Standard uses.
     public static let ocean = Theme.standard.variant(
         darkTint: rgb(0x06202B, alpha: 0.55), accent: rgb(0x0B6E8A),
-        lens: LensMetrics(style: .glass, horizontalInset: 6, cornerRadius: 16), tintsFillLens: false)
+        lens: LensMetrics(style: .glass, horizontalInset: 6, cornerRadius: 16), tintsFillLens: false,
+        lightLensTint: rgb(0x00A6A0, alpha: 0.30))
 
-    /// Warm glass in dark mode, a wide fill lens in the accent and a deep orange accent.
+    /// Warm glass in dark mode, a wide fill lens in the accent and a deep orange accent. In light
+    /// mode the lens is a brighter orange, which reads as warm where the accent's own tint read as
+    /// grey.
     public static let ember = Theme.standard.variant(
         darkTint: rgb(0x2A140A, alpha: 0.55), accent: rgb(0xB5470F),
-        lens: LensMetrics(style: .fill, horizontalInset: 10, cornerRadius: 14), tintsFillLens: true)
+        lens: LensMetrics(style: .fill, horizontalInset: 10, cornerRadius: 14), tintsFillLens: true,
+        lightLensFill: rgb(0xF07A2A, alpha: 0.30))
 
     /// The app icon's palette: ink glass in dark mode, an electric violet accent and a glass lens
     /// tinted magenta.
@@ -353,8 +360,13 @@ extension Theme {
     /// Light mode keeps Standard's white tint. The glass treats any other colour as a coloured
     /// tint, and over a dark backdrop that cost titles 0.4 to 1.3 of contrast, under 4.5:1,
     /// even for a tint as pale as #FAFAFB. Pure white or black tints keep the measured contrast.
+    /// So a theme shows its colour in light mode through the lens: `lightLensFill` and
+    /// `lightLensTint` replace the light lens's fill and glass tint. A mid-tone fill darkens the
+    /// lens over a white backdrop and barely over a dark one, where the light glass is darkest and
+    /// titles have the least contrast to spare.
     private func variant(
-        darkTint: ThemeColor, accent: ThemeColor, lens: LensMetrics, tintsFillLens: Bool, lensTint: ThemeColor? = nil
+        darkTint: ThemeColor, accent: ThemeColor, lens: LensMetrics, tintsFillLens: Bool, lensTint: ThemeColor? = nil,
+        lightLensFill: ThemeColor? = nil, lightLensTint: ThemeColor? = nil
     ) -> Theme {
         var theme = self
         theme.light = light.accented(accent, tint: light.glassTint, fillLensAlpha: tintsFillLens ? 0.16 : nil)
@@ -363,6 +375,8 @@ extension Theme {
             theme.light.lensGlassTint = lensTint.scaled(by: light.lensGlassTint.alpha)
             theme.dark.lensGlassTint = lensTint.scaled(by: dark.lensGlassTint.alpha)
         }
+        if let lightLensFill { theme.light.lensFill = lightLensFill }
+        if let lightLensTint { theme.light.lensGlassTint = lightLensTint }
         theme.lens = lens
         return theme
     }
