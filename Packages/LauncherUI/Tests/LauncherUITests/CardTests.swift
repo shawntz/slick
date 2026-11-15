@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct ActionCardContentTests {
+@Suite(.timeLimit(.minutes(1)))
+struct ActionCardContentTests {
     @Test func filteringRanksPrefixThenWordThenSubstringAndFlattens() {
         let content = ActionCardContent(sections: [
             ActionSection(items: [
@@ -22,7 +23,8 @@ import Testing
     }
 }
 
-@Suite struct OverlayTests {
+@Suite(.timeLimit(.minutes(1)))
+struct OverlayTests {
     /// A surface with its query field focused, ordered in off screen and never key.
     func makeSurface() -> LauncherSurface {
         let surface = TestSupport.makeSurface()

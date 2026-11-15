@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct ThemeTests {
+@Suite(.timeLimit(.minutes(1)))
+struct ThemeTests {
     @Test func standardThemeSurvivesJSON() throws {
         let data = try JSONEncoder().encode(Theme.standard)
         let decoded = try JSONDecoder().decode(Theme.self, from: data)

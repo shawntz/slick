@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct ThemeStoreTests {
+@Suite(.timeLimit(.minutes(1)))
+struct ThemeStoreTests {
     /// A fresh temporary folder per test, removed when the test ends.
     final class Folder {
         let url = FileManager.default.temporaryDirectory.appending(path: "theme-store-" + UUID().uuidString)

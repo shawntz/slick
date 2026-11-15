@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct PanelTests {
+@Suite(.timeLimit(.minutes(1)))
+struct PanelTests {
     @Test func panelFlagsFollowTheGlassRules() {
         let surface = TestSupport.makeSurface()
         defer { surface.panel.close() }

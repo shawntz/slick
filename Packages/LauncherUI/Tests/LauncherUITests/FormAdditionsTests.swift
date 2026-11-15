@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct FormAdditionsTests {
+@Suite(.timeLimit(.minutes(1)))
+struct FormAdditionsTests {
     func makeForm(_ items: [FormItem]) -> (surface: LauncherSurface, form: FormView) {
         let surface = TestSupport.makeSurface()
         surface.panel.orderFrontRegardless()

@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct FeedbackTests {
+@Suite(.timeLimit(.minutes(1)))
+struct FeedbackTests {
     @Test func theHUDNeverTakesKeyOrClicks() {
         _ = NSApplication.shared
         let hud = HUDWindow()

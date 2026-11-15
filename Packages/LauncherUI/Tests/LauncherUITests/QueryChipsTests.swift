@@ -16,7 +16,8 @@ final class ArgumentRecorder: QueryFieldDelegate {
     func queryField(_ field: QueryField, argumentAt index: Int, didChange value: String) { values[index] = value }
 }
 
-@Suite struct QueryChipsTests {
+@Suite(.timeLimit(.minutes(1)))
+struct QueryChipsTests {
     func makeField() -> (surface: LauncherSurface, field: QueryField, recorder: ArgumentRecorder) {
         let surface = TestSupport.makeSurface()
         surface.panel.orderFrontRegardless()

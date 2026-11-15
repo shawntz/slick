@@ -3,7 +3,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct PanelGeometryTests {
+@Suite(.timeLimit(.minutes(1)))
+struct PanelGeometryTests {
     let theme = Theme.standard
 
     @Test func glassTopSitsAt22PercentAndIsCentred() {

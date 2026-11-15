@@ -6,7 +6,8 @@ import Testing
 
 /// What Host asked for in round 3: scroll reports, the notice banner, the confirm card's checkbox,
 /// toast buttons and the info style, and the caret colour.
-@Suite struct HostRequestTests {
+@Suite(.timeLimit(.minutes(1)))
+struct HostRequestTests {
     @Test func theListReportsVisibleRowsWhenItScrolls() {
         let (list, window) = TestSupport.makeList()
         defer { window.close() }

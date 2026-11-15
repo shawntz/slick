@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct ANSIParserTests {
+@Suite(.timeLimit(.minutes(1)))
+struct ANSIParserTests {
     @Test func colourCodesSplitTheTextIntoStyledRuns() {
         var parser = ANSIParser()
         let runs = parser.parse("ok \u{1B}[1;31mfailed\u{1B}[0m done")
@@ -53,7 +54,8 @@ import Testing
     }
 }
 
-@Suite struct LegibleColorTests {
+@Suite(.timeLimit(.minutes(1)))
+struct LegibleColorTests {
     @Test func coloursReachTheRatioOverTheReference() {
         let white = (red: 1.0, green: 1.0, blue: 1.0)
         let black = (red: 0.0, green: 0.0, blue: 0.0)
@@ -84,7 +86,8 @@ import Testing
     }
 }
 
-@Suite struct DetailStylingTests {
+@Suite(.timeLimit(.minutes(1)))
+struct DetailStylingTests {
     func makePane(dark: Bool = false) -> DetailPane {
         let pane = DetailPane(frame: CGRect(x: 0, y: 0, width: 400, height: 400))
         let theme = ResolvedTheme(

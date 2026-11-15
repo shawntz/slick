@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct ProbeTests {
+@Suite(.timeLimit(.minutes(1)))
+struct ProbeTests {
     /// A 1×1 transparent window on screen, so the display link ticks. Nothing is visible.
     func makeOnScreenView() -> (view: NSView, window: NSWindow) {
         _ = NSApplication.shared

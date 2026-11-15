@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct MarkdownParserTests {
+@Suite(.timeLimit(.minutes(1)))
+struct MarkdownParserTests {
     func blocks(_ text: String) -> [MarkdownBlock] { MarkdownParser.blocks(text[...]).map(\.block) }
 
     @Test func blockKinds() {
@@ -81,7 +82,8 @@ import Testing
     }
 }
 
-@Suite struct DetailPaneTests {
+@Suite(.timeLimit(.minutes(1)))
+struct DetailPaneTests {
     func makePane() -> (pane: DetailPane, window: NSWindow) {
         let frame = CGRect(x: 0, y: 0, width: 440, height: 500)
         let window = NSWindow(

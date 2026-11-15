@@ -6,7 +6,8 @@ import LauncherUITesting
 import Testing
 
 /// The encoders and the idle guard, without a window: clips are made from synthetic frames.
-@Suite struct ClipEncodingTests {
+@Suite(.timeLimit(.minutes(1)))
+struct ClipEncodingTests {
     final class Folder {
         let url = FileManager.default.temporaryDirectory.appending(path: "clips-" + UUID().uuidString)
 

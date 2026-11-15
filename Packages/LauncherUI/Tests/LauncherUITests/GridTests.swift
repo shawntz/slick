@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct GridLayoutTests {
+@Suite(.timeLimit(.minutes(1)))
+struct GridLayoutTests {
     let metrics = Theme.standard.grid
     let list = Theme.standard.list
 
@@ -82,7 +83,8 @@ import Testing
     }
 }
 
-@Suite struct GridViewTests {
+@Suite(.timeLimit(.minutes(1)))
+struct GridViewTests {
     func makeGrid() -> (grid: GridView, window: NSWindow) {
         let frame = CGRect(x: 0, y: 0, width: Theme.standard.panel.width, height: Theme.standard.panel.maxContentHeight)
         let window = NSWindow(

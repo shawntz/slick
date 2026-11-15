@@ -4,7 +4,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct FormViewTests {
+@Suite(.timeLimit(.minutes(1)))
+struct FormViewTests {
     /// A surface showing the synthetic form, ordered in off screen and never key.
     func makeForm() -> (surface: LauncherSurface, form: FormView) {
         let surface = TestSupport.makeSurface()
@@ -31,7 +32,8 @@ import Testing
     }
 }
 
-@Suite struct FormBehaviourTests {
+@Suite(.timeLimit(.minutes(1)))
+struct FormBehaviourTests {
     func makeForm() -> (surface: LauncherSurface, form: FormView) {
         FormViewTests().makeForm()
     }

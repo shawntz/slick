@@ -18,7 +18,8 @@ final class FieldRecorder: QueryFieldDelegate {
     }
 }
 
-@Suite struct QueryFieldTests {
+@Suite(.timeLimit(.minutes(1)))
+struct QueryFieldTests {
     /// A surface with its field editor installed and a recorder attached. Never key.
     func makeField() -> (surface: LauncherSurface, field: QueryField, editor: NSTextView, recorder: FieldRecorder) {
         let surface = TestSupport.makeSurface()
@@ -129,7 +130,8 @@ final class FieldRecorder: QueryFieldDelegate {
     }
 }
 
-@Suite struct KeyChordTests {
+@Suite(.timeLimit(.minutes(1)))
+struct KeyChordTests {
     @Test func onlyKeyEventsMakeChords() throws {
         _ = NSApplication.shared
         let mouse = try #require(

@@ -2,7 +2,8 @@ import Testing
 
 @testable import LauncherUI
 
-@Suite struct ListLayoutTests {
+@Suite(.timeLimit(.minutes(1)))
+struct ListLayoutTests {
     let metrics = Theme.standard.list
 
     func content(_ counts: [Int], titled: Bool = true, style: RowStyle = .oneLine) -> ListContent {

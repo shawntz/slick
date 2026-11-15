@@ -4,7 +4,8 @@ import Testing
 
 @_spi(Testing) @testable import LauncherUI
 
-@Suite struct ResultListViewTests {
+@Suite(.timeLimit(.minutes(1)))
+struct ResultListViewTests {
     let catalog = SyntheticCatalog()
 
     @Test func onlyChangedRowsAreRedrawn() {

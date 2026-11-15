@@ -8,7 +8,8 @@ import Testing
 /// that description through the `NSAccessibility` protocol, in process. A test runner cannot
 /// serve the `AXUIElement` API (it never finishes launching as an app), so the same checks run
 /// through that API in the demo app: `scripts/ui-demo.sh accessibility`.
-@Suite struct AccessibilityTests {
+@Suite(.timeLimit(.minutes(1)))
+struct AccessibilityTests {
     @Test func rowsAndHeadersAreExposed() throws {
         let (list, window) = TestSupport.makeList()
         defer { window.close() }
