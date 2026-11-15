@@ -1,0 +1,35 @@
+[package]
+name = "slick-ffi"
+description = "The C ABI over the Slick core, built as the one static library the app links."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[lib]
+name = "slick_ffi"
+# staticlib only. Adding "rlib" silently disables fat LTO for the archive: std stays as about 400
+# separate objects and the archive triples in size. Unit tests in src/ still run.
+crate-type = ["staticlib"]
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Regenerates include/slick_core.h with cbindgen during the build. scripts/build-rust.sh turns it on.
+header = ["dep:cbindgen"]
+
+# Each area module in src/ adds its crate here together with its first exported function. Cargo
+# warns about dependencies that nothing uses, so none are declared ahead of time.
+[dependencies]
+slick-calc = { path = "../slick-calc" }
+slick-engine = { path = "../slick-engine" }
+# Without the default "parallel" feature: searches run their parts on Grand Central Dispatch
+# (src/files.rs), so rayon and its thread pool stay out of the app.
+slick-files = { path = "../slick-files", default-features = false }
+
+[build-dependencies]
+cbindgen = { version = "=0.29.4", default-features = false, optional = true }
