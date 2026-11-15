@@ -1,16 +1,9 @@
 {
-  "name": "Emoji answer a colon in root search and fill a grid",
+  "name": "Emoji fill a grid and answer a colon in root search",
   "timeLimit": 30,
   "steps": [
+    { "app": { "setSettings": { "app.general.resetToRootAfter": 0 } } },
     { "summon": true },
-    { "type": ":thumbs" },
-    { "expect": { "rows": ["Thumbs Up", "Thumbs Down", "Search Google for \":thumbs\"", "Search Wikipedia for \":thumbs\"", "Search Colors with \":thumbs\""], "selection": "Thumbs Up" } },
-    { "press": "return" },
-    { "waitUntilIdle": 3 },
-    { "expect": { "visible": false } },
-    { "app": { "pasteboardText": "👍" } },
-    { "summon": true },
-    { "press": "escape" },
     { "type": "search emoji" },
     { "expect": { "selection": "Search Emoji and Symbols" } },
     { "press": "return" },
@@ -27,6 +20,14 @@
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "expect": { "visible": false } },
-    { "app": { "pasteboardText": "🤩" } }
+    { "app": { "pasteboardText": "🤩" } },
+    { "summon": true },
+    { "expect": { "page": "root", "query": "" } },
+    { "type": ":thumbs" },
+    { "expect": { "rows": ["Thumbs Up", "Thumbs Down", "Search Google for \":thumbs\"", "Search Wikipedia for \":thumbs\"", "Search Colors with \":thumbs\""], "selection": "Thumbs Up" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "pasteboardText": "👍" } }
   ]
 }

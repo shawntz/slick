@@ -15,6 +15,7 @@ Host's format, documented in docs/SCENARIOS.md, plus app steps. An app step is `
 | Key | Type | What it does |
 |---|---|---|
 | `pressHotkey` | `true` | does what the launcher hotkey does, through its binding |
+| `systemShortcuts` | strings | plays the macOS shortcuts that hold these combinations, as Spotlight holds `cmd+space` on a new Mac; `[]` turns them all off. The launcher notices on its own timer or when settings opens |
 | `setFeatures` | object | turns each feature, by ID, on or off, then waits for root search to settle |
 | `setSettings` | object | sets `themeName`, `visibleRows`, `inlineCompletion`, `panelSizing` or `launcherHotkey`; a name with a dot, such as `windows.showsLayoutName`, sets that feature setting as stored |
 | `setHotkey` | object | gives `item` the hotkey `keys`, as settings does; `""` clears it |
@@ -27,10 +28,11 @@ Host's format, documented in docs/SCENARIOS.md, plus app steps. An app step is `
 | `settings` | strings | what settings was asked to open, exactly: a pane, `""` for the last pane, or `features/<id>` |
 | `aliases` | object | each item ID has exactly this alias |
 | `favorites` | strings | the favorites, exactly, in order |
-| `hud` | string | the last HUD's title; HUDs are recorded, never shown |
+| `hud` | string | the last HUD's title; HUDs are recorded, never shown; `{brand}` stands for the app's name |
 | `pasteboardText` | string | the text on the run's private pasteboard |
 | `hotkeyBound` | bool | a launcher hotkey is bound |
-| `launcherHotkey` | string | the launcher hotkey bound now, such as `opt+space` |
+| `hotkeyWaiting` | string | the owner of the macOS shortcut the launcher hotkey waits behind, `""` for none |
+| `launcherHotkey` | string | the launcher hotkey bound now, such as `cmd+space` |
 | `hotkeyRefused` | bool | the last `setHotkey` was refused |
 | `itemHotkeys` | object | each item ID has exactly this hotkey; `""` for none |
 | `theme` | string | the selected theme, and the panel draws it |
@@ -57,13 +59,14 @@ Host's expectations gained `card`: the title of the confirmation or permission c
 | feature-off-while-shown.json | a feature switched off while its rows show removes them and pops its page |
 | alias-equals-title.json | an alias equal to another item's title wins that query |
 | hotkey-conflicts.json | item and launcher hotkey conflicts, takeover, retry, and pressing an item hotkey |
+| launcher-hotkey-waits.json | while Spotlight holds Command-Space the launcher binds nothing and items are refused; once it is free, opening settings binds it with a HUD |
 | theme-switch-while-open.json | a theme switch while the panel and the action panel show |
 | settings-while-pushed.json | settings changed while a list is pushed keep the page and its selection |
 | hostile-links-more.json | more hostile links are refused; a destructive command by link asks twice |
 | two-summons.json | summons and hotkey presses in quick succession |
 | clipboard-history.json | copies by another app are listed, filtered and pasted back |
 | snippets.json | a snippet made in the panel is found and pasted |
-| emoji.json | colon search and the grid paste the right emoji |
+| emoji.json | the grid and colon search paste the right emoji; the grid runs first, because the colon answer waits for the data the grid loads |
 | system-commands.json | Restart asks first; Set Volume takes its argument; Toggle Dark Mode reports |
 | window-management.json | Switch Windows and repeated Left Half on the simulated desktop |
 | quicklinks.json | an argument typed in the search bar opens the right link |
