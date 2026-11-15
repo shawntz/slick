@@ -27,16 +27,18 @@ final class ManageScriptsList: ListSource {
         await feature.scanned()
         let catalog = feature.catalog
         let home = feature.context.storage.homeDirectory
+        let allowsRemoteIcons = feature.context.settings[ScriptsSettings.remoteIcons]
         let sections = catalog.folders.compactMap { state -> ListSection? in
             let entries = catalog.entries.filter { $0.folder.path == state.folder.path }
             guard !entries.isEmpty else { return nil }
             return ListSection(
-                state.folder.displayName, id: state.folder.path, rows: entries.map { Self.row($0, home: home) })
+                state.folder.displayName, id: state.folder.path,
+                rows: entries.map { Self.row($0, home: home, allowsRemoteIcons: allowsRemoteIcons) })
         }
         return ListResult(sections: sections)
     }
 
-    static func row(_ entry: ScriptEntry, home: URL) -> Row {
+    static func row(_ entry: ScriptEntry, home: URL, allowsRemoteIcons: Bool) -> Row {
         var accessories: [Accessory] = []
         if let mode = entry.script?.mode { accessories.append(.tag(Strings.modeName(mode))) }
         if entry.hasErrors {
@@ -45,7 +47,9 @@ final class ManageScriptsList: ListSource {
             accessories.append(.tag(Strings.tagWarning, color: .orange))
         }
         if !entry.folder.isEnabled { accessories.append(.tag(Strings.tagOff, color: .gray)) }
-        let icon = entry.script?.icon(home: home) ?? .symbol("exclamationmark.triangle", tint: .red)
+        let icon =
+            entry.script?.icon(home: home, allowsRemote: allowsRemoteIcons)
+            ?? .symbol("exclamationmark.triangle", tint: .red)
         let item = ManagedScript(
             path: entry.url.path(percentEncoded: false), folderPath: entry.folder.path,
             folderName: entry.folder.displayName, commandID: entry.commandID, isRunnable: entry.isRunnable,

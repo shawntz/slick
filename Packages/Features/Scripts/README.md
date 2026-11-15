@@ -21,7 +21,7 @@ echo "Hello ${1:-World}"
 | `title` | yes | the command's title |
 | `mode` | yes | `fullOutput`, `compact`, `silent`, `inline`, or this feature's `list` |
 | `packageName` | | the subtitle; the folder's name when missing |
-| `icon`, `iconDark` | | an emoji, an image path relative to the script, or an `https` URL |
+| `icon`, `iconDark` | | an emoji, an image path relative to the script, or an `https` URL, shown only after the user turns on Show icons from the web |
 | `currentDirectoryPath` | | relative to the script's folder, absolute, or `~/` |
 | `needsConfirmation` | | `true` asks before running |
 | `refreshTime` | inline | `10s`, `5m`, `12h`, `1d`; at least ten seconds |
@@ -56,6 +56,8 @@ Return acts on the row's `arg` by `filterAction`. `auto` opens `http` and `https
 ## Safety
 
 A script is the user's own code and runs with their rights. The settings pane says so. Scripts in a folder the user adds are listed but stay off until the user turns the folder on. Nothing runs that the user did not start, except inline scripts the user turned automatic refresh on for.
+
+An icon named by an `https` URL is never downloaded until the user turns on Show icons from the web in settings, because a download tells that server when the script shows. Until then the script shows its mode's symbol.
 
 A script with `needsConfirmation` asks before every run and never refreshes by itself, whatever the settings hold. A `needsConfirmation` value other than `true` or `false` asks too, with a warning. A list script's variables never set names that make a shell or an interpreter load other code, such as `BASH_ENV`, `ENV`, `ZDOTDIR`, `NODE_OPTIONS` or `PYTHONPATH`. Zero characters never reach a process.
 

@@ -346,13 +346,15 @@ struct InterpreterTests {
     @Test func resolvesIcons() {
         let folder = URL(filePath: "/scripts", directoryHint: .isDirectory)
         let home = URL(filePath: "/home/test", directoryHint: .isDirectory)
-        #expect(ScriptIcon.icon("🤖", folder: folder, home: home) == .glyph("🤖"))
-        #expect(ScriptIcon.icon("images/a.png", folder: folder, home: home) == .image(path: "/scripts/images/a.png"))
-        #expect(ScriptIcon.icon("icon.png", folder: folder, home: home) == .image(path: "/scripts/icon.png"))
-        #expect(ScriptIcon.icon("~/a.png", folder: folder, home: home) == .image(path: "/home/test/a.png"))
-        #expect(
-            ScriptIcon.icon("https://example.com/a.png", folder: folder, home: home)
-                == .remote(URL(string: "https://example.com/a.png")!))
-        #expect(ScriptIcon.icon("terminal", folder: folder, home: home) == nil)
+        func icon(_ value: String, remote: Bool = false) -> Icon? {
+            ScriptIcon.icon(value, folder: folder, home: home, allowsRemote: remote)
+        }
+        #expect(icon("🤖") == .glyph("🤖"))
+        #expect(icon("images/a.png") == .image(path: "/scripts/images/a.png"))
+        #expect(icon("icon.png") == .image(path: "/scripts/icon.png"))
+        #expect(icon("~/a.png") == .image(path: "/home/test/a.png"))
+        #expect(icon("https://example.com/a.png") == nil, "nothing is downloaded unless the user allows it")
+        #expect(icon("https://example.com/a.png", remote: true) == .remote(URL(string: "https://example.com/a.png")!))
+        #expect(icon("terminal") == nil)
     }
 }

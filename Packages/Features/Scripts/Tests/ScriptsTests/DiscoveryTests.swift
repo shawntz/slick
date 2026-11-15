@@ -217,7 +217,8 @@ struct DiscoveryTests {
         try write(Fixture.script(title: "Three", shebang: "#!python"), "three.py")
         await bench.start()
         try await bench.harness.run("reload")
-        #expect(bench.harness.toasts.map(\.title) == [Strings.reloaded(commands: 2, problems: 1)])
+        #expect(bench.harness.toasts.map(\.title) == ["Found 2 Script Commands"])
+        #expect(bench.harness.toasts.first?.message == "1 script has a problem. Manage Script Commands shows it.")
         try await bench.harness.pressSettingsButton(Strings.reloadTitle)
         #expect(bench.harness.toasts.count == 2)
     }

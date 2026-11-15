@@ -27,9 +27,10 @@ final class ScriptCommands {
             ? Confirmation(Strings.confirmRun(title), confirmTitle: Strings.confirmRunButton) : nil
         let fallback = script.acceptsTypedText ? Fallback { Strings.runFallback(title, text: $0) } : nil
         let keywords = [script.url.lastPathComponent, script.metadata.description].compactMap(\.self)
+        let icon = script.icon(
+            home: context.storage.homeDirectory, allowsRemote: context.settings[ScriptsSettings.remoteIcons])
         let command = Command(
-            id: script.commandID, title: title, subtitle: script.subtitle,
-            icon: script.icon(home: context.storage.homeDirectory), keywords: keywords,
+            id: script.commandID, title: title, subtitle: script.subtitle, icon: icon, keywords: keywords,
             arguments: script.commandArguments, confirmation: confirmation, fallback: fallback,
             liveSubtitle: script.mode == .inline ? inlineSubtitle(for: script) : nil,
             runPolicy: .concurrent
@@ -56,7 +57,8 @@ final class ScriptCommands {
             let source = ScriptListSource(
                 script: script, processes: processes, settings: context.settings, home: settings.home,
                 namespace: context.featureID)
-            let empty = EmptyState(icon: script.icon(home: settings.home), title: Strings.noResults)
+            let icon = script.icon(home: settings.home, allowsRemote: context.settings[ScriptsSettings.remoteIcons])
+            let empty = EmptyState(icon: icon, title: Strings.noResults)
             return .push(
                 .list(
                     ListPage(

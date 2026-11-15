@@ -12,6 +12,10 @@ nonisolated enum ScriptsSettings {
     static let refreshingInline = SettingKey("refreshingInline", default: [String]())
     static let timeout = SettingKey("timeout", default: ScriptTimeout.oneMinute)
     static let outputLimit = SettingKey("outputLimit", default: OutputLimit.oneMegabyte)
+    /// Whether a header icon given as an `https` address is shown. Showing it downloads it, which
+    /// tells that server when the script appears, so it is off until the user turns it on. Off, the
+    /// script shows its mode's symbol.
+    static let remoteIcons = SettingKey("remoteIcons", default: false)
     /// The `PATH` scripts run with. Homebrew's folders come first, as in other launchers.
     static let searchPath = SettingKey("searchPath", default: defaultSearchPath)
 

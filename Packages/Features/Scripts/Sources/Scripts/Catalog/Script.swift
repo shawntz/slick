@@ -17,16 +17,18 @@ nonisolated struct Script: Hashable, Sendable {
         metadata.packageName ?? folder.lastPathComponent
     }
 
-    /// The header's icon, a dark variant when it has one, or a symbol for the mode.
-    func icon(home: URL) -> Icon {
+    /// The header's icon, a dark variant when it has one, or a symbol for the mode. An icon given as
+    /// a web address counts only when `allowsRemote`; see ``ScriptsSettings/remoteIcons``.
+    func icon(home: URL, allowsRemote: Bool) -> Icon {
         let fallback: Icon =
             switch mode {
             case .list: .symbol("list.bullet.rectangle")
             case .inline: .symbol("text.line.first.and.arrowtriangle.forward")
             default: .symbol("terminal")
             }
-        let light = ScriptIcon.icon(metadata.icon, folder: folder, home: home) ?? fallback
-        guard let dark = ScriptIcon.icon(metadata.iconDark, folder: folder, home: home) else { return light }
+        let light = ScriptIcon.icon(metadata.icon, folder: folder, home: home, allowsRemote: allowsRemote) ?? fallback
+        guard let dark = ScriptIcon.icon(metadata.iconDark, folder: folder, home: home, allowsRemote: allowsRemote)
+        else { return light }
         return .adaptive(light: light, dark: dark)
     }
 

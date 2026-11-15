@@ -1,8 +1,9 @@
 import Foundation
 import Kit
 
-/// Every string a user reads, in one place so it can be translated later. Command and action
-/// titles use title case; everything else is a plain sentence.
+/// Every string a user reads, in one place so it can be translated later. Command, action,
+/// section, empty-state, toast and HUD titles, buttons and menu items use title case, as macOS
+/// menus do, and end without a full stop. Everything else is a plain sentence.
 nonisolated enum Strings {
     // MARK: - Feature
 
@@ -19,12 +20,16 @@ nonisolated enum Strings {
     static let createKeywords = ["new script", "template"]
     static let manageKeywords = ["scripts", "problems"]
 
-    static func reloaded(commands: Int, problems: Int) -> String {
-        let found = commands == 1 ? "Found 1 script command" : "Found \(commands) script commands"
+    static func reloaded(commands: Int) -> String {
+        commands == 1 ? "Found 1 Script Command" : "Found \(commands) Script Commands"
+    }
+
+    /// The sentence under ``reloaded(commands:)`` when some scripts have problems.
+    static func reloadProblems(_ problems: Int) -> String? {
         switch problems {
-        case 0: return found
-        case 1: return found + ". 1 script has a problem"
-        default: return found + ". \(problems) scripts have problems"
+        case 0: nil
+        case 1: "1 script has a problem. Manage Script Commands shows it."
+        default: "\(problems) scripts have problems. Manage Script Commands shows them."
         }
     }
 
@@ -41,7 +46,7 @@ nonisolated enum Strings {
     // MARK: - Running
 
     static func finished(_ title: String) -> String {
-        "\(title) finished"
+        "\(title) Finished"
     }
 
     static func failedWithCode(_ code: Int32) -> String {
@@ -49,23 +54,23 @@ nonisolated enum Strings {
     }
 
     static func failed(_ title: String) -> String {
-        "\(title) failed"
+        "\(title) Failed"
     }
 
     static func timedOut(_ title: String, after limit: String) -> String {
-        "\(title) was stopped after \(limit)"
+        "\(title) Was Stopped After \(limit)"
     }
 
     static let timedOutMessage = "Raise the time limit in settings if the script needs longer."
 
     static func overLimit(_ title: String, limit: String) -> String {
-        "\(title) printed more than \(limit) and was stopped"
+        "\(title) Printed More than \(limit) and Was Stopped"
     }
 
     static let overLimitMessage = "Raise the output limit in settings, or make the script print less."
 
     static func couldNotStart(_ title: String) -> String {
-        "\(title) could not start"
+        "\(title) Could Not Start"
     }
 
     static let showOutput = "Show Output"
@@ -110,8 +115,8 @@ nonisolated enum Strings {
 
     static let turnOnRefresh = "Turn On Automatic Refresh"
     static let turnOffRefresh = "Turn Off Automatic Refresh"
-    static let refreshOn = "This script now refreshes by itself"
-    static let refreshOff = "This script now runs only when you run it"
+    static let refreshOn = "This Script Now Refreshes by Itself"
+    static let refreshOff = "This Script Now Runs Only When You Run It"
 
     // MARK: - List scripts
 
@@ -130,7 +135,7 @@ nonisolated enum Strings {
     static let noItems = "The script's JSON has no \"items\" list."
 
     static func listFailed(_ title: String) -> String {
-        "\(title) failed"
+        "\(title) Failed"
     }
 
     static func skippedItems(_ count: Int) -> String {
@@ -167,7 +172,7 @@ nonisolated enum Strings {
         "Every script in this folder becomes a command you can run. Scripts run as you and can do anything you can do."
 
     static func folderTurnedOn(_ folder: String) -> String {
-        "Scripts in \(folder) can run now"
+        "Scripts in \(folder) Can Run Now"
     }
 
     static let detailFile = "File"
@@ -251,6 +256,9 @@ nonisolated enum Strings {
     static let enabledFoldersTitle = "Folders allowed to run"
     static let enabledFoldersInfo =
         "Scripts in a newly added folder are listed but stay off until you turn the folder on here."
+    static let remoteIconsTitle = "Show icons from the web"
+    static let remoteIconsInfo =
+        "A script can name its icon by a web address. When this is on, the app downloads that icon the first time the script shows, which tells that server when you use the launcher. When it is off, the script shows a symbol instead."
     static let runningSection = "Running"
     static let timeoutTitle = "Time limit"
     static let timeoutInfo = "A script still running after this long is stopped."
@@ -267,12 +275,12 @@ nonisolated enum Strings {
 
     static func timeoutName(_ timeout: ScriptTimeout) -> String {
         switch timeout {
-        case .tenSeconds: "10 seconds"
-        case .thirtySeconds: "30 seconds"
-        case .oneMinute: "1 minute"
-        case .fiveMinutes: "5 minutes"
-        case .fifteenMinutes: "15 minutes"
-        case .never: "No limit"
+        case .tenSeconds: "10 Seconds"
+        case .thirtySeconds: "30 Seconds"
+        case .oneMinute: "1 Minute"
+        case .fiveMinutes: "5 Minutes"
+        case .fifteenMinutes: "15 Minutes"
+        case .never: "No Limit"
         }
     }
 

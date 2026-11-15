@@ -61,7 +61,7 @@ public final class ScriptsFeature: Feature {
         // Subscribe before starting the tasks that read, so no change in between is lost.
         let settingChanges = context.settings.changes(ofAny: [
             ScriptsSettings.folders.erased, ScriptsSettings.enabledFolders.erased,
-            ScriptsSettings.refreshingInline.erased,
+            ScriptsSettings.refreshingInline.erased, ScriptsSettings.remoteIcons.erased,
         ])
         listening = [
             Task { [weak self] in
@@ -119,7 +119,7 @@ public final class ScriptsFeature: Feature {
             Command(id: "reload", title: Strings.reloadTitle, icon: .symbol("arrow.clockwise")) {
                 [self] context in
                 await watchFolders().value
-                context.showToast(.success(reloadSummary))
+                context.showToast(reloadSummary)
                 return .keepOpen
             },
             Command(
@@ -142,8 +142,10 @@ public final class ScriptsFeature: Feature {
         ]
     }
 
-    private var reloadSummary: String {
-        Strings.reloaded(commands: catalog.runnable.count, problems: catalog.entries.filter(\.hasErrors).count)
+    private var reloadSummary: Toast {
+        .success(
+            Strings.reloaded(commands: catalog.runnable.count),
+            message: Strings.reloadProblems(catalog.entries.filter(\.hasErrors).count))
     }
 
     // MARK: - Settings and status
@@ -163,10 +165,11 @@ public final class ScriptsFeature: Feature {
                     ) { [weak self] in
                         self?.folderChoices() ?? []
                     },
+                    .toggle(Strings.remoteIconsTitle, key: ScriptsSettings.remoteIcons, info: Strings.remoteIconsInfo),
                     .button(Strings.reloadTitle, info: Strings.reloadButtonInfo) { [weak self] context in
                         guard let self else { return }
                         await watchFolders().value
-                        context.showToast(.success(reloadSummary))
+                        context.showToast(reloadSummary)
                     },
                 ]),
             SettingsSection(
@@ -204,7 +207,9 @@ public final class ScriptsFeature: Feature {
     private func inlineChoices() -> [SettingsChoice] {
         let home = context.storage.homeDirectory
         return catalog.runnable.filter(\.canRefreshByItself).map { script in
-            SettingsChoice(id: script.commandID, title: script.title, icon: script.icon(home: home))
+            SettingsChoice(
+                id: script.commandID, title: script.title,
+                icon: script.icon(home: home, allowsRemote: context.settings[ScriptsSettings.remoteIcons]))
         }
     }
 
@@ -250,6 +255,9 @@ public final class ScriptsFeature: Feature {
             await watchFolders().value
         case ScriptsSettings.enabledFolders.name:
             await watchFolders().value
+        case ScriptsSettings.remoteIcons.name:
+            // Commands and Manage Script Commands show the icons again.
+            changes.send()
         default:
             // Automatic refresh turned on or off: inline subtitles read the setting again now.
             for script in catalog.runnable where script.mode == .inline {

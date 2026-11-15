@@ -24,6 +24,34 @@ struct CommandsTests {
         #expect(bench.harness.issues.isEmpty)
     }
 
+    @Test func aWebIconShowsOnlyAfterTheUserAllowsIt() async throws {
+        let bench = ScriptsBench(files: [
+            "web.sh": Fixture.script(
+                title: "Web Icon", extra: ["icon https://example.com/a.png", "iconDark https://example.com/b.png"])
+        ])
+        await bench.start()
+        #expect(ScriptsSettings.remoteIcons.defaultValue == false)
+        #expect(try #require(bench.scriptCommands.first).icon == .symbol("terminal"))
+        try await bench.harness.run("manage")
+        #expect(bench.harness.rows.first?.icon == .symbol("terminal"))
+
+        let declarations = try #require(bench.feature.declarationChanges).generation
+        bench.harness.context.settings[ScriptsSettings.remoteIcons] = true
+        try await bench.harness.settle()
+        #expect(try #require(bench.feature.declarationChanges).generation > declarations)
+        #expect(
+            try #require(bench.scriptCommands.first).icon
+                == .adaptive(
+                    light: .remote(URL(string: "https://example.com/a.png")!),
+                    dark: .remote(URL(string: "https://example.com/b.png")!)))
+        #expect(
+            bench.harness.rows.first?.icon
+                == .adaptive(
+                    light: .remote(URL(string: "https://example.com/a.png")!),
+                    dark: .remote(URL(string: "https://example.com/b.png")!)), "the open list follows")
+        #expect(bench.fakes.http.requests.isEmpty, "the feature itself downloads nothing")
+    }
+
     @Test func createsAScriptFromATemplateAndItBecomesACommand() async throws {
         let library = MemoryScriptLibrary()
         let bench = ScriptsBench(library: library)
@@ -158,7 +186,7 @@ struct CommandsTests {
         #expect(items.first?.title == Strings.safetyNote)
         #expect(
             items.compactMap(\.control.key?.name) == [
-                "folders", "enabledFolders", "timeout", "outputLimit", "searchPath", "refreshingInline",
+                "folders", "enabledFolders", "remoteIcons", "timeout", "outputLimit", "searchPath", "refreshingInline",
             ])
     }
 

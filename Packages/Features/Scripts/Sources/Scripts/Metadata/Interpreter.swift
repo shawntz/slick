@@ -52,10 +52,10 @@ nonisolated enum ScriptIcon {
     }
 
     /// The icon for a header value. Paths are relative to the script's folder, or start with `/` or
-    /// `~/`.
-    static func icon(_ value: String?, folder: URL, home: URL) -> Icon? {
+    /// `~/`. An `https` address gives nil unless `allowsRemote`, so nothing is downloaded.
+    static func icon(_ value: String?, folder: URL, home: URL, allowsRemote: Bool) -> Icon? {
         guard let value, isValid(value) else { return nil }
-        if value.hasPrefix("https://") { return URL(string: value).map(Icon.remote) }
+        if value.hasPrefix("https://") { return allowsRemote ? URL(string: value).map(Icon.remote) : nil }
         guard isPath(value) else { return .glyph(value) }
         return .image(path: ScriptPath.resolve(value, folder: folder, home: home).path)
     }

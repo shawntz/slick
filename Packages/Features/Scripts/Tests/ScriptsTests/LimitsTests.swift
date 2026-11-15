@@ -65,7 +65,7 @@ struct LimitsTests {
     @Test func aCompactScriptPastTheTimeLimitSaysSo() async throws {
         let (bench, _) = await timingOut(["slow.sh": Fixture.script(title: "Slow")])
         await #expect(
-            throws: ActionFailure(Strings.timedOut("Slow", after: "1 minute"), message: Strings.timedOutMessage)
+            throws: ActionFailure(Strings.timedOut("Slow", after: "1 Minute"), message: Strings.timedOutMessage)
         ) {
             try await bench.harness.run(bench.id("slow.sh"))
         }
@@ -74,13 +74,13 @@ struct LimitsTests {
     @Test func aSilentScriptPastTheTimeLimitSaysSoInAHUD() async throws {
         let (bench, _) = await timingOut(["slow.sh": Fixture.script("silent", title: "Slow")])
         try await bench.harness.run(bench.id("slow.sh"))
-        #expect(bench.harness.huds == [.failure(Strings.timedOut("Slow", after: "1 minute"))])
+        #expect(bench.harness.huds == [.failure(Strings.timedOut("Slow", after: "1 Minute"))])
     }
 
     @Test func aListScriptPastTheTimeLimitShowsItOnThePage() async throws {
         let (bench, _) = await timingOut(["slow.sh": Fixture.script("list", title: "Slow")])
         try await bench.harness.run(bench.id("slow.sh"))
-        #expect(bench.harness.page?.emptyState?.title == Strings.timedOut("Slow", after: "1 minute"))
+        #expect(bench.harness.page?.emptyState?.title == Strings.timedOut("Slow", after: "1 Minute"))
     }
 
     @Test func aFullOutputScriptPastTheTimeLimitKeepsItsOutput() async throws {
@@ -96,7 +96,7 @@ struct LimitsTests {
         let id = bench.id("slow.sh")
         bench.harness.context.settings[ScriptsSettings.refreshingInline] = [id]
         let subtitle = try #require(try bench.harness.command(id).liveSubtitle)
-        #expect(await subtitle.value() == LiveSubtitle.Value(Strings.timedOut("Slow", after: "1 minute"), color: .red))
+        #expect(await subtitle.value() == LiveSubtitle.Value(Strings.timedOut("Slow", after: "1 Minute"), color: .red))
     }
 
     // MARK: - Output limit
