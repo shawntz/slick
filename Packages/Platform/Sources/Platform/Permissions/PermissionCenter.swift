@@ -19,10 +19,17 @@ nonisolated public protocol PermissionSystem: Sendable {
     /// True when ``check(_:)`` for the permission may wait on another process, such as the TCC
     /// daemon. The center never makes the main thread wait for such a check.
     func checkMayWait(_ permission: Permission) -> Bool
+
+    /// Finds out again, without a prompt, the status of a permission that has no check, such as
+    /// Full Disk Access after the user went to System Settings to grant it. Nil when it cannot.
+    /// The center calls it only shortly after the user asked for the permission.
+    func recheck(_ permission: Permission) async -> PermissionStatus?
 }
 
 extension PermissionSystem {
     public func checkMayWait(_ permission: Permission) -> Bool { true }
+
+    public func recheck(_ permission: Permission) async -> PermissionStatus? { nil }
 }
 
 /// The live permission service: the rules on top of a ``PermissionSystem``.
@@ -37,13 +44,26 @@ extension PermissionSystem {
 ///   launch.
 /// - Accessibility and Screen Recording checks cannot tell "never asked" from "turned off", so
 ///   after Slick asked once, a missing grant reads `.denied`.
-/// - Full Disk Access and protected folders have no safe check: reading a protected file to find
-///   out can raise a "Data Access Blocked" notification on macOS 27. Their status is what the last
-///   request found, remembered across launches, and `.notDetermined` before that. Full Disk Access
-///   granted counts as every protected folder granted. Automation of an app that is not running is
-///   remembered the same way.
-/// - ``changes(of:)`` checks every ``pollInterval``, off the main thread, only while a stream is
-///   open. A request or a refresh that changes the status tells open streams at once.
+/// - Full Disk Access and protected folders have no check that never prompts: reading a protected
+///   folder to find out can raise its prompt. Their status is what the last request or recheck
+///   found, remembered across launches, and `.notDetermined` before that. Full Disk Access granted
+///   counts as every protected folder granted.
+/// - Automation can be checked only while the target app runs. The center remembers the last
+///   answer a check found, so while the app is not running the status is that answer, or
+///   `.notDetermined` when no check or request ever found one.
+/// - Full Disk Access and Paste from Other Apps have no system prompt. A request that does not
+///   find them granted opens their pane in System Settings. A second open of the same pane right
+///   after, as the host does when a request fails, is skipped.
+/// - ``changes(of:)`` streams share one poller, off the main thread, which runs only while a stream
+///   is open. It checks every permission with an open stream every ``pollInterval`` while the app
+///   is active or for ``fastPollingWindow`` after the user asked for a permission or opened its
+///   pane, and every ``idlePollInterval`` otherwise. The app reports activity with
+///   ``setAppActive(_:)``. A request or a refresh that changes the status tells open streams at
+///   once.
+/// - Full Disk Access has no check. Within ``fastPollingWindow`` after the user asked for it, the
+///   center finds out again with ``PermissionSystem/recheck(_:)`` whenever the user may have come
+///   back from System Settings: ``userMayHaveReturned()``, at most every two seconds, until it
+///   finds the grant.
 ///
 /// What the center remembers lives in the settings service under ``namespace``.
 nonisolated public final class PermissionCenter: PermissionService {
@@ -57,8 +77,14 @@ nonisolated public final class PermissionCenter: PermissionService {
         .accessibility, .inputMonitoring, .screenRecording, .calendars, .reminders, .contacts, .location, .pasteboard,
     ]
 
-    /// How often an open ``changes(of:)`` stream checks the status.
+    /// How often open ``changes(of:)`` streams check while the app is active or the user just
+    /// asked for a permission.
     public let pollInterval: Duration
+    /// How often open streams check otherwise.
+    public let idlePollInterval: Duration
+    /// How long after the user asked for a permission, or opened its pane, checks run every
+    /// ``pollInterval``.
+    public let fastPollingWindow: Duration
     /// How long a check's answer is used before a read refreshes it in the background.
     public let cacheLifetime: Duration
     private let system: any PermissionSystem
@@ -67,6 +93,19 @@ nonisolated public final class PermissionCenter: PermissionService {
     private let announcements = Broadcast<Announcement>()
     private let cache = Mutex<[Permission: CachedCheck]>([:])
     private let refreshing = Mutex<Set<Permission>>([])
+    private let polling = Mutex(Polling())
+
+    /// The shared poller and what decides its pace.
+    private struct Polling {
+        /// Open streams per permission.
+        var watched: [Permission: Int] = [:]
+        var poller: Task<Void, Never>?
+        var isAppActive = false
+        /// When the user last asked for each permission or opened its pane.
+        var askedAt: [Permission: Date] = [:]
+        var lastOpened: (permission: Permission, date: Date)?
+        var lastRecheck: Date?
+    }
 
     private struct Announcement: Sendable {
         var permission: Permission
@@ -80,13 +119,16 @@ nonisolated public final class PermissionCenter: PermissionService {
 
     public init(
         system: any PermissionSystem, settings: any SettingsService, clock: any ClockService,
-        pollInterval: Duration = .seconds(1), cacheLifetime: Duration = .seconds(2)
+        pollInterval: Duration = .seconds(1), cacheLifetime: Duration = .seconds(2),
+        idlePollInterval: Duration = .seconds(10), fastPollingWindow: Duration = .seconds(120)
     ) {
         self.system = system
         self.settings = settings
         self.clock = clock
         self.pollInterval = pollInterval
         self.cacheLifetime = cacheLifetime
+        self.idlePollInterval = idlePollInterval
+        self.fastPollingWindow = fastPollingWindow
     }
 
     public func status(of permission: Permission) -> PermissionStatus {
@@ -97,47 +139,93 @@ nonisolated public final class PermissionCenter: PermissionService {
     /// remembered status is never trusted here: when a feature found Full Disk Access missing after
     /// all, asking again is how the memory gets corrected.
     public func request(_ permission: Permission) async -> PermissionStatus {
+        noteAsked(permission)
         if await checkNow(permission) == .granted { return announceStatus(of: permission) }
         markAsked(permission)
         if let answer = await system.request(permission), answer != .notDetermined {
             remember(answer, for: permission)
         }
         await checkNow(permission)
-        return announceStatus(of: permission)
+        let status = announceStatus(of: permission)
+        if status != .granted, Self.onlySettingsCanGrant(permission) {
+            await openSettings(for: permission)
+        }
+        return status
     }
 
+    /// Opens the permission's pane, unless the same pane opened a moment ago.
     public func openSettings(for permission: Permission) async {
+        let now = clock.now
+        let isRepeat = polling.withLock { polling -> Bool in
+            defer { polling.lastOpened = (permission, now) }
+            guard let last = polling.lastOpened, last.permission == permission else { return false }
+            return now.timeIntervalSince(last.date) < Self.repeatedOpenWindow
+        }
+        noteAsked(permission)
+        guard !isRepeat else { return }
         await system.open(settingsURL: PermissionSettingsLinks.url(for: permission))
     }
 
     public func changes(of permission: Permission) -> AsyncStream<PermissionStatus> {
         let (stream, continuation) = AsyncStream.makeStream(of: PermissionStatus.self)
         let last = Mutex(status(of: permission))
-        let deliver: @Sendable (PermissionStatus) -> Void = { status in
-            let changed = last.withLock { last -> Bool in
-                defer { last = status }
-                return last != status
-            }
-            if changed { continuation.yield(status) }
-        }
         let subscription = announcements.subscribe { announcement in
-            if announcement.permission == permission { deliver(announcement.status) }
-        }
-        let poller = Task.detached(priority: .utility) { [self] in
-            while !Task.isCancelled {
-                do {
-                    try await clock.sleep(for: pollInterval)
-                } catch {
-                    return
-                }
-                deliver(resolve(permission, checked: freshCheck(permission)))
+            guard announcement.permission == permission else { return }
+            let changed = last.withLock { last -> Bool in
+                defer { last = announcement.status }
+                return last != announcement.status
             }
+            if changed { continuation.yield(announcement.status) }
         }
+        startWatching(permission)
         continuation.onTermination = { [weak self] _ in
-            poller.cancel()
             self?.announcements.unsubscribe(subscription)
+            self?.stopWatching(permission)
         }
         return stream
+    }
+
+    /// Tells the center whether the app is active, which makes open streams check every
+    /// ``pollInterval``. Becoming active checks at once, and finds out again about Full Disk Access
+    /// when the user asked for it shortly before.
+    public func setAppActive(_ isActive: Bool) {
+        let changed = polling.withLock { polling -> Bool in
+            defer { polling.isAppActive = isActive }
+            return polling.isAppActive != isActive
+        }
+        guard changed, isActive else { return }
+        wakePoller()
+        userMayHaveReturned()
+    }
+
+    /// Says the user may have come back from System Settings: the app became active, or another
+    /// app came forward. Shortly after the user asked for Full Disk Access, which has no check, the
+    /// center finds out again, at most every ``recheckInterval`` seconds, until it is granted.
+    public func userMayHaveReturned() {
+        let now = clock.now
+        let shouldRecheck = polling.withLock { polling -> Bool in
+            guard let asked = polling.askedAt[.fullDiskAccess], isRecent(asked) else { return false }
+            if let last = polling.lastRecheck, now.timeIntervalSince(last) < Self.recheckInterval { return false }
+            polling.lastRecheck = now
+            return true
+        }
+        guard shouldRecheck else { return }
+        Task.detached(priority: .utility) { [self] in
+            if let answer = await system.recheck(.fullDiskAccess), answer != .notDetermined {
+                remember(answer, for: .fullDiskAccess)
+            }
+            // Stop asking before anyone hears the answer. Announcing first let a listener come
+            // back in while the ask was still on the books, which cost one more recheck.
+            if status(of: .fullDiskAccess) == .granted {
+                polling.withLock { _ = $0.askedAt.removeValue(forKey: .fullDiskAccess) }
+            }
+            announceStatus(of: .fullDiskAccess)
+        }
+    }
+
+    /// True while open streams check every ``pollInterval``.
+    public var isPollingFast: Bool {
+        currentPollInterval() == pollInterval
     }
 
     /// Checks the permissions now, off the main thread, and tells open streams of any change. The
@@ -146,6 +234,95 @@ nonisolated public final class PermissionCenter: PermissionService {
         for permission in permissions {
             freshCheck(permission)
             announceStatus(of: permission)
+        }
+    }
+
+    // MARK: Polling
+
+    /// A second open of the same pane within this many seconds is skipped.
+    static let repeatedOpenWindow: TimeInterval = 2
+    /// The fewest seconds between two rechecks of Full Disk Access.
+    static let recheckInterval: TimeInterval = 2
+
+    /// Permissions macOS has no prompt for: the user grants them in System Settings.
+    static func onlySettingsCanGrant(_ permission: Permission) -> Bool {
+        switch permission {
+        case .fullDiskAccess, .pasteboard: true
+        default: false
+        }
+    }
+
+    private func isRecent(_ date: Date) -> Bool {
+        clock.now.timeIntervalSince(date) < fastPollingWindow.timeInterval
+    }
+
+    /// Records that the user asked for the permission now, which speeds up the poller.
+    private func noteAsked(_ permission: Permission) {
+        let now = clock.now
+        polling.withLock { $0.askedAt[permission] = now }
+        wakePoller()
+    }
+
+    private func currentPollInterval() -> Duration {
+        let (isActive, askedAt) = polling.withLock { ($0.isAppActive, $0.askedAt) }
+        if isActive || askedAt.values.contains(where: isRecent) { return pollInterval }
+        return idlePollInterval
+    }
+
+    private func startWatching(_ permission: Permission) {
+        let start = polling.withLock { polling -> Bool in
+            polling.watched[permission, default: 0] += 1
+            return polling.poller == nil
+        }
+        if start { restartPoller(checkingFirst: false) }
+    }
+
+    private func stopWatching(_ permission: Permission) {
+        let poller = polling.withLock { polling -> Task<Void, Never>? in
+            let count = (polling.watched[permission] ?? 0) - 1
+            polling.watched[permission] = count > 0 ? count : nil
+            guard polling.watched.isEmpty else { return nil }
+            defer { polling.poller = nil }
+            return polling.poller
+        }
+        poller?.cancel()
+    }
+
+    /// Restarts a running poller, so a new pace applies now and not after the current sleep.
+    private func wakePoller() {
+        restartPoller(checkingFirst: true)
+    }
+
+    /// Replaces the poller with a new one, unless no stream is open.
+    private func restartPoller(checkingFirst: Bool) {
+        let previous = polling.withLock { polling -> Task<Void, Never>? in
+            guard !polling.watched.isEmpty else { return nil }
+            defer { polling.poller = makePoller(checkingFirst: checkingFirst) }
+            return polling.poller
+        }
+        previous?.cancel()
+    }
+
+    /// Checks every watched permission, then sleeps for the pace of the moment, until cancelled.
+    private func makePoller(checkingFirst: Bool) -> Task<Void, Never> {
+        Task.detached(priority: .utility) { [weak self] in
+            var checksNow = checkingFirst
+            while !Task.isCancelled {
+                guard let self else { return }
+                if !checksNow {
+                    do {
+                        try await self.clock.sleep(for: self.currentPollInterval())
+                    } catch {
+                        return
+                    }
+                    guard !Task.isCancelled else { return }
+                }
+                checksNow = false
+                for permission in self.polling.withLock({ Array($0.watched.keys) }) {
+                    self.freshCheck(permission)
+                    self.announceStatus(of: permission)
+                }
+            }
         }
     }
 
@@ -189,6 +366,10 @@ nonisolated public final class PermissionCenter: PermissionService {
         cache.withLock { $0[permission] = CachedCheck(status: status, checkedAt: now) }
         if system.checkMayWait(permission), status != lastChecked(permission) {
             settings.set(status.map { .string(Self.name(of: $0)) }, for: Self.storageName("checked", for: permission))
+        }
+        // The answer stands while the app is not running and the check has none.
+        if case .automation = permission, let status, status != remembered(permission) {
+            remember(status, for: permission)
         }
         return status
     }

@@ -17,14 +17,25 @@ import Kit
 ///
 /// ``request(_:)`` calls the prompting APIs and runs the access probes. Only
 /// ``PermissionCenter/request(_:)`` calls it, and tests never do.
+///
+/// Automation can be checked and asked only while the target app runs. A check never starts it,
+/// so the check of an app that is not running has no answer, and the center reports the last one
+/// it saw. A request starts the app hidden first, then asks: ``AutomationPermission``.
 nonisolated public final class MacPermissionSystem: PermissionSystem {
     private let home: URL
     private let location = LocationStatusReader()
+    private let automation: any AutomationSystem
 
-    /// - Parameter homeDirectory: The home folder whose Desktop, Documents and Downloads the folder
-    ///   permissions stand for.
-    public init(homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) {
+    /// - Parameters:
+    ///   - homeDirectory: The home folder whose Desktop, Documents and Downloads the folder
+    ///     permissions stand for.
+    ///   - automation: The Apple Event Manager and the apps it asks about.
+    public init(
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        automation: any AutomationSystem = LiveAutomationSystem()
+    ) {
         home = homeDirectory
+        self.automation = automation
     }
 
     public func check(_ permission: Permission) -> PermissionStatus? {
@@ -47,7 +58,7 @@ nonisolated public final class MacPermissionSystem: PermissionSystem {
         case .pasteboard:
             return Self.status(NSPasteboard.general.accessBehavior)
         case .automation(let bundleID):
-            return AutomationPermission.status(of: bundleID, askingIfNeeded: false)
+            return AutomationPermission.check(bundleID, using: automation)
         case .fullDiskAccess, .protectedFolder:
             return nil
         }
@@ -83,10 +94,11 @@ nonisolated public final class MacPermissionSystem: PermissionSystem {
         case .location:
             return await LocationAuthorization.request()
         case .pasteboard:
-            // macOS 27.2 has no request: the system asks when the app reads.
+            // macOS 27.2 has no request: the system asks when the app reads. The center opens
+            // the pane instead.
             break
         case .automation(let bundleID):
-            return await Self.askAutomation(of: bundleID)
+            return await AutomationPermission.request(bundleID, using: automation)
         case .fullDiskAccess:
             return await Self.probe(ProtectedLocations.fullDiskAccessTargets(home: home))
         case .protectedFolder(let folder):
@@ -102,6 +114,15 @@ nonisolated public final class MacPermissionSystem: PermissionSystem {
         return check(permission)
     }
 
+    /// Full Disk Access has no check, so after the user went to System Settings the probe runs
+    /// again. It reads the Time Machine settings file and the Mail and Messages libraries, never
+    /// another app's data, whose refusal posts a notification. Only the center's rule calls this:
+    /// shortly after the user asked, when they may have come back, at most every two seconds.
+    public func recheck(_ permission: Permission) async -> PermissionStatus? {
+        guard permission == .fullDiskAccess else { return nil }
+        return await Self.probe(ProtectedLocations.fullDiskAccessTargets(home: home))
+    }
+
     public func open(settingsURL: URL) async {
         await MainActor.run {
             _ = NSWorkspace.shared.open(settingsURL)
@@ -112,11 +133,6 @@ nonisolated public final class MacPermissionSystem: PermissionSystem {
     /// user to answer the system prompt.
     @concurrent private static func probe(_ targets: [AccessProbe.Target]) async -> PermissionStatus? {
         AccessProbe.run(targets)
-    }
-
-    /// Asks for Automation off the main thread: the call waits for the user to answer.
-    @concurrent private static func askAutomation(of bundleID: String) async -> PermissionStatus? {
-        AutomationPermission.status(of: bundleID, askingIfNeeded: true)
     }
 
     static func status(_ status: EKAuthorizationStatus) -> PermissionStatus {
@@ -161,21 +177,85 @@ nonisolated public final class MacPermissionSystem: PermissionSystem {
     }
 }
 
-/// Automation consent through the Apple Event Manager.
-nonisolated enum AutomationPermission {
-    /// The consent for sending any Apple Event to the app. With `askingIfNeeded` the call may show a
-    /// prompt and waits for the answer. Nil when the app is not running or the call failed.
-    static func status(of bundleID: String, askingIfNeeded: Bool) -> PermissionStatus? {
+/// What the Automation permission needs from macOS: whether an app runs, starting it hidden, and
+/// the Apple Event Manager's answer. ``LiveAutomationSystem`` is the live one.
+nonisolated public protocol AutomationSystem: Sendable {
+    /// True when an app with the bundle ID runs in this session. Never prompts.
+    func isRunning(_ bundleID: String) -> Bool
+    /// Starts the app hidden, without bringing it forward. False when it is not installed or did
+    /// not start.
+    func launchHidden(_ bundleID: String) async -> Bool
+    /// `AEDeterminePermissionToAutomateTarget` for any event to the app. With `askingIfNeeded` it
+    /// may show the system prompt and wait for the answer, so never call it on the main thread.
+    func determine(_ bundleID: String, askingIfNeeded: Bool) -> OSStatus
+}
+
+/// The live Automation calls.
+nonisolated public struct LiveAutomationSystem: AutomationSystem {
+    public init() {}
+
+    public func isRunning(_ bundleID: String) -> Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty
+    }
+
+    public func launchHidden(_ bundleID: String) async -> Bool {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return false }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = false
+        configuration.hides = true
+        configuration.addsToRecentItems = false
+        configuration.promptsUserIfNeeded = false
+        do {
+            _ = try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    public func determine(_ bundleID: String, askingIfNeeded: Bool) -> OSStatus {
         var target = AEAddressDesc()
         let bytes = Array(bundleID.utf8)
         let created = bytes.withUnsafeBytes { buffer in
             AECreateDesc(DescType(typeApplicationBundleID), buffer.baseAddress, buffer.count, &target)
         }
-        guard created == noErr else { return nil }
+        guard created == noErr else { return OSStatus(created) }
         defer { AEDisposeDesc(&target) }
-        let result = AEDeterminePermissionToAutomateTarget(
+        return AEDeterminePermissionToAutomateTarget(
             &target, AEEventClass(typeWildCard), AEEventID(typeWildCard), askingIfNeeded)
-        return status(for: result)
+    }
+}
+
+/// Automation consent through the Apple Event Manager, which answers only for a running app.
+///
+/// - A check never prompts and never starts the app. For an app that is not running it has no
+///   answer.
+/// - A request starts the app hidden when it is not running, waits until the Apple Event Manager
+///   finds it, then asks. The system prompt shows only then, after the user pressed Grant.
+nonisolated enum AutomationPermission {
+    /// How long a request waits for an app it started to answer.
+    static let launchWait: Duration = .seconds(5)
+
+    /// The status without asking. Nil when the app is not running.
+    static func check(_ bundleID: String, using system: any AutomationSystem) -> PermissionStatus? {
+        status(for: system.determine(bundleID, askingIfNeeded: false))
+    }
+
+    /// Asks the user, starting the app hidden first when it is not running. Nil when the app could
+    /// not be started or did not answer in time. Waits for the user's answer.
+    @concurrent static func request(
+        _ bundleID: String, using system: any AutomationSystem, wait: Duration = launchWait
+    ) async -> PermissionStatus? {
+        if !system.isRunning(bundleID) {
+            guard await system.launchHidden(bundleID) else { return nil }
+        }
+        // An app that just started answers Apple Events a moment after it shows up as running.
+        let deadline = ContinuousClock.now + wait
+        while true {
+            let result = system.determine(bundleID, askingIfNeeded: true)
+            if Int(result) != procNotFound || ContinuousClock.now >= deadline { return status(for: result) }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
     }
 
     /// Granted, denied, not asked yet, or nil when the target is not running or the call failed.

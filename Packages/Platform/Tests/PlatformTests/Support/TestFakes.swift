@@ -14,6 +14,8 @@ nonisolated final class FakePermissionSystem: PermissionSystem {
         var openedURLs: [URL] = []
         /// Checks that take this long, the way TCC daemon checks do.
         var slowChecks: [Permission: Duration] = [:]
+        var rechecks: [Permission: PermissionStatus] = [:]
+        var recheckCount = 0
     }
 
     let state = Mutex(State())
@@ -29,6 +31,19 @@ nonisolated final class FakePermissionSystem: PermissionSystem {
     }
 
     var checkCount: Int { state.withLock { $0.checkCount } }
+    var recheckCount: Int { state.withLock { $0.recheckCount } }
+
+    /// Sets what ``recheck(_:)`` finds.
+    func setRecheck(_ status: PermissionStatus?, for permission: Permission) {
+        state.withLock { $0.rechecks[permission] = status }
+    }
+
+    func recheck(_ permission: Permission) async -> PermissionStatus? {
+        state.withLock { state in
+            state.recheckCount += 1
+            return state.rechecks[permission]
+        }
+    }
     var requests: [Permission] { state.withLock { $0.requests } }
     var openedURLs: [URL] { state.withLock { $0.openedURLs } }
 

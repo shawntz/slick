@@ -153,6 +153,7 @@ import Testing
 
     @Test func changesPollOnlyWhileAStreamIsOpen() async throws {
         let center = makeCenter()
+        center.setAppActive(true)  // checks every second
         system.setCheck(.notDetermined, for: .inputMonitoring)
         // The stream lives only inside the consumer, so it ends when the consumer is done with it.
         let consumer = Task {
@@ -192,6 +193,156 @@ import Testing
         consumer.cancel()
         await boundedValue(of: consumer)
         try await waitUntil { clock.sleeperCount == 0 }
+    }
+
+    /// Open streams share one poller: fast while the app is active or just after the user asked,
+    /// slow otherwise, and none at all without a stream.
+    @Test func pollingIsFastOnlyWhileActiveOrJustAfterAnAsk() async throws {
+        let center = makeCenter()
+        system.setCheck(.notDetermined, for: .inputMonitoring)
+        system.setCheck(.notDetermined, for: .screenRecording)
+        #expect(!center.isPollingFast)
+        let first = center.changes(of: .inputMonitoring)
+        let second = center.changes(of: .screenRecording)
+        await clock.waitForSleepers()
+        #expect(clock.sleeperCount == 1)  // one poller for both
+
+        let checks = system.checkCount
+        clock.advance(by: .seconds(1))
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(system.checkCount == checks)  // slow: nothing after a second
+        clock.advance(by: .seconds(9))
+        try await waitUntil { system.checkCount == checks + 2 }
+
+        // The user opens a pane: checks run at once, then every second.
+        await center.openSettings(for: .inputMonitoring)
+        #expect(center.isPollingFast)
+        try await waitUntil { system.checkCount == checks + 4 }
+        await clock.waitForSleepers()
+        clock.advance(by: .seconds(1))
+        try await waitUntil { system.checkCount == checks + 6 }
+
+        // Two minutes later it is slow again; becoming active makes it fast.
+        await clock.waitForSleepers()
+        clock.advance(by: .seconds(120))
+        try await waitUntil { system.checkCount == checks + 8 }
+        #expect(!center.isPollingFast)
+        center.setAppActive(true)
+        #expect(center.isPollingFast)
+        try await waitUntil { system.checkCount == checks + 10 }
+        center.setAppActive(false)
+        #expect(!center.isPollingFast)
+
+        withExtendedLifetime((first, second)) {}
+    }
+
+    @Test func withoutAStreamNothingPolls() async throws {
+        let center = makeCenter()
+        center.setAppActive(true)
+        await center.openSettings(for: .accessibility)
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(clock.sleeperCount == 0)
+        let consumer = Task {
+            for await _ in center.changes(of: .accessibility) {}
+        }
+        await clock.waitForSleepers()
+        consumer.cancel()
+        await boundedValue(of: consumer)
+        try await waitUntil { clock.sleeperCount == 0 }
+        center.setAppActive(false)
+        center.setAppActive(true)
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(clock.sleeperCount == 0)
+    }
+
+    /// Full Disk Access and Paste from Other Apps have no system prompt: a request that does not
+    /// find them granted opens their pane, and the host's own open right after is skipped.
+    @Test func aRequestOpensThePaneOfAPermissionOnlySettingsCanGrant() async {
+        let center = makeCenter()
+        system.setAnswer(.denied, for: .fullDiskAccess)
+        #expect(await center.request(.fullDiskAccess) == .denied)
+        await center.openSettings(for: .fullDiskAccess)
+        #expect(system.openedURLs.map(\.query) == ["Privacy_AllFiles"])
+        clock.advance(by: .seconds(3))
+        await center.openSettings(for: .fullDiskAccess)
+        #expect(system.openedURLs.count == 2)
+
+        system.setCheck(.notDetermined, for: .pasteboard)
+        #expect(await center.request(.pasteboard) == .notDetermined)
+        #expect(system.openedURLs.last == PermissionSettingsLinks.url(for: .pasteboard))
+
+        // A permission with a system prompt opens nothing by itself.
+        system.setCheck(.notDetermined, for: .accessibility)
+        _ = await center.request(.accessibility)
+        #expect(system.openedURLs.count == 3)
+
+        // Granted already: no pane.
+        system.setAnswer(.granted, for: .fullDiskAccess)
+        clock.advance(by: .seconds(3))
+        #expect(await center.request(.fullDiskAccess) == .granted)
+        #expect(system.openedURLs.count == 3)
+    }
+
+    /// Full Disk Access has no check. Found in review: after the user granted it in System
+    /// Settings, the status stayed what the request's probe found, so the host's wait ran out.
+    @Test func fullDiskAccessIsFoundOutAgainWhenTheUserMayHaveComeBack() async throws {
+        let center = makeCenter()
+        // Without an ask, coming back finds out nothing.
+        center.userMayHaveReturned()
+        center.setAppActive(true)
+        center.setAppActive(false)
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(system.recheckCount == 0)
+
+        system.setAnswer(.denied, for: .fullDiskAccess)
+        _ = await center.request(.fullDiskAccess)
+        var changes = center.changes(of: .fullDiskAccess).makeAsyncIterator()
+        system.setRecheck(.denied, for: .fullDiskAccess)
+        center.userMayHaveReturned()  // System Settings came forward: not granted yet
+        try await waitUntil { system.recheckCount == 1 }
+        center.userMayHaveReturned()  // too soon after the last one
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(system.recheckCount == 1)
+
+        system.setRecheck(.granted, for: .fullDiskAccess)
+        clock.advance(by: .seconds(3))
+        center.setAppActive(true)
+        #expect(await changes.next() == .granted)
+        #expect(center.status(of: .fullDiskAccess) == .granted)
+        #expect(system.recheckCount == 2)
+
+        // Found: no more rechecks.
+        clock.advance(by: .seconds(3))
+        center.userMayHaveReturned()
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(system.recheckCount == 2)
+    }
+
+    @Test func fullDiskAccessIsNotRecheckedOnceTheWindowHasPassed() async throws {
+        let center = makeCenter()
+        system.setAnswer(.denied, for: .fullDiskAccess)
+        _ = await center.request(.fullDiskAccess)
+        clock.advance(by: .seconds(121))
+        center.userMayHaveReturned()
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(system.recheckCount == 0)
+    }
+
+    @Test func automationKeepsTheLastAnswerWhileTheAppIsNotRunning() async {
+        let center = makeCenter()
+        let events = Permission.automation(bundleID: "com.example.events")
+        system.setCheck(.granted, for: events)
+        await center.refresh([events])
+        #expect(center.status(of: events) == .granted)
+        system.setCheck(nil, for: events)  // the app quit
+        await center.refresh([events])
+        #expect(center.status(of: events) == .granted)
+        #expect(makeCenter().status(of: events) == .granted)
+        system.setCheck(.denied, for: events)
+        await center.refresh([events])
+        system.setCheck(nil, for: events)
+        await center.refresh([events])
+        #expect(center.status(of: events) == .denied)
     }
 
     @Test func aRequestTellsOpenStreamsAtOnce() async {
