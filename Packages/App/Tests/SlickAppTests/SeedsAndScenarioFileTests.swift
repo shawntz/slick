@@ -44,9 +44,40 @@ struct FirstRunSeedTests {
         #expect(!FirstRunSeeds.isBundleID("é.example"))
     }
 
-    @Test func anotherCopyIsAnyOtherProcess() {
-        #expect(SingleInstance.others(among: [10, 20], me: 10) == [20])
-        #expect(SingleInstance.others(among: [10], me: 10).isEmpty)
+    @Test func theDataFolderLockAdmitsOneLauncherAndFreesOnRelease() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "lock-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var first: InstanceLock?
+        if case .acquired(let lock) = SingleInstance.lock(dataRoot: folder) { first = lock }
+        #expect(first != nil)
+        // A second open of the same file is another holder, as another process would be.
+        guard case .heldElsewhere = SingleInstance.lock(dataRoot: folder) else {
+            Issue.record("a second launcher took the lock")
+            return
+        }
+        // Another data folder, as a selftest, bench or scenario uses, is not blocked.
+        let other = folder.appending(path: "other")
+        try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        guard case .acquired = SingleInstance.lock(dataRoot: other) else {
+            Issue.record("another data folder was blocked")
+            return
+        }
+        // The lock goes with the descriptor, as it does when the process ends or crashes.
+        first = nil
+        guard case .acquired = SingleInstance.lock(dataRoot: folder) else {
+            Issue.record("the lock was not freed")
+            return
+        }
+        #expect(first == nil)
+    }
+
+    @Test func aFolderThatCannotHoldTheLockLetsTheLauncherRun() {
+        let missing = FileManager.default.temporaryDirectory.appending(path: "missing-\(UUID().uuidString)/deeper")
+        guard case .unavailable = SingleInstance.lock(dataRoot: missing) else {
+            Issue.record("a missing folder did not report the lock as unavailable")
+            return
+        }
     }
 }
 
