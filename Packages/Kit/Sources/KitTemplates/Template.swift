@@ -24,6 +24,9 @@
 /// modifier, a bad offset, both `format` and `locale`, a fourth distinct argument) is kept as typed
 /// and reported in ``issues``, so an editor can point at it. There is no escape syntax.
 ///
+/// ``init(_:shorthands:)`` also accepts short forms, such as `{query}` for quicklinks. They are off
+/// by default, so code that uses the same braces passes through.
+///
 /// Rendering applies modifiers left to right, then the ``TemplateStyle``'s default formatting unless
 /// `raw` is among the modifiers.
 public struct Template: Hashable, Sendable {

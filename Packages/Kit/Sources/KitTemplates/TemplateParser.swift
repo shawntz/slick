@@ -8,13 +8,15 @@ struct TemplateParser {
     private static let maximumArguments = 3
 
     private let source: String
+    private let shorthands: TemplateShorthands
     private var segments: [Template.Segment] = []
     private var issues: [TemplateIssue] = []
     private var unnamedArguments = 0
     private var argumentKeys: [String] = []
 
-    init(_ source: String) {
+    init(_ source: String, shorthands: TemplateShorthands = []) {
         self.source = source
+        self.shorthands = shorthands
     }
 
     func parse() -> ([Template.Segment], [TemplateIssue]) {
@@ -90,7 +92,7 @@ struct TemplateParser {
         var scanner = BodyScanner(body)
         scanner.skipSpaces()
         let name = scanner.word()
-        guard Self.names.contains(name) else { return nil }
+        guard Self.names.contains(name) || (name == "query" && shorthands.contains(.query)) else { return nil }
         func issue(_ message: String) -> Result<Placeholder, TemplateIssue> {
             .failure(TemplateIssue(message, range: range))
         }
@@ -172,13 +174,20 @@ struct TemplateParser {
                 unnamedArguments += 1
                 key = "#\(unnamedArguments)"
             }
-            let options = (values["options"] ?? "").split(separator: ",").map {
-                $0.trimmingCharacters(in: .whitespaces)
-            }
-            .filter { !$0.isEmpty }
             return .success(
                 .argument(
-                    TemplateArgument(key: key, name: argumentName, defaultValue: values["default"], options: options)))
+                    TemplateArgument(
+                        key: key, name: argumentName, defaultValue: values["default"],
+                        options: Self.options(values["options"]))))
+        case "query":
+            // The short form of {argument name="Query"}: same key, so both share one value.
+            if let problem = allow(["default", "options"]) { return .failure(problem) }
+            let queryName = TemplateShorthands.queryArgumentName
+            return .success(
+                .argument(
+                    TemplateArgument(
+                        key: queryName, name: queryName, defaultValue: values["default"],
+                        options: Self.options(values["options"]))))
         case "snippet":
             if let problem = allow(["name"]) { return .failure(problem) }
             guard let snippetName = values["name"], !snippetName.isEmpty else {
@@ -193,6 +202,11 @@ struct TemplateParser {
             default: return .success(.cursor)
             }
         }
+    }
+
+    /// The choices of a comma-separated `options` attribute, trimmed, without empty ones.
+    private static func options(_ text: String?) -> [String] {
+        (text ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 
     /// Parses "+2y +5M -3d". Each step is a sign, digits and a unit with no spaces inside.
