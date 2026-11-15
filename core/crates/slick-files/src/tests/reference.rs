@@ -4,7 +4,7 @@
 
 use super::{EXTS, WORDS, corpus};
 use crate::names::{compress_mask, ext_matches, stem_len};
-use crate::query::{MAX_ANC_TOKENS, Parsed, Plan, parse};
+use crate::query::{MAX_ANC_TOKENS, Plan};
 use crate::rank::{self, Lifter, Prefer, TIER_GAP, tier};
 use crate::search::{FileHit, How, Kinds, SearchOptions, Searcher, Serial};
 use crate::store::{EntryId, NONE, Snapshot, flags};
@@ -106,26 +106,26 @@ fn eval_ref(snap: &Snapshot, p: &Plan, o: &SearchOptions, lifter: &Lifter, id: E
     {
         return None;
     }
-    if !p.chains.iter().all(|c| chain_ok(snap, id, &c.parts)) {
+    if !p.chains().iter().all(|c| chain_ok(snap, id, c.parts())) {
         return None;
     }
     let lift = lifter.lift(e.mtime, e.depth, e.is_dir());
     let f = fold(e.name);
     let mut window = f.bytes.len();
-    if let Some(ext) = &p.dot_ext {
+    if let Some(ext) = p.dot_ext() {
         if !ext_matches(&f.bytes, ext, false) {
             return None;
         }
         window = stem_len(&f.bytes).unwrap_or(window);
     }
-    let Some(lit) = &p.literal else {
-        let exact = p.dot_ext.as_ref().is_some_and(|x| ext_matches(&f.bytes, x, true));
-        let q = if exact || p.dot_ext.is_none() { 999 } else { 500 };
+    let Some(lit) = p.literal() else {
+        let exact = p.dot_ext().is_some_and(|x| ext_matches(&f.bytes, x, true));
+        let q = if exact || p.dot_ext().is_none() { 999 } else { 500 };
         return Some((TIER_GAP * tier::PREFIX as i32 + q + lift, How::Filter));
     };
     let mut best: Option<(i32, How)> = score_ref(lit, &f, window, false).map(|t| (rank::name_rank(t, lift), How::Name));
-    if let Some((ext, rest, _)) = &p.bare_ext
-        && p.dot_ext.is_none()
+    if let Some((ext, rest, _)) = p.bare_ext()
+        && p.dot_ext().is_none()
         && ext_matches(&f.bytes, ext, true)
     {
         let stem = stem_len(&f.bytes).unwrap_or(f.bytes.len());
@@ -137,11 +137,11 @@ fn eval_ref(snap: &Snapshot, p: &Plan, o: &SearchOptions, lifter: &Lifter, id: E
         }
     }
     if p.ancestors && best.is_none_or(|b| rank::tier_of(b.0) < tier::ANCESTOR) {
-        let n = p.tokens.len().min(MAX_ANC_TOKENS);
+        let n = p.tokens().len().min(MAX_ANC_TOKENS);
         let all = (1u32 << n) - 1;
         let m = compress_mask(f.mask);
         let mut sub = 0u32;
-        for (j, t) in p.tokens.iter().take(n).enumerate() {
+        for (j, t) in p.tokens().iter().take(n).enumerate() {
             if t.mask & !m == 0 && score::is_subsequence(&t.q.ns, &f.bytes[..window]) {
                 sub |= 1 << j;
             }
@@ -149,7 +149,7 @@ fn eval_ref(snap: &Snapshot, p: &Plan, o: &SearchOptions, lifter: &Lifter, id: E
         let mut in_folders = 0u32;
         for a in ancestors(snap, id) {
             let Some(ae) = snap.entry(a) else { continue };
-            for (j, t) in p.tokens.iter().take(n).enumerate() {
+            for (j, t) in p.tokens().iter().take(n).enumerate() {
                 if word_prefix_or_better(&t.q, ae.name) {
                     in_folders |= 1 << j;
                 }
@@ -177,10 +177,11 @@ fn eval_ref(snap: &Snapshot, p: &Plan, o: &SearchOptions, lifter: &Lifter, id: E
 
 /// The reference result for `query`.
 pub(crate) fn reference(snap: &Snapshot, query: &str, o: &SearchOptions) -> Vec<FileHit> {
-    let Parsed::Search(p) = parse(query, o.home.as_deref()) else {
+    let p = Plan::new(query, o.home.as_deref());
+    if p.browse().is_some() {
         return Vec::new();
-    };
-    if o.limit == 0 || (p.literal.is_none() && p.dot_ext.is_none() && p.chains.is_empty()) {
+    }
+    if o.limit == 0 || (p.literal().is_none() && p.dot_ext().is_none() && p.chains().is_empty()) {
         return Vec::new();
     }
     let lifter = Lifter::new(&o.rank, o.now, o.prefer);
@@ -194,9 +195,9 @@ pub(crate) fn reference(snap: &Snapshot, query: &str, o: &SearchOptions) -> Vec<
     }
     let typo = p.simple
         && o.typo
-        && p.literal.as_ref().is_some_and(|q| q.len_chars() >= 4)
+        && p.literal().is_some_and(|q| q.len_chars() >= 4)
         && (best_strict == i32::MIN || rank::tier_of(best_strict) < rank::file_tier(WORD_PREFIX));
-    if typo && let Some(lit) = &p.literal {
+    if typo && let Some(lit) = p.literal() {
         for id in 0..snap.slots() as EntryId {
             let Some(e) = snap.entry(id) else { continue };
             let kind_ok = match o.kinds {

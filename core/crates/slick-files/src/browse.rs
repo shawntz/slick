@@ -11,9 +11,24 @@ use crate::store::{EntryId, Snapshot, flags};
 use slick_match::Query;
 use slick_match::bits::{Bound, Sc};
 
+/// Buffers a folder listing reuses, so a warm listing allocates nothing.
+#[derive(Default)]
+pub(crate) struct Scratch {
+    q: Query,
+    f: Folded,
+    ranked: Vec<(i32, EntryId)>,
+}
+
 /// Lists the children of the folder at `dir` that match `filter` into `out`. Returns false when
 /// the index does not hold that folder; the caller can then list it from disk.
-pub(crate) fn list(snap: &Snapshot, dir: &[u8], filter: &str, opts: &SearchOptions, out: &mut Vec<FileHit>) -> bool {
+pub(crate) fn list(
+    snap: &Snapshot,
+    dir: &[u8],
+    filter: &str,
+    opts: &SearchOptions,
+    out: &mut Vec<FileHit>,
+    scratch: &mut Scratch,
+) -> bool {
     out.clear();
     let Some((id, true)) = snap.lookup(dir) else {
         return false;
@@ -22,9 +37,9 @@ pub(crate) fn list(snap: &Snapshot, dir: &[u8], filter: &str, opts: &SearchOptio
         return false;
     }
     let show_hidden = opts.include_hidden || filter.starts_with('.');
-    let q = Query::new(filter);
-    let mut f = Folded::default();
-    let mut ranked: Vec<(i32, EntryId)> = Vec::new();
+    let Scratch { q, f, ranked } = scratch;
+    q.set(filter);
+    ranked.clear();
     for child in snap.children(id) {
         let Some((c, s)) = snap.locate(child) else { continue };
         let v = c.view();
@@ -46,19 +61,21 @@ pub(crate) fn list(snap: &Snapshot, dir: &[u8], filter: &str, opts: &SearchOptio
         }
         f.load_slot(&v, s);
         let len = f.bytes().len();
-        if let Sc::Yes(t) = f.score(&q, len, 0, Bound::NONE) {
+        if let Sc::Yes(t) = f.score(q, len, 0, Bound::NONE) {
             ranked.push((rank::name_rank(t, 0), child));
         }
     }
+    // Every order below is total, so an unstable sort, which never allocates, gives the same list.
     if q.is_empty() {
         match opts.browse_sort {
-            BrowseSort::Name => ranked.sort_by(|a, b| name_order(snap.name_of(a.1), snap.name_of(b.1))),
+            BrowseSort::Name => ranked
+                .sort_unstable_by(|a, b| name_order(snap.name_of(a.1), snap.name_of(b.1)).then_with(|| a.1.cmp(&b.1))),
             BrowseSort::Modified => {
-                ranked.sort_by_key(|&(_, id)| (std::cmp::Reverse(snap.entry(id).map_or(0, |e| e.mtime)), id))
+                ranked.sort_unstable_by_key(|&(_, id)| (std::cmp::Reverse(snap.entry(id).map_or(0, |e| e.mtime)), id))
             }
         }
         let n = ranked.len().min(opts.limit) as i32;
-        for (i, (_, id)) in ranked.into_iter().take(opts.limit).enumerate() {
+        for (i, &(_, id)) in ranked.iter().take(opts.limit).enumerate() {
             out.push(FileHit {
                 id,
                 rank: TIER_GAP * tier::EXACT as i32 + (n - i as i32).min(999),
@@ -66,11 +83,12 @@ pub(crate) fn list(snap: &Snapshot, dir: &[u8], filter: &str, opts: &SearchOptio
             });
         }
     } else {
-        ranked.sort_by(|a, b| {
+        ranked.sort_unstable_by(|a, b| {
             b.0.cmp(&a.0)
                 .then_with(|| name_order(snap.name_of(a.1), snap.name_of(b.1)))
+                .then_with(|| a.1.cmp(&b.1))
         });
-        out.extend(ranked.into_iter().take(opts.limit).map(|(r, id)| FileHit {
+        out.extend(ranked.iter().take(opts.limit).map(|&(r, id)| FileHit {
             id,
             rank: r,
             how: How::Browse,

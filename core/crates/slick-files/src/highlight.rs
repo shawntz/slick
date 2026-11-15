@@ -1,7 +1,7 @@
 //! Highlight ranges for the rows on screen, as UTF-16 ranges into the entry's name.
 
 use crate::names::stem_len;
-use crate::query::{self, MAX_ANC_TOKENS, Parsed};
+use crate::query::{self, MAX_ANC_TOKENS, Plan};
 use crate::search::{FileHit, Folded, How, SearchOptions};
 use crate::store::{NONE, Snapshot};
 use slick_match::bits::{Bound, Sc};
@@ -11,12 +11,13 @@ use slick_match::{Arena, HighlightScratch, Query};
 pub(crate) fn ranges(snap: &Snapshot, hit: &FileHit, raw: &str, opts: &SearchOptions, out: &mut Vec<(u32, u32)>) {
     let name = String::from_utf8_lossy(snap.name_of(hit.id)).into_owned();
     let stem = |s: &str| stem_len(s.as_bytes()).unwrap_or(s.len());
-    match query::parse(raw, opts.home.as_deref()) {
-        Parsed::Browse { filter, .. } => mark(&name, &Query::new(&filter), out),
-        Parsed::Search(plan) => match hit.how {
+    let plan = Plan::new(raw, opts.home.as_deref());
+    match plan.browse() {
+        Some((_, filter)) => mark(&name, &Query::new(filter), out),
+        None => match hit.how {
             How::Name | How::Typo => {
-                if let Some(q) = &plan.literal {
-                    let w = if plan.dot_ext.is_some() {
+                if let Some(q) = plan.literal() {
+                    let w = if plan.dot_ext().is_some() {
                         stem(&name)
                     } else {
                         name.len()
@@ -25,29 +26,29 @@ pub(crate) fn ranges(snap: &Snapshot, hit: &FileHit, raw: &str, opts: &SearchOpt
                 }
             }
             How::Extension => {
-                if let Some((_, rest, _)) = &plan.bare_ext {
+                if let Some((_, rest, _)) = plan.bare_ext() {
                     mark(&name[..stem(&name)], rest, out);
                 }
             }
             How::Ancestor => {
-                let w = if plan.dot_ext.is_some() {
+                let w = if plan.dot_ext().is_some() {
                     stem(&name)
                 } else {
                     name.len()
                 };
                 let window = &name[..w];
-                let n_tok = plan.tokens.len().min(MAX_ANC_TOKENS);
+                let n_tok = plan.tokens().len().min(MAX_ANC_TOKENS);
                 let all = (1u32 << n_tok) - 1;
                 let mut folded = Vec::new();
                 let mut chars = Vec::new();
                 crate::names::fold_into(window.as_bytes(), &mut folded, &mut chars);
                 let mut sub = 0u32;
-                for (j, t) in plan.tokens.iter().take(n_tok).enumerate() {
+                for (j, t) in plan.tokens().iter().take(n_tok).enumerate() {
                     if score::is_subsequence(&t.q.ns, &folded) {
                         sub |= 1 << j;
                     }
                 }
-                let in_folders = folder_tokens(snap, hit.id, &plan.tokens[..n_tok]) & all;
+                let in_folders = folder_tokens(snap, hit.id, &plan.tokens()[..n_tok]) & all;
                 let mut base = all & !in_folders;
                 if base == 0 && sub != 0 {
                     base = 1 << (31 - sub.leading_zeros());

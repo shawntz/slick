@@ -13,12 +13,13 @@
 //!    query has four chars or more, as in `slick_match`.
 
 use crate::names::{self, ext_matches, fold_into, lower_block, stem_len};
-use crate::query::{self, MAX_ANC_TOKENS, Parsed, Plan};
+use crate::query::{self, MAX_ANC_TOKENS, Plan};
 use crate::rank::{self, Lifter, Prefer, RankParams, TIER_GAP, tier};
 use crate::store::{CHUNK, CHUNK_BITS, EntryId, NONE, Snapshot, View, flags};
 use slick_match::bits::{self, Bound, Sc};
 use slick_match::score::{self, PREFIX, SUBSTRING, TextScore, WORD_PREFIX};
 use slick_match::{Query, Unit};
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering::Relaxed};
 use std::sync::{Arc, Mutex};
 
@@ -232,10 +233,13 @@ struct TopK<'a> {
 impl<'a> TopK<'a> {
     fn new(keys: &'a mut Vec<u64>, k: usize) -> Self {
         keys.clear();
+        let compact_at = k.saturating_mul(8).max(256);
+        // Room for every key the buffer can hold, so a warm search never grows it.
+        keys.reserve(compact_at);
         TopK {
             keys,
             k,
-            compact_at: k.saturating_mul(8).max(256),
+            compact_at,
             thresh_key: 0,
             thresh: i32::MIN,
         }
@@ -261,6 +265,9 @@ impl<'a> TopK<'a> {
 
 // ---- folding and scoring one name ----
 
+/// Bytes a folded name buffer starts with: more than any name APFS or HFS+ stores.
+const FOLD_ROOM: usize = 1024;
+
 /// A folded name, ready for the scorer.
 pub(crate) struct Folded {
     block: [u8; 64],
@@ -274,10 +281,12 @@ pub(crate) struct Folded {
 
 impl Default for Folded {
     fn default() -> Self {
+        // Room for any name a file system allows, made up front: parts race to fold folder names,
+        // so a buffer that grew on first use would grow at a moment no one can predict.
         Folded {
             block: [0; 64],
-            buf: Vec::new(),
-            chars: Vec::new(),
+            buf: Vec::with_capacity(FOLD_ROOM),
+            chars: Vec::with_capacity(FOLD_ROOM / 2),
             len: 0,
             ws: 0,
             in_block: false,
@@ -442,7 +451,7 @@ struct Shared<'a> {
     /// Bitmask of the plain tokens the folder tier considers.
     all_tokens: u32,
     /// Compressed masks of every plain token, in order, at most 32.
-    token_masks: Vec<u32>,
+    token_masks: [u32; 32],
     /// The masks of the folder-tier tokens, padded with `u32::MAX`.
     anc_masks: [u32; MAX_ANC_TOKENS],
     /// Bitmask of the tokens past the folder-tier limit, which must always fit the name.
@@ -462,7 +471,6 @@ struct Shared<'a> {
 }
 
 /// Per-part scratch.
-#[derive(Default)]
 struct Part {
     keys: Vec<u64>,
     typo_keys: Vec<u64>,
@@ -482,6 +490,28 @@ struct Part {
     stack: Vec<EntryId>,
     best: i32,
     scanned: usize,
+}
+
+impl Default for Part {
+    fn default() -> Self {
+        Part {
+            keys: Vec::new(),
+            typo_keys: Vec::new(),
+            matched: Vec::new(),
+            typo_matched: Vec::new(),
+            cur: Folded::default(),
+            cur_id: NONE,
+            selected: Vec::with_capacity(CHUNK),
+            last_parent: NONE,
+            last_bits: 0,
+            dir: Folded::default(),
+            // Parts race to fill the memo of shared folders, so how far up a part climbs is not
+            // fixed: room for the deepest chain is made up front.
+            stack: Vec::with_capacity(crate::store::MAX_DEPTH + 2),
+            best: i32::MIN,
+            scanned: 0,
+        }
+    }
 }
 
 enum Eval {
@@ -553,7 +583,7 @@ impl Shared<'_> {
             bits |= WITHIN_BIT;
         }
         let p = self.plan;
-        if !p.ancestors && p.chains.is_empty() {
+        if !p.ancestors && p.chains().is_empty() {
             return bits;
         }
         let Some((c, s)) = self.snap.locate(d) else {
@@ -563,10 +593,17 @@ impl Shared<'_> {
         let ini = c.initials.as_slice()[s];
         if p.ancestors {
             // A word-prefix match needs every char of the token and its first char at a word
-            // start; check both on the folder's masks before folding its name.
+            // start; check both on the folder's masks before folding its name. For a one-letter
+            // token the initials check is the whole answer when the scorer sees every word start:
+            // an ASCII name of at most 64 bytes, whose word starts all fit its 64-bit map.
+            let whole = c.flags.as_slice()[s] & flags::MULTIBYTE == 0 && c.name_len.as_slice()[s] as usize <= 64;
             let mut loaded = false;
-            for (j, t) in p.tokens.iter().take(MAX_ANC_TOKENS).enumerate() {
+            for (j, t) in p.tokens().iter().take(MAX_ANC_TOKENS).enumerate() {
                 if t.mask & !m != 0 || (t.first_initial != 0 && ini & t.first_initial == 0) {
+                    continue;
+                }
+                if t.letter && whole {
+                    bits |= 1 << j;
                     continue;
                 }
                 if !loaded {
@@ -579,7 +616,7 @@ impl Shared<'_> {
                 }
             }
         }
-        for (ci, chain) in p.chains.iter().enumerate() {
+        for (ci, chain) in p.chains().iter().enumerate() {
             if self.chain_ends_at(part, d, chain) {
                 bits |= 1 << (CHAIN_SHIFT + ci as u32);
             }
@@ -591,7 +628,7 @@ impl Shared<'_> {
     /// folders right above it.
     fn chain_ends_at(&self, part: &mut Part, d: EntryId, chain: &query::Chain) -> bool {
         let mut cur = d;
-        for q in chain.parts.iter().rev() {
+        for q in chain.parts().iter().rev() {
             let Some((c, s)) = self.snap.locate(cur) else {
                 return false;
             };
@@ -640,7 +677,7 @@ impl Shared<'_> {
         }
         let p = self.plan;
         let m = v.mask[slot];
-        let lit_ok = p.literal.is_some() && p.lit_mask & !m == 0;
+        let lit_ok = p.literal().is_some() && p.lit_mask & !m == 0;
         let mut anc = 0u32;
         let mut anc_known = false;
         if p.simple {
@@ -648,10 +685,10 @@ impl Shared<'_> {
                 return Eval::No;
             }
         } else {
-            if p.dot_ext.is_some() && p.dot_ext_mask & !m != 0 {
+            if p.dot_ext().is_some() && p.dot_ext_mask & !m != 0 {
                 return Eval::No;
             }
-            if p.literal.is_some() && !lit_ok {
+            if p.literal().is_some() && !lit_ok {
                 // Only the folder tier can match: some token must start a word of a folder
                 // above, and every other token must fit the name. Check the cached folder bits
                 // before touching the name.
@@ -665,7 +702,8 @@ impl Shared<'_> {
                     | u32::from(t[4] & nm == 0) << 4
                     | u32::from(t[5] & nm == 0) << 5;
                 if self.extra_tokens != 0 {
-                    for (j, &tm) in self.token_masks.iter().enumerate().skip(MAX_ANC_TOKENS) {
+                    let n = p.tokens().len().min(32);
+                    for (j, &tm) in self.token_masks[..n].iter().enumerate().skip(MAX_ANC_TOKENS) {
                         fits |= u32::from(tm & nm == 0) << j;
                     }
                 }
@@ -697,7 +735,7 @@ impl Shared<'_> {
         if thresh != i32::MIN {
             // Skip the name when no interpretation left for this entry can reach the threshold.
             // The gate is not checked, so the entry stays in the narrowing set.
-            let best_possible = if p.literal.is_none() {
+            let best_possible = if p.literal().is_none() {
                 rank::best_in_tier(tier::PREFIX, lift)
             } else if !lit_ok {
                 rank::best_in_tier(tier::ANCESTOR, lift)
@@ -718,22 +756,29 @@ impl Shared<'_> {
         if p.simple && name_capped {
             return Eval::Gated;
         }
+        // The same for several tokens: the literal is capped by the threshold, a bare extension
+        // could only gate the entry, and the folder tier cannot reach the threshold either. The
+        // entry stays in the narrowing set without its name being read.
+        if name_capped
+            && lit_ok
+            && p.dot_ext().is_none()
+            && (!p.ancestors || (thresh != i32::MIN && rank::best_in_tier(tier::ANCESTOR, lift) < thresh))
+        {
+            return Eval::Gated;
+        }
         part.cur.load_slot(v, slot);
         part.cur_id = id;
         let len = part.cur.len;
         let mut window = len;
-        if let Some(ext) = &p.dot_ext {
+        if let Some(ext) = p.dot_ext() {
             if !ext_matches(part.cur.bytes(), ext, false) {
                 return Eval::No;
             }
             window = stem_len(part.cur.bytes()).unwrap_or(len);
         }
-        let Some(lit) = &p.literal else {
-            let exact = p
-                .dot_ext
-                .as_ref()
-                .is_some_and(|e| ext_matches(part.cur.bytes(), e, true));
-            let q = if exact || p.dot_ext.is_none() { 999 } else { 500 };
+        let Some(lit) = p.literal() else {
+            let exact = p.dot_ext().is_some_and(|e| ext_matches(part.cur.bytes(), e, true));
+            let q = if exact || p.dot_ext().is_none() { 999 } else { 500 };
             let r = TIER_GAP * tier::PREFIX as i32 + q + lift;
             return Eval::Hit(key(r, id, How::Filter));
         };
@@ -751,8 +796,8 @@ impl Shared<'_> {
                 }
             }
         }
-        if let Some((ext, rest, rest_mask)) = &p.bare_ext
-            && p.dot_ext.is_none()
+        if let Some((ext, rest, rest_mask)) = p.bare_ext()
+            && p.dot_ext().is_none()
             && rest_mask & !m == 0
             && ext_matches(part.cur.bytes(), ext, true)
         {
@@ -782,7 +827,7 @@ impl Shared<'_> {
             if in_folders != 0 {
                 let mut sub = 0u32;
                 let bytes = &part.cur.bytes()[..window.min(len)];
-                for (j, t) in p.tokens.iter().take(MAX_ANC_TOKENS).enumerate() {
+                for (j, t) in p.tokens().iter().take(MAX_ANC_TOKENS).enumerate() {
                     if t.mask & !m == 0 && score::is_subsequence(&t.q.ns, bytes) {
                         sub |= 1 << j;
                     }
@@ -826,7 +871,7 @@ impl Shared<'_> {
         if !self.kind_ok(fl) {
             return Eval::No;
         }
-        let Some(lit) = self.plan.literal.as_ref() else {
+        let Some(lit) = self.plan.literal() else {
             return Eval::No;
         };
         let m = v.mask[slot];
@@ -918,6 +963,26 @@ fn run_part(sh: &Shared<'_>, part: &mut Part, work: Work<'_>, pass: Pass) {
     part.last_bits = 0;
     let strong = rank::file_tier(WORD_PREFIX);
     part.typo_matched.clear();
+    // How many entries the part can visit, which bounds its sets. Parts race for the running
+    // threshold, and the threshold decides whether an entry is gated or scored, so how many end up
+    // in a set varies from run to run; room for the bound keeps a warm search from growing them.
+    let upper = match work {
+        Work::Chunks(start, end) => (start..end)
+            .filter_map(|c| sh.snap.chunks.get(c))
+            .map(|c| c.len())
+            .sum(),
+        Work::Ids(ids) => ids.len(),
+    };
+    match pass {
+        Pass::Strict => {
+            part.matched.reserve(upper);
+            if sh.fuse_typo {
+                part.typo_matched.reserve(upper);
+            }
+        }
+        Pass::Typo => part.typo_matched.reserve(upper),
+        Pass::Prefix(_) => {}
+    }
     {
         let (buf, typo_buf) = if pass == Pass::Typo {
             (&mut typo_keys, &mut keys)
@@ -1023,12 +1088,28 @@ fn run_part(sh: &Shared<'_>, part: &mut Part, work: Work<'_>, pass: Pass) {
             }
         }
     }
+    // Only a part's best k keys can reach the merged top k, even after the typo pass drops repeated
+    // ids: every key above a key that makes the top k belongs to an id that makes it too.
+    keep_best(&mut keys, sh.k);
+    keep_best(&mut typo_keys, sh.k);
     part.keys = keys;
     part.typo_keys = typo_keys;
 }
 
+/// Keeps the `k` largest keys, in no particular order.
+fn keep_best(v: &mut Vec<u64>, k: usize) {
+    if v.len() > k {
+        if k == 0 {
+            v.clear();
+            return;
+        }
+        v.select_nth_unstable_by(k - 1, |a, b| b.cmp(a));
+        v.truncate(k);
+    }
+}
+
 struct Level {
-    plan: Box<Plan>,
+    plan: Plan,
     matched: Vec<u32>,
     /// Entries with a typo match, when the typo pass ran over every entry or over the previous
     /// level's set. A typo match for a longer query is a typo match for this one too, so the
@@ -1038,6 +1119,10 @@ struct Level {
 
 /// The state that makes consecutive searches cheap: per-part buffers, the folder memo and the
 /// narrowing stack. Keep one per search field; it is not shared between threads.
+///
+/// Plans and match sets of levels that are dropped go back to spare lists and are reused, so once
+/// the buffers have grown to the largest query and match set seen, a search allocates nothing. The
+/// searcher keeps that memory until it is dropped.
 pub struct Searcher {
     parts: Vec<Mutex<Part>>,
     memo: Vec<AtomicU32>,
@@ -1047,6 +1132,10 @@ pub struct Searcher {
     snap: Option<Arc<Snapshot>>,
     merge: Vec<u64>,
     stats: SearchStats,
+    spare_plans: Vec<Plan>,
+    spare_sets: Vec<Vec<u32>>,
+    seen: HashSet<EntryId>,
+    browse: crate::browse::Scratch,
 }
 
 impl Default for Searcher {
@@ -1069,12 +1158,18 @@ impl Searcher {
             snap: None,
             merge: Vec::new(),
             stats: SearchStats::default(),
+            spare_plans: Vec::new(),
+            spare_sets: Vec::new(),
+            seen: HashSet::new(),
+            browse: crate::browse::Scratch::default(),
         }
     }
 
     /// Forgets earlier queries. Call it when the panel opens.
     pub fn reset(&mut self) {
-        self.levels.clear();
+        while let Some(level) = self.levels.pop() {
+            self.recycle(level);
+        }
         self.session = None;
     }
 
@@ -1099,6 +1194,15 @@ impl Searcher {
         self.stamp
     }
 
+    /// Gives a dropped level's plan and sets back for reuse.
+    fn recycle(&mut self, level: Level) {
+        self.spare_plans.push(level.plan);
+        self.spare_sets.push(level.matched);
+        if let Some(t) = level.typo {
+            self.spare_sets.push(t);
+        }
+    }
+
     /// Searches `snap` for `query` and writes the best hits into `out`, best first. Text that
     /// starts with `/` or `~` lists a folder instead. Parts run through `par`.
     pub fn search(
@@ -1114,14 +1218,21 @@ impl Searcher {
         if self.snap.as_ref().is_none_or(|s| !Arc::ptr_eq(s, snap)) {
             self.snap = Some(snap.clone());
         }
-        let plan = match query::parse(query, opts.home.as_deref()) {
-            Parsed::Browse { dir, filter } => {
-                self.stats.not_indexed = !crate::browse::list(snap, &dir, &filter, opts, out);
-                return;
-            }
-            Parsed::Search(p) => p,
-        };
-        if opts.limit == 0 || (plan.literal.is_none() && plan.dot_ext.is_none() && plan.chains.is_empty()) {
+        if self.spare_plans.capacity() == 0 {
+            // Room for every plan and set a full narrowing stack can give back.
+            self.levels.reserve(MAX_LEVELS);
+            self.spare_plans.reserve(MAX_LEVELS + 2);
+            self.spare_sets.reserve(2 * MAX_LEVELS + 2);
+        }
+        let mut plan = self.spare_plans.pop().unwrap_or_default();
+        plan.parse(query, opts.home.as_deref());
+        if let Some((dir, filter)) = plan.browse() {
+            self.stats.not_indexed = !crate::browse::list(snap, dir, filter, opts, out, &mut self.browse);
+            self.spare_plans.push(plan);
+            return;
+        }
+        if opts.limit == 0 || (plan.literal().is_none() && plan.dot_ext().is_none() && plan.chains().is_empty()) {
+            self.spare_plans.push(plan);
             return;
         }
         let session = (
@@ -1132,11 +1243,13 @@ impl Searcher {
             opts.include_hidden,
         );
         if self.session != Some(session) {
-            self.levels.clear();
+            self.reset();
             self.session = Some(session);
         }
         while self.levels.last().is_some_and(|l| !query::narrows(&l.plan, &plan)) {
-            self.levels.pop();
+            if let Some(level) = self.levels.pop() {
+                self.recycle(level);
+            }
         }
         let use_memo = plan.needs_memo() || opts.within.is_some();
         if use_memo && self.memo.len() < snap.slots() {
@@ -1149,11 +1262,15 @@ impl Searcher {
             self.parts.push(Mutex::new(Part::default()));
         }
         let k = opts.limit;
-        let chains_all = (0..plan.chains.len()).fold(0u32, |a, i| a | 1 << (CHAIN_SHIFT + i as u32));
+        // Each part hands over at most k strict and k typo keys.
+        self.merge
+            .reserve((want_parts * k * 2).saturating_sub(self.merge.len()));
+        let n_tokens = plan.tokens().len();
+        let chains_all = (0..plan.chains().len()).fold(0u32, |a, i| a | 1 << (CHAIN_SHIFT + i as u32));
         let cands = self.levels.last().map(|l| l.matched.as_slice());
         // The typo pass may run: `slick_match` runs it for queries of four chars or more whose
         // best strict hit is weaker than word-prefix.
-        let wants_typo = plan.simple && opts.typo && plan.literal.as_ref().is_some_and(|q| q.len_chars() >= 4);
+        let wants_typo = plan.simple && opts.typo && plan.literal().is_some_and(|q| q.len_chars() >= 4);
         let sh = Shared {
             snap,
             plan: &plan,
@@ -1166,21 +1283,26 @@ impl Searcher {
             thresh: AtomicI32::new(i32::MIN),
             chains_all,
             use_memo,
-            all_tokens: (1u32 << plan.tokens.len().min(MAX_ANC_TOKENS)) - 1,
-            token_masks: plan.tokens.iter().take(32).map(|t| t.mask).collect(),
-            anc_masks: {
-                let mut a = [u32::MAX; MAX_ANC_TOKENS];
-                for (slot, t) in a.iter_mut().zip(&plan.tokens) {
+            all_tokens: (1u32 << n_tokens.min(MAX_ANC_TOKENS)) - 1,
+            token_masks: {
+                let mut a = [u32::MAX; 32];
+                for (slot, t) in a.iter_mut().zip(plan.tokens()) {
                     *slot = t.mask;
                 }
                 a
             },
-            extra_tokens: (MAX_ANC_TOKENS..plan.tokens.len().min(32)).fold(0, |a, j| a | 1 << j),
-            first_initial: plan.literal.as_ref().map_or(0, first_initial),
-            typo_initials: plan.literal.as_ref().map_or(0, |q| names::compress_mask(q.typo_bits)),
+            anc_masks: {
+                let mut a = [u32::MAX; MAX_ANC_TOKENS];
+                for (slot, t) in a.iter_mut().zip(plan.tokens()) {
+                    *slot = t.mask;
+                }
+                a
+            },
+            extra_tokens: (MAX_ANC_TOKENS..n_tokens.min(32)).fold(0, |a, j| a | 1 << j),
+            first_initial: plan.literal().map_or(0, first_initial),
+            typo_initials: plan.literal().map_or(0, |q| names::compress_mask(q.typo_bits)),
             prefix_len: plan
-                .literal
-                .as_ref()
+                .literal()
                 .filter(|q| q.ascii && plan.simple)
                 .map_or(0, |q| q.full.len()),
             fuse_typo: wants_typo && cands.is_none(),
@@ -1194,7 +1316,7 @@ impl Searcher {
         // 1. prefix pass, for single-token queries: several tokens rarely fill the top k with
         // prefix matches, so the pass would only cost time.
         if cands.is_none()
-            && plan.tokens.len() <= 1
+            && n_tokens <= 1
             && let Some(f) = plan.first
         {
             let n = want_parts.min(n_chunks).max(1);
@@ -1204,6 +1326,7 @@ impl Searcher {
             if merge.len() == k && merge.last().is_some_and(|&kk| rank::is_prefix_tier(unkey(kk).rank)) {
                 out.extend(merge.iter().map(|&kk| unkey(kk)));
                 self.stats.prefix_only = true;
+                self.spare_plans.push(plan);
                 return;
             }
         }
@@ -1236,11 +1359,14 @@ impl Searcher {
             .map(|i| parts[i].lock().map_or(i32::MIN, |p| p.best))
             .max()
             .unwrap_or(i32::MIN);
-        let mut matched = Vec::new();
-        for p in parts.iter().take(n) {
-            let p = p.lock().unwrap_or_else(|e| e.into_inner());
-            matched.extend_from_slice(&p.matched);
-        }
+        // A narrowed set holds at most the previous one; a full one at most every slot.
+        let matched = gather(
+            parts,
+            n,
+            &mut self.spare_sets,
+            cands.map_or(snap.slots(), <[u32]>::len),
+            |p| &p.matched,
+        );
 
         // 3. typo pass: its keys are already in the parts after a full strict pass; after a
         // narrowed one it scans every entry.
@@ -1248,6 +1374,10 @@ impl Searcher {
         let mut typo_set = None;
         if typo {
             let prev_typo = self.levels.last().and_then(|l| l.typo.as_deref());
+            let typo_bound = match (cands, prev_typo) {
+                (Some(_), Some(t)) => t.len(),
+                _ => snap.slots(),
+            };
             let tn = if cands.is_none() {
                 n
             } else if let Some(t) = prev_typo {
@@ -1267,13 +1397,10 @@ impl Searcher {
                 tn
             };
             collect(parts, tn, merge, true);
-            let mut set = Vec::new();
-            for p in parts.iter().take(tn) {
-                set.extend_from_slice(&p.lock().unwrap_or_else(|e| e.into_inner()).typo_matched);
-            }
-            typo_set = Some(set);
+            typo_set = Some(gather(parts, tn, &mut self.spare_sets, typo_bound, |p| &p.typo_matched));
             merge.sort_unstable_by(|a, b| b.cmp(a));
-            let mut seen = std::collections::HashSet::with_capacity(k * 2);
+            let seen = &mut self.seen;
+            seen.clear();
             for &kk in merge.iter() {
                 let h = unkey(kk);
                 if seen.insert(h.id) {
@@ -1288,12 +1415,15 @@ impl Searcher {
             out.extend(merge.iter().map(|&kk| unkey(kk)));
         }
 
+        let level = Level {
+            plan,
+            matched,
+            typo: typo_set,
+        };
         if self.levels.len() < MAX_LEVELS {
-            self.levels.push(Level {
-                plan,
-                matched,
-                typo: typo_set,
-            });
+            self.levels.push(level);
+        } else {
+            self.recycle(level);
         }
     }
 
@@ -1305,6 +1435,39 @@ impl Searcher {
             crate::highlight::ranges(snap, hit, query, opts, out);
         }
     }
+}
+
+/// Concatenates one id list of the first `n` parts into a set taken from `spare`, with room for
+/// `bound` ids, the most the lists can hold: the smallest spare set with that room, else the
+/// largest one, which then grows. The bound does not depend on how the parts raced, so a set that
+/// had room once has room for the same search again.
+fn gather(
+    parts: &[Mutex<Part>],
+    n: usize,
+    spare: &mut Vec<Vec<u32>>,
+    bound: usize,
+    list: impl Fn(&Part) -> &Vec<u32>,
+) -> Vec<u32> {
+    let need: usize = parts
+        .iter()
+        .take(n)
+        .map(|p| list(&p.lock().unwrap_or_else(|e| e.into_inner())).len())
+        .sum::<usize>()
+        .max(bound);
+    let fit = spare
+        .iter()
+        .enumerate()
+        .filter(|(_, v)| v.capacity() >= need)
+        .min_by_key(|(_, v)| v.capacity())
+        .or_else(|| spare.iter().enumerate().max_by_key(|(_, v)| v.capacity()))
+        .map(|(i, _)| i);
+    let mut set = fit.map(|i| spare.swap_remove(i)).unwrap_or_default();
+    set.clear();
+    set.reserve(need);
+    for p in parts.iter().take(n) {
+        set.extend_from_slice(list(&p.lock().unwrap_or_else(|e| e.into_inner())));
+    }
+    set
 }
 
 /// Records one typo evaluation: candidates stay in the part's typo set, hits go to the top k.
@@ -1344,7 +1507,7 @@ fn select(sh: &Shared<'_>, part: &mut Part, pass: Pass, v: &View<'_>, out: &mut 
             let (lm, ti) = (p.lit_mask, sh.typo_initials);
             for i in 0..n {
                 out[k] = i as u16;
-                k += usize::from((lm & !masks[i]).count_ones() <= 1 && ini[i] & ti != 0);
+                k += usize::from(((lm & !masks[i]).count_ones() <= 1) & (ini[i] & ti != 0));
             }
         }
         Pass::Strict => {
@@ -1355,9 +1518,9 @@ fn select(sh: &Shared<'_>, part: &mut Part, pass: Pass, v: &View<'_>, out: &mut 
                 for i in 0..n {
                     let missing = lm & !masks[i];
                     out[k] = i as u16;
-                    k += usize::from(missing == 0 || (missing.count_ones() <= 1 && ini[i] & ti != 0));
+                    k += usize::from((missing == 0) | ((missing.count_ones() <= 1) & (ini[i] & ti != 0)));
                 }
-            } else if p.literal.is_some() && p.ancestors {
+            } else if p.literal().is_some() && p.ancestors {
                 // The whole query fits the name, or some token starts a word of a folder above
                 // it and every other token fits the name. Siblings sit together, so the folder
                 // bits are looked up once per parent. Unused token slots hold a mask no name has.
@@ -1373,28 +1536,24 @@ fn select(sh: &Shared<'_>, part: &mut Part, pass: Pass, v: &View<'_>, out: &mut 
                         | u32::from(t[3] & nm == 0) << 3
                         | u32::from(t[4] & nm == 0) << 4
                         | u32::from(t[5] & nm == 0) << 5;
-                    let cand = if fits == 0 {
-                        false
-                    } else if lm & nm == 0 {
-                        true
-                    } else {
-                        let pid = parents[i];
-                        if pid != last_p {
-                            last_bits = if pid == NONE { 0 } else { sh.memo_bits(part, pid) & all };
-                            last_p = pid;
-                        }
-                        last_bits != 0 && (all & !fits) & !last_bits == 0
-                    };
+                    // Without data-dependent branches, which mispredict about half the time
+                    // here: the folder bits change only between sibling runs.
+                    let pid = parents[i];
+                    if pid != last_p {
+                        last_bits = if pid == NONE { 0 } else { sh.memo_bits(part, pid) & all };
+                        last_p = pid;
+                    }
+                    let cand = (fits != 0) & ((lm & nm == 0) | ((last_bits != 0) & ((all & !fits) & !last_bits == 0)));
                     out[k] = i as u16;
                     k += usize::from(cand);
                 }
-            } else if p.literal.is_some() {
+            } else if p.literal().is_some() {
                 let lm = p.lit_mask;
                 for (i, &m) in masks.iter().enumerate() {
                     out[k] = i as u16;
                     k += usize::from(lm & !m == 0);
                 }
-            } else if p.dot_ext.is_some() {
+            } else if p.dot_ext().is_some() {
                 let dm = p.dot_ext_mask;
                 for (i, &m) in masks.iter().enumerate() {
                     out[k] = i as u16;
