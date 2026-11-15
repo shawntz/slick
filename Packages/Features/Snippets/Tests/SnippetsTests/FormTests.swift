@@ -176,9 +176,17 @@ struct FormTests {
         #expect(try !harness.command(SnippetIDs.editCommand).showsInRoot)
         try await harness.run(SnippetIDs.editCommand, arguments: [SnippetIDs.snippetArgument: Fixture.greeting.id])
         #expect(harness.page?.formValues.text(FormFields.name) == "Greeting")
-        await #expect(throws: ActionFailure("This snippet no longer exists")) {
+        await #expect(throws: ActionFailure("This Snippet No Longer Exists")) {
             try await harness.run(SnippetIDs.editCommand, arguments: [SnippetIDs.snippetArgument: "gone"])
         }
+    }
+
+    /// Clipboard history's Save as Snippet runs `cmd:snippets.create` with a `text` argument. It
+    /// cannot import this feature, so these names are the contract.
+    @Test func theCommandOtherFeaturesHandTextToKeepsItsName() {
+        #expect(SnippetIDs.command(SnippetIDs.createCommand) == ItemID.command(feature: "snippets", command: "create"))
+        #expect(SnippetIDs.textArgument == "text")
+        #expect(SnippetIDs.nameArgument == "name")
     }
 
     @Test func createTakesTextFromOtherFeatures() async throws {

@@ -115,7 +115,7 @@ struct ExpansionTests {
         let harness = try await expanding([Fixture.greeting])
         try await harness.run("fill", arguments: ["snippet": Fixture.greeting.id], launch: .textExpansion)
         #expect(harness.fakes.pasteboard.pastedTexts == ["Hello there"])
-        await #expect(throws: ActionFailure("This snippet no longer exists")) {
+        await #expect(throws: ActionFailure("This Snippet No Longer Exists")) {
             try await harness.run("fill", arguments: ["snippet": "gone"], launch: .textExpansion)
         }
     }
@@ -156,7 +156,7 @@ struct ExpansionTests {
         #expect(fakes.permissions.openStreamCount == 1, "one watch, for the missing permission")
         let status = try #require(harness.feature.status)
         #expect(status.level == .warning)
-        #expect(status.title == "Snippet expansion needs Input Monitoring")
+        #expect(status.title == "Snippet Expansion Needs Input Monitoring")
         #expect(status.requires == [.inputMonitoring])
         #expect(fakes.permissions.requests.isEmpty)
         #expect(harness.issues.isEmpty)
@@ -209,12 +209,12 @@ struct ExpansionTests {
         harness.fakes.textExpansion.simulateStatus(.blockedBySecureInput(owner: "Example Vault"))
         try await harness.settle()
         #expect(harness.feature.status?.level == .info)
-        #expect(harness.feature.status?.title == "Snippet expansion is paused while Example Vault has secure input on")
+        #expect(harness.feature.status?.title == "Snippet Expansion Is Paused While Example Vault Has Secure Input On")
         #expect(try #require(harness.feature.declarationChanges).generation == declarations + 1)
 
         harness.fakes.textExpansion.simulateStatus(.blockedBySecureInput(owner: nil))
         try await harness.settle()
-        #expect(harness.feature.status?.title == "Snippet expansion is paused while another app has secure input on")
+        #expect(harness.feature.status?.title == "Snippet Expansion Is Paused While Another App Has Secure Input On")
 
         harness.fakes.textExpansion.simulateStatus(.running)
         try await harness.settle()
@@ -232,14 +232,44 @@ struct ExpansionTests {
         let harness = try await FeatureHarness.loaded(all)
         #expect(try harness.command("turn-on-expansion").requires == [.inputMonitoring, .accessibility])
         try await harness.run("turn-on-expansion")
-        #expect(harness.huds.last == "Snippet expansion is on")
+        #expect(harness.huds.last == "Snippet Expansion Is On")
         #expect(harness.context.settings[SnippetsSettings.expansionEnabled])
         #expect(await harness.fakes.textExpansion.status() == .running)
 
         try await harness.run("turn-off-expansion")
-        #expect(harness.huds.last == "Snippet expansion is off")
+        #expect(harness.huds.last == "Snippet Expansion Is Off")
         #expect(await harness.fakes.textExpansion.status() == .stopped)
         #expect(await harness.fakes.textExpansion.type("sig") == nil)
+    }
+
+    @Test func rootSearchShowsOnlyTheSwitchThatApplies() async throws {
+        let fakes = FakeServices(permissions: .notDetermined)
+        let harness = try await FeatureHarness.loaded(all, fakes: fakes)
+        func shown() throws -> [String] {
+            try ["turn-on-expansion", "turn-off-expansion"].filter { try harness.command($0).showsInRoot }
+        }
+        #expect(try shown() == ["turn-on-expansion"])
+        #expect(try harness.command("turn-off-expansion").allowsDeepLinks == false)
+
+        // Turned on in settings: root search reads the commands again and shows Turn Off.
+        let declarations = try #require(harness.feature.declarationChanges).generation
+        harness.context.settings[SnippetsSettings.expansionEnabled] = true
+        try await harness.settle()
+        #expect(try #require(harness.feature.declarationChanges).generation > declarations)
+        #expect(try shown() == ["turn-off-expansion"])
+        #expect(try harness.command("turn-on-expansion").allowsDeepLinks == false)
+
+        // Still on while it waits for a permission, so Turn Off stays.
+        fakes.textExpansion.simulateStatus(.needsPermission(.inputMonitoring))
+        try await harness.settle()
+        #expect(try shown() == ["turn-off-expansion"])
+
+        // Both stay declared, so a hotkey on the hidden one still runs.
+        try await harness.run("turn-off-expansion")
+        #expect(try shown() == ["turn-on-expansion"])
+        try await harness.run("turn-off-expansion")
+        #expect(harness.huds.last == "Snippet Expansion Is Off")
+        #expect(harness.pendingIssues.isEmpty)
     }
 
     @Test func turningTheSettingOffStops() async throws {

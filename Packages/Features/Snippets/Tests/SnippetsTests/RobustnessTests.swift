@@ -93,7 +93,7 @@ struct RobustnessTests {
         harness.fakes.fileDialogs.filesToChoose = [file]
         try await harness.run(SnippetIDs.importCommand)
 
-        #expect(harness.toasts.last?.title == "Imported 4 snippets")
+        #expect(harness.toasts.last?.title == "Imported 4 Snippets")
         #expect(
             harness.toasts.last?.message
                 == Strings.importNotes(
@@ -117,7 +117,7 @@ struct RobustnessTests {
         try write("[" + entries.joined(separator: ",") + "]", to: file)
         try await harness.run(SnippetIDs.importCommand)
         #expect(harness.library.index.snippets.count == 2_000)
-        #expect(harness.toasts.last?.title == "Imported 2000 snippets")
+        #expect(harness.toasts.last?.title == "Imported 2000 Snippets")
     }
 
     // MARK: Unicode

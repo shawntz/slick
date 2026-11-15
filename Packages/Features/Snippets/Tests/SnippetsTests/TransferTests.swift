@@ -21,7 +21,7 @@ struct TransferTests {
         let file = exchangeFile(source)
         source.fakes.fileDialogs.saveLocation = file
         try await source.run(SnippetIDs.exportCommand)
-        #expect(source.huds == [HUD("Exported 5 snippets", style: .success)])
+        #expect(source.huds == [HUD("Exported 5 Snippets", style: .success)])
         let request = try #require(source.fakes.fileDialogs.saveRequests.first)
         #expect(request.suggestedName == "Snippets.json")
         #expect(request.allowedTypes == ["json"])
@@ -35,7 +35,7 @@ struct TransferTests {
         let target = try await FeatureHarness.loaded([])
         target.fakes.fileDialogs.filesToChoose = [file]
         try await target.run(SnippetIDs.importCommand)
-        #expect(target.toasts.last?.title == "Imported 5 snippets")
+        #expect(target.toasts.last?.title == "Imported 5 Snippets")
         #expect(target.toasts.last?.message == nil)
         func fields(_ snippets: [Snippet]) -> [String] {
             snippets.map {
@@ -47,7 +47,7 @@ struct TransferTests {
 
         // Importing the same file again adds nothing.
         try await target.run(SnippetIDs.importCommand)
-        #expect(target.toasts.last?.title == "No new snippets to import")
+        #expect(target.toasts.last?.title == "No New Snippets to Import")
         #expect(target.toasts.last?.message == "Skipped 5 snippets you already have.")
         #expect(target.library.index.snippets.count == 5)
     }
@@ -72,7 +72,7 @@ struct TransferTests {
         harness.fakes.fileDialogs.filesToChoose = [file]
         try await harness.run(SnippetIDs.importCommand)
 
-        #expect(harness.toasts.last?.title == "Imported 2 snippets")
+        #expect(harness.toasts.last?.title == "Imported 2 Snippets")
         #expect(
             harness.toasts.last?.message
                 == "Skipped 1 snippet you already have. Skipped 1 snippet whose keyword another snippet uses. "
@@ -95,7 +95,7 @@ struct TransferTests {
             try write(damaged, to: bad)
             harness.fakes.fileDialogs.filesToChoose = [good, bad]
             try await harness.run(SnippetIDs.importCommand)
-            #expect(harness.toasts.last?.title == "Could not import bad.json")
+            #expect(harness.toasts.last?.title == "Could Not Import bad.json")
             #expect(harness.toasts.last?.message == "It is not a snippets file. Nothing was imported.")
             #expect(harness.library.index.snippets.map(\.name) == ["Greeting"])
         }
@@ -138,7 +138,7 @@ struct TransferTests {
         let harness = try await FeatureHarness.loaded([])
         harness.fakes.fileDialogs.saveLocation = exchangeFile(harness)
         try await harness.run(SnippetIDs.exportCommand)
-        #expect(harness.toasts.last?.title == "There are no snippets to export")
+        #expect(harness.toasts.last?.title == "No Snippets to Export")
         #expect(harness.fakes.fileDialogs.saveRequests.isEmpty)
     }
 
@@ -151,7 +151,7 @@ struct TransferTests {
         harness.fakes.fileDialogs.filesToChoose = [file]
         await #expect(
             throws: ActionFailure(
-                "Snippets cannot be saved right now",
+                "Snippets Cannot Be Saved Right Now",
                 message: "The snippets file could not be read. Fix or remove it first.")
         ) {
             try await harness.run(SnippetIDs.importCommand)

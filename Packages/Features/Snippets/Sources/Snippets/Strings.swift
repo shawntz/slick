@@ -1,8 +1,9 @@
 import Kit
 import KitTemplates
 
-/// Every string a user reads, in one place so it can be translated later. Command and action titles
-/// use title case, as macOS menus do. Everything else is a plain sentence.
+/// Every string a user reads, in one place so it can be translated later. Command, action, section,
+/// empty-state, toast and HUD titles, buttons and menu items use title case, as macOS menus do, and
+/// end without a full stop. Everything else is a plain sentence.
 nonisolated enum Strings {
     // MARK: Feature
 
@@ -106,7 +107,7 @@ nonisolated enum Strings {
     static func unpinned(_ name: String) -> String { "Unpinned \(name)" }
     static func deleted(_ name: String) -> String { "Deleted \(name)" }
     static func saved(_ name: String) -> String { "Saved \(name)" }
-    static let snippetGone = "This snippet no longer exists"
+    static let snippetGone = "This Snippet No Longer Exists"
 
     // MARK: Forms
 
@@ -180,7 +181,7 @@ nonisolated enum Strings {
 
     // MARK: Saving
 
-    static let readOnlyTitle = "Snippets cannot be saved right now"
+    static let readOnlyTitle = "Snippets Cannot Be Saved Right Now"
     static let readOnlyMessage = "The snippets file could not be read. Fix or remove it first."
     static let newerFileTitle = "Your snippets file is from a newer version"
     static let newerFileMessage = "Your snippets work, but changes are not saved, so nothing in the file is lost."
@@ -191,10 +192,10 @@ nonisolated enum Strings {
     static let importDialog = "Import Snippets"
     static let exportDialog = "Export Snippets"
     static let exportFileName = "Snippets.json"
-    static func importFailed(_ fileName: String) -> String { "Could not import \(fileName)" }
+    static func importFailed(_ fileName: String) -> String { "Could Not Import \(fileName)" }
     static let importFailedMessage = "It is not a snippets file. Nothing was imported."
     static func imported(_ count: Int) -> String {
-        count == 0 ? "No new snippets to import" : "Imported \(snippets(count))"
+        count == 0 ? "No New Snippets to Import" : "Imported \(snippetsTitle(count))"
     }
     static func importNotes(
         duplicates: Int, keywordClashes: Int, incomplete: Int, renamed: Int, keywordsLeftOut: Int
@@ -213,19 +214,19 @@ nonisolated enum Strings {
         }
         return notes.isEmpty ? nil : notes.joined(separator: " ")
     }
-    static func exported(_ count: Int) -> String { "Exported \(snippets(count))" }
-    static let nothingToExport = "There are no snippets to export"
+    static func exported(_ count: Int) -> String { "Exported \(snippetsTitle(count))" }
+    static let nothingToExport = "No Snippets to Export"
 
     // MARK: Expansion
 
-    static let expansionOn = "Snippet expansion is on"
-    static let expansionOff = "Snippet expansion is off"
+    static let expansionOn = "Snippet Expansion Is On"
+    static let expansionOff = "Snippet Expansion Is Off"
     static func expansionNeeds(_ permission: Permission) -> String {
-        "Snippet expansion needs \(permission.displayName)"
+        "Snippet Expansion Needs \(permission.displayName)"
     }
     static let expansionNeedsMessage = "Keywords do not expand until you allow it."
     static func secureInput(_ owner: String?) -> String {
-        "Snippet expansion is paused while \(owner ?? "another app") has secure input on"
+        "Snippet Expansion Is Paused While \(owner ?? "Another App") Has Secure Input On"
     }
     static let secureInputMessage = "Keywords expand again when it ends, for example when you leave a password field."
 
@@ -239,8 +240,8 @@ nonisolated enum Strings {
     static let expandToggle = "Expand keywords as you type"
     static let expandToggleInfo = "Off until you turn it on. It needs Input Monitoring and Accessibility."
     static let triggerPicker = "Expand"
-    static let triggerImmediately = "As soon as the keyword is typed"
-    static let triggerAfterDelimiter = "After a space, return or punctuation mark"
+    static let triggerImmediately = "As Soon as the Keyword Is Typed"
+    static let triggerAfterDelimiter = "After a Space, Return or Punctuation Mark"
     static let prefixField = "Keyword prefix"
     static let prefixPlaceholder = "None"
     static let prefixInfo =
@@ -257,7 +258,7 @@ nonisolated enum Strings {
         "Find a snippet by name from the main search field. A full keyword shows its snippet first."
     static let orderPicker = "Sort snippets by"
     static let orderName = "Name"
-    static let orderFrequency = "Most used"
+    static let orderFrequency = "Most Used"
     static let filesSection = "Files"
     static let showFileInfo = "Snippets live in one JSON file. Changes you make to it by hand show up at once."
 
@@ -275,6 +276,11 @@ nonisolated enum Strings {
 
     static func snippets(_ count: Int) -> String {
         count == 1 ? "1 snippet" : "\(count) snippets"
+    }
+
+    /// The count as a toast or HUD title writes it.
+    static func snippetsTitle(_ count: Int) -> String {
+        count == 1 ? "1 Snippet" : "\(count) Snippets"
     }
 
     static func entries(_ count: Int) -> String {

@@ -22,7 +22,8 @@ public final class SnippetsFeature: Feature {
     let expansion: ExpansionController
     private(set) lazy var actions = SnippetActions(feature: self)
     private lazy var source = SnippetSource(feature: self)
-    /// Sent when ``status`` changes, which is the only declaration that changes.
+    /// Sent when ``status`` changes or the expansion switch flips, which decides the commands root
+    /// search shows.
     private let statusChanges = ChangeSignal()
     private var activation: Task<Void, Never>?
     private var listening: [Task<Void, Never>] = []
@@ -58,9 +59,13 @@ public final class SnippetsFeature: Feature {
         // Subscribe before anything starts, so no change in between is lost.
         let statuses = context.textExpansion.statusChanges()
         let settingChanges = context.settings.changes(ofAny: SnippetsSettings.expansionKeys)
+        let switches = context.settings.changes(of: SnippetsSettings.expansionEnabled)
         let expansion = expansion
+        let statusChanges = statusChanges
         listening = [
             Task { for await status in statuses { expansion.observe(status) } },
+            // The switch decides which of Turn On and Turn Off root search shows.
+            Task { for await _ in switches { statusChanges.send() } },
             Task { [weak self] in
                 for await _ in settingChanges {
                     guard let self else { return }
@@ -140,17 +145,21 @@ public final class SnippetsFeature: Feature {
                 }
                 return .push(.form(forms.editor(SnippetDraft(name: name, text: text))))
             },
-            Command(id: SnippetIDs.editCommand, title: Strings.editCommand, icon: .symbol("pencil"), showsInRoot: false)
-            { context in
+            // Hidden commands take a snippet ID that only this feature hands out, so no link needs
+            // them.
+            Command(
+                id: SnippetIDs.editCommand, title: Strings.editCommand, icon: .symbol("pencil"), showsInRoot: false,
+                allowsDeepLinks: false
+            ) { context in
                 let snippet = try await self.snippet(named: context.arguments)
                 return .push(.form(forms.editor(SnippetDraft(snippet), editing: snippet.id)))
             },
             // A keyword typed in another app opens this when its snippet asks for arguments. Only a
-            // typed keyword pastes without asking. Any other launch, such as a link from a web page,
-            // shows the form, so nothing is pasted until the user presses Paste Snippet.
+            // typed keyword pastes without asking. Any other launch shows the form, so nothing is
+            // pasted until the user presses Paste Snippet. A link never reaches it.
             Command(
                 id: SnippetIDs.fillCommand, title: Strings.fillCommand, icon: Self.manifest.icon,
-                requires: [.accessibility], showsInRoot: false
+                requires: [.accessibility], showsInRoot: false, allowsDeepLinks: false
             ) { context in
                 let snippet = try await self.snippet(named: context.arguments)
                 guard self.library.index.arguments(of: snippet.id).isEmpty, context.launch == .textExpansion else {
@@ -169,20 +178,27 @@ public final class SnippetsFeature: Feature {
                 context in
                 try await self.exportSnippets(context)
             },
+            // Root search shows only the switch that applies. Both stay declared, so a hotkey on
+            // either keeps working and settings lists both. A link reaches only the one shown.
             Command(
                 id: SnippetIDs.turnOnCommand, title: Strings.turnOnCommand, icon: .symbol("keyboard"),
-                keywords: Strings.expansionKeywords, requires: [.inputMonitoring, .accessibility]
+                keywords: Strings.expansionKeywords, requires: [.inputMonitoring, .accessibility],
+                showsInRoot: !isExpansionOn, allowsDeepLinks: !isExpansionOn
             ) { _ in
                 await self.setExpansion(true)
             },
             Command(
                 id: SnippetIDs.turnOffCommand, title: Strings.turnOffCommand, icon: .symbol("keyboard"),
-                keywords: Strings.expansionKeywords
+                keywords: Strings.expansionKeywords, showsInRoot: isExpansionOn, allowsDeepLinks: isExpansionOn
             ) { _ in
                 await self.setExpansion(false)
             },
         ]
     }
+
+    /// The expansion switch as the user set it. The commands follow it, not the service's status,
+    /// so Turn Off shows while expansion waits for a permission.
+    private var isExpansionOn: Bool { context.settings[SnippetsSettings.expansionEnabled] }
 
     public var declarationChanges: ChangeSignal? { statusChanges }
 
