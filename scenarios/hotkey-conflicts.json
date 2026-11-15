@@ -1,0 +1,28 @@
+{
+  "name": "Hotkey conflicts are refused or taken over as settings promises",
+  "timeLimit": 20,
+  "steps": [
+    { "app": { "hotkeyBound": true, "launcherHotkey": "opt+space" } },
+    { "app": { "setHotkey": { "item": "app:com.example.notes", "keys": "opt+space" }, "hotkeyRefused": true, "itemHotkeys": { "app:com.example.notes": "" } } },
+    { "app": { "setHotkey": { "item": "app:com.example.notes", "keys": "ctrl+opt+n" }, "hotkeyRefused": false, "itemHotkeys": { "app:com.example.notes": "ctrl+opt+n" } } },
+    { "app": { "pressKeys": "ctrl+opt+n" } },
+    { "waitUntilIdle": 2 },
+    { "app": { "launched": ["com.example.notes"] } },
+    { "expect": { "visible": false } },
+    { "app": { "setHotkey": { "item": "cmd:apps.running", "keys": "ctrl+opt+r" }, "hotkeyRefused": false } },
+    { "app": { "pressKeys": "ctrl+opt+r" } },
+    { "waitUntilIdle": 2 },
+    { "expect": { "visible": true, "page": "list", "title": "Running Applications", "rows": ["Mail", "Notes"] } },
+    { "dismiss": true },
+    { "app": { "setHotkey": { "item": "app:com.example.calendar", "keys": "ctrl+opt+n" }, "hotkeyRefused": false, "itemHotkeys": { "app:com.example.notes": "", "app:com.example.calendar": "ctrl+opt+n" } } },
+    { "app": { "setSettings": { "launcherHotkey": "ctrl+opt+n" }, "launcherHotkey": "opt+space", "hotkeyBound": true } },
+    { "app": { "setHotkey": { "item": "app:com.example.calendar", "keys": "" }, "hotkeyRefused": false } },
+    { "app": { "launcherHotkey": "ctrl+opt+n", "itemHotkeys": { "app:com.example.calendar": "" } } },
+    { "app": { "setHotkey": { "item": "app:com.example.notes", "keys": "ctrl+opt+n" }, "hotkeyRefused": true } },
+    { "app": { "pressHotkey": true } },
+    { "expect": { "visible": true } },
+    { "app": { "setSettings": { "launcherHotkey": null }, "hotkeyBound": false } },
+    { "app": { "setSettings": { "launcherHotkey": "opt+space" }, "launcherHotkey": "opt+space" } },
+    { "dismiss": true }
+  ]
+}

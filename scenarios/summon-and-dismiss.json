@@ -1,0 +1,24 @@
+{
+  "name": "The launcher hotkey summons and dismisses the panel",
+  "timeLimit": 20,
+  "steps": [
+    { "app": { "hotkeyBound": true } },
+    { "expect": { "visible": false } },
+    { "app": { "pressHotkey": true } },
+    { "expect": { "visible": true, "page": "root", "title": "", "query": "" } },
+    { "capture": { "name": "summoned", "key": true } },
+    { "app": { "pressHotkey": true } },
+    { "expect": { "visible": false } },
+    { "summon": true },
+    { "type": "notes" },
+    { "expect": { "visible": true, "query": "notes", "selection": "Notes" } },
+    { "press": "escape" },
+    { "expect": { "visible": true, "query": "", "page": "root" } },
+    { "press": "escape" },
+    { "expect": { "visible": false } },
+    { "summon": true },
+    { "expect": { "visible": true, "query": "" } },
+    { "dismiss": true },
+    { "expect": { "visible": false } }
+  ]
+}

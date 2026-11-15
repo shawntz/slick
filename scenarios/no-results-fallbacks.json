@@ -1,0 +1,25 @@
+{
+  "name": "A query with no results offers its fallbacks",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "type": "qwzxv kit" },
+    { "expect": { "rows": ["Search Google for \"qwzxv kit\"", "Search Wikipedia for \"qwzxv kit\"", "Search Colors with \"qwzxv kit\""], "selection": "Search Google for \"qwzxv kit\"" } },
+    { "capture": { "name": "fallbacks", "key": true } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Run Command", "Open With", "Copy Link", "Edit Quicklink", "Duplicate Quicklink", "Turn Off Quicklink", "Delete Quicklink", "Add to Favorites", "Set Alias", "Set Hotkey", "Reset Ranking", "Disable Command"] } },
+    { "press": "cmd+k" },
+    { "press": "down" },
+    { "expect": { "selection": "Search Wikipedia for \"qwzxv kit\"" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "opened": ["https://en.wikipedia.org/wiki/Special:Search?search=qwzxv%20kit"], "launched": [] } },
+    { "summon": true },
+    { "press": "escape" },
+    { "type": "zz" },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "app": { "opened": ["https://en.wikipedia.org/wiki/Special:Search?search=qwzxv%20kit", "https://www.google.com/search?q=zz"] } }
+  ]
+}

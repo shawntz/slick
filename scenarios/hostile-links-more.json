@@ -1,0 +1,29 @@
+{
+  "name": "More hostile links are refused, and a destructive command asks twice",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "link": "{scheme}://search?q=a&q=b", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://search?q=%00", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://search?q=line%0Abreak", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://user:pw@search?q=x", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://search:8080?q=x", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://commands/apps/../system/shut-down", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://commands/apps/%2e%2e/system/shut-down", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://settings/%2e%2e", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://commands/system/set-volume?volume=40", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://commands/system/set-volume?level=%E2%80%AE04", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://commands/system/set-volume?level=40&level=50", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://commands/nosuchfeature/run", "linkOutcome": "refused" } },
+    { "expect": { "visible": false } },
+    { "app": { "link": "{scheme}://commands/system/shut-down", "linkOutcome": "asked" } },
+    { "waitUntilIdle": 2 },
+    { "expect": { "visible": true, "page": "list", "title": "Open Link", "rows": ["Run Shut Down", "Always Allow", "Cancel"], "selection": "Run Shut Down" } },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "card": "Shut down your Mac now?" } },
+    { "capture": { "name": "asks-twice", "key": true } },
+    { "press": "escape" },
+    { "expect": { "card": "" } },
+    { "app": { "launched": [], "opened": [] } }
+  ]
+}

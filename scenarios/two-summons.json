@@ -1,0 +1,32 @@
+{
+  "name": "Two summons in quick succession",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "summon": true },
+    { "expect": { "visible": true, "page": "root" } },
+    { "type": "no" },
+    { "app": { "pressHotkey": true } },
+    { "app": { "pressHotkey": true } },
+    { "expect": { "visible": true, "query": "no", "selection": "Notes" } },
+    { "app": { "pressHotkey": true } },
+    { "app": { "pressHotkey": true } },
+    { "app": { "pressHotkey": true } },
+    { "expect": { "visible": false } },
+    { "summon": true },
+    { "expect": { "visible": true, "query": "no", "selection": "Notes" } },
+    { "type": "tes" },
+    { "expect": { "query": "notes", "selection": "Notes" } },
+    { "press": "return" },
+    { "summon": true },
+    { "waitUntilIdle": 3 },
+    { "app": { "launched": ["com.example.notes"] } },
+    { "expect": { "visible": false } },
+    { "summon": true },
+    { "summon": true },
+    { "expect": { "visible": true, "query": "notes" } },
+    { "dismiss": true },
+    { "dismiss": true },
+    { "expect": { "visible": false } }
+  ]
+}

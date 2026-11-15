@@ -1,0 +1,25 @@
+{
+  "name": "A favorite shows in the empty state",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "expect": { "rowCount": 0, "query": "" } },
+    { "type": "calendar" },
+    { "press": "cmd+k" },
+    { "type": "favorites" },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "app": { "favorites": ["app:com.example.calendar"] } },
+    { "expect": { "visible": true, "query": "calendar" } },
+    { "press": "escape" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "query": "", "rows": ["Calendar"] } },
+    { "capture": { "name": "favorites", "key": true } },
+    { "press": "escape" },
+    { "expect": { "visible": false } },
+    { "summon": true },
+    { "expect": { "rows": ["Calendar"], "selection": "Calendar" } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Open", "Show in Finder", "Show Package Contents", "Copy Name", "Copy Bundle Identifier", "Copy Path", "Remove from Favorites", "Set Alias", "Set Hotkey", "Reset Ranking"] } }
+  ]
+}

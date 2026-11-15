@@ -1,0 +1,20 @@
+{
+  "name": "Settings changed while a page is pushed keep the page",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "type": "running applications" },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "page": "list", "rows": ["Mail", "Notes"] } },
+    { "app": { "setSettings": { "visibleRows": 4, "panelSizing": "fitContent", "inlineCompletion": false, "themeName": "Graphite" }, "theme": "Graphite" } },
+    { "waitUntilIdle": 2 },
+    { "expect": { "page": "list", "rows": ["Mail", "Notes"], "selection": "Mail", "visible": true } },
+    { "capture": { "name": "graphite-list", "key": true } },
+    { "press": "down" },
+    { "expect": { "selection": "Notes" } },
+    { "press": "escape" },
+    { "expect": { "page": "root", "query": "running applications" } },
+    { "dismiss": true }
+  ]
+}

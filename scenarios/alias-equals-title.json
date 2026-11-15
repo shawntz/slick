@@ -1,0 +1,32 @@
+{
+  "name": "An alias equal to another item's title wins that query",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "type": "calendar" },
+    { "expect": { "selection": "Calendar" } },
+    { "press": "cmd+k" },
+    { "type": "set alias" },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "type": "notes" },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "app": { "aliases": { "app:com.example.calendar": "notes" } } },
+    { "press": "escape" },
+    { "type": "notes" },
+    { "expect": { "selection": "Calendar", "rowsInclude": ["Calendar", "Notes"] } },
+    { "press": "down" },
+    { "expect": { "selection": "Notes" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "app": { "launched": ["com.example.notes"] } },
+    { "summon": true },
+    { "press": "escape" },
+    { "type": "notes" },
+    { "expect": { "selection": "Calendar" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "app": { "launched": ["com.example.notes", "com.example.calendar"] } }
+  ]
+}

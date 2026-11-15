@@ -1,0 +1,27 @@
+{
+  "name": "An alias set from the action panel finds its item",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "type": "disk tool" },
+    { "expect": { "selection": "Disk Tool" } },
+    { "press": "cmd+k" },
+    { "type": "set alias" },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "page": "other", "title": "Alias for Disk Tool", "query": "" } },
+    { "type": "dk" },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "app": { "aliases": { "app:com.example.disk-tool": "dk" } } },
+    { "expect": { "page": "root" } },
+    { "press": "escape" },
+    { "expect": { "query": "", "visible": true } },
+    { "type": "dk" },
+    { "expect": { "selection": "Disk Tool" } },
+    { "capture": { "name": "alias", "key": true } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "app": { "launched": ["com.example.disk-tool"] } }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "The action panel lists a row's actions and runs one",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "type": "notes" },
+    { "expect": { "selection": "Notes" } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Open", "Show in Finder", "Show Package Contents", "Hide", "Quit", "Restart", "Force Quit", "Copy Name", "Copy Bundle Identifier", "Copy Path", "Add to Favorites", "Set Alias", "Set Hotkey", "Reset Ranking"] } },
+    { "capture": { "name": "actions", "key": true } },
+    { "type": "copy name" },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "pasteboardText": "Notes", "hud": "Copied Name", "launched": [] } },
+    { "summon": true },
+    { "expect": { "query": "notes", "selection": "Notes" } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Open", "Show in Finder", "Show Package Contents", "Hide", "Quit", "Restart", "Force Quit", "Copy Name", "Copy Bundle Identifier", "Copy Path", "Add to Favorites", "Set Alias", "Set Hotkey", "Reset Ranking"] } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "launched": ["com.example.notes"] } }
+  ]
+}

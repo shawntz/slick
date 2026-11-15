@@ -1,0 +1,31 @@
+{
+  "name": "Typing ranks results by tier and shows the ghost completion",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "type": "t" },
+    { "expect": { "selection": "Text Editor", "ghost": "" } },
+    { "type": "e" },
+    { "expect": { "selection": "Text Editor", "rowsInclude": ["Text Editor", "Notes", "Output device", "Turn On Snippet Expansion"] } },
+    { "type": "xt" },
+    { "expect": { "selection": "Text Editor", "rowsInclude": ["Text Editor", "Search Snippets"] } },
+    { "press": "escape" },
+    { "type": "dt" },
+    { "expect": { "selection": "Disk Tool", "rowsInclude": ["Disk Tool", "Text Editor"], "ghost": "" } },
+    { "press": "escape" },
+    { "type": "net" },
+    { "expect": { "selection": "Network", "ghost": "work" } },
+    { "capture": { "name": "ghost", "key": true } },
+    { "press": "tab" },
+    { "expect": { "query": "network", "selection": "Network", "ghost": "" } },
+    { "press": "escape" },
+    { "type": "zzqx" },
+    { "expect": { "rows": ["Search Google for \"zzqx\"", "Search Wikipedia for \"zzqx\"", "Search Colors with \"zzqx\""] } },
+    { "press": "delete" },
+    { "press": "delete" },
+    { "press": "delete" },
+    { "press": "delete" },
+    { "expect": { "query": "", "page": "root", "visible": true } },
+    { "dismiss": true }
+  ]
+}

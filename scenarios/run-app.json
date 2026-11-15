@@ -1,0 +1,22 @@
+{
+  "name": "Running an app reaches the workspace and closes the panel",
+  "timeLimit": 20,
+  "steps": [
+    { "app": { "launched": [] } },
+    { "summon": true },
+    { "type": "web" },
+    { "expect": { "selection": "Web Browser" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "launched": ["com.example.browser"] } },
+    { "summon": true },
+    { "expect": { "query": "web", "selection": "Web Browser" } },
+    { "press": "escape" },
+    { "expect": { "query": "", "visible": true } },
+    { "type": "cal" },
+    { "press": "cmd+1" },
+    { "waitUntilIdle": 3 },
+    { "app": { "launched": ["com.example.browser", "com.example.calendar"] } }
+  ]
+}

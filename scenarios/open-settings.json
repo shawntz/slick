@@ -1,0 +1,18 @@
+{
+  "name": "Command-comma and links open settings",
+  "timeLimit": 20,
+  "steps": [
+    { "app": { "settings": [] } },
+    { "summon": true },
+    { "type": "no" },
+    { "press": "cmd+," },
+    { "expect": { "visible": false } },
+    { "app": { "settings": [""] } },
+    { "app": { "link": "{scheme}://settings/learning", "linkOutcome": "openedSettings", "settings": ["", "learning"] } },
+    { "app": { "link": "{scheme}://settings/features/apps", "linkOutcome": "openedFeatureSettings" } },
+    { "app": { "settings": ["", "learning", "features/apps"] } },
+    { "app": { "link": "{scheme}://settings/nowhere", "linkOutcome": "refused" } },
+    { "app": { "settings": ["", "learning", "features/apps"] } },
+    { "expect": { "visible": false } }
+  ]
+}

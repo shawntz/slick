@@ -1,0 +1,21 @@
+{
+  "name": "A theme switch while the panel shows restyles it in place",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "type": "notes" },
+    { "expect": { "selection": "Notes" } },
+    { "app": { "setSettings": { "themeName": "Ocean" }, "theme": "Ocean" } },
+    { "expect": { "visible": true, "query": "notes", "selection": "Notes" } },
+    { "capture": { "name": "ocean", "key": true } },
+    { "press": "cmd+k" },
+    { "app": { "setSettings": { "themeName": "Violet" }, "theme": "Violet" } },
+    { "expect": { "actions": ["Open", "Show in Finder", "Show Package Contents", "Hide", "Quit", "Restart", "Force Quit", "Copy Name", "Copy Bundle Identifier", "Copy Path", "Add to Favorites", "Set Alias", "Set Hotkey", "Reset Ranking"] } },
+    { "capture": { "name": "violet-actions", "key": true } },
+    { "press": "cmd+k" },
+    { "app": { "setSettings": { "themeName": "No Such Theme" }, "theme": "Violet" } },
+    { "expect": { "visible": true, "selection": "Notes" } },
+    { "app": { "setSettings": { "themeName": "Standard" }, "theme": "Standard" } },
+    { "dismiss": true }
+  ]
+}
