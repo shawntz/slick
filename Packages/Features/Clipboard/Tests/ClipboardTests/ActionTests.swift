@@ -67,7 +67,7 @@ struct ActionTests {
         clipboard.pasteboard.pasteFailure = .targetDidNotActivate
         clipboard.harness.throwsActionErrors = false
         try await clipboard.harness.performPrimary()
-        #expect(clipboard.harness.huds == [.failure("Could not paste")])
+        #expect(clipboard.harness.huds == [.failure("Could Not Paste")])
         #expect(clipboard.harness.toasts.isEmpty)
     }
 
@@ -189,7 +189,7 @@ struct ActionTests {
         #expect(clipboard.harness.confirmations.last?.suppressionKey == "delete-item")
         #expect(clipboard.harness.rows.map(\.title) == ["stays"])
         #expect(!FileManager.default.fileExists(atPath: image.path))
-        #expect(clipboard.harness.visibleToast?.title == "Item deleted")
+        #expect(clipboard.harness.visibleToast?.title == "Item Deleted")
     }
 
     @Test func deleteAllAsksFirstAndKeepsPinnedItems() async throws {
@@ -199,7 +199,7 @@ struct ActionTests {
         try await clipboard.harness.perform("delete-all")
         #expect(clipboard.harness.confirmations.last?.confirmTitle == "Delete All")
         #expect(clipboard.harness.rows.map(\.title) == ["second"])
-        #expect(clipboard.harness.visibleToast?.title == "Deleted 2 items")
+        #expect(clipboard.harness.visibleToast?.title == "Deleted 2 Items")
     }
 
     @Test func anItemDeletedElsewhereFailsWithAPlainMessage() async throws {
@@ -208,7 +208,7 @@ struct ActionTests {
         try await clipboard.store.delete(ClipboardHarness.textKey("first"))
         clipboard.harness.throwsActionErrors = false
         try await clipboard.harness.performSecondary()
-        #expect(clipboard.harness.toasts.last?.title == "This item is gone")
+        #expect(clipboard.harness.toasts.last?.title == "This Item Is Gone")
         #expect(clipboard.pasteboard.copied.isEmpty)
     }
 }

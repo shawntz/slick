@@ -181,22 +181,31 @@ public final class ClipboardHistoryFeature: Feature {
             SettingsSection(
                 Strings.Settings.historySection,
                 items: [
+                    // A choice that keeps less deletes items at once, so it asks first.
                     .picker(
                         Strings.Settings.retention, key: ClipboardSettings.retention,
-                        info: Strings.Settings.retentionInfo,
-                        titles: Strings.Settings.retentionTitle),
+                        info: Strings.Settings.retentionInfo, titles: Strings.Settings.retentionTitle
+                    ) { stored, chosen in
+                        chosen.keepsLess(than: stored) ? Strings.Settings.shortenRetention(to: chosen) : nil
+                    },
                     .picker(
                         Strings.Settings.maximumItems, key: ClipboardSettings.maximumItems,
                         options: ClipboardSettings.maximumItemChoices.map {
-                            ($0, Strings.Settings.items($0, locale: locale))
+                            ($0, Strings.Settings.itemsOption($0, locale: locale))
                         },
-                        info: Strings.Settings.maximumItemsInfo),
+                        info: Strings.Settings.maximumItemsInfo
+                    ) { stored, chosen in
+                        chosen < stored ? Strings.Settings.lowerItemCap(to: chosen, locale: locale) : nil
+                    },
                     .picker(
                         Strings.Settings.imageStorage, key: ClipboardSettings.imageStorageMegabytes,
                         options: ClipboardSettings.imageStorageChoices.map {
                             ($0, Strings.Settings.megabytes($0, locale: locale))
                         },
-                        info: Strings.Settings.imageStorageInfo),
+                        info: Strings.Settings.imageStorageInfo
+                    ) { stored, chosen in
+                        chosen < stored ? Strings.Settings.lowerImageSpace(to: chosen, locale: locale) : nil
+                    },
                     .button(
                         Strings.Settings.clear, style: .destructive,
                         confirmation: Strings.Commands.clearHistoryConfirmation, info: Strings.Settings.clearInfo

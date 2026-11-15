@@ -3,8 +3,9 @@ import Kit
 
 /// Every string a person reads in this feature, in one place so it can be translated later.
 ///
-/// Command titles use title case, as macOS menus do. Everything else is a plain sentence that says
-/// what will happen.
+/// Command, action, section, empty-state, toast and HUD titles, buttons and menu items use title
+/// case, as macOS menus do, and end without a full stop. Everything else is a plain sentence that
+/// says what will happen. Key combinations come from `KeyCombo.displayString`.
 nonisolated enum Strings {
     static let featureName = "Clipboard History"
     static let summary = "Keep what you copy, search it, and paste it again later."
@@ -36,8 +37,8 @@ nonisolated enum Strings {
             message: "Items copied in the period you chose are deleted. Pinned items stay. This cannot be undone.",
             confirmTitle: "Delete", isDestructive: true)
 
-        static let paused = "Clipboard recording is paused"
-        static let resumed = "Clipboard recording is on"
+        static let paused = "Clipboard Recording Is Paused"
+        static let resumed = "Clipboard Recording Is On"
     }
 
     /// The periods Clear Recent Clipboard History offers.
@@ -89,7 +90,8 @@ nonisolated enum Strings {
         static let noMatchesTitle = "No Matches"
         static let noMatchesMessage = "Nothing in your clipboard history contains this text."
         static let emptyPinnedTitle = "No Pinned Items"
-        static let emptyPinnedMessage = "Pin an item with Command-Period to keep it until you unpin it."
+        static let emptyPinnedMessage =
+            "Pin an item with \(KeyCombo(.period, .command).displayString) to keep it until you unpin it."
 
         static func emptyFilterTitle(_ filter: KindFilter) -> String {
             "No \(Filter.title(for: filter))"
@@ -180,21 +182,22 @@ nonisolated enum Strings {
             message: "Every item that is not pinned is deleted. Pinned items stay. This cannot be undone.",
             confirmTitle: "Delete All", isDestructive: true)
 
-        static let deleted = "Item deleted"
+        static let deleted = "Item Deleted"
 
         static func deleted(_ count: Int) -> String {
             switch count {
-            case 0: "Nothing to delete"
-            case 1: "Deleted 1 item"
-            default: "Deleted \(count) items"
+            case 0: "Nothing to Delete"
+            case 1: "Deleted 1 Item"
+            default: "Deleted \(count) Items"
             }
         }
 
         static let missing = ActionFailure(
-            "This item is gone", message: "It was deleted from your clipboard history.")
-        static let noPlainText = ActionFailure("This item has no text to paste")
+            "This Item Is Gone", message: "It was deleted from your clipboard history.")
+        static let noPlainText = ActionFailure("This Item Has No Text to Paste")
         static let pasteFailed = ActionFailure(
-            "Could not paste", message: "The item is on the clipboard. Press Command-V to paste it.")
+            "Could Not Paste",
+            message: "The item is on the clipboard. Press \(KeyCombo(.v, .command).displayString) to paste it.")
     }
 
     enum Suggestion {
@@ -261,13 +264,56 @@ nonisolated enum Strings {
             }
         }
 
-        static func primaryActionTitle(_ value: PrimaryAction) -> String {
+        /// Asked before a shorter time to keep items, which deletes the older ones at once.
+        static func shortenRetention(to value: Retention) -> Confirmation {
+            Confirmation(
+                "Delete items older than \(retentionPhrase(value))?",
+                message: "Items you copied before then are deleted now. Pinned items stay.",
+                confirmTitle: "Delete Older Items", isDestructive: true)
+        }
+
+        /// Asked before a lower item cap, which deletes the oldest items at once.
+        static func lowerItemCap(to count: Int, locale: Locale) -> Confirmation {
+            Confirmation(
+                "Keep only the newest \(items(count, locale: locale))?",
+                message: "Older items beyond that are deleted now. Pinned items stay.",
+                confirmTitle: "Delete Older Items", isDestructive: true)
+        }
+
+        /// Asked before less space for images, which deletes the oldest images at once.
+        static func lowerImageSpace(to megabytes: Int, locale: Locale) -> Confirmation {
+            Confirmation(
+                "Keep images in at most \(self.megabytes(megabytes, locale: locale))?",
+                message: "The oldest images beyond that are deleted now. Pinned images stay.",
+                confirmTitle: "Delete Older Images", isDestructive: true)
+        }
+
+        /// A time to keep items, inside a sentence.
+        static func retentionPhrase(_ value: Retention) -> String {
             switch value {
-            case .paste: "Paste into the app you were using"
-            case .copy: "Copy to the clipboard"
+            case .day: "1 day"
+            case .week: "1 week"
+            case .month: "1 month"
+            case .threeMonths: "3 months"
+            case .sixMonths: "6 months"
+            case .year: "1 year"
+            case .forever: "forever"
             }
         }
 
+        static func primaryActionTitle(_ value: PrimaryAction) -> String {
+            switch value {
+            case .paste: "Paste into the App You Were Using"
+            case .copy: "Copy to the Clipboard"
+            }
+        }
+
+        /// An item cap as the picker's menu lists it.
+        static func itemsOption(_ count: Int, locale: Locale) -> String {
+            "\(count.formatted(.number.locale(locale))) Items"
+        }
+
+        /// An item cap inside a sentence.
         static func items(_ count: Int, locale: Locale) -> String {
             "\(count.formatted(.number.locale(locale))) items"
         }

@@ -51,6 +51,12 @@ nonisolated enum Retention: String, CaseIterable, SettingValue {
     case year
     case forever
 
+    /// True when this keeps items for a shorter time than `other`, so choosing it deletes some.
+    func keepsLess(than other: Retention) -> Bool {
+        let order = Self.allCases
+        return (order.firstIndex(of: self) ?? 0) < (order.firstIndex(of: other) ?? 0)
+    }
+
     /// Items copied before this moment are deleted. Nil keeps everything.
     func cutoff(now: Date, calendar: Calendar) -> Date? {
         let step: (component: Calendar.Component, value: Int)? =

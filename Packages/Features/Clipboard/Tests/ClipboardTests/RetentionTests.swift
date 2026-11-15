@@ -37,6 +37,39 @@ struct RetentionTests {
         #expect(clipboard.harness.rows.map(\.title) == ["fresh"], "the open page follows")
     }
 
+    @Test func choosingToKeepLessAsksFirst() async throws {
+        let clipboard = await ClipboardHarness()
+        let harness = clipboard.harness
+        harness.confirmationAnswer = false
+        #expect(try !harness.chooseSetting("Keep items for", option: "1 Week"))
+        #expect(clipboard.settings[ClipboardSettings.retention] == .threeMonths, "nothing stored on no")
+        let question = try #require(harness.confirmations.last)
+        #expect(question.title == "Delete items older than 1 week?")
+        #expect(question.message == "Items you copied before then are deleted now. Pinned items stay.")
+        #expect(question.confirmTitle == "Delete Older Items")
+        #expect(question.isDestructive)
+
+        harness.confirmationAnswer = true
+        #expect(try harness.chooseSetting("Keep items for", option: "1 Week"))
+        #expect(clipboard.settings[ClipboardSettings.retention] == .week)
+        let asked = harness.confirmations.count
+        #expect(try harness.chooseSetting("Keep items for", option: "Forever"))
+        #expect(harness.confirmations.count == asked, "keeping more loses nothing, so it does not ask")
+
+        let locale = harness.context.clock.locale
+        #expect(try harness.chooseSetting("Keep at most", option: Strings.Settings.itemsOption(1_000, locale: locale)))
+        #expect(
+            harness.confirmations.last?.title
+                == "Keep only the newest \(Strings.Settings.items(1_000, locale: locale))?")
+        #expect(try harness.chooseSetting("Space for images", option: "250 MB"))
+        #expect(harness.confirmations.last?.title == "Keep images in at most 250 MB?")
+        let afterLowering = harness.confirmations.count
+        #expect(
+            try harness.chooseSetting("Keep at most", option: Strings.Settings.itemsOption(100_000, locale: locale)))
+        #expect(try harness.chooseSetting("Space for images", option: "5 GB"))
+        #expect(harness.confirmations.count == afterLowering)
+    }
+
     @Test func foreverKeepsEverything() async throws {
         let clipboard = await ClipboardHarness()
         clipboard.settings[ClipboardSettings.retention] = .forever

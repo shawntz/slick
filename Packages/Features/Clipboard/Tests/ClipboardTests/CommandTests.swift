@@ -33,7 +33,7 @@ struct CommandTests {
         try await clipboard.harness.run("clear-history")
         #expect(clipboard.harness.confirmations.map(\.isDestructive) == [true, true])
         #expect(try await clipboard.keys() == [ClipboardHarness.textKey("pinned")])
-        #expect(clipboard.harness.huds == [.success("Deleted 2 items")])
+        #expect(clipboard.harness.huds == [.success("Deleted 2 Items")])
     }
 
     @Test func clearRecentDeletesOnlyThePeriodChosen() async throws {
@@ -66,7 +66,7 @@ struct CommandTests {
         #expect(!clipboard.feature.isMonitoring)
         #expect(clipboard.feature.declarations.generation > before)
         #expect(try clipboard.harness.command("toggle-recording").title == "Resume Clipboard Recording")
-        #expect(clipboard.harness.huds.last == "Clipboard recording is paused")
+        #expect(clipboard.harness.huds.last == "Clipboard Recording Is Paused")
 
         try await clipboard.harness.run("toggle-recording", launch: .hotkey)
         try await clipboard.harness.settle()
@@ -102,7 +102,7 @@ struct CommandTests {
         try await clipboard.harness.pressSettingsButton("Clear History")
         #expect(clipboard.harness.confirmations.count == 1)
         #expect(try await clipboard.store.count() == 0)
-        #expect(clipboard.harness.toasts.last?.title == "Deleted 1 item")
+        #expect(clipboard.harness.toasts.last?.title == "Deleted 1 Item")
     }
 
     @Test func theHistoryAnswersTheClipboardPlaceholderForOtherFeatures() async throws {
