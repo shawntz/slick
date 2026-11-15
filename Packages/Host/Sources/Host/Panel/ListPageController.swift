@@ -112,6 +112,7 @@ import LauncherUI
     public func pageDidAppear(in host: any PageHost) {
         self.host = host
         feed.meter = host.workMeter
+        detailPresenter?.rowMapper = host.rowMapper
         if let theme = contentView.theme { banner.apply(theme) }
         feed.appear()
     }
@@ -206,6 +207,7 @@ import LauncherUI
     }
 
     public func iconsDidChange() {
+        detailPresenter?.iconsDidChange()
         guard !missingIcons.isEmpty, let mapper = host?.rowMapper else { return }
         for (id, icon) in missingIcons {
             guard let image = mapper.image(icon) else { continue }
@@ -257,9 +259,8 @@ import LauncherUI
                 rows.append(listRow)
             }
             count += rows.count
-            var title = section.title
-            if section.showsCount { title = (title.map { $0 + "  " } ?? "") + "\(rows.count)" }
-            mapped.append(LauncherUI.ListSection(title: title, rows: rows))
+            mapped.append(
+                LauncherUI.ListSection(title: section.title, rows: rows, count: section.showsCount ? rows.count : nil))
         }
         let content = ListContent(sections: mapped, rowStyle: .oneLine, emphasizesMatches: !feed.query.isEmpty)
         let list = list

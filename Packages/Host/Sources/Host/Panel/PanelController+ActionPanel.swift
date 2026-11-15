@@ -90,7 +90,7 @@ extension PanelController {
         actionEntries = entries
         actionTarget = target
         // A filter left from the last opening would hide entries: clear it before applying.
-        (actionCard.focusView as? NSTextField)?.stringValue = ""
+        actionCard.clearFilter()
         actionCard.apply(cardContent(entries, target: target))
         surface.present(actionCard)
         actionCard.selectItem(at: 0)

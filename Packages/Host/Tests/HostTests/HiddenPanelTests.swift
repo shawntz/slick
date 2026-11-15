@@ -140,6 +140,8 @@ import Testing
         let sRGB = try #require(CGColorSpace(name: CGColorSpace.sRGB))
         let components = try #require(kept.converted(to: sRGB, intent: .defaultIntent, options: nil)?.components)
         #expect(abs(components[0] - 0.3) < 0.001 && components[1] < 0.001, "a readable color is kept as asked")
+        #expect(mapper.listRow(deep).subtitleColor == kept, "the list draws the subtitle in it")
+        #expect(mapper.listRow(row).subtitleColor == nil)
     }
 }
 

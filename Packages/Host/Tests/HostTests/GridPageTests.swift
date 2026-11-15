@@ -23,7 +23,12 @@ import Testing
         let page = try #require(await openGrid(fixture, Tiles(count: 12)))
         let cells = page.grid.content.sections.flatMap(\.cells)
         #expect(cells.count == 12)
-        #expect(cells[0].content == .glyph("★"))
+        if case .image(let image) = cells[0].content {
+            #expect(image != nil, "a glyph draws as an image from the icon provider")
+        } else {
+            Issue.record("the glyph is not an image")
+        }
+        #expect(fixture.icons.lookups.contains(.glyph("★")))
         #expect(cells[1].content == .color(ThemeColor(red: 1, green: 0, blue: 0, alpha: 1)))
         if case .image(let image) = cells[2].content { #expect(image != nil) } else { Issue.record("not an image") }
         #expect(page.grid.content.columns == .fixed(5))
@@ -100,6 +105,49 @@ import Testing
                 if case .image(let image) = page.grid.content.sections[0].cells[2].content { return image != nil }
                 return false
             })
+    }
+
+    @Test func aGlyphDrawsAsTextUntilItsImageIsReady() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        fixture.icons.holdBack(.glyph("★"))
+        let page = try #require(await openGrid(fixture, Tiles(count: 5)))
+        #expect(page.grid.content.sections[0].cells[0].content == .glyph("★"))
+        fixture.icons.deliverHeldIcons()
+        #expect(
+            await waitUntil {
+                if case .image(let image) = page.grid.content.sections[0].cells[0].content { return image != nil }
+                return false
+            })
+    }
+
+    /// Emoji's grid hides titles: the action bar names the selected cell instead of the page.
+    @Test func aGridWithoutTitlesNamesTheSelectedCellInTheActionBar() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let page = fixture.open(.grid(GridPage(Tiles(count: 12), title: "Tiles", columns: 5, showsTitles: false)))
+        let grid = try #require(page as? GridPageController)
+        #expect(await waitUntil { grid.loadCount == 1 })
+        #expect(fixture.panel.surface.actionBar.content.viewTitle == "Tile 1")
+        fixture.press(.moveRight)
+        #expect(fixture.panel.surface.actionBar.content.viewTitle == "Tile 2")
+        let titled = try #require(await openGrid(fixture, Tiles(count: 3)))
+        #expect(titled.selectionTitle == nil)
+        #expect(fixture.panel.surface.actionBar.content.viewTitle == "Tiles")
+    }
+
+    /// Command-Period reaches a cell's action, as Emoji's Pin uses it.
+    @Test func aCellActionsShortcutRunsIt() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let source = Tiles(count: 6)
+        let page = try #require(await openGrid(fixture, source))
+        page.grid.frame = CGRect(x: 0, y: 0, width: 760, height: 468)
+        fixture.press(.moveRight)
+        #expect(fixture.command("."))
+        #expect(await waitUntil { source.pinned == [ItemID("tile", "2")] })
+        #expect(fixture.panel.surface.overlay == nil, "the shortcut runs without the action panel")
+        #expect(fixture.panel.top === page)
     }
 
     @Test func customFilteringPagesAsTheSelectionNearsTheEnd() async throws {

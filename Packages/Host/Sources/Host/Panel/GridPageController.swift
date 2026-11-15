@@ -7,10 +7,13 @@ import LauncherUI
 /// ``GridView``.
 ///
 /// Loading, filtering, paging, reloads and the dropdown are the list's, through ``RowFeed``. Each
-/// row's icon fills its cell: a glyph draws as text, a colour as a swatch, anything else as an image
-/// from the ``IconProvider`` at the cell's size. Cells are mapped once per load, so a keystroke only
-/// picks the cells that match. Arrows move in two dimensions, Command-Up and Command-Down jump
-/// between sections, and Command-plus and Command-minus change the column count.
+/// row's icon fills its cell: a colour as a swatch, anything else as an image from the
+/// ``IconProvider`` at the cell's size. A glyph, such as an emoji, draws as an image too, because a
+/// ready image costs less to draw than live text; until the provider has it, the glyph draws as
+/// text. Cells are mapped once per load, so a keystroke only picks the cells that match. Arrows
+/// move in two dimensions, Command-Up and Command-Down jump between sections, and Command-plus and
+/// Command-minus change the column count. When the grid hides titles, the action bar names the
+/// selected cell.
 @MainActor public final class GridPageController: PageController {
     /// The fewest and most columns Command-minus and Command-plus allow.
     public static let columnRange = 1...12
@@ -206,6 +209,9 @@ import LauncherUI
     public func iconsDidChange() {
         guard !missingIcons.isEmpty, let mapper = host?.rowMapper else { return }
         var still: [(section: Int, row: Int, icon: Icon)] = []
+        // A glyph drawn as text until now changes the kind of its cell, which the grid draws only
+        // from new content.
+        var redraw = false
         for missing in missingIcons {
             guard cells.indices.contains(missing.section), cells[missing.section].indices.contains(missing.row) else {
                 continue
@@ -214,10 +220,15 @@ import LauncherUI
                 still.append(missing)
                 continue
             }
+            if case .image = cells[missing.section][missing.row].content {
+                grid.setImage(image, forCell: cells[missing.section][missing.row].id)
+            } else {
+                redraw = true
+            }
             cells[missing.section][missing.row].content = .image(image)
-            grid.setImage(image, forCell: cells[missing.section][missing.row].id)
         }
         missingIcons = still
+        if redraw { render(keepSelection: true) }
     }
 
     public func appearanceDidChange() {
@@ -227,6 +238,13 @@ import LauncherUI
 
     /// The selected row, if any.
     public var selectedRow: Row? { grid.selectedIndex.flatMap(row(at:)) }
+
+    /// The selected cell's title while the grid hides titles, so the action bar says what Return
+    /// acts on.
+    public var selectionTitle: String? {
+        guard !page.showsTitles else { return nil }
+        return selectedRow?.title
+    }
 
     public var isBusy: Bool { feed.isLoading }
 
@@ -258,7 +276,10 @@ import LauncherUI
             section.rows.enumerated().map { rowIndex, row in
                 var content: GridCellContent
                 switch row.icon {
-                case .glyph(let glyph): content = .glyph(glyph)
+                case .glyph(let glyph):
+                    let image = mapper.icons.image(for: .glyph(glyph), size: cellIconSize, isDark: mapper.isDark)
+                    if image == nil { missingIcons.append((sectionIndex, rowIndex, .glyph(glyph))) }
+                    content = image.map(GridCellContent.image) ?? .glyph(glyph)
                 case .color(let color): content = .color(RowMapper.themeColor(color))
                 case .none: content = .image(nil)
                 case .some(let icon):
@@ -300,9 +321,8 @@ import LauncherUI
             }
             count += picked.count
             let section = feed.loadedSections[shown.section]
-            var title = section.title
-            if section.showsCount { title = (title.map { $0 + "  " } ?? "") + "\(picked.count)" }
-            sections.append(GridSection(title: title, cells: picked))
+            sections.append(
+                GridSection(title: section.title, cells: picked, count: section.showsCount ? picked.count : nil))
         }
         let content = GridContent(
             sections: sections, columns: .fixed(columns), aspectRatio: page.aspectRatio,

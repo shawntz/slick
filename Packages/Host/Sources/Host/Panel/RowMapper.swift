@@ -38,7 +38,8 @@ import LauncherUI
         }
         return ListRow(
             id: row.id.engineKey, title: row.title, titleHighlights: Self.ranges(highlights ?? row.titleHighlights),
-            subtitle: row.subtitle ?? "", accessories: accessories, icon: image(row.icon))
+            subtitle: row.subtitle ?? "", accessories: accessories, icon: image(row.icon),
+            subtitleColor: row.subtitleColor == nil ? nil : subtitleColor(for: row))
     }
 
     /// Glass rule 5's least contrast for secondary text over the glass.
@@ -46,10 +47,8 @@ import LauncherUI
 
     /// The color a row's subtitle draws in: its ``Row/subtitleColor`` moved toward the theme's
     /// title color until it reaches ``subtitleContrast`` over the glass, by the theme's own
-    /// legibility rule. Nil for the theme's own subtitle color.
-    ///
-    /// LauncherUI's `ListRow` has no subtitle color yet, so the list still draws every subtitle in
-    /// the theme's color. When it gains one, ``listRow(_:highlights:now:)`` passes this.
+    /// legibility rule. Nil for the theme's own subtitle color. ``listRow(_:highlights:now:)``
+    /// passes it to the list.
     public func subtitleColor(for row: Row) -> CGColor? {
         guard let color = row.subtitleColor, let theme = resolvedTheme else { return nil }
         return theme.legible(Self.themeColor(color).cgColor(in: theme.appearance), minimumRatio: Self.subtitleContrast)

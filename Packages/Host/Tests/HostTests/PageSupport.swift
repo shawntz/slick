@@ -45,6 +45,7 @@ extension PanelFixture {
     var pageSize: Int?
     private(set) var requests: [ListRequest] = []
     private(set) var used: [ItemID] = []
+    private(set) var pinned: [ItemID] = []
 
     init(count: Int) {
         self.count = count
@@ -77,7 +78,11 @@ extension PanelFixture {
             Action("Use", id: "use") { _ in
                 self.used.append(row.id)
                 return .keepOpen
-            }
+            },
+            Action("Pin", id: "pin", shortcut: .pin) { _ in
+                self.pinned.append(row.id)
+                return .keepOpen
+            },
         ]
     }
 }
@@ -225,4 +230,27 @@ extension PanelFixture {
     func didRun(_ row: Row, launch: LaunchSource) {}
     func forget(_ id: ItemID) {}
     func actions(for row: Row) -> [Action] { [Action("Open", id: "open") { _ in .keepOpen }] }
+}
+
+/// The one feature that may own `app` rows, with two sample apps.
+final class SampleApps: Feature {
+    static let manifest = FeatureManifest(id: "apps", name: "Apps", icon: .symbol("square.grid.2x2"))
+    let catalog = SampleAppCatalog()
+
+    init(context: FeatureContext) {}
+
+    var catalogSources: [any CatalogSource] { [catalog] }
+}
+
+@MainActor final class SampleAppCatalog: CatalogSource {
+    let namespace = ItemID.ReservedNamespace.app
+
+    func rows() async throws -> [Row] {
+        [
+            Row(id: ItemID("app", "com.example.writer"), title: "Writer", icon: .app(bundleID: "com.example.writer")),
+            Row(id: ItemID("app", "com.example.editor"), title: "Editor", icon: .app(bundleID: "com.example.editor")),
+        ]
+    }
+
+    func actions(for row: Row) -> [Action] { [] }
 }
