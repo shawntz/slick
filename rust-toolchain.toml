@@ -1,0 +1,6 @@
+# Pinned Rust toolchain. rustup installs it on first use (set RUSTUP_AUTO_INSTALL=0 to forbid).
+[toolchain]
+channel = "1.100.0"
+components = ["rustfmt", "clippy"]
+targets = ["aarch64-apple-darwin"]
+profile = "minimal"
