@@ -1,13 +1,17 @@
 import AppKit
 import Kit
 import KitHosting
+import SettingsUI
 
 /// The menu bar item: a bolt that opens a small menu with Open, Settings and Quit. It follows
 /// ``HostSettings/showStatusItem``. When root search keeps learning in memory, the menu says why.
+/// While a macOS shortcut holds the launcher hotkey, the menu names the holder and offers to open
+/// Keyboard settings.
 @MainActor final class StatusItemController: NSObject {
     private let general: FeatureSettings
     private let openLauncher: () -> Void
     private let openSettings: () -> Void
+    private let openKeyboardSettings: () -> Void
     private var item: NSStatusItem?
     private var watcher: Task<Void, Never>?
 
@@ -16,13 +20,25 @@ import KitHosting
         didSet { item?.menu = makeMenu() }
     }
 
+    /// The launcher hotkey's wait behind a macOS shortcut, named at the top of the menu, or nil.
+    var hotkeyWait: LauncherHotkeyWait? {
+        didSet {
+            guard hotkeyWait != oldValue else { return }
+            item?.menu = makeMenu()
+        }
+    }
+
     /// True while the item is in the menu bar.
     var isInstalled: Bool { item != nil }
 
-    init(settings: any SettingsService, openLauncher: @escaping () -> Void, openSettings: @escaping () -> Void) {
+    init(
+        settings: any SettingsService, openLauncher: @escaping () -> Void, openSettings: @escaping () -> Void,
+        openKeyboardSettings: @escaping () -> Void = {}
+    ) {
         general = HostSettings.settings(settings)
         self.openLauncher = openLauncher
         self.openSettings = openSettings
+        self.openKeyboardSettings = openKeyboardSettings
     }
 
     isolated deinit {
@@ -65,12 +81,26 @@ import KitHosting
         self.item = nil
     }
 
-    private func makeMenu() -> NSMenu {
+    /// The menu as it stands. Making it touches nothing on screen.
+    func makeMenu() -> NSMenu {
         let menu = NSMenu()
         if let problem {
             let line = NSMenuItem(title: problem, action: nil, keyEquivalent: "")
             line.isEnabled = false
             menu.addItem(line)
+            menu.addItem(.separator())
+        }
+        if let hotkeyWait {
+            let line = NSMenuItem(title: SpotlightShortcutGuide.menuTitle(hotkeyWait), action: nil, keyEquivalent: "")
+            line.isEnabled = false
+            line.toolTip = SpotlightShortcutGuide.waitingNote(hotkeyWait)
+            menu.addItem(line)
+            let open = NSMenuItem(
+                title: SpotlightShortcutGuide.openButton, action: #selector(keyboardSettingsFromMenu), keyEquivalent: ""
+            )
+            open.target = self
+            open.toolTip = SpotlightShortcutGuide.waitingNote(hotkeyWait)
+            menu.addItem(open)
             menu.addItem(.separator())
         }
         let open = NSMenuItem(title: AppStrings.openLauncher, action: #selector(openFromMenu), keyEquivalent: "")
@@ -92,5 +122,9 @@ import KitHosting
 
     @objc private func settingsFromMenu() {
         openSettings()
+    }
+
+    @objc private func keyboardSettingsFromMenu() {
+        openKeyboardSettings()
     }
 }
