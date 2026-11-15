@@ -8,10 +8,10 @@ import Testing
 @Suite("Commands, settings and the services offered to others", .timeLimit(.minutes(1)))
 @MainActor
 struct CommandTests {
-    @Test func theFeatureIsOnByDefaultAndDeclaresItsPermissions() async {
+    @Test func theFeatureIsOffUntilTheUserTurnsItOnAndDeclaresItsPermissions() async {
         let manifest = ClipboardHistoryFeature.manifest
         #expect(manifest.id == "clipboard")
-        #expect(manifest.isEnabledByDefault)
+        #expect(!manifest.isEnabledByDefault)
         #expect(manifest.permissions.map(\.permission) == [.pasteboard, .accessibility])
         let clipboard = await ClipboardHarness()
         #expect(clipboard.harness.issues.isEmpty)

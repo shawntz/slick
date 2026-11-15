@@ -18,7 +18,9 @@ public final class ClipboardHistoryFeature: Feature {
         permissions: [
             PermissionNeed(.pasteboard, reason: Strings.Permissions.pasteboard),
             PermissionNeed(.accessibility, reason: Strings.Permissions.accessibility),
-        ])
+        ],
+        // It keeps what the user copies, so it starts only by the user's choice.
+        isEnabledByDefault: false)
 
     let context: FeatureContext
     let store: HistoryStore
