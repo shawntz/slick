@@ -9,8 +9,10 @@ import KitHosting
 ///
 /// 1. Check ``Action/requires`` or ``Command/requires``. For a missing permission, show the
 ///    permission card; run only after the user granted it. When the system request is denied,
-///    open System Settings and wait, up to ``grantWait``, for the grant through the permission's
-///    change stream; the run goes on once it arrives.
+///    close the panel, open System Settings, say in a HUD what to allow there, and wait, up to
+///    ``grantWait``, for the grant through the permission's change stream; the run goes on once
+///    it arrives. A card asked while the panel was closed, as for a hotkey, a link or a keyword
+///    typed in another app, opens the panel first.
 /// 2. Ask the confirmation, unless the user suppressed it.
 /// 3. Queue under the ``RunPolicy``: serial runs wait for the feature's earlier serial runs,
 ///    `dropWhileRunning` ignores a second start, `concurrent` runs at once.
@@ -54,18 +56,37 @@ import KitHosting
 
     /// Runs a command by ID. Missing optional arguments get their defaults; arguments the command
     /// does not declare are passed along. An unknown or switched-off command shows a failure toast.
+    /// A missing required argument is asked for in the search field, through
+    /// ``RunPresenter/askForArguments(_:values:query:launch:)``, or shows a failure toast when the
+    /// panel cannot ask. A link never runs a command that stays out of deep links.
     @discardableResult
     public func runCommand(
         _ id: ItemID, arguments: [String: String] = [:], query: String = "", launch: LaunchSource, row: Row? = nil
     ) -> Task<Void, Never> {
+        runCommand(id, arguments: arguments, query: query, launch: launch, row: row, session: nil)
+    }
+
+    /// Runs a command for a run that started in `session`, as a hand-off does. A session that has
+    /// ended does not open the panel to ask for arguments.
+    private func runCommand(
+        _ id: ItemID, arguments: [String: String], query: String, launch: LaunchSource, row: Row?, session: Int?
+    ) -> Task<Void, Never> {
         guard let runtime, let entry = runtime.command(id), entry.isEnabled else {
             return Task { showFailure(title: HostStrings.commandUnavailable, message: nil) }
+        }
+        if launch == .deeplink, !entry.command.allowsDeepLinks {
+            return Task { showFailure(title: HostStrings.commandRefusesLinks, message: nil) }
         }
         var values = arguments
         for argument in entry.command.arguments where (values[argument.name] ?? "").isEmpty {
             if let defaultValue = argument.defaultValue {
                 values[argument.name] = defaultValue
             } else if !argument.isOptional {
+                if let presenter, session.map({ $0 == presenter.sessionID && presenter.isPanelVisible }) ?? true,
+                    presenter.askForArguments(entry, values: arguments, query: query, launch: launch)
+                {
+                    return Task {}
+                }
                 let message = HostStrings.missingArgument(argument.placeholder)
                 return Task { showFailure(title: message, message: nil) }
             }
@@ -91,13 +112,16 @@ import KitHosting
         return runCommand(id, arguments: arguments, query: typedText, launch: launch)
     }
 
-    /// Runs an action. A submenu does nothing here; the action panel opens it.
+    /// Runs an action. A submenu does nothing here; the action panel opens it. `arguments` are the
+    /// values typed into a command row's argument chips, for that command's row actions.
     @discardableResult
     public func perform(
-        _ action: Action, featureID: String, context: FeatureContext, query: String, launch: LaunchSource, row: Row?
+        _ action: Action, featureID: String, context: FeatureContext, query: String, launch: LaunchSource, row: Row?,
+        arguments: CommandArguments = CommandArguments()
     ) -> Task<Void, Never> {
         guard case .run(let handler) = action.kind else { return Task {} }
-        let origin = RunOrigin(featureID: featureID, feature: context, query: query, launch: launch, row: row)
+        let origin = RunOrigin(
+            featureID: featureID, feature: context, query: query, arguments: arguments, launch: launch, row: row)
         let request = RunRequest(
             key: "action." + action.id, requires: action.requires, confirmation: action.confirmation,
             isDestructive: action.style == .destructive || (action.confirmation?.isDestructive ?? false),
@@ -184,7 +208,9 @@ import KitHosting
         case .keepOpen:
             break
         case .run(let id, let arguments):
-            await runCommand(id, arguments: arguments, launch: .command).value
+            await runCommand(
+                id, arguments: arguments, query: "", launch: .command, row: nil, session: request.origin.session
+            ).value
         case .needsPermission(let permission):
             // Asked twice in a row: the grant did not take. Say so instead of looping.
             showFailure(title: HostStrings.permissionStillMissing(permission.displayName), message: nil)
@@ -261,6 +287,9 @@ import KitHosting
             guard await service.request(permission).isGranted else {
                 // Listen before opening System Settings, so a quick grant is not missed.
                 let changes = service.changes(of: permission)
+                // System Settings takes key focus and the panel would close with its toast unread.
+                // Close it first, so the HUD says what to do there.
+                if presenter.isPanelVisible { presenter.dismissPanel() }
                 await service.openSettings(for: permission)
                 showFailure(title: HostStrings.grantInSettings(permission.displayName), message: nil)
                 guard await waitForGrant(permission, changes: changes, inRun: inRun) else { return false }

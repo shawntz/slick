@@ -96,7 +96,8 @@ import Testing
         #expect(await waitUntil { pipeline.grantWaitCount == 1 })
         #expect(fixture.workbench.log.isEmpty)
         #expect(fixture.fakes.permissions.openedSettings == [.accessibility])
-        #expect(fixture.presenter.toasts.first?.style == .failure)
+        #expect(fixture.presenter.dismissals == 1, "System Settings would close the panel with its toast unread")
+        #expect(fixture.presenter.huds == [.failure("Allow Accessibility in System Settings")])
         #expect(pipeline.activeRunCount == 0, "a run waiting in System Settings is not busy")
 
         fixture.fakes.permissions.set(.accessibility, to: .granted)

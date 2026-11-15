@@ -94,6 +94,8 @@ final class Workbench: Feature {
     static let relayed = ItemID.command(feature: "relay", command: "receive")
 
     let declarations = ChangeSignal()
+    /// The live subtitle's signal, one object for the life of the feature, as Scripts keeps it.
+    let statusChanges = ChangeSignal()
     var showsExtra = false
     var showsEcho = true
     private(set) var log: [String] = []
@@ -103,6 +105,8 @@ final class Workbench: Feature {
     private(set) var presses: [Int] = []
     private(set) var activations = 0
     private(set) var deactivations = 0
+    /// How often Toolkit's row actions were built.
+    private(set) var rowActionBuilds = 0
     let shelf = Shelf()
     let ledger = Ledger()
     let context: FeatureContext
@@ -207,6 +211,45 @@ final class Workbench: Feature {
             Command(id: "form", title: "Form") { _ in
                 .push(.form(FormPage(title: "New Item", fields: []) { _, _ in .pop }))
             },
+            // As Snippets' Fill In Snippet: a keyword typed in another app pastes at once, or asks
+            // in a form first when its snippet has blanks.
+            Command(id: "fill", title: "Fill In", requires: [.accessibility], showsInRoot: false) { context in
+                self.record("fill", context)
+                if context.arguments["snippet"] == "plain", context.launch == .textExpansion {
+                    try await context.pasteboard.paste("Plain text")
+                    return .close()
+                }
+                return .push(.form(Self.fillForm))
+            },
+            Command(
+                id: "act-now", title: "Act Now", showsInRoot: false, runPolicy: .concurrent, allowsDeepLinks: false
+            ) { context in
+                self.record("act-now", context)
+                return .keepOpen
+            },
+            // As Clipboard's Paste: the handler closes the panel, the pasteboard closes it again,
+            // and the outcome closes it a third time.
+            Command(id: "close-twice", title: "Close Twice") { context in
+                context.dismiss()
+                context.dismiss()
+                return .close(hud: "Pasted")
+            },
+            Command(
+                id: "status", title: "Status",
+                liveSubtitle: LiveSubtitle(every: .seconds(60), changes: statusChanges) { "Ready" }
+            ) { _ in .keepOpen },
+            // A command with row actions and no arguments, as most commands are.
+            Command(id: "toolkit", title: "Toolkit") { _ in .keepOpen }.withRowActions {
+                self.rowActionBuilds += 1
+                return [
+                    Action("Open Toolkit Folder", id: "folder") { _ in .keepOpen },
+                    Action("Copy Toolkit Path", id: "copy-path", shortcut: .copy) { _ in .keepOpen },
+                    .runCommand(Self.relayed, title: "Send Toolkit to Relay"),
+                ]
+            },
+            Command(id: "ask-echo", title: "Ask Echo") { _ in
+                .run(RuntimeFixture.command("echo"), arguments: ["kept": "yes"])
+            },
         ]
         if showsEcho {
             commands.append(
@@ -220,7 +263,10 @@ final class Workbench: Feature {
                     return .keepOpen
                 }.withRowActions {
                     [
-                        Action("Edit Echo", id: "edit") { _ in .keepOpen },
+                        Action("Edit Echo", id: "edit") { context in
+                            self.record("edit-echo", context)
+                            return .keepOpen
+                        },
                         .runCommand(Self.relayed, title: "Send to Relay"),
                     ]
                 })
@@ -245,6 +291,14 @@ final class Workbench: Feature {
             context.showToast(.success("Thanks, \(values.text("name"))"))
             return .pop
         })
+
+    /// The form Fill In shows: one blank, then a paste into the app that was in front.
+    static let fillForm = FormPage(
+        title: "Fill In", fields: [.text("name", title: "Name", isRequired: true)], submitTitle: "Paste"
+    ) { values, context in
+        try await context.pasteboard.paste("Hello " + values.text("name"))
+        return .close()
+    }
 
     private func record(_ name: String, _ context: ActionContext) {
         log.append(name)
@@ -414,6 +468,10 @@ enum SampleRows {
     static let search = Row(
         id: .command(feature: "relay", command: "receive"), title: "Receive", subtitle: "Relay",
         icon: .symbol("tray.and.arrow.down"))
+
+    static let toolkit = Row(
+        id: .command(feature: "workbench", command: "toolkit"), title: "Toolkit", subtitle: "Workbench",
+        icon: .symbol("wrench"))
 
     static let survey = Row(
         id: .command(feature: "workbench", command: "survey"), title: "Survey", subtitle: "Workbench",

@@ -1,5 +1,6 @@
 import Foundation
 import Kit
+import KitHosting
 
 /// Where a run came from: the feature, what the user typed and how it started. The pipeline hands
 /// it to the presenter with each outcome and toast, so a pushed page gets its feature's context and
@@ -68,10 +69,22 @@ public struct RunOrigin: Sendable {
     func share(_ items: [ShareItem])
     /// Closes the panel while the handler keeps running.
     func dismissPanel()
+    /// Asks for a command's missing required arguments in the search field, opening the panel when
+    /// it is closed. `values` are the arguments known so far, declared or not. Return then runs the
+    /// command as `launch` with what the user typed. False when the panel cannot ask, and the
+    /// pipeline shows a failure toast instead. The default cannot ask.
+    func askForArguments(_ command: CommandEntry, values: [String: String], query: String, launch: LaunchSource)
+        -> Bool
 }
 
 extension RunPresenter {
     public func confirm(_ confirmation: Confirmation, isDestructive: Bool, suppressionKey: String?) async -> Bool {
         await confirm(confirmation, isDestructive: isDestructive)
+    }
+
+    public func askForArguments(
+        _ command: CommandEntry, values: [String: String], query: String, launch: LaunchSource
+    ) -> Bool {
+        false
     }
 }

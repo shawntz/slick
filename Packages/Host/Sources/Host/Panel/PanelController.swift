@@ -430,12 +430,27 @@ import LauncherUI
     /// Refreshes the action bar, the ghost completion and the argument chips for the top page.
     func updateChrome() {
         let page = top
-        let target = page.target
+        // Root search runs this on every keystroke: it names the primary entry without building
+        // the selected row's entries. Other pages build their target.
+        let primaryTitle: String?
+        let hasTarget: Bool
+        if page === rootPage {
+            primaryTitle = rootPage.primaryTitle
+            hasTarget = rootPage.selectedRow != nil
+        } else {
+            let target = page.target
+            primaryTitle = target?.primary?.title
+            hasTarget = target != nil
+        }
         let content = ActionBarContent(
-            viewTitle: page.title ?? HostStrings.appName, primaryTitle: target?.primary?.title,
-            actionsTitle: target == nil ? nil : HostStrings.actionsTitle)
+            viewTitle: page.selectionTitle ?? page.title ?? HostStrings.appName, primaryTitle: primaryTitle,
+            actionsTitle: hasTarget ? HostStrings.actionsTitle : nil)
         let surface = surface
         workMeter.measure { surface.actionBar.apply(content) }
+        if let arguments = page as? ArgumentsPageController {
+            updateArgumentChips(for: arguments)
+            return
+        }
         guard page === rootPage else { return }
         updateArgumentChips()
         let ghost = chipsCommand == nil ? rootPage.ghostText : ""
@@ -453,22 +468,34 @@ import LauncherUI
         }
         guard command?.id != chipsCommand else { return }
         chipsCommand = command?.id
-        let arguments = (command?.command.arguments ?? []).map(Self.queryArgument)
+        let arguments = (command?.command.arguments ?? []).map { Self.queryArgument($0) }
         let field = surface.queryField
         workMeter.measure { field.arguments = arguments }
     }
 
-    nonisolated static func queryArgument(_ argument: CommandArgument) -> QueryArgument {
+    /// Shows the chips of the command a page asks arguments for, with the values known so far, and
+    /// puts the keyboard in the first required one left empty.
+    private func updateArgumentChips(for page: ArgumentsPageController) {
+        guard page.command.id != chipsCommand else { return }
+        chipsCommand = page.command.id
+        let field = surface.queryField
+        field.arguments = page.command.command.arguments.map { Self.queryArgument($0, value: page.values[$0.name]) }
+        field.focusArgument(page.firstMissing(in: field.argumentValues) ?? 0)
+    }
+
+    nonisolated static func queryArgument(_ argument: CommandArgument, value: String? = nil) -> QueryArgument {
+        let value = value.flatMap { $0.isEmpty ? nil : $0 }
         switch argument.kind {
         case .text:
-            return QueryArgument(kind: .text, placeholder: argument.placeholder, value: argument.defaultValue ?? "")
+            return QueryArgument(
+                kind: .text, placeholder: argument.placeholder, value: value ?? argument.defaultValue ?? "")
         case .password:
-            return QueryArgument(kind: .secure, placeholder: argument.placeholder)
+            return QueryArgument(kind: .secure, placeholder: argument.placeholder, value: value ?? "")
         case .dropdown(let options):
             let menu = options.map { MenuOption(id: $0.value, title: $0.title) }
             return QueryArgument(
                 kind: .dropdown(menu), placeholder: argument.placeholder,
-                value: argument.defaultValue ?? options.first?.value ?? "")
+                value: value ?? argument.defaultValue ?? options.first?.value ?? "")
         }
     }
 

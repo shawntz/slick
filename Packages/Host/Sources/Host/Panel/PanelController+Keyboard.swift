@@ -173,7 +173,8 @@ extension PanelController: QueryFieldDelegate {
             }
             noteRootRun(target)
             runtime.pipeline.perform(
-                action, featureID: featureID, context: context, query: query, launch: target.launch, row: target.row)
+                action, featureID: featureID, context: context, query: query, launch: target.launch, row: target.row,
+                arguments: CommandArguments(typedArguments(for: target)))
         case .host(let hostEntry):
             perform(hostEntry, target: target)
         case .toast(let action, let origin):
@@ -189,22 +190,34 @@ extension PanelController: QueryFieldDelegate {
             runtime.pipeline.runCommand(command.id, typedText: target.query, launch: .fallback)
             return
         }
-        var arguments: [String: String] = [:]
-        if target.isRoot, chipsCommand == command.id {
-            let values = surface.queryField.argumentValues
-            for (argument, value) in zip(command.command.arguments, values) where !value.isEmpty {
-                arguments[argument.name] = value
-            }
-            if let missing = command.command.arguments.firstIndex(where: {
+        let arguments = typedArguments(for: target)
+        if chipsCommand == command.id, target.row?.id == command.id,
+            let missing = command.command.arguments.firstIndex(where: {
                 !$0.isOptional && $0.defaultValue == nil && (arguments[$0.name] ?? "").isEmpty
-            }) {
-                surface.queryField.focusArgument(missing)
-                return
-            }
+            })
+        {
+            surface.queryField.focusArgument(missing)
+            return
         }
+        // The page that asked for the arguments has done its work: the run's outcome lands below it.
+        if let page = top as? ArgumentsPageController, page.command.id == command.id { pop() }
         noteRootRun(target)
         runtime.pipeline.runCommand(
             command.id, arguments: arguments, query: target.query, launch: target.launch, row: target.row)
+    }
+
+    /// The target's own argument values, then what the argument chips hold while they show the
+    /// target row's command, so the command and its row actions get what the user typed. Empty
+    /// chips leave a value out; the pipeline fills in defaults.
+    func typedArguments(for target: ActionTarget) -> [String: String] {
+        var values = target.arguments
+        guard let id = target.row?.id, id == chipsCommand, let command = runtime.command(id) else { return values }
+        let typed = surface.queryField.argumentValues
+        for (index, argument) in command.command.arguments.enumerated() {
+            let value = index < typed.count ? typed[index] : ""
+            values[argument.name] = value.isEmpty ? nil : value
+        }
+        return values
     }
 
     private func noteRootRun(_ target: ActionTarget) {

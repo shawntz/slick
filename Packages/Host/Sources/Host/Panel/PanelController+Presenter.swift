@@ -48,11 +48,26 @@ extension PanelController: RunPresenter {
     }
 
     /// Presents a confirm card and waits for the answer. A newer card, or a dismissed panel,
-    /// answers false.
+    /// answers false. A card asked while the panel was closed, as for a hotkey, a link or a keyword
+    /// typed in another app, opens the panel for the question; when the user cancels it and nothing
+    /// else changed, the panel closes again.
     private func ask(_ content: ConfirmContent, onConfirm: ((ConfirmCardView) -> Void)? = nil) async -> Bool {
-        if !isPanelVisible { summon() }
+        let opensPanel = !isPanelVisible
+        if opensPanel { summon() }
+        let session = sessionID
+        let page = top
         pendingAnswer?.answer(false)
-        return await withCheckedContinuation { continuation in
+        let answer = await present(content, onConfirm: onConfirm)
+        if opensPanel, !answer, pendingAnswer == nil, surface.overlay == nil, isPanelVisible, sessionID == session,
+            top === page
+        {
+            dismiss()
+        }
+        return answer
+    }
+
+    private func present(_ content: ConfirmContent, onConfirm: ((ConfirmCardView) -> Void)?) async -> Bool {
+        await withCheckedContinuation { continuation in
             let pending = PendingAnswer(continuation)
             let card = ConfirmCardView(content: content)
             card.onConfirm = { [weak self, weak card, pending] in
@@ -148,5 +163,22 @@ extension PanelController: RunPresenter {
 
     public func dismissPanel() {
         dismiss()
+    }
+
+    /// Pushes a page that asks for the command's arguments in the search field, over whatever shows,
+    /// and opens the panel when it is closed.
+    public func askForArguments(
+        _ command: CommandEntry, values: [String: String], query: String, launch: LaunchSource
+    ) -> Bool {
+        if surface.overlay === actionCard { surface.dismissOverlay() }
+        let row =
+            rootSource.row(for: command.id)
+            ?? ArgumentsPageController.row(for: command, featureName: runtime.feature(command.featureID)?.manifest.name)
+        let page = ArgumentsPageController(
+            command: command, row: row, values: values, query: query, launch: launch,
+            context: runtime.context(for: command.featureID))
+        if top is ArgumentsPageController { replaceTop(with: page) } else { push(page) }
+        if !isPanelVisible { summon() }
+        return true
     }
 }

@@ -68,6 +68,9 @@ import LauncherUI
     /// True while the page loads, streams or submits, for the scenario runner's idle wait.
     /// Default false.
     var isBusy: Bool { get }
+    /// What the action bar names in place of the page's title, such as the selected cell of a
+    /// grid that hides titles. Default nil, for the page's title.
+    var selectionTitle: String? { get }
     /// The panel closed with this page on top. Stop listening, refreshing and drawing; remember a
     /// change that arrives from now on. Default nothing.
     func panelDidHide()
@@ -88,6 +91,7 @@ extension PageController {
     public func contentDidScroll() {}
     public func appearanceDidChange() {}
     public var isBusy: Bool { false }
+    public var selectionTitle: String? { nil }
     public func panelDidHide() {}
     public func panelDidShow() {}
 }
@@ -151,6 +155,9 @@ public struct ActionTarget {
     /// Entries only the action panel shows, after everything else, such as a notice's button.
     /// They never become the primary or the secondary entry.
     public var panelExtras: [ActionEntry] = []
+    /// Argument values a run from here starts with, declared or not, before what the argument
+    /// chips hold. Empty for most targets.
+    public var arguments: [String: String] = [:]
 
     public init(
         row: Row?, entries: [ActionEntry], featureID: String, context: FeatureContext, launch: LaunchSource,

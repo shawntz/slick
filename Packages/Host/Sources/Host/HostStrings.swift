@@ -5,6 +5,7 @@ nonisolated enum HostStrings {
     static let appName = Brand.name
     static let launcherHotkeyOwner = Brand.name
     static let commandUnavailable = "This command is not available"
+    static let commandRefusesLinks = "This Command Cannot Run from a Link"
     static let itemUnavailable = "This item is no longer available"
     static let searchPlaceholder = "Search for apps and commands"
     static let filterPlaceholder = "Search"
@@ -45,7 +46,7 @@ nonisolated enum HostStrings {
     static let choose = "Choose…"
     static let hotkeyLabel = "Hotkey"
     static let recordShortcut = "Record a shortcut"
-    static let bundleIDPlaceholder = "Bundle ID"
+    static let applicationPlaceholder = "Choose an app"
     static let share = "Share"
     static let sharingUnavailable = "Sharing is not available here"
 
@@ -65,8 +66,9 @@ nonisolated enum HostStrings {
         "\(permission) is still missing"
     }
 
+    /// The run goes ahead by itself once the grant arrives, so the title asks for nothing more.
     static func grantInSettings(_ permission: String) -> String {
-        "Allow \(permission) in System Settings, then try again"
+        "Allow \(permission) in System Settings"
     }
 
     static func hotkeyTaken(_ owner: String) -> String {
