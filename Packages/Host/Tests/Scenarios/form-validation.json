@@ -1,0 +1,25 @@
+{
+  "name": "A form checks its fields, submits and shows a toast",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "type": "survey" },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "page": "form", "title": "Survey" } },
+    { "press": "cmd+return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "page": "form", "fieldErrors": ["name"] } },
+    { "fill": { "field": "name", "value": "Al" } },
+    { "press": "cmd+return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "page": "form", "fieldErrors": ["name"] } },
+    { "capture": "form-error" },
+    { "fill": { "field": "name", "value": "Alex" } },
+    { "fill": { "field": "agree", "value": "true" } },
+    { "press": "cmd+return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "page": "root", "toast": "Thanks, Alex", "fieldErrors": [] } },
+    { "dismiss": true }
+  ]
+}

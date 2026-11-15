@@ -16,6 +16,14 @@ let swiftSettings: [SwiftSetting] = [
 // UI, host and feature code is @MainActor unless marked nonisolated or @concurrent.
 let mainActorSettings = swiftSettings + [.defaultIsolation(MainActor.self)]
 
+// The scenario runner's `record` step needs LauncherUITesting's recorder and encoders, which bring
+// AVFoundation and VideoToolbox. Only a build made with SCENARIO_RECORDING=1 links them, so the
+// release app does not. scenarios/media/record.sh makes that build in its own build folder.
+let recording = Context.environment["SCENARIO_RECORDING"] == "1"
+let recordingDependencies: [Target.Dependency] =
+    recording ? [.product(name: "LauncherUITesting", package: "LauncherUI")] : []
+let recordingSettings: [SwiftSetting] = recording ? [.define("SCENARIO_RECORDING")] : []
+
 let package = Package(
     name: "Host",
     platforms: [.macOS(.v26)],
@@ -36,8 +44,8 @@ let package = Package(
                 .product(name: "KitHosting", package: "Kit"),
                 .product(name: "KitStorage", package: "Kit"),
                 .product(name: "LauncherUI", package: "LauncherUI"),
-            ],
-            swiftSettings: mainActorSettings
+            ] + recordingDependencies,
+            swiftSettings: mainActorSettings + recordingSettings
         ),
         .executableTarget(
             name: "HostDemo",

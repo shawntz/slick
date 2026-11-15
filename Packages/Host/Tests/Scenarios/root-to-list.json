@@ -1,0 +1,29 @@
+{
+  "name": "Root search opens a list, filters it and opens its actions",
+  "timeLimit": 20,
+  "steps": [
+    { "summon": true },
+    { "type": "exam" },
+    { "expect": { "page": "root", "selection": "Example Editor", "ghost": "ple Editor" } },
+    { "press": "escape" },
+    { "expect": { "query": "", "rowCount": 6 } },
+    { "type": "shelf" },
+    { "expect": { "rows": ["Open Shelf"], "selection": "Open Shelf" } },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "page": "list", "title": "Shelf", "rows": ["Apple", "Apple", "Apple Pie", "Banana", "Cherry"] } },
+    { "type": "ban" },
+    { "expect": { "rows": ["Banana"], "selection": "Banana" } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Take", "Inspect"] } },
+    { "press": "down" },
+    { "press": "escape" },
+    { "capture": "shelf" },
+    { "press": "escape" },
+    { "expect": { "query": "" } },
+    { "press": "escape" },
+    { "expect": { "page": "root", "query": "shelf" } },
+    { "dismiss": true },
+    { "expect": { "visible": false } }
+  ]
+}
