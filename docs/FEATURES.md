@@ -4,7 +4,7 @@ A feature is one Swift package under `Packages/Features/<Name>` that depends on 
 
 This guide is enough to write one. It starts with the house rules and three complete examples, from a dozen lines to a full feature. Then it covers each part of Kit, the rules that keep Slick fast, testing, a recipe for each built-in feature, and the mistakes review found in the first seven.
 
-The examples compile and run. They live in `Packages/Kit/Tests/KitTests/Examples`, and the sketches mentioned under "Recipes" live in `Packages/Kit/Tests/KitTests/Capabilities`. The eight features under `Packages/Features` are real code to copy from; Apps is the reference. Read them next to this page.
+The examples compile and run. They live in `Packages/Kit/Tests/KitTests/Examples`, and the sketches mentioned under "Recipes" live in `Packages/Kit/Tests/KitTests/Capabilities`. The sixteen features under `Packages/Features` are real code to copy from; Apps is the reference. Read them next to this page.
 
 ## Setting up the package
 
@@ -63,7 +63,7 @@ Build and test from your package only: `scripts/swiftpm.sh Packages/Features/Emo
 
 Every feature follows these. Review checks each one.
 
-**What the user reads.** Titles use title case, as macOS menus do, and end without a full stop. That covers command, action, section, empty-state, toast and HUD titles, buttons and menu items: "Turn Off Quicklink", "No Matching Emoji or Symbols", "Copied UUID". Everything else is a plain sentence that says what will happen or what happened: "Deletes every item older than a day.", "The window has left full screen." Name what an action touches, as "Close “Start Page”?" does. Show a key combination with `KeyCombo.displayString`, never by hand. Write the product name, bundle ID and URL scheme through `Kit.Brand`, never as text; `scripts/check-brand.sh` fails the lint otherwise.
+**What the user reads.** Titles use title case, as macOS menus do, and end without a full stop. That covers command, action, section, empty-state, toast and HUD titles, buttons and menu items: "Turn Off Quicklink", "No Matching Emoji or Symbols", "Copied UUID". Everything else is a plain sentence that says what will happen or what happened: "Deletes every item older than a day.", "The window has left full screen." Name what an action touches, as "Close “Start Page”?" does. A name that someone else chose, such as a file name or a window title, goes through `DisplayText` first, as "Rows and identity" says. Show a key combination with `KeyCombo.displayString`, never by hand. Write the product name, bundle ID and URL scheme through `Kit.Brand`, never as text; `scripts/check-brand.sh` fails the lint otherwise.
 
 **Nothing happens by itself.** Nothing prompts, reads personal data or reaches the network at activation. Each waits for something the user did: a command, an action, a settings button. Activation loads the feature's own files and starts its watches.
 
@@ -201,7 +201,7 @@ func activate() async {
 
 **Commands with inline arguments and row actions.** A bookmark whose link has `{argument name="query"}` becomes its own command, so its argument appears as a field in the search bar; `template.commandArguments` makes the fields. Running it renders the link with `KitTemplates` in the `.url` style, which percent-encodes the value. `.withRowActions { ... }` gives the command's row in root search Copy Link, Pin and Delete.
 
-**A fallback.** The search command declares `Fallback { "Search Bookmarks for \"\($0)\"" }`. When root search finds nothing, it can offer this command; the typed text arrives as `context.query` and in the first argument. The command opens the list with `initialQuery` set.
+**A fallback.** The search command declares `Fallback { "Search Bookmarks for \"\($0)\"" }`. It starts off: the user turns it on in root search settings, and from then on it shows under every typed query; the typed text arrives as `context.query` and in the first argument. The command opens the list with `initialQuery` set.
 
 **A universal action.** "Save as Bookmark" is offered for a URL selected in any app, and for any row that stands for a URL.
 
@@ -225,9 +225,18 @@ var settingsPane: SettingsPane? {
 
 Its tests in `ExampleFeatureTests.swift` cover each part: the form's validation, the file on disk, sections and the filter, settings reordering an open list, the confirmation before delete, the permission flow, argument commands and their row actions, the fallback, a remembered row after a simulated relaunch, the universal action and the change signals.
 
+## The manifest
+
+`FeatureManifest` says who the feature is: `id`, `name`, `icon`, a one-sentence `summary`, the `permissions` it may ask for with a reason each, and two switches.
+
+- `isEnabledByDefault`, true by default. Set it false for a feature that watches the user, such as clipboard history. Onboarding's Optional Features step lists every feature that is off by default.
+- `isSuggestedInOnboarding`, false by default. True starts the feature's switch on in that step, so a new user gets it unless they turn it off there. It only means something for a feature that is off by default, and `harness.issues` reports it on one that is on. A user who skips onboarding gets the feature off.
+
 ## Rows and identity
 
 `Row` is a plain `Sendable` value: `id`, `title`, `subtitle`, `subtitleColor`, `icon`, `accessories`, `keywords`, `payload`, `completion`, `quickLookURL`, `alternates`, `titleHighlights`, `rankHint`, `memory`, `expires` and `represents`. Build rows on any thread, in any number. Keep a title on one line and never empty: turn line breaks and control characters into spaces, and give a nameless item a name such as "Process 4242".
+
+Text that someone else chose can hold a line break, or a right-to-left override that makes `invoice<U+202E>fdp.app` draw as "invoiceppa.pdf". `DisplayText.oneLine(_:)` puts any text on one line in its stored order: line breaks and control characters become spaces, and the controls that reorder text become U+FFFD, one UTF-16 unit for one, so highlight ranges stay right. `DisplayText.fileName(_:limit:)` does that for a file or folder name, cuts it to 60 characters with an ellipsis, and shows a name with nothing visible as "Untitled Item". Use it for every file name in a title, a subtitle, a question or a toast, and quote it with curly quotes: `"Move “\(DisplayText.fileName(url.lastPathComponent))” to the Trash?"`. `.moveToTrash` does this already.
 
 `subtitleColor` colors the subtitle, such as red for a failure. Nil uses the theme's color. The host moves the color toward the theme until it is legible over the glass.
 
@@ -288,7 +297,7 @@ Standard actions, all adjustable with `with(id:)`, `with(title:)`, `with(shortcu
 | `.copyPath(url)` or `.copyPath(urls)` | Control-Command-C | |
 | `.paste(text)`, `.paste(content)`, `.paste(title:content:)`, `.paste(title:expansion:)` | | requires Accessibility; the lazy forms load when they run, `expansion` places the cursor |
 | `.quickLook(url)` or `.quickLook(urls)` | Command-Y | preview inside the panel |
-| `.moveToTrash(urls)` | Control-X | confirms, reloads, shows a toast, forgets the row |
+| `.moveToTrash(urls)` | Control-X | confirms with the file named through `DisplayText.fileName`, reloads, shows a toast, forgets the row |
 | `.share(items)` | | system share menu |
 | `.push(title) { page }` | | |
 | `.runCommand(id, title:)` | | hidden while the command is unavailable |
@@ -304,6 +313,8 @@ Destructive actions take `style: .destructive` and a `Confirmation`; the confirm
 ## Commands
 
 A `Command` has an ID unique in the feature, a title, keywords, up to three `CommandArgument`s, required permissions, a `Confirmation`, a suggested hotkey, a `Fallback`, `takesRootQueryOnTab`, a `LiveSubtitle`, `showsInRoot`, a `RunPolicy`, `allowsDeepLinks`, and row actions from `.withRowActions { ... }`. An argument is text, a password or a dropdown, each optional or required with a default. The suggested hotkey is almost always nil.
+
+A `Fallback` puts the command in the fallback list, under root results for every typed query. Each fallback is a switch the user owns in root search settings, with an order the user sets. Until the user sets it, the switch follows `Fallback.startsOn`, which is false by default: a fallback that starts on sits under everything the user types. Pass `Fallback(startsOn: true) { ... }` only for the feature's own default web search, or for an item the user marked as a fallback inside the feature, such as a quicklink. Define, Ask AI and a script's search start off.
 
 `showsInRoot: false` hides a command from root search. Another command, a hotkey, a typed keyword or a deep link can still start it. `allowsDeepLinks: false` keeps it out of deep links: the app refuses a link that names it, even after Always Allow. Set it on a hidden command that acts at once. Until the app's router reads it, also guard the handler, as Snippets' Fill In Snippet does: it pastes at once only when `launch == .textExpansion`, and shows its form for every other launch.
 
@@ -338,6 +349,15 @@ A `ListResult` can also return a `filter` that replaces the page's dropdown, suc
 
 `detail(for:)` runs after the selection settles, about 50 ms, and is cancelled if the selection moves. Return `nil` for no detail.
 
+### Page events
+
+A page does no work while the panel is hidden, and a page under another page is covered. A source whose content goes stale while nobody looks, such as the menus of the app in front, adopts `PageEvents`. A `ListSource` or a `DetailSource` may adopt it.
+
+- `pageWillShowAgain(_:)` runs when the page shows again: `.panelOpened` when the panel opens with it on top after it was closed, `.returned` when the user went back to it from a page above. It does not run when the page first opens. The host calls it before it decides whether to load again, so a source that sends its change signal here gets exactly one reload.
+- `panelDidClose()` runs once per close, for every page in the stack, top first. Stop work that only makes sense while the user looks, such as a read of another app's menus.
+
+Both run on the main actor outside the summon path. Keep them short: set a flag, cancel a task, send the signal. Do not watch window notifications to learn the same thing.
+
 ### Details
 
 `Detail` is a body and metadata. Bodies are Markdown, text (optionally monospaced, with ANSI colors), rich text, an image from a file or bytes, a Quick Look preview of a file, a color, or a link. Metadata items are labels, links, tags, colors, dates and separators.
@@ -353,7 +373,7 @@ Fields: `.text` and `.multiline` (either can color `{placeholders}`), `.password
 | Input | Use it for | How root uses it |
 |---|---|---|
 | `CatalogSource` | items people find by name, such as bookmarks | matched synchronously with apps and commands, ranked with learning; read again on `changes` or `reloadsOnSettings` |
-| `InstantProvider` | answers computed from the query, such as a calculation | called on every keystroke on the main thread, **100 µs budget**; may claim the top slot |
+| `InstantProvider` | answers computed from the query, such as a calculation | called on every keystroke on the main thread, **100 µs budget**; may claim the top slot; asked again for the query on screen when its `answersChanged` signal fires |
 | `AsyncProvider` | results that need work, such as files | called after `debounce(for:)` in a cancellable task; fills its own section, titled by `sectionTitle(for:)`, at most `maximumRows`; `takesOver(_:)` claims a query outright, such as a path |
 | `SuggestionTrigger` | situational suggestions, such as a meeting about to start | asked when the context changes; Thompson sampling decides what shows |
 | `UniversalActionProvider` | actions on text, URLs or files | asked for a selection in another app and for any row that `represents` one |
@@ -361,6 +381,10 @@ Fields: `.text` and `.multiline` (either can color `{placeholders}`), `.password
 Each catalog source, live provider and suggestion trigger names its `namespace`. Root uses it to find who owns a remembered row. Namespaces are unique across sources, except that one object may be a catalog source, an instant provider and a trigger under one namespace, so an item keeps one ID wherever it shows. Root shows an item once per list.
 
 A suggestion has a stable `id` for one situation, a `Row` (give one-off rows `memory: .never`), an `Urgency` (constant, a linear ramp, or exponential decay), an expiry, and `imminentFrom`, after which it may take a second slot. A trigger declares an `AcceptancePrior`, a refresh interval, `changes`, `reloadsOnSettings` and required permissions. Root skips a trigger whose permission is missing and never asks for it. `suggestions(at:)` throws when its work fails or is cancelled, so Root keeps what it had.
+
+An instant answer that waits for data, such as a conversion that shows a loading row until exchange rates arrive, declares `answersChanged` and sends it when the data arrives. Root search then asks `answer(for:)` again for the query on screen and puts the new rows where the old ones were, so nothing above them moves. A nil answer takes the rows away. Send it when data changes, never on a timer.
+
+Root search records a use when the user runs one of your rows, under the row's own ID, unless the row's `memory` is `.never`. So an instant provider and a page that share a namespace share their recents: an emoji picked from a colon search shows in the grid's Recently Used, read with `context.usage.recentlyUsed(namespace:limit:)`. Nothing is recorded while learning is paused.
 
 A source whose items can vanish behind its back, such as files deleted in Finder, adopts `RememberedRowValidator`: Root asks it in batches which remembered rows still exist and forgets the rest. An action can forget an item at once with `context.usage.forget(id)`.
 
@@ -436,7 +460,7 @@ Slick never prompts by surprise.
 1. List every permission the feature may need in the manifest, each with a one-sentence reason that starts with a verb.
 2. Declare `requires` on the commands, actions and forms that need one. The host checks before running; when one is missing it shows the reason and a Grant button, and only that button asks the system.
 3. When a handler finds a permission missing while it runs, such as Automation for whichever app is frontmost, return `.needsPermission(permission)`. The host shows the same card and runs again after a grant.
-4. Read status with `context.permissions.isGranted(_:)` where behavior depends on it. Listen to `context.permissions.changes(of:)` to start work once the user grants it in System Settings, and only while it is missing: the live stream checks once a second. When a load finds access gone, start listening again and send the page's change signal, so an open page shows the notice. The context has no way to ask.
+4. Read status with `context.permissions.isGranted(_:)` where behavior depends on it. To start work once the user grants a permission through Slick, implement `permissionGranted(_:)` on the feature: the host calls it after a grant through the settings window, onboarding or the panel's permission card, for every feature that is on and lists that permission in its manifest. It needs no stream, so a feature can use the generic `.permission` item in its pane. Listen to `context.permissions.changes(of:)` only to notice a grant made straight in System Settings, and only while it is missing: the live stream checks once a second. When a load finds access gone, start listening again and send the page's change signal, so an open page shows the notice. The context has no way to ask.
 5. Services that would need a permission never prompt: `textExpansion.start` returns `.needsPermission`, `selection` returns `nil`, a paste throws `PasteError.permissionMissing`.
 
 `.protectedFolder(.desktop)` and its siblings name folders macOS guards with its own prompt on the first read.
@@ -550,13 +574,14 @@ What it can do:
 | commands | `run(_:arguments:query:launch:)`, `runFallback(_:text:)`, `pressTab(_:on:)`, `rowActions(ofCommand:)` |
 | pages | `open(_:)`, `setQuery(_:)`, `setFilter(_:)`, `reloadPage()`, `refresh()`, `loadNextPage()`, `pop()`, `pages`, `page`, `sections`, `rows`, `selectedRow`, `detail` |
 | background work | `settle()`, `waitForChange()` |
+| the panel | `closePanel()`, `openPanel()`, `goBack()` |
 | selection | `select(_:)`, `select(title:)`, `select(at:)`, `loadDetail()` |
 | actions | `actions()`, `perform(_:)`, `performPrimary()`, `performSecondary()`, `submenu(_:)`, `submenu(_:in:row:query:launch:)`, `perform(_:row:query:launch:)`, `performToastAction()` |
 | forms | `fill(_:_:)`, `fill(_:text:)`, `submit()` |
 | detail pages | `followUp(_:)` |
-| root search | `catalogRows()`, `instantAnswers(for:)`, `asyncSections(for:)`, `suggestions(at:)`, `rootActions(for:)`, `performRoot(_:on:query:)` |
+| root search | `catalogRows()`, `instantAnswers(for:)`, `instantAnswersAfterChange(for:)`, `asyncSections(for:)`, `suggestions(at:)`, `rootActions(for:)`, `performRoot(_:on:query:)` |
 | universal actions | `universalActions(for:)` with a selection or a row, `performUniversal(_:on:)` |
-| settings | `pressSettingsButton(_:)`, `chooseSetting(_:option:)` |
+| settings | `pressSettingsButton(_:)`, `chooseSetting(_:option:)`, `grantInSettings(_:)` |
 | what happened | `toasts`, `visibleToast`, `huds`, `isClosed`, `queryChanges`, `quickLooks`, `shares`, `confirmations`, `commandRuns`, `rootQueries`, `actionErrors`, `droppedRuns`, and every fake under `fakes` |
 
 It follows the host's rules: host filtering through the fuzzy index with section visibility and rank hints, the first row selected after a load, permissions checked before anything runs and after `.needsPermission`, confirmations asked (`confirmationAnswer`), required form fields before `validate`, runs ordered by `RunPolicy`, toasts drawn as HUDs while the panel is closed, actions hidden while their command is in `unavailableCommands`, and a page loaded again after an action when it called `reload()`, when its source's signal fired or when a setting in `reloadsOnSettings` changed. Missing permissions throw `HarnessError.permissionRequired` unless `grantsMissingPermissions` is set, in which case the harness asks the fake permission center as if the user pressed Grant. Thrown errors reach the test unless `throwsActionErrors` is false, in which case the harness shows them as the host does. Debounces are skipped. Compare outcomes with `outcome.kind == .keepOpen`.
@@ -570,6 +595,12 @@ Background work is never awaited by itself. After a fake plays something, such a
 `chooseSetting(_:option:)` picks a picker option by its title, as the settings window does. When the choice asks first, the question lands in `confirmations` and `confirmationAnswer` answers it. It returns whether the value was stored.
 
 `fakes.permissions.openStreamCount` counts the permission streams open now, so a test can check that a feature follows a permission only while it is missing.
+
+`grantInSettings(_:)` grants a permission as a Grant button in settings or onboarding does: the fake permission center reports it granted, then the feature hears `permissionGranted(_:)` when its manifest lists it, then the harness settles. With `grantsMissingPermissions` set, a grant through the permission card tells the feature the same way.
+
+`closePanel()` closes the panel and tells every page's `PageEvents` source, top first. An outcome that closes the panel and `dismiss()` do the same. `openPanel()` opens it again on the top page, which hears `pageWillShowAgain(.panelOpened)` and loads again if its source changed. `goBack()` pops like `pop()`, then the page below hears `pageWillShowAgain(.returned)` and loads again if its source changed.
+
+`instantAnswersAfterChange(for:)` waits until one of the feature's instant providers sends `answersChanged`, then asks every instant provider again, as root search does. It returns at once when a provider sent the signal since the harness last asked for answers.
 
 Move time with `harness.fakes.clock.advance(by:)`. The fake clock starts on Saturday 14 November 2026 at 09:30 UTC in the `en_US_POSIX` locale, which does not group digits; pass `FakeClock(locale:)` to test formatting.
 
@@ -589,7 +620,7 @@ Test data is synthetic: no real file names, paths under the home folder, clipboa
 
 ## Recipes
 
-Each built-in feature maps onto Kit as below. The first eight have packages under `Packages/Features`; read the package next to its row. The rest have a sketch in `Packages/Kit/Tests/KitTests/Capabilities` that runs the recipe through the harness, and no package yet.
+Each built-in feature maps onto Kit as below. The first eight have packages under `Packages/Features` that the app registers; read the package next to its row. Eight more have packages that wait to be joined: AI, Bookmarks, Calc, Define, FileSearch, MenuItems, People and Schedule. Rows that name a sketch in `Packages/Kit/Tests/KitTests/Capabilities` run the recipe through the harness.
 
 | Feature | How | Read |
 |---|---|---|
@@ -601,10 +632,12 @@ Each built-in feature maps onto Kit as below. The first eight have packages unde
 | Window management | a table of no-view commands with `requires: [.accessibility]`, serial by default so cycling works; the window service through a `FeatureServiceKey`, simulated outside `live`; `.needsPermission` when access goes away; `hotkeyPresets`; Switch Windows rows built in a `@concurrent` function | `Features/Windows` |
 | System commands | five services, each behind a `FeatureServiceKey` with a live and a simulated implementation and `@concurrent` calls; declared confirmations for Log Out, Restart and Shut Down; `context.confirm` with a count and a suppression key for Empty Trash and Eject All Disks; `.needsPermission` for Apple Events; Kill Process as a list with `refreshAfter` that checks the process again before it signals | `Features/System` |
 | Script commands and filters | a `ScriptLibrary` service, scanned in a `@concurrent` function; `fileWatcher` and `declarationChanges`; `Command.stableID`; silent mode `dismiss()`es then reports; `textStream` into a streamed `DetailPage`; inline output through `LiveSubtitle.background` with a color; a Script Filter list with `.custom` filtering, `alternates` and `refreshAfter`; a `Fallback` for scripts that take typed text | `Features/Scripts` |
-| File search | an `AsyncProvider` with `takesOver` for "/" and "~" and a per-query title; a `.custom` list with a `.preview` detail and a `notice` while access is limited; rows `represent` their files; recents from usage snapshots | `FileSearchSketch.swift` |
-| Calculator | an `InstantProvider` with `claimsTop`, `completion` and `memory: .never`; copy with `.then` to record history; a history page with `DaySections` and `.showRoot(query:)` | `CalculatorAndEmojiSketch.swift` |
-| AI | a command with `takesRootQueryOnTab`; a `DetailSource` reading `serverSentEvents` off the main thread; `actions(for:)` from the shown detail; `followUp`; the key in `secrets`; `.replace` after setup | `AICalendarSnippetsSketch.swift` |
-| Calendar | a `SuggestionTrigger` with its own namespace, an urgency ramp, `imminentFrom` and `memory: .never`; `DaySections(direction: .future)`; `permissions.changes(of: .calendars)`; `.multiSelect` of calendars | `AICalendarSnippetsSketch.swift` |
+| File search | an `AsyncProvider` with `takesOver` for "/" and "~" and a per-query title; a `.custom` list with a `.preview` detail and a `notice` while access is limited; rows `represent` their files and are named through `DisplayText`; recents from usage snapshots | `Features/FileSearch`, `FileSearchSketch.swift` |
+| Calculator | an `InstantProvider` with `claimsTop`, `completion` and `memory: .never`; `answersChanged` when exchange rates arrive; copy with `.then` to record history; a history page with `DaySections` and `.showRoot(query:)` | `Features/Calc`, `CalculatorAndEmojiSketch.swift`, `RatesSketch` in `Kit/NewContractTests.swift` |
+| AI | a command with `takesRootQueryOnTab`; a `DetailSource` reading `serverSentEvents` off the main thread; `actions(for:)` from the shown detail; `followUp`; the key in `secrets`; `.replace` after setup; a fallback that starts off | `Features/AI`, `AICalendarSnippetsSketch.swift` |
+| Calendar | a `SuggestionTrigger` with its own namespace, an urgency ramp, `imminentFrom` and `memory: .never`; `DaySections(direction: .future)`; `permissions.changes(of: .calendars)`; `.multiSelect` of calendars | `Features/Schedule`, `AICalendarSnippetsSketch.swift` |
+| Menu items | a `.custom` list over the app in front, searched in `@concurrent` functions; a source that adopts `PageEvents` stops a read when the panel closes and reads again when its page shows, as `FrontAppList` does | `Features/MenuItems`, `FrontAppList` in `Testing/PanelEventsTests.swift` |
+| Contacts | a catalog source that reads contacts only after a grant; `permissionGranted(_:)` starts that read after a grant made in settings or onboarding, with no stream held | `Features/People`, and `FrontAppFeature` in `Testing/PanelEventsTests.swift` for the grant |
 | Universal actions | `.text`, `.url` and `.files` providers, for selections and for rows that `represent` them | `Features/Quicklinks`, `Features/Snippets`, `Examples/BookmarksFeature.swift` |
 | Settings | `SettingKey`s in a `nonisolated enum` and a `SettingsPane` | `Examples/BookmarksFeature.swift`, `Kit/SettingsTests.swift` |
 
@@ -637,7 +670,8 @@ Main thread and scale:
 
 Background work:
 
-- Two permission streams polled for as long as the feature was on. Follow a permission only while it is missing and needed.
+- Two permission streams polled for as long as the feature was on. Follow a permission only while it is missing and needed, and use `permissionGranted(_:)` for grants made in Slick.
+- A page watched window focus to learn that the panel closed. Adopt `PageEvents`.
 - Access taken away while the feature ran was never noticed. Watch again when a load finds access missing.
 - A list reloaded with `context.reload()` after its own change. Send the list's `ChangeSignal`.
 - A load did not check for cancellation, so a cancelled load still changed state. Call `try Task.checkCancellation()` between steps.
@@ -647,12 +681,14 @@ Odd input:
 - Titles broke over several lines, or were empty or invisible. Keep titles on one line and never blank.
 - Set Volume read only ASCII digits, and "Never eject" matched exact names only. Accept the digits of every script, compare names without case, width or outer spaces, and refuse what you cannot read.
 - A byte order mark hid a script's first line. Skip one at the start of any file you parse.
+- A right-to-left override in a file name drew "invoice<U+202E>fdp.app" as "invoiceppa.pdf", in a row and in the Move to Trash question. Show every outside name through `DisplayText`.
 - A display that reports no area got windows of zero size. Guard degenerate geometry.
 
 What the user reads:
 
 - Toast and HUD titles ended with a full stop, and "Force quit Example Browser" read as an order. Titles take title case without a stop, and a message says what happened.
 - A setting deleted data at once and never said so. Ask first with `.picker(..., confirm:)`, and say so in the info.
+- Define, Ask AI and a script's search sat under every query, because every fallback was on. A fallback starts off unless it is the feature's own web search.
 - An action people expect was missing, such as Open Trash, Open for copied files, or pins for emoji. Compare with Raycast and Alfred before review.
 
 ## Before review
