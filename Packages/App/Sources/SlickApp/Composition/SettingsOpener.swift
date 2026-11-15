@@ -12,6 +12,7 @@ import SettingsUI
 
     private let makeController: () -> SettingsController
     private let showsWindows: Bool
+    private let onOpen: () -> Void
     private var controller: SettingsController?
     /// Every request so far, oldest first, while the window stays closed. The live app, which
     /// shows the window, keeps none.
@@ -20,9 +21,15 @@ import SettingsUI
     /// - Parameters:
     ///   - showsWindows: False keeps the window closed and only records requests. Only the live
     ///     launcher shows it, because showing it activates the app.
+    ///   - onOpen: Runs on every request, shown or recorded, such as a check of the launcher
+    ///     hotkey while it waits behind a macOS shortcut.
     ///   - makeController: Makes the controller on first use.
-    init(showsWindows: Bool, makeController: @escaping () -> SettingsController) {
+    init(
+        showsWindows: Bool, onOpen: @escaping () -> Void = {},
+        makeController: @escaping () -> SettingsController
+    ) {
         self.showsWindows = showsWindows
+        self.onOpen = onOpen
         self.makeController = makeController
     }
 
@@ -35,6 +42,7 @@ import SettingsUI
     }
 
     func open(_ pane: SettingsPaneID? = nil) {
+        onOpen()
         guard showsWindows else {
             requests.append(.pane(pane))
             return
@@ -43,6 +51,7 @@ import SettingsUI
     }
 
     func openFeature(_ featureID: String) {
+        onOpen()
         guard showsWindows else {
             requests.append(.feature(featureID))
             return

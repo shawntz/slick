@@ -24,8 +24,8 @@ import os
 /// 4. Root search over the runtime, Platform's system context, the settings and the clock. Its
 ///    engine opens off the main thread; a second engine on the same folder falls back to memory.
 /// 5. The forwarders point at Root.
-/// 6. The theme store, the panel over Root and Platform's icons, the settings window's
-///    dependencies, the launcher hotkey and Platform's hooks.
+/// 6. The theme store, the panel over Root and Platform's icons, the launcher hotkey, the settings
+///    window's dependencies, which read the hotkey's state, and Platform's hooks.
 @MainActor final class Assembly {
     /// What one run is made of.
     struct Configuration {
@@ -116,19 +116,20 @@ import os
                 surface: configuration.surface, hud: hud) : nil
         self.panel = panel
 
+        let hotkey = LauncherHotkey(
+            hotkeys: services.hotkeys, settings: services.settings, retrySignal: runtime.preferences.changes,
+            clock: services.clock, press: { [weak panel] in panel?.toggle() })
+        self.hotkey = hotkey
+
         let dependencies = SettingsDependencies(
             services: services, features: runtime, preferences: runtime.preferences, learning: root.inspector,
             icons: platform.icons, loginItem: platform.loginItem, themes: themes, dataDirectory: configuration.dataRoot,
-            lookUpItem: { [weak root] id in root?.row(for: id) })
-        settings = SettingsOpener(showsWindows: configuration.showsWindows) {
-            SettingsController(dependencies: dependencies)
-        }
+            lookUpItem: { [weak root] id in root?.row(for: id) }, launcherHotkey: hotkey)
+        settings = SettingsOpener(
+            showsWindows: configuration.showsWindows, onOpen: { [weak hotkey] in hotkey?.checkNow() },
+            makeController: { SettingsController(dependencies: dependencies) })
         self.dependencies = dependencies
         links = DeepLinkRouter(runtime: runtime, panel: panel, settings: settings)
-
-        hotkey = LauncherHotkey(
-            hotkeys: services.hotkeys, settings: services.settings, retrySignal: runtime.preferences.changes,
-            press: { [weak panel] in panel?.toggle() })
 
         connectHooks()
     }
@@ -145,6 +146,9 @@ import os
     // MARK: Hooks
 
     private func connectHooks() {
+        hotkey.onBoundAfterWait = { [weak panel] combo in
+            panel?.showHUD(.success(SpotlightShortcutGuide.nowOpens(combo)))
+        }
         let settings = settings
         panel?.onOpenSettings = { [weak panel] in
             panel?.dismiss()

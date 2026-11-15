@@ -58,7 +58,7 @@ struct CompositionTests {
         assembly.root.end()
 
         // The launcher hotkey goes through the hotkey service the composition was given.
-        #expect(hotkeys.registered[LauncherHotkey.bindingID] == KeyCombo(.space, .option))
+        #expect(hotkeys.registered[LauncherHotkey.bindingID] == KeyCombo(.space, .command))
         assembly.general[HostSettings.launcherHotkey] = KeyCombo(.k, [.command, .option])
         try? await waitUntil { hotkeys.registered[LauncherHotkey.bindingID] == KeyCombo(.k, [.command, .option]) }
 

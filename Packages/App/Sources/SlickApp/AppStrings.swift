@@ -34,8 +34,9 @@ enum AppStrings {
     static var dataFolderUnusable: String {
         "The data folder cannot be written. Learning is not saved."
     }
+    /// A HUD title, so title case: the combination, as `KeyCombo.displayString` writes it.
     static func hotkeyRefused(_ combo: String) -> String {
-        "The launcher hotkey \(combo) is taken. Choose another in Settings."
+        "Launcher Hotkey \(combo) Is Taken"
     }
     static var alreadyRunning: String {
         "\(Brand.name) is already running. Opening it there."
