@@ -25,8 +25,8 @@ nonisolated enum WindowHotkeyPresets {
             "last-two-thirds": KeyCombo(.t, [.control, .option]),
             "maximize": KeyCombo(.return, [.control, .option]),
             "maximize-height": KeyCombo(.upArrow, [.control, .option, .shift]),
-            "make-smaller": KeyCombo(minus, [.control, .option]),
-            "make-larger": KeyCombo(equal, [.control, .option]),
+            "make-smaller": KeyCombo(.minus, [.control, .option]),
+            "make-larger": KeyCombo(.equal, [.control, .option]),
             "center": KeyCombo(.c, [.control, .option]),
             "restore": KeyCombo(.delete, [.control, .option]),
             "next-display": KeyCombo(.rightArrow, [.control, .option, .command]),
@@ -53,8 +53,4 @@ nonisolated enum WindowHotkeyPresets {
             "previous-display": KeyCombo(.leftArrow, [.control, .option, .command]),
             "restore": KeyCombo(.z, [.option, .command]),
         ])
-
-    /// Keys Kit names only by code: the "-" and "=" keys of a US layout.
-    private static let minus = Key(code: 0x1B)
-    private static let equal = Key(code: 0x18)
 }

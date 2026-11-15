@@ -1,6 +1,7 @@
 /// Every string a person reads in this feature, in one place so it can be translated later.
 ///
-/// Command titles use title case, as macOS menus do. Everything else is a plain sentence.
+/// Command, action, section, empty-state, toast and HUD titles, buttons and menu items use title
+/// case, as macOS menus do. Everything else is a plain sentence.
 nonisolated enum Strings {
     // MARK: - The feature
 
@@ -71,23 +72,23 @@ nonisolated enum Strings {
 
     // MARK: - After a layout command
 
-    static let noWindow = "The frontmost app has no window"
-    static let fullScreen = "Leave full screen to move this window"
-    static let cannotMove = "This window cannot be moved"
-    static let noDisplay = "No display shows this window"
-    static let onlyOneDisplay = "There is only one display"
-    static let nothingToRestore = "This window has no earlier frame to restore"
-    static let largest = "The window is as large as it can be"
-    static let smallest = "The window is as small as it can be"
-    static let fullScreenUnsupported = "This window cannot go full screen"
-    static let enteredFullScreen = "The window is now full screen"
-    static let exitedFullScreen = "The window has left full screen"
+    static let noWindow = "The Frontmost App Has No Window"
+    static let fullScreen = "Leave Full Screen to Move This Window"
+    static let cannotMove = "This Window Cannot Be Moved"
+    static let noDisplay = "No Display Shows This Window"
+    static let onlyOneDisplay = "There Is Only One Display"
+    static let nothingToRestore = "This Window Has No Earlier Frame to Restore"
+    static let largest = "The Window Is as Large as It Can Be"
+    static let smallest = "The Window Is as Small as It Can Be"
+    static let fullScreenUnsupported = "This Window Cannot Go Full Screen"
+    static let enteredFullScreen = "The Window Is Now Full Screen"
+    static let exitedFullScreen = "The Window Has Left Full Screen"
 
     // MARK: - Errors
 
-    static let accessibilityMissing = "Window management needs Accessibility"
-    static let windowGone = "The window has closed"
-    static let refused = "The app did not allow that change"
+    static let accessibilityMissing = "Window Management Needs Accessibility"
+    static let windowGone = "The Window Has Closed"
+    static let refused = "The App Did Not Allow That Change"
 
     // MARK: - Switch Windows
 
@@ -116,8 +117,8 @@ nonisolated enum Strings {
         guard let app, !app.isEmpty else { return "If it has unsaved changes, the app asks what to do with them." }
         return "If it has unsaved changes, \(app) asks what to do with them."
     }
-    static let minimizedToast = "Minimized the window"
-    static let closedToast = "Closed the window"
+    static let minimizedToast = "Minimized the Window"
+    static let closedToast = "Closed the Window"
     static let needsAccessTitle = "Switch Windows needs Accessibility"
     static let needsAccessMessage = "Grant Accessibility to list the windows of other apps."
     static let grantAccess = "Grant Access"
@@ -133,7 +134,7 @@ nonisolated enum Strings {
     static let almostMaximizeInfo = "How much of the screen Almost Maximize covers. The window stays centered."
     static let pointsUnit = "pt"
     static let percentUnit = "%"
-    static let repeatSection = "Repeated presses"
+    static let repeatSection = "Repeated Presses"
     static let repeatPicker = "When a half is pressed again"
     static let repeatInfo = "Applies to Left, Right, Top and Bottom Half when the window is already there."
     static let feedbackSection = "Feedback"
@@ -149,9 +150,9 @@ nonisolated enum Strings {
 
     static func repeatTitle(_ behavior: RepeatBehavior) -> String {
         switch behavior {
-        case .cycleSizes: "Cycle through two thirds and one third"
-        case .moveAcrossDisplays: "Move to the display on that side"
-        case .none: "Keep the half"
+        case .cycleSizes: "Cycle Through Two Thirds and One Third"
+        case .moveAcrossDisplays: "Move to the Display on That Side"
+        case .none: "Keep the Half"
         }
     }
 

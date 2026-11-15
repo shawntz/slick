@@ -53,6 +53,32 @@ struct FeatureTests {
         #expect(harness.fakes.hotkeys.registered.isEmpty)
     }
 
+    /// The owner may run a tiling window manager, so a default binding would fight it. The feature
+    /// binds and suggests nothing: a layout gets a hotkey only from a preset or a recording the user
+    /// chose in settings.
+    @Test func noLayoutHotkeyIsBoundUntilTheUserChoosesOne() async throws {
+        let windows = WindowsHarness()
+        let harness = windows.harness
+        await harness.activate()
+        for layout in WindowCommands.layouts {
+            try await windows.press(layout.id)
+        }
+        windows.settings[WindowsSettings.windowGap] = 8
+        windows.settings[WindowsSettings.showsLayoutName] = true
+        try await harness.settle()
+        await harness.deactivate()
+        await harness.activate()
+        #expect(harness.fakes.hotkeys.registered.isEmpty)
+        #expect(harness.feature.commands.allSatisfy { $0.suggestedHotkey == nil })
+        #expect(harness.feature.hotkeyPresets.allSatisfy { !$0.bindings.isEmpty }, "offered, not applied")
+    }
+
+    @Test func presetsUseKitsKeysForMinusAndEqual() {
+        #expect(WindowHotkeyPresets.rectangle.bindings["make-smaller"] == KeyCombo(.minus, [.control, .option]))
+        #expect(WindowHotkeyPresets.rectangle.bindings["make-larger"] == KeyCombo(.equal, [.control, .option]))
+        #expect(KeyCombo(.minus, [.control, .option]).displayString == "⌃⌥-")
+    }
+
     // MARK: - Running layouts
 
     @Test func leftHalfMovesTheFocusedWindowQuietly() async throws {

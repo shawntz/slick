@@ -39,3 +39,14 @@ Every command needs Accessibility. The host checks it before a command runs and 
 - A display that reports no usable area is never a target, so no command sets a window of zero size.
 - Close Window names the window and its app before it asks, since the list can go stale while it is open.
 - Switch Windows builds its rows off the main thread. The live service matches windows to the stacking order per app, so a desk with thousands of windows still lists at once.
+
+## Undocumented interfaces
+
+Window moves use the public Accessibility API. Two attribute names it reads and writes are not in the SDK's headers. Other window managers use them too.
+
+| Attribute | Why | When an app does not have it |
+|---|---|---|
+| `AXEnhancedUserInterface` | Apps animate frame changes while it is on, so it is turned off for a move and put back after | The read fails and the move goes ahead as is |
+| `AXFullScreen` | Toggle Full Screen reads and sets it | The command reports that the window cannot go full screen |
+
+No private function or framework is used.
