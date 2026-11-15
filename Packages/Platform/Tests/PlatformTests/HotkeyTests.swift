@@ -56,12 +56,44 @@ import Testing
         }
         let hotkeys = HotkeyCenter(system: system)
         let spotlight = KeyCombo(.space, .command)
-        #expect(hotkeys.conflicts(for: spotlight) == [HotkeyConflict(owner: "Spotlight", canOverride: false)])
+        #expect(
+            hotkeys.conflicts(for: spotlight) == [
+                HotkeyConflict(owner: "Spotlight", canOverride: false, isSystemShortcut: true)
+            ])
         #expect(throws: HotkeyError.self) { try hotkeys.register(spotlight, id: "launcher") {} }
         #expect(system.registrations.isEmpty)
         #expect(hotkeys.conflicts(for: KeyCombo(.f, .control)).isEmpty)  // turned off
         #expect(hotkeys.conflicts(for: KeyCombo(.g, .control)).isEmpty)  // needs Function too
         #expect(hotkeys.conflicts(for: KeyCombo(.g, [.control, .function])).first?.canOverride == false)
+    }
+
+    @Test func onlyAMacOSShortcutIsMarkedAsOne() throws {
+        let combo = KeyCombo(.space, .command)
+        system.state.withLock { $0.symbolic = [SymbolicHotkey(holding: combo)] }
+        let hotkeys = HotkeyCenter(system: system)
+        let other = KeyCombo(.j, [.control, .option])
+        try hotkeys.register(other, id: "first") {}
+        #expect(hotkeys.conflicts(for: combo).map(\.isSystemShortcut) == [true])
+        #expect(hotkeys.conflicts(for: other).map(\.isSystemShortcut) == [false])
+        // Turning the shortcut off frees the combination.
+        system.state.withLock { $0.symbolic[0].isEnabled = false }
+        #expect(hotkeys.conflicts(for: combo).isEmpty)
+        try hotkeys.register(combo, id: "launcher") {}
+        #expect(hotkeys.registered["launcher"] == combo)
+    }
+
+    @Test func theInertSystemPlaysTheShortcutsAScenarioSets() throws {
+        let inert = InertHotkeySystem()
+        let hotkeys = HotkeyCenter(system: inert)
+        let combo = KeyCombo(.space, .command)
+        #expect(hotkeys.conflicts(for: combo).isEmpty)
+        inert.setSymbolicHotkeys([SymbolicHotkey(holding: combo)])
+        #expect(hotkeys.conflicts(for: combo).first?.isSystemShortcut == true)
+        #expect(throws: HotkeyError.self) { try hotkeys.register(combo, id: "launcher") {} }
+        #expect((hotkeys.system as? InertHotkeySystem) === inert)
+        inert.setSymbolicHotkeys([])
+        try hotkeys.register(combo, id: "launcher") {}
+        #expect(hotkeys.registered == ["launcher": combo])
     }
 
     @Test func registeringAnIDAgainReplacesItAndAFailureKeepsTheOldOne() throws {

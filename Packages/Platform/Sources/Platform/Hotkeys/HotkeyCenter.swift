@@ -43,11 +43,20 @@ nonisolated public struct SymbolicHotkey: Hashable, Sendable {
     }
 }
 
+extension SymbolicHotkey {
+    /// An enabled system shortcut on a combination, as a scenario plays one.
+    public init(holding combo: KeyCombo) {
+        let mask = CarbonModifiers.mask(for: combo.modifiers, allowingFunction: true) ?? 0
+        self.init(keyCode: combo.key.code, modifiers: mask, isEnabled: true)
+    }
+}
+
 /// The live hotkey service: bookkeeping and conflict checks on top of a ``HotkeySystem``.
 ///
 /// A combination conflicts with an enabled system shortcut that uses it, which Slick cannot take
-/// over, and with any of Slick's own registrations under another ID, which it can after asking.
-/// ``register(_:id:handler:)`` refuses either kind; the host unregisters the other item first.
+/// over and which is marked ``HotkeyConflict/isSystemShortcut``, and with any of Slick's own
+/// registrations under another ID, which it can after asking. ``register(_:id:handler:)`` refuses
+/// either kind; the host unregisters the other item first.
 /// Handlers run on the main actor. Call the service from the main actor: the Carbon calls run on
 /// the main thread, and a call from elsewhere waits for it.
 nonisolated public final class HotkeyCenter: HotkeyService {
@@ -63,7 +72,9 @@ nonisolated public final class HotkeyCenter: HotkeyService {
         var nextNumber: UInt32 = 1
     }
 
-    private let system: any HotkeySystem
+    /// The system the registrations go to. A scenario reaches the inert one through it to play a
+    /// macOS shortcut that holds a combination.
+    public let system: any HotkeySystem
     private let state = Mutex(State())
 
     public init(system: any HotkeySystem) {
@@ -129,7 +140,9 @@ nonisolated public final class HotkeyCenter: HotkeyService {
                 $0.isEnabled && $0.keyCode == combo.key.code && $0.modifiers == mask
             }
             if usedBySystem {
-                conflicts.append(HotkeyConflict(owner: SystemShortcutNames.owner(of: combo), canOverride: false))
+                conflicts.append(
+                    HotkeyConflict(
+                        owner: SystemShortcutNames.owner(of: combo), canOverride: false, isSystemShortcut: true))
             }
         }
         let own = state.withLock { state in
@@ -215,9 +228,11 @@ nonisolated public enum SystemShortcutNames {
 }
 
 /// A hotkey system that registers nothing with macOS and never fires, for run environments other
-/// than `live`, where hardware key events are ignored.
+/// than `live`, where hardware key events are ignored. It reports no system shortcuts until a
+/// scenario plays some with ``setSymbolicHotkeys(_:)``.
 nonisolated public final class InertHotkeySystem: HotkeySystem {
     private let next = Atomic<UInt>(0)
+    private let symbolic = Mutex<[SymbolicHotkey]>([])
 
     public init() {}
 
@@ -227,7 +242,12 @@ nonisolated public final class InertHotkeySystem: HotkeySystem {
 
     public func unregister(_ token: HotkeyToken) {}
 
-    public func symbolicHotkeys() -> [SymbolicHotkey] { [] }
+    public func symbolicHotkeys() -> [SymbolicHotkey] { symbolic.withLock { $0 } }
+
+    /// Plays macOS shortcuts that hold combinations, as Spotlight holds Command-Space on a new Mac.
+    public func setSymbolicHotkeys(_ hotkeys: [SymbolicHotkey]) {
+        symbolic.withLock { $0 = hotkeys }
+    }
 
     public func setPressHandler(_ handler: @escaping @MainActor @Sendable (UInt32) -> Void) {}
 }
