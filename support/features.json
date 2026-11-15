@@ -1,0 +1,35 @@
+{
+  "comment": "The one list of what the launcher does and how far along each part is. README.md and the website are generated from it by scripts/sync-features.py, so they cannot claim more than this file does. Status is one of: available (works in the app today), in-progress (code exists or is being written, not usable in the app yet), planned.",
+  "updated": "2026-11-15",
+  "groups": [
+    {
+      "title": "Core",
+      "features": [
+        { "id": "glass", "title": "Liquid Glass panel", "summary": "A real system glass panel, not a blur imitation, with a selection lens that glides between rows.", "status": "available" },
+        { "id": "search", "title": "Fuzzy search", "summary": "An in-house matcher that understands prefixes, acronyms, camelCase, word order and typos.", "status": "available" },
+        { "id": "learning", "title": "Learns your habits", "summary": "Pick a result twice for a query and it becomes the top hit. Everything it learns stays on your Mac.", "status": "available" },
+        { "id": "suggestions", "title": "Suggestions before you type", "summary": "Ranks what you are likely to open next from the time of day, the app in front and what you just used.", "status": "in-progress" },
+        { "id": "apps", "title": "Apps and System Settings", "summary": "Open, quit, hide or reveal any app, and jump straight to a System Settings pane.", "status": "available" },
+        { "id": "hotkeys", "title": "Hotkeys, aliases and favorites", "summary": "Give any item a global hotkey or a short alias, and pin favorites to the top.", "status": "available" },
+        { "id": "themes", "title": "Themes", "summary": "Change tint, clarity, lens style, accent, text size and row height live, then save and share the theme as a file.", "status": "in-progress" },
+        { "id": "actions", "title": "Action panel", "summary": "Every result has more actions behind Command-K, with their own shortcuts.", "status": "available" }
+      ]
+    },
+    {
+      "title": "Built-in tools",
+      "features": [
+        { "id": "files", "title": "File search", "summary": "An own index of file names that answers in milliseconds, with folder browsing and previews.", "status": "in-progress" },
+        { "id": "calculator", "title": "Calculator", "summary": "Math, percentages, units, currencies, dates and time zones, answered as you type.", "status": "in-progress" },
+        { "id": "clipboard", "title": "Clipboard history", "summary": "Search text, links, images and files you copied, and paste them back.", "status": "available" },
+        { "id": "snippets", "title": "Snippets", "summary": "Saved text with placeholders that expands when you type a keyword in any app.", "status": "in-progress" },
+        { "id": "windows", "title": "Window management", "summary": "Halves, thirds, quarters, centering and moving windows between displays.", "status": "in-progress" },
+        { "id": "system", "title": "System commands", "summary": "Sleep, lock, empty the Trash, toggle dark mode, eject disks and more.", "status": "in-progress" },
+        { "id": "quicklinks", "title": "Quicklinks and web search", "summary": "Open sites and searches with a keyword, and fall back to the web when nothing local matches.", "status": "available" },
+        { "id": "emoji", "title": "Emoji picker", "summary": "Search emoji and symbols by name and paste them.", "status": "available" },
+        { "id": "scripts", "title": "Script commands", "summary": "Run your own scripts from the launcher, with arguments and live output.", "status": "in-progress" },
+        { "id": "universal-actions", "title": "Universal actions", "summary": "Act on the text or files selected in any app.", "status": "in-progress" },
+        { "id": "ai", "title": "AI, with your own key", "summary": "Ask questions with Apple's on-device model or a provider you configure. Nothing is sent unless you ask.", "status": "planned" }
+      ]
+    }
+  ]
+}
