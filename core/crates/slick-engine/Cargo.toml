@@ -1,0 +1,21 @@
+[package]
+name = "slick-engine"
+description = "Catalog, ranking contract, sessions, suggestions and generic indexes for root search."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+slick-match = { path = "../slick-match", default-features = false }
+slick-predict = { path = "../slick-predict" }
+
+# Latency budgets from docs/ARCHITECTURE.md, measured on a synthetic heavy user over 10,000 items.
+# Run with `make bench-core`; exits non-zero when a budget is blown.
+[[bench]]
+name = "engine"
+harness = false
