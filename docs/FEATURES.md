@@ -2,9 +2,9 @@
 
 A feature is one Swift package under `Packages/Features/<Name>` that depends on Kit. It describes commands, rows, pages and settings as data. The host draws them, owns the keyboard, and calls back into the feature when the user acts. Every side effect goes through a service on the feature's context, so the same code runs against the real Mac in the app and against fakes in tests.
 
-This guide is enough to write one. It starts with three complete examples, from a dozen lines to a full feature, then covers each part of Kit, the rules that keep Slick fast, testing, and a recipe for each of the large built-in features.
+This guide is enough to write one. It starts with the house rules and three complete examples, from a dozen lines to a full feature. Then it covers each part of Kit, the rules that keep Slick fast, testing, a recipe for each built-in feature, and the mistakes review found in the first seven.
 
-The examples compile and run. They live in `Packages/Kit/Tests/KitTests/Examples`, and the sketches mentioned under "Recipes" live in `Packages/Kit/Tests/KitTests/Capabilities`. Read them next to this page.
+The examples compile and run. They live in `Packages/Kit/Tests/KitTests/Examples`, and the sketches mentioned under "Recipes" live in `Packages/Kit/Tests/KitTests/Capabilities`. The eight features under `Packages/Features` are real code to copy from; Apps is the reference. Read them next to this page.
 
 ## Setting up the package
 
@@ -53,7 +53,29 @@ Kit is split so a feature compiles only what it imports:
 
 Make the feature class `public`, and with it `init(context:)`, `manifest` and every `Feature` member the class implements: Swift requires a public class's protocol witnesses to be public. The app lists features in one place; adding yours is a one-line change there plus the package dependency in `Packages/App/Package.swift`.
 
-Build and test from your package only: `scripts/swiftpm.sh Packages/Features/Emoji test`, or `make test-Emoji`.
+Name the module so it cannot clash with a Swift or Apple module or type. The System feature's module is `SystemCommands`, because the SDK already has a module named `System`.
+
+Declare no `resources:`. The bundle script copies no SwiftPM resource bundles into the app, so `Bundle.module` would fail at runtime. Ship data as Swift source, as Emoji does with its generated `EmojiData.swift`.
+
+Build and test from your package only: `scripts/swiftpm.sh Packages/Features/Emoji test`, or `make test-Emoji`. Pass `SWIFT_FLAGS='-Xswiftc -warnings-as-errors'` to build as CI does.
+
+## House rules
+
+Every feature follows these. Review checks each one.
+
+**What the user reads.** Titles use title case, as macOS menus do, and end without a full stop. That covers command, action, section, empty-state, toast and HUD titles, buttons and menu items: "Turn Off Quicklink", "No Matching Emoji or Symbols", "Copied UUID". Everything else is a plain sentence that says what will happen or what happened: "Deletes every item older than a day.", "The window has left full screen." Name what an action touches, as "Close “Start Page”?" does. Show a key combination with `KeyCombo.displayString`, never by hand. Write the product name, bundle ID and URL scheme through `Kit.Brand`, never as text; `scripts/check-brand.sh` fails the lint otherwise.
+
+**Nothing happens by itself.** Nothing prompts, reads personal data or reaches the network at activation. Each waits for something the user did: a command, an action, a settings button. Activation loads the feature's own files and starts its watches.
+
+**Permission streams.** `context.permissions.changes(of:)` checks the system once a second in the app. Open one only while that permission is missing and the feature needs it, and end it at the grant or at deactivation. A test checks `fakes.permissions.openStreamCount`.
+
+**No downloads when a row draws.** A row never makes the host fetch an icon. `.favicon(domain:)` draws only from the favicon cache, and a globe until something fills it. Do not give a row `.remote(url)`: the host downloads such an icon the first time a row shows it. Download an icon after something the user did, keep it in your cache folder and use `.image(path:)`.
+
+**Deep links.** Any web page can fire a deep link, and once the user chose Always Allow for a command the link runs it without a word. A hidden command that acts at once, such as one that pastes, declares `allowsDeepLinks: false`. `harness.pendingIssues` reports a hidden command with no confirmation that still allows them.
+
+**Names and data.** A module is never named after a Swift or Apple type or framework. Features ship their data as Swift source, because the bundle script copies no resource bundles. "Setting up the package" shows both.
+
+**Fail safe.** A mistyped configuration value takes the safe reading. A script whose `needsConfirmation` is anything but `false` asks first. A stored setting of the wrong type reads as the key's default. A file the feature cannot read, or one from a newer version, is kept and never saved over.
 
 ## Example 1: copy a UUID
 
@@ -205,9 +227,11 @@ Its tests in `ExampleFeatureTests.swift` cover each part: the form's validation,
 
 ## Rows and identity
 
-`Row` is a plain `Sendable` value: `id`, `title`, `subtitle`, `icon`, `accessories`, `keywords`, `payload`, `completion`, `quickLookURL`, `alternates`, `titleHighlights`, `rankHint`, `memory`, `expires` and `represents`. Build rows on any thread, in any number.
+`Row` is a plain `Sendable` value: `id`, `title`, `subtitle`, `subtitleColor`, `icon`, `accessories`, `keywords`, `payload`, `completion`, `quickLookURL`, `alternates`, `titleHighlights`, `rankHint`, `memory`, `expires` and `represents`. Build rows on any thread, in any number. Keep a title on one line and never empty: turn line breaks and control characters into spaces, and give a nameless item a name such as "Process 4242".
 
-`ItemID` is a namespace and a key, `namespace:key`. Pick a namespace for your rows, usually your feature ID, and keep keys stable across launches: learning, favorites and remembered rows depend on them. `cmd` and `app` belong to root search. The engine sees only `engineKey`, the 64-bit FNV-1a hash of the ID's UTF-8 bytes, which Kit computes once per ID. The Rust core uses the same hash; `ItemIDTests` holds the shared test vectors.
+`subtitleColor` colors the subtitle, such as red for a failure. Nil uses the theme's color. The host moves the color toward the theme until it is legible over the glass.
+
+`ItemID` is a namespace and a key, `namespace:key`. Pick a namespace for your rows, usually your feature ID, and keep keys stable across launches: learning, favorites and remembered rows depend on them. `cmd` belongs to root search, and `app` to the Apps feature alone. The engine sees only `engineKey`, the 64-bit FNV-1a hash of the ID's UTF-8 bytes, which Kit computes once per ID. The Rust core uses the same hash; `ItemIDTests` holds the shared test vectors.
 
 `Payload` carries what the source needs for the row's actions. `Payload(item)` keeps any `Codable`, `Hashable`, `Sendable` value in memory, and `row.payload?.decode(Item.self)` hands it back by a cast, so a list can carry its items with no side dictionary and no JSON. The value is encoded only when root search remembers the row, and after a relaunch `decode` reads that JSON. So `actions(for:)` must still work from the ID and payload alone, and a payload should stay under 1 KB. A plain string, `Payload("...")`, is enough when the key does not say it all.
 
@@ -223,7 +247,7 @@ Its tests in `ExampleFeatureTests.swift` cover each part: the form's validation,
 
 `represents` is the text, URL or files the row stands for. The host then offers every feature's universal actions for it in the action panel, as it does for a selection in another app.
 
-`Icon` is a description, never an image: an SF Symbol, a glyph, an app by bundle ID, a file's icon by path, a type's icon, a local image file, a color swatch, a favicon, a remote `https` image, or a light and dark pair. The host resolves icons from its atlas or loads them off the main thread.
+`Icon` is a description, never an image: an SF Symbol, a glyph, an app by bundle ID, a file's icon by path, a type's icon, a local image file, a color swatch, a favicon, a remote `https` image, or a light and dark pair. The host resolves icons from its atlas or loads them off the main thread. Keep `.remote` off rows, as the house rules say.
 
 ## Actions and outcomes
 
@@ -273,11 +297,15 @@ Two modifiers compose: `.then { context in ... }` runs a step after the handler 
 
 The usual shortcuts are constants on `KeyCombo`: `.open`, `.openWith`, `.reveal`, `.quickLook`, `.copy`, `.copyPath`, `.remove`, `.removeAll`, `.edit`, `.duplicate`, `.new`, `.pin`, `.refresh`, `.primaryAction` and `.secondaryAction`. Use them so one key means one thing everywhere. Command-Y goes to an action whose shortcut is Command-Y, then to the row's `quickLookURL`.
 
+Build other combinations from `Key` constants: the letters `.a` to `.z`, the digits `.zero` to `.nine`, `.minus`, `.equal`, `.period`, `.comma`, the arrows, `.return`, `.tab`, `.space`, `.delete`, `.forwardDelete` and `.escape`, as in `KeyCombo(.minus, [.control, .option])`. `Key(name:)` finds the rest, such as `Key(name: "f5")`. A key is stored by its virtual key code, so a combination stays on the same physical key in every layout.
+
 Destructive actions take `style: .destructive` and a `Confirmation`; the confirm button is red. A `suppressionKey` lets the host offer "Don't ask again"; the host stores it as `<feature id>.<key>`.
 
 ## Commands
 
-A `Command` has an ID unique in the feature, a title, keywords, up to three `CommandArgument`s (text, password or dropdown, each optional or required with a default), required permissions, a `Confirmation`, a suggested hotkey (almost always nil), a `Fallback`, `takesRootQueryOnTab`, a `LiveSubtitle`, `showsInRoot`, a `RunPolicy`, and row actions from `.withRowActions { ... }`.
+A `Command` has an ID unique in the feature, a title, keywords, up to three `CommandArgument`s, required permissions, a `Confirmation`, a suggested hotkey, a `Fallback`, `takesRootQueryOnTab`, a `LiveSubtitle`, `showsInRoot`, a `RunPolicy`, `allowsDeepLinks`, and row actions from `.withRowActions { ... }`. An argument is text, a password or a dropdown, each optional or required with a default. The suggested hotkey is almost always nil.
+
+`showsInRoot: false` hides a command from root search. Another command, a hotkey, a typed keyword or a deep link can still start it. `allowsDeepLinks: false` keeps it out of deep links: the app refuses a link that names it, even after Always Allow. Set it on a hidden command that acts at once. Until the app's router reads it, also guard the handler, as Snippets' Fill In Snippet does: it pastes at once only when `launch == .textExpansion`, and shows its form for every other launch.
 
 Commands are read at registration and again each time `declarationChanges` fires, never per keystroke. To add or remove commands at runtime, as script commands and quicklinks do, keep the current list and send the signal after it changes. When a command disappears, the host keeps its alias and hotkey for 30 days. `Command.stableID(_:name:uniqueKey:)` makes a valid, stable ID from free text such as a file name.
 
@@ -285,7 +313,7 @@ Commands are read at registration and again each time `declarationChanges` fires
 
 Declare an argument only for a value the user types. To hand data to a command from code, pass it in `.run(id, arguments:)`: undeclared values reach `context.arguments` too. When the target command is unavailable, the host shows a failure toast, and a `.runCommand` action pointing at it is hidden.
 
-`LiveSubtitle(every:changes:fetch:)` refreshes a subtitle while the row is visible, at once when `changes` fires; `fetch` returns a `LiveSubtitle.Value` with an optional color.
+`LiveSubtitle(every:changes:fetch:)` refreshes a subtitle while the row is visible, and at once when `changes` fires. `fetch` returns a `LiveSubtitle.Value` with an optional color, and runs on the main actor, so it may only read what the feature holds. A fetch that does real work, such as running a script or reading a file, uses `LiveSubtitle.background(every:changes:fetch:)`: its fetch is `@concurrent`, and root search calls it off the main thread. Scripts' inline mode does this.
 
 A `HotkeyPreset` is a named set of hotkeys for the feature's commands, such as a layout scheme that matches another window manager. Declare presets in `hotkeyPresets`; settings applies one after showing conflicts.
 
@@ -355,7 +383,17 @@ for await name in context.settings.changes(ofAny: [EmojiSettings.skinTone.erased
 
 Values can be `Bool`, `Int`, `Double`, `String`, `[String]`, `KeyCombo`, optionals of these, string enums that declare `SettingValue`, and `Codable` types that declare `CodableSettingValue`. They are stored as `<feature id>.<key name>`. An optional set to `nil` stays `nil`; `reset(_:)` returns to the default. A page whose rows depend on a setting lists the key in `reloadsOnSettings` instead of watching it.
 
-`SettingsPane` lists sections of items: `.toggle`, `.picker`, `.textField`, `.secret`, `.stepper`, `.hotkey`, `.button`, `.list` (text, applications or folders), `.multiSelect` (options the feature supplies when the pane opens), `.application`, `.permission` (live status and a Grant button) and `.note`. A button runs like an action with `launch == .settings`: it can show toasts, ask questions and throw. Per-command aliases, hotkeys, on/off switches, the feature's `status` and its `hotkeyPresets` are added by the settings window for every feature.
+`SettingsPane` lists sections of items: `.toggle`, `.picker`, `.textField`, `.secret`, `.stepper`, `.hotkey`, `.button`, `.list`, `.multiSelect`, `.application`, `.permission` and `.note`. A list holds text, applications or folders. A multi-select shows options the feature supplies when the pane opens. A permission item shows the live status and a Grant button. A button runs like an action with `launch == .settings`: it can show toasts, ask questions and throw. The settings window adds per-command aliases, hotkeys, on and off switches, the feature's `status` and its `hotkeyPresets` for every feature.
+
+A picker choice that deletes data at once asks first. Pass `confirm:` to either `.picker` factory. It receives the stored value and the chosen one, and returns a `Confirmation` or nil:
+
+```swift
+.picker("Keep History For", key: HistorySettings.retention, titles: { $0.title }) { stored, chosen in
+    chosen.days < stored.days ? Confirmation("Delete Older Items?", confirmTitle: "Delete", isDestructive: true) : nil
+}
+```
+
+Return nil for a choice that loses nothing, such as a longer history. The settings window stores the choice only if the user goes ahead. Until the window asks, also say in the item's info that the change deletes at once, as Clipboard does. Test it with `harness.chooseSetting(_:option:)`.
 
 `Feature.status` is what a background part of the feature wants the user to know, such as "Snippet expansion needs Input Monitoring" with the permission to grant. Settings shows it at the top of the pane; send `declarationChanges` when it changes.
 
@@ -385,7 +423,7 @@ Every service is a `Sendable` protocol reached through `FeatureContext`. Copy on
 | `textExpansion` | keyword expansion in any app, and its status | `FakeTextExpansion` with `type` and `simulateStatus` |
 | `log` | an `os.Logger` with your feature ID as category | |
 
-Async service methods that do work are `@concurrent`, so they run off the main thread whoever calls them. `ProcessService.run` and the `HTTPStream` helpers throw `CancellationError` when the calling task is cancelled, so cut-off output is never taken for a result. Streamed bytes follow no character or line boundary: use `processes.textStream(_:)`, `stream.lines`, `stream.serverSentEvents` or `UTF8StreamDecoder` rather than decoding chunks yourself. `ProcessRequest.environment` entries replace the clean environment's, so a script can get a `PATH` with Homebrew.
+The live services check the run environment, so a test, a scenario or a self-test never touches the Mac. Async service methods that do work are `@concurrent`, so they run off the main thread whoever calls them. `ProcessService.run` and the `HTTPStream` helpers throw `CancellationError` when the calling task is cancelled, so cut-off output is never taken for a result. Streamed bytes follow no character or line boundary: use `processes.textStream(_:)`, `stream.lines`, `stream.serverSentEvents` or `UTF8StreamDecoder` rather than decoding chunks yourself. `ProcessRequest.environment` entries replace the clean environment's, so a script can get a `PATH` with Homebrew.
 
 A service only your feature needs, such as moving windows or reading calendar events, belongs in your package: a `nonisolated protocol`, a live implementation, an isolated one for scenarios, and a `FeatureServiceKey` that names both. Get it once in `init` with `context.service(MyServiceKey.self)`; tests pass a double with `fakes.override(MyServiceKey.self, with:)`. The feature never branches on the run environment. `WindowSketch.swift` shows the pattern. Propose a service for Kit when a second feature needs it.
 
@@ -398,7 +436,7 @@ Slick never prompts by surprise.
 1. List every permission the feature may need in the manifest, each with a one-sentence reason that starts with a verb.
 2. Declare `requires` on the commands, actions and forms that need one. The host checks before running; when one is missing it shows the reason and a Grant button, and only that button asks the system.
 3. When a handler finds a permission missing while it runs, such as Automation for whichever app is frontmost, return `.needsPermission(permission)`. The host shows the same card and runs again after a grant.
-4. Read status with `context.permissions.isGranted(_:)` where behavior depends on it, and listen to `context.permissions.changes(of:)` to start work once the user grants it in System Settings. The context has no way to ask.
+4. Read status with `context.permissions.isGranted(_:)` where behavior depends on it. Listen to `context.permissions.changes(of:)` to start work once the user grants it in System Settings, and only while it is missing: the live stream checks once a second. When a load finds access gone, start listening again and send the page's change signal, so an open page shows the notice. The context has no way to ask.
 5. Services that would need a permission never prompt: `textExpansion.start` returns `.needsPermission`, `selection` returns `nil`, a paste throws `PasteError.permissionMissing`.
 
 `.protectedFolder(.desktop)` and its siblings name folders macOS guards with its own prompt on the first read.
@@ -416,12 +454,15 @@ Slick never prompts by surprise.
 | `{cursor}` | | where the insertion point goes in a snippet |
 | `{argument}` | `name`, `default`, `options` | a value the user types, up to three per template |
 | `{snippet}` | `name` | another snippet's text, one level deep |
+| `{query}` | `default`, `options` | short for `{argument name="Query"}`, only with `.query` shorthand |
 
 Modifiers follow a pipe and apply left to right: `{clipboard | trim | uppercase}`. They are `uppercase`, `lowercase`, `trim`, `percent-encode`, `json-stringify` and `raw`.
 
 Offsets are signed steps with units `s`, `m` (minutes), `h`, `d`, `w`, `M` (months) and `y`: `{date offset="+2y -3d" format="yyyy-MM-dd"}`. `format` takes a Unicode date pattern; `locale` takes a BCP 47 identifier for the default format. Using both is a mistake.
 
 The style decides default formatting. `.plain` inserts values as they are and honors `{cursor}`. `.url` percent-encodes every value. `.prompt` wraps clipboard, selection, argument and snippet values in triple quotes. `raw` turns the default off for one placeholder.
+
+`Template(link, shorthands: .query)` accepts `{query}`, as links written for Alfred do. It is off by default, because `{query}` is common in code such as a JavaScript snippet. It shares its value with `{argument name="Query"}`, under the key `TemplateShorthands.queryArgumentName`.
 
 Braces that are not a known placeholder stay as typed, so code and JSON pass through. A known placeholder with a mistake also stays as typed and shows up in `template.issues` with its range, for an editor to point at. `template.arguments` lists what to ask the user for, and `template.commandArguments` turns them into search bar fields; `template.placeholderRanges` gives the UTF-16 ranges to color.
 
@@ -431,7 +472,7 @@ let rendered = await Template(snippet.text).render(in: environment)
 try await context.pasteboard.paste(rendered.expansion)  // text plus where the cursor goes
 ```
 
-`TemplateEnvironment(context:)` reads the clipboard and selection only when the template asks for them. `Expansion.charactersAfterCursor` counts characters as Swift does, one Left-arrow press each.
+`TemplateEnvironment(context:)` reads the clipboard and selection only when the template asks for them. A test passes `makeUUID:` to pin what `{uuid}` gives. `Expansion.charactersAfterCursor` counts characters as Swift does, one Left-arrow press each.
 
 A typed keyword whose snippet has arguments returns `.runCommand(id, arguments:)` from the expansion handler: the host deletes the keyword and opens the panel on that command, which can push a form; the paste goes back to the same app.
 
@@ -439,7 +480,7 @@ A typed keyword whose snippet has arguments returns `.runCommand(id, arguments:)
 
 `context.storage.dataFile(_:)`, `dataDirectory`, `cacheFile(_:)` and `cacheDirectory` are paths and touch nothing, so they are safe in `init`. Whatever writes first creates the folder: `JSONFileStore.save` and `SQLiteDatabase(url:)` do. `homeDirectory` is the user's home in the app and a synthetic one elsewhere, so a scenario never shows the real home. The live service uses the data folder under Application Support; tests and scenarios use a temporary folder.
 
-`JSONFileStore` keeps one Codable value in a file and writes it atomically, with dates to the millisecond. It suits small collections a person may read or edit.
+`JSONFileStore` keeps one Codable value in a file and writes it atomically, with dates to the millisecond. It suits small collections a person may read or edit. A file that does not decode is not yours to replace: report it in `Feature.status`, save nothing until it is fixed, and never write an older format over a newer file.
 
 `SQLiteDatabase` is a thin wrapper over the system SQLite: `execute` for schema, `run` and `query` with `?` parameters, `transaction`, and `migrate` with numbered steps kept in `PRAGMA user_version`. Files use write-ahead logging. `run` and `query` stop mid-scan and throw `CancellationError` when the calling task is cancelled. `SQLiteValue(optional)` binds nil as NULL. It is not `Sendable`; give it one owner, usually an actor:
 
@@ -457,6 +498,8 @@ actor HistoryStore {
     }
 }
 ```
+
+Bind what the user typed as a parameter, and escape `LIKE` and full-text syntax in it: a NUL ends a `LIKE` pattern. A database SQLite cannot read is moved aside with its files and a new one starts, as Clipboard does. Nothing is deleted.
 
 ## Threading
 
@@ -503,7 +546,7 @@ What it can do:
 
 | Area | Calls |
 |---|---|
-| declarations | `issues`, `command(_:)`, `activate()`, `deactivate()` |
+| declarations | `issues`, `pendingIssues`, `command(_:)`, `activate()`, `deactivate()` |
 | commands | `run(_:arguments:query:launch:)`, `runFallback(_:text:)`, `pressTab(_:on:)`, `rowActions(ofCommand:)` |
 | pages | `open(_:)`, `setQuery(_:)`, `setFilter(_:)`, `reloadPage()`, `refresh()`, `loadNextPage()`, `pop()`, `pages`, `page`, `sections`, `rows`, `selectedRow`, `detail` |
 | background work | `settle()`, `waitForChange()` |
@@ -513,12 +556,20 @@ What it can do:
 | detail pages | `followUp(_:)` |
 | root search | `catalogRows()`, `instantAnswers(for:)`, `asyncSections(for:)`, `suggestions(at:)`, `rootActions(for:)`, `performRoot(_:on:query:)` |
 | universal actions | `universalActions(for:)` with a selection or a row, `performUniversal(_:on:)` |
-| settings | `pressSettingsButton(_:)` |
+| settings | `pressSettingsButton(_:)`, `chooseSetting(_:option:)` |
 | what happened | `toasts`, `visibleToast`, `huds`, `isClosed`, `queryChanges`, `quickLooks`, `shares`, `confirmations`, `commandRuns`, `rootQueries`, `actionErrors`, `droppedRuns`, and every fake under `fakes` |
 
 It follows the host's rules: host filtering through the fuzzy index with section visibility and rank hints, the first row selected after a load, permissions checked before anything runs and after `.needsPermission`, confirmations asked (`confirmationAnswer`), required form fields before `validate`, runs ordered by `RunPolicy`, toasts drawn as HUDs while the panel is closed, actions hidden while their command is in `unavailableCommands`, and a page loaded again after an action when it called `reload()`, when its source's signal fired or when a setting in `reloadsOnSettings` changed. Missing permissions throw `HarnessError.permissionRequired` unless `grantsMissingPermissions` is set, in which case the harness asks the fake permission center as if the user pressed Grant. Thrown errors reach the test unless `throwsActionErrors` is false, in which case the harness shows them as the host does. Debounces are skipped. Compare outcomes with `outcome.kind == .keepOpen`.
 
-Background work is never awaited by itself. After a fake plays something, such as `simulateCopy`, `permissions.set`, a settings write or `simulateChange`, call `try await harness.settle()`: it returns once every consumer of the fakes' streams has handled what it received, and reloads the open page if its source changed. `waitForChange()` waits for the page's source to signal and reloads. A stream a feature makes and never reads holds `settle()` until the test's time limit, so give suites `.timeLimit(.minutes(1))`.
+`issues` must be empty. `pendingIssues` lists problems under rules newer than some features, such as a hidden command that still allows deep links. They do not fail registration yet, but a new feature keeps them empty too.
+
+Background work is never awaited by itself. After a fake plays something, such as `simulateCopy`, `permissions.set`, a settings write or `simulateChange`, call `try await harness.settle()`: it returns once every consumer of the fakes' streams has handled what it received, and reloads the open page if its source changed. `waitForChange()` waits for the page's source to signal and reloads. A stream a feature makes and never reads holds `settle()` until the test's time limit, so give every suite `.timeLimit(.minutes(1))`.
+
+`FakeSettings` sends a change only when a write changes the stored value, as the live service does. A test that writes the value already stored sees no change, and `settle()` has nothing to wait for.
+
+`chooseSetting(_:option:)` picks a picker option by its title, as the settings window does. When the choice asks first, the question lands in `confirmations` and `confirmationAnswer` answers it. It returns whether the value was stored.
+
+`fakes.permissions.openStreamCount` counts the permission streams open now, so a test can check that a feature follows a permission only while it is missing.
 
 Move time with `harness.fakes.clock.advance(by:)`. The fake clock starts on Saturday 14 November 2026 at 09:30 UTC in the `en_US_POSIX` locale, which does not group digits; pass `FakeClock(locale:)` to test formatting.
 
@@ -530,35 +581,89 @@ fakes.override(WindowMoverKey.self, with: RecordingMover())
 let harness = FeatureHarness(WindowFeature.self, fakes: fakes)
 ```
 
+To run processes through a double of your own, such as one that records cancellations, call `fakes.replaceProcesses(with:)` before making the feature. The feature's context and the harness's action contexts both get it, and `fakes.processes` stays the plain fake for the double to forward to.
+
+`FakePasteboard.pastes` records each paste with where the cursor was left. Compare with `FakePasteboard.Paste(content: .text("Hi"), charactersAfterCursor: 2)`.
+
 Test data is synthetic: no real file names, paths under the home folder, clipboard contents or contacts. `FakeStorage` uses a fresh temporary folder and deletes it afterwards. Constants used inside a fake's `@Sendable` handler must be `nonisolated`.
 
 ## Recipes
 
-Each built-in feature maps onto Kit as below. The sketch files run each recipe through the harness.
+Each built-in feature maps onto Kit as below. The first eight have packages under `Packages/Features`; read the package next to its row. The rest have a sketch in `Packages/Kit/Tests/KitTests/Capabilities` that runs the recipe through the harness, and no package yet.
 
-| Feature | How | Sketch |
+| Feature | How | Read |
 |---|---|---|
-| Clipboard history | `activate()` subscribes to `pasteboard.entries()` and records in a task; a `.custom` list over SQLite with paging, highlights and a type `FilterDropdown`; rows carry their summary as payload and `represent` their text; lazy `.paste`/`.copy` with `.then`; `provides: [.clipboardHistory]`; `isEnabledByDefault: false` | `ClipboardSketch.swift` |
-| Window management | a table of no-view commands with `requires: [.accessibility]`, serial by default so cycling works; the mover through a `FeatureServiceKey`; `.needsPermission` when access goes away; `hotkeyPresets` | `WindowSketch.swift` |
+| Applications | two catalog sources, `app` and `setting`, that share one change signal; rows with a payload, `represents` and `memory: .learnOnly`, built in `@concurrent` functions; two services of its own behind `FeatureServiceKey`s; `fileWatcher` on the app folders outside the system; actions from the row alone, standard ones adjusted with `with(id:)` and `.then`; Quit All behind a confirmation with a suppression key. Only this feature may use the `app` namespace | `Features/Apps` |
+| Clipboard history | `activate()` follows `pasteboard.entries()` in a detached task and records in a `@concurrent` function; an actor over SQLite with a full-text index; a `.custom` list with paging, highlights, a type `FilterDropdown`, Pinned and then `DaySections`; rows carry a small payload and `represent` their content; actions load the content when they run; `provides: [.clipboardHistory]`; a `recent-copy` suggestion trigger; a permission watch only while Paste from Other Apps is missing. On by default | `Features/Clipboard` |
+| Snippets | one `JSONFileStore`; one object as catalog source and instant provider; `textExpansion.start` with `ExpansionResult`, and `.runCommand` for a snippet with arguments; `statusChanges()` and permission changes into `Feature.status` and `declarationChanges`; a form with `highlightsPlaceholders`; `KitTemplates`; Save as Snippet as a universal action | `Features/Snippets` |
+| Quicklinks | a `JSONFileStore` with `fileWatcher`; a catalog row per quicklink without arguments and a command per quicklink with them, with `template.commandArguments` and `.withRowActions`; `.openWith(title:resolving:)`; an editor form; `Fallback` for searches; an instant provider for typed addresses that refuses on the first byte; `.favicon` icons; universal actions for text and links; parsing and rows off the main thread | `Features/Quicklinks` |
+| Emoji | a `GridPage` with host filtering; Pinned and Recently Used sections `.whenQueryEmpty`, with pins and use as `rankHint`; recents from `context.usage`; the skin tone in `reloadsOnSettings`; `.paste(...).recordingUse()`; a colon instant provider with caps on length and words; data as generated Swift source | `Features/Emoji` |
+| Window management | a table of no-view commands with `requires: [.accessibility]`, serial by default so cycling works; the window service through a `FeatureServiceKey`, simulated outside `live`; `.needsPermission` when access goes away; `hotkeyPresets`; Switch Windows rows built in a `@concurrent` function | `Features/Windows` |
+| System commands | five services, each behind a `FeatureServiceKey` with a live and a simulated implementation and `@concurrent` calls; declared confirmations for Log Out, Restart and Shut Down; `context.confirm` with a count and a suppression key for Empty Trash and Eject All Disks; `.needsPermission` for Apple Events; Kill Process as a list with `refreshAfter` that checks the process again before it signals | `Features/System` |
+| Script commands and filters | a `ScriptLibrary` service, scanned in a `@concurrent` function; `fileWatcher` and `declarationChanges`; `Command.stableID`; silent mode `dismiss()`es then reports; `textStream` into a streamed `DetailPage`; inline output through `LiveSubtitle.background` with a color; a Script Filter list with `.custom` filtering, `alternates` and `refreshAfter`; a `Fallback` for scripts that take typed text | `Features/Scripts` |
 | File search | an `AsyncProvider` with `takesOver` for "/" and "~" and a per-query title; a `.custom` list with a `.preview` detail and a `notice` while access is limited; rows `represent` their files; recents from usage snapshots | `FileSearchSketch.swift` |
 | Calculator | an `InstantProvider` with `claimsTop`, `completion` and `memory: .never`; copy with `.then` to record history; a history page with `DaySections` and `.showRoot(query:)` | `CalculatorAndEmojiSketch.swift` |
-| Quicklinks | a `JSONFileStore`; a command per quicklink with `template.commandArguments` and `.withRowActions`; `.openWith(resolving:)`; a form; `Fallback` | `Examples/BookmarksFeature.swift` |
-| Emoji | a `GridPage` with host filtering: Recent and Pinned sections `.whenQueryEmpty`, recency and pins as `rankHint`; the skin tone in `reloadsOnSettings`; `.paste(...).recordingUse()` | `CalculatorAndEmojiSketch.swift` |
-| Script commands and filters | scan a folder with a `@concurrent` function; `fileWatcher` and `declarationChanges`; `Command.stableID`; silent mode `dismiss()`es then reports; `textStream` into a streamed `DetailPage`; a colored `LiveSubtitle`; a Script Filter list with `.custom` filtering, `alternates` and `refreshAfter` | `ScriptSketch.swift` |
 | AI | a command with `takesRootQueryOnTab`; a `DetailSource` reading `serverSentEvents` off the main thread; `actions(for:)` from the shown detail; `followUp`; the key in `secrets`; `.replace` after setup | `AICalendarSnippetsSketch.swift` |
 | Calendar | a `SuggestionTrigger` with its own namespace, an urgency ramp, `imminentFrom` and `memory: .never`; `DaySections(direction: .future)`; `permissions.changes(of: .calendars)`; `.multiSelect` of calendars | `AICalendarSnippetsSketch.swift` |
-| Snippets | `textExpansion.start` with `ExpansionResult`; `.runCommand` for snippets with arguments; `statusChanges()` and permission changes into `Feature.status`; one object as catalog source and instant provider | `AICalendarSnippetsSketch.swift` |
-| Universal actions | `.text`, `.url` and `.files` providers, for selections and for rows that `represent` them | `Examples/BookmarksFeature.swift` |
+| Universal actions | `.text`, `.url` and `.files` providers, for selections and for rows that `represent` them | `Features/Quicklinks`, `Features/Snippets`, `Examples/BookmarksFeature.swift` |
 | Settings | `SettingKey`s in a `nonisolated enum` and a `SettingsPane` | `Examples/BookmarksFeature.swift`, `Kit/SettingsTests.swift` |
+
+## Mistakes review found
+
+A second engineer reviewed each of the first seven features against Raycast, Alfred and these rules. Check your feature for each of these before review.
+
+Safety:
+
+- A command that acts at once trusted how it was launched. A deep link the user once allowed could make a web page paste. Keep such a command out of deep links and act at once only for the launch that justifies it.
+- A destructive action trusted the row. A stale or crafted payload could name a protected process. Check the target again on live state just before acting.
+- A clean-up step followed a link out of the Trash. Never change flags or files through a symbolic link.
+- A mistyped `needsConfirmation` ran a script without asking, and automatic refresh skipped the question. Read a doubtful value as the safe one, and let no automatic path skip a confirmation.
+- Script output could set `BASH_ENV`, `NODE_OPTIONS` and similar names for the next run. Never let untrusted text choose variables that load code, and drop NUL characters before a process sees them.
+- A confirmation said "Close this window?" about a list that can go stale. Name the item and its app.
+
+Data:
+
+- A damaged database broke the history for good, and a file from a newer version was saved over in the old format. Set damaged data aside, and never overwrite what you cannot read.
+- A NUL or search syntax in the query broke SQLite. Treat typed text as text.
+- Import accepted keywords the editor refuses. Apply the editor's rules to imported data.
+- Switching the feature off and on kept a stale library, and a second `activate()` left the first listeners running. Reload on every activation, and cancel what the last one started.
+
+Main thread and scale:
+
+- Parsing 50,000 quicklinks, building window rows and splitting a large selection ran on the main actor. Do heavy work in `@concurrent` functions, and read only as much input as you need.
+- A colon query of a pasted paragraph took over 20 ms per keystroke. Cap what an instant provider reads and refuse foreign text on the first byte.
+- Matching windows to the stacking order grew with the square of the count. Test with 50,000 items.
+- `actions(for:)` cleaned a 5,000-character title on every open of the action panel. Keep it cheap.
+
+Background work:
+
+- Two permission streams polled for as long as the feature was on. Follow a permission only while it is missing and needed.
+- Access taken away while the feature ran was never noticed. Watch again when a load finds access missing.
+- A list reloaded with `context.reload()` after its own change. Send the list's `ChangeSignal`.
+- A load did not check for cancellation, so a cancelled load still changed state. Call `try Task.checkCancellation()` between steps.
+
+Odd input:
+
+- Titles broke over several lines, or were empty or invisible. Keep titles on one line and never blank.
+- Set Volume read only ASCII digits, and "Never eject" matched exact names only. Accept the digits of every script, compare names without case, width or outer spaces, and refuse what you cannot read.
+- A byte order mark hid a script's first line. Skip one at the start of any file you parse.
+- A display that reports no area got windows of zero size. Guard degenerate geometry.
+
+What the user reads:
+
+- Toast and HUD titles ended with a full stop, and "Force quit Example Browser" read as an order. Titles take title case without a stop, and a message says what happened.
+- A setting deleted data at once and never said so. Ask first with `.picker(..., confirm:)`, and say so in the info.
+- An action people expect was missing, such as Open Trash, Open for copied files, or pins for emoji. Compare with Raycast and Alfred before review.
 
 ## Before review
 
-- `harness.issues` is empty in a test that has opened the feature's pages and actions.
+- `harness.issues` and `harness.pendingIssues` are empty in a test that has opened the feature's pages and actions.
+- Every house rule holds, and nothing in "Mistakes review found" applies.
 - Every command, action and form that needs a permission declares it, and the manifest gives the reason.
 - Stored and background data types, and setting keys, are `nonisolated`.
 - Nothing reads `Date()` or the system calendar's notion of today.
 - Row IDs are stable across launches, and `actions(for:)` works from a row rebuilt from a snapshot.
 - Instant providers reject foreign queries on the first character.
 - Sources, providers and triggers live in stored properties.
-- Tests use the fakes and synthetic data only, and `settle()` instead of yields or sleeps.
-- `make lint` passes and the package builds with no warnings.
+- Tests use the fakes and synthetic data only, and `settle()` instead of yields or sleeps. Every suite has a time limit.
+- `make lint` passes and the package builds with `-warnings-as-errors`.
