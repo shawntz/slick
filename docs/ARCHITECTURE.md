@@ -357,6 +357,7 @@ Developers and agents build and test Slick on the machine they are using. These 
 7. Tests make no network requests.
 8. Anything shown on screen during a test is brief. Scenarios take key status only when a step needs the key glass look, and for well under a second.
 9. No test data, fixture or log contains real file names, clipboard contents or contacts.
+10. Tests never hand a made-up bundle to LaunchServices. Asking the system for a bundle's localized name, its display name or its icon registers that bundle in the user's LaunchServices database, with a synchronous call to a daemon that can stall. The Apps feature therefore names apps from their own property lists. A copy of the app launched from a scratch folder is unregistered afterwards with `lsregister -u`, so the system knows one launcher.
 
 ## Build
 
