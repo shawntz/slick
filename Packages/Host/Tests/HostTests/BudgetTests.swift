@@ -76,6 +76,52 @@ import Testing
         #expect(hostSummary.p99 <= 0.5 * scale, "host work per keystroke: \(hostSummary)")
     }
 
+    /// A keystroke through the search field's editor, as typing reaches it, split three ways: the
+    /// editor's own work, the host's own work, and the calls the host makes into Root and
+    /// LauncherUI. Info only, apart from the host's budget: the editor is TextKit's.
+    @Test func aKeystrokeThroughTheFieldEditorIsMostlyTheEditor() async throws {
+        let (panel, _, runtime) = await makePanel()
+        defer { panel.surface.panel.close() }
+        _ = runtime
+        let field = panel.surface.queryField
+        if field.textField.currentEditor() == nil { field.installEditor() }
+        let editor = try #require(field.textField.currentEditor() as? NSTextView)
+        let timing = TimingFieldDelegate(panel)
+        field.delegate = timing
+        defer { field.delegate = panel }
+        let meter = panel.workMeter
+        meter.isEnabled = true
+        defer { meter.isEnabled = false }
+        var editorOnly: [Double] = []
+        var host: [Double] = []
+        var called: [Double] = []
+        let word = "sample item"
+        for round in 0..<20 {
+            for step in 0..<(word.count * 2) {
+                meter.reset()
+                timing.handlerNanoseconds = 0
+                let start = LatencyClock.threadCPUNanoseconds()
+                if step < word.count {
+                    let character = word[word.index(word.startIndex, offsetBy: step)]
+                    editor.insertText(String(character), replacementRange: NSRange(location: NSNotFound, length: 0))
+                } else {
+                    editor.deleteBackward(nil)
+                }
+                let whole = LatencyClock.threadCPUNanoseconds() - start
+                guard round > 1 else { continue }
+                editorOnly.append(Double(whole &- timing.handlerNanoseconds) / 1e6)
+                host.append(Double(timing.handlerNanoseconds &- meter.calledNanoseconds) / 1e6)
+                called.append(Double(meter.calledNanoseconds) / 1e6)
+            }
+        }
+        let hostSummary = LatencySummary(host)
+        print("keystroke through the editor, the editor's own work (ms CPU): \(LatencySummary(editorOnly))")
+        print("keystroke through the editor, the host's own work (ms CPU): \(hostSummary)")
+        print("keystroke through the editor, Root's query and LauncherUI's apply (ms CPU): \(LatencySummary(called))")
+        #expect(timing.changes > 0, "typing reached the panel")
+        #expect(hostSummary.p99 <= 0.5 * scale, "host work per keystroke: \(hostSummary)")
+    }
+
     @Test func summonWithoutMakeKeyFitsAMillisecond() async {
         let (panel, _, runtime) = await makePanel()
         defer { panel.surface.panel.close() }
@@ -147,6 +193,29 @@ import Testing
         print(bench.table())
         #expect(bench.lines.count == 7)
         #expect(passed, "\(bench.table())")
+    }
+}
+
+/// Passes the field's calls to the panel and times the text change, so a bench can tell the
+/// field editor's work from the panel's.
+@MainActor final class TimingFieldDelegate: QueryFieldDelegate {
+    let panel: PanelController
+    var handlerNanoseconds: UInt64 = 0
+    private(set) var changes = 0
+
+    init(_ panel: PanelController) {
+        self.panel = panel
+    }
+
+    func queryField(_ field: QueryField, didChangeText text: String) {
+        changes += 1
+        let start = LatencyClock.threadCPUNanoseconds()
+        panel.queryField(field, didChangeText: text)
+        handlerNanoseconds &+= LatencyClock.threadCPUNanoseconds() &- start
+    }
+
+    func queryField(_ field: QueryField, perform command: QueryCommand) -> Bool {
+        panel.queryField(field, perform: command)
     }
 }
 

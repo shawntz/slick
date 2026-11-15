@@ -3,7 +3,8 @@ import Kit
 import KitHosting
 
 /// Root search over 10,000 synthetic rows that answers each query with 50 of them, at almost no
-/// cost of its own, so a budget measures the host and LauncherUI rather than a matcher.
+/// cost of its own, so a budget measures the host and LauncherUI rather than a matcher. A query of
+/// odd length puts a command with row actions on top, as a typed command name does.
 @MainActor final class BenchRootSource: RootSource {
     static let symbols = [
         "app", "doc", "folder", "terminal", "globe", "star", "bolt", "gear", "music.note", "photo", "calendar",
@@ -49,6 +50,11 @@ import KitHosting
         var rows = Array(catalog[start..<(start + 50)])
         let length = min(query.utf16.count, 6)
         for index in 0..<12 { rows[index].titleHighlights = [0..<length] }
+        if !query.utf16.count.isMultiple(of: 2) {
+            rows[0] = Row(
+                id: .command(feature: "workbench", command: "toolkit"), title: "Toolkit", subtitle: "Workbench",
+                icon: .symbol("wrench.and.screwdriver"))
+        }
         snapshot = RootSnapshot(
             query: query, sections: [RootSection(id: "results", title: "Results", rows: rows, kind: .results)],
             completion: nil, revision: revision + 1)

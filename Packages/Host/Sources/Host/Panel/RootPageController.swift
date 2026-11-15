@@ -35,6 +35,8 @@ import LauncherUI
     /// The empty-query snapshot from the last `begin()`, drawn again at dismiss.
     private var emptySnapshot: RootSnapshot?
     private var changeWatcher: Task<Void, Never>?
+    /// The last row whose primary title the action bar asked for, and the title.
+    private var primaryTitleCache: (row: Row, kind: RootSection.Kind, title: String?)?
 
     public init(source: any RootSource, runtime: FeatureRuntime) {
         self.source = source
@@ -75,6 +77,7 @@ import LauncherUI
 
     /// Ends the typing session, as when the panel closes or a page covers root search.
     public func endSession() {
+        primaryTitleCache = nil
         guard isInSession else { return }
         isInSession = false
         source.end()
@@ -158,6 +161,7 @@ import LauncherUI
     }
 
     public func reload() {
+        primaryTitleCache = nil
         guard isInSession else { return }
         snapshot = source.update(query: query)
         render(keepSelection: true)
@@ -176,6 +180,27 @@ import LauncherUI
     public var ghostText: String {
         guard showsCompletion, !query.isEmpty else { return "" }
         return snapshot.completion?.ghostText(after: query) ?? ""
+    }
+
+    /// The title of the selected row's primary entry, which the action bar shows after every
+    /// keystroke. It does not build the row's entries: a command row's primary entry is always Run
+    /// Command, and another row's title is kept while the same row stays selected in this session.
+    /// Return and Command-K still build the whole ``target``.
+    public var primaryTitle: String? {
+        guard let selected = selectedRow else { return nil }
+        let row = selected.row
+        if row.id.namespace == ItemID.ReservedNamespace.command, runtime.command(row.id) != nil {
+            return HostStrings.runCommand
+        }
+        // Highlights change with every keystroke and say nothing about the row's actions.
+        var plain = row
+        plain.titleHighlights = []
+        if let cached = primaryTitleCache, cached.kind == selected.kind, cached.row == plain { return cached.title }
+        let source = source
+        let actions = host?.workMeter.measure { source.actions(for: row) } ?? source.actions(for: row)
+        let title = runtime.visible(actions).first?.title
+        primaryTitleCache = (plain, selected.kind, title)
+        return title
     }
 
     /// The selected row and its section, if any.

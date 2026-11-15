@@ -69,6 +69,36 @@ import Testing
         #expect(fixture.hud.shown == ["Done"])
     }
 
+    /// The action bar names the primary entry on every keystroke without building the row's
+    /// entries: Run Command for a command, and Root's actions once while the same row stays on top.
+    @Test func typingNamesThePrimaryEntryWithoutBuildingTheRowsEntries() async throws {
+        let fixture = await PanelFixture.make(rows: SampleRows.all + [SampleRows.toolkit])
+        defer { fixture.close() }
+        let asked = Box(0)
+        let actions = fixture.root.rowActions
+        fixture.root.rowActions = { row in
+            asked.value += 1
+            return actions(row)
+        }
+        let builds = fixture.runtime.workbench.rowActionBuilds
+        for text in ["T", "To", "Too", "Tool"] { fixture.type(text) }
+        #expect(fixture.panel.surface.actionBar.content.primaryTitle == "Run Command")
+        #expect(fixture.panel.surface.actionBar.content.actionsTitle == "Actions")
+        #expect(fixture.runtime.workbench.rowActionBuilds == builds, "typing builds no row actions")
+        fixture.command("k")
+        #expect(fixture.runtime.workbench.rowActionBuilds > builds, "the action panel builds them")
+        fixture.command("k")
+
+        for text in ["Ex", "Exa", "Exam", "Examp"] { fixture.type(text) }
+        #expect(fixture.panel.surface.actionBar.content.primaryTitle == "Open")
+        #expect(asked.value == 1, "the same row on top asks Root once")
+        fixture.press(.submit([]))
+        #expect(await waitUntil { fixture.opened.value == [SampleRows.editor.id] })
+        fixture.type("zzz")
+        #expect(fixture.panel.surface.actionBar.content.primaryTitle == nil)
+        #expect(fixture.panel.surface.actionBar.content.actionsTitle == nil)
+    }
+
     @Test func commandDigitsRunTheNthRow() async {
         let fixture = await PanelFixture.make()
         defer { fixture.close() }
