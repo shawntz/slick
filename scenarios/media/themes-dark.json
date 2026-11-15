@@ -1,0 +1,195 @@
+{
+  "name": "Switching themes restyles the open panel in place",
+  "timeLimit": 110,
+  "media": {
+    "file": "clip-themes-dark",
+    "appearance": "dark",
+    "caption": "Switching themes restyles the open panel at once.",
+    "alt": "A recording of Slick's search panel in dark mode with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm with a red fill and Violet uses a purple lens. The themes were switched through the theme setting. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
+    "posterAlt": "Slick's search panel in dark mode with “ca” typed, in the Ocean theme: blue-tinted glass with the second row selected under a blue lens. A frame from a recording of the assembled app over made-up sample apps.",
+    "gifAlt": "A recording of Slick's search panel in dark mode with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm with a red fill and Violet uses a purple lens. The themes were switched through the theme setting. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+  },
+  "steps": [
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "aur"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "juni"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "cas"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Cascade Mail",
+          "Juniper Tasks",
+          "Aurora Notes"
+        ]
+      }
+    },
+    {
+      "record": {
+        "name": "clip-themes-dark",
+        "appearance": "dark"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "type": "ca"
+    },
+    {
+      "wait": 0.7
+    },
+    {
+      "app": {
+        "setSettings": {
+          "themeName": "Graphite"
+        },
+        "theme": "Graphite"
+      }
+    },
+    {
+      "wait": 0.25
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.7
+    },
+    {
+      "app": {
+        "setSettings": {
+          "themeName": "Ocean"
+        },
+        "theme": "Ocean"
+      }
+    },
+    {
+      "wait": 0.25
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.7
+    },
+    {
+      "app": {
+        "setSettings": {
+          "themeName": "Ember"
+        },
+        "theme": "Ember"
+      }
+    },
+    {
+      "wait": 0.25
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.7
+    },
+    {
+      "app": {
+        "setSettings": {
+          "themeName": "Violet"
+        },
+        "theme": "Violet"
+      }
+    },
+    {
+      "wait": 0.25
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.7
+    },
+    {
+      "app": {
+        "setSettings": {
+          "themeName": "Standard"
+        },
+        "theme": "Standard"
+      }
+    },
+    {
+      "wait": 0.25
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.7
+    },
+    {
+      "stopRecording": {
+        "tail": 0.2,
+        "poster": 3.7
+      }
+    }
+  ]
+}

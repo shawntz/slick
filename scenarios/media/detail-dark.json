@@ -1,0 +1,184 @@
+{
+  "name": "A command pushes its list with a detail pane beside it",
+  "timeLimit": 110,
+  "media": {
+    "file": "clip-detail-dark",
+    "appearance": "dark",
+    "caption": "Clipboard History opens as a list with a detail pane beside it.",
+    "alt": "A recording of Slick's search panel in dark mode. Typing “clip” selects Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, over made-up sample apps and copied text.",
+    "posterAlt": "Slick's Clipboard History in dark mode: four copied items on the left and the selected note's text, type, word count and size on the right. A frame from a recording of the assembled app over made-up sample data.",
+    "gifAlt": "A recording of Slick's search panel in dark mode. Typing “clip” selects Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, over made-up sample apps and copied text."
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "clipboard": true
+        },
+        "featuresActive": {
+          "clipboard": true
+        }
+      }
+    },
+    {
+      "app": {
+        "copyAsOtherApp": [
+          "let greeting = \"Hello, world\"",
+          "#8743FA",
+          "https://example.com/handbook/keyboard-shortcuts",
+          "Planning notes: ship the onboarding flow first, then polish the settings window."
+        ]
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "aur"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "juni"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "cas"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Cascade Mail",
+          "Juniper Tasks",
+          "Aurora Notes"
+        ]
+      }
+    },
+    {
+      "record": {
+        "name": "clip-detail-dark",
+        "appearance": "dark"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "type": "clip"
+    },
+    {
+      "expect": {
+        "selection": "Clipboard History"
+      }
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "page": "list",
+        "title": "Clipboard History"
+      }
+    },
+    {
+      "wait": 0.9
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.8
+    },
+    {
+      "type": "hand"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "rows": [
+          "https://example.com/handbook/keyboard-shortcuts"
+        ]
+      }
+    },
+    {
+      "wait": 1.2
+    },
+    {
+      "stopRecording": {
+        "tail": 0.4,
+        "poster": 3.2
+      }
+    }
+  ]
+}

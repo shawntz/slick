@@ -1,0 +1,179 @@
+{
+  "name": "Command-K opens the action panel, and typing filters it",
+  "timeLimit": 110,
+  "media": {
+    "file": "actions-light",
+    "appearance": "light",
+    "caption": "Command-K opens the action panel for the selected result, and typing filters it.",
+    "alt": "A recording of Slick's search panel in light mode over a lavender gradient wallpaper. Typing “cad” selects Cadence Calendar, with the rest of its name in grey. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier, Copy Path, Move to Trash in red and Add to Favorites, most with a keyboard shortcut. The selection moves down two entries, then typing “fav” filters the list to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
+    "gifAlt": "A recording of Slick's search panel in light mode over a lavender gradient wallpaper. Typing “cad” selects Cadence Calendar, with the rest of its name in grey. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier, Copy Path, Move to Trash in red and Add to Favorites, most with a keyboard shortcut. The selection moves down two entries, then typing “fav” filters the list to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
+    "posterAlt": "Slick's search panel in light mode with “cad” typed and the action panel open beside the results, listing actions for Cadence Calendar with their keyboard shortcuts. A frame from a recording of the assembled app over made-up sample apps."
+  },
+  "steps": [
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "aur"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "juni"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "cas"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Cascade Mail",
+          "Juniper Tasks",
+          "Aurora Notes"
+        ]
+      }
+    },
+    {
+      "record": {
+        "name": "actions-light",
+        "appearance": "light"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "type": "cad"
+    },
+    {
+      "expect": {
+        "selection": "Cadence Calendar",
+        "ghost": "ence Calendar"
+      }
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "expect": {
+        "actions": [
+          "Open",
+          "Show in Finder",
+          "Show Package Contents",
+          "Copy Name",
+          "Copy Bundle Identifier",
+          "Copy Path",
+          "Move to Trash",
+          "Add to Favorites",
+          "Set Alias",
+          "Set Hotkey",
+          "Reset Ranking"
+        ]
+      }
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "press": "down"
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "type": "fav"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "wait": 0.8
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "query": "cad"
+      }
+    },
+    {
+      "wait": 1.0
+    },
+    {
+      "stopRecording": {
+        "tail": 0.4,
+        "poster": 4.2
+      }
+    },
+    {
+      "app": {
+        "favorites": [
+          "app:com.example.cadence-calendar.1487"
+        ]
+      }
+    }
+  ]
+}

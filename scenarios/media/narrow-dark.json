@@ -1,0 +1,145 @@
+{
+  "name": "The list narrows as the query grows, and the lens glides between rows",
+  "timeLimit": 110,
+  "media": {
+    "file": "clip-narrow-dark",
+    "appearance": "dark",
+    "caption": "The list narrows as the query grows, and the selection glides between rows.",
+    "alt": "A recording of Slick's search panel in dark mode. Typing “c” lists seven apps and “ca” narrows the list. The selection glides down three rows and back up one. Typing “me” leaves Cameo Photos at the top, with the rest of its name in grey, above a documentation search and three fallback searches for “came”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
+    "posterAlt": "Slick's search panel in dark mode with “ca” typed and the fourth result, Canvas Sketch, selected. A frame from a recording of the assembled app over made-up sample apps.",
+    "gifAlt": "A recording of Slick's search panel in dark mode. Typing “c” lists seven apps and “ca” narrows the list. The selection glides down three rows and back up one. Typing “me” leaves Cameo Photos at the top, with the rest of its name in grey, above a documentation search and three fallback searches for “came”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+  },
+  "steps": [
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "aur"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "juni"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "cas"
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Cascade Mail",
+          "Juniper Tasks",
+          "Aurora Notes"
+        ]
+      }
+    },
+    {
+      "record": {
+        "name": "clip-narrow-dark",
+        "appearance": "dark"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "type": "c"
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "type": "a"
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "press": "down"
+    },
+    {
+      "press": "down"
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.35
+    },
+    {
+      "press": "up"
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "type": "me"
+    },
+    {
+      "expect": {
+        "selection": "Cameo Photos"
+      }
+    },
+    {
+      "wait": 1.3
+    },
+    {
+      "stopRecording": {
+        "tail": 0.4,
+        "poster": 3.6
+      }
+    }
+  ]
+}

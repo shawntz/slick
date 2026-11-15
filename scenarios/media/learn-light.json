@@ -1,0 +1,134 @@
+{
+  "name": "Picking the second result twice makes it first",
+  "timeLimit": 110,
+  "media": {
+    "file": "clip-learn-light",
+    "appearance": "light",
+    "caption": "Pick the second result twice, and it becomes the first.",
+    "alt": "A recording of Slick's search panel in light mode. Typing “cad” lists Cadence Calendar first and Cascade Mail second. Cascade Mail is picked with the down arrow and Return, and the panel closes. When the panel opens again it suggests Cascade Mail, and “cad” still lists Cadence Calendar first, so Cascade Mail is picked a second time. On the third search for “cad”, Cascade Mail is first. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
+    "posterAlt": "Slick's search panel in light mode with “cad” typed. Cascade Mail is the first result and Cadence Calendar the second. A frame from a recording of the assembled app over made-up sample apps.",
+    "gifAlt": "A recording of Slick's search panel in light mode. Typing “cad” lists Cadence Calendar first and Cascade Mail second. Cascade Mail is picked with the down arrow and Return, and the panel closes. When the panel opens again it suggests Cascade Mail, and “cad” still lists Cadence Calendar first, so Cascade Mail is picked a second time. On the third search for “cad”, Cascade Mail is first. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+  },
+  "steps": [
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "record": {
+        "name": "clip-learn-light",
+        "appearance": "light",
+        "pace": 0.85,
+        "lead": 0.2
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "expect": {
+        "query": ""
+      }
+    },
+    {
+      "type": "cad"
+    },
+    {
+      "expect": {
+        "selection": "Cadence Calendar"
+      }
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "press": "down"
+    },
+    {
+      "expect": {
+        "selection": "Cascade Mail"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "expect": {
+        "query": ""
+      }
+    },
+    {
+      "type": "cad"
+    },
+    {
+      "expect": {
+        "selection": "Cadence Calendar"
+      }
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "press": "down"
+    },
+    {
+      "expect": {
+        "selection": "Cascade Mail"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "cad"
+    },
+    {
+      "expect": {
+        "selection": "Cascade Mail",
+        "rowsInclude": [
+          "Cadence Calendar"
+        ]
+      }
+    },
+    {
+      "wait": 1.5
+    },
+    {
+      "stopRecording": {
+        "tail": 0.3
+      }
+    }
+  ]
+}
