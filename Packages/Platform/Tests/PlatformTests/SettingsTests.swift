@@ -77,7 +77,7 @@ import Testing
     @Test func typedKeysWorkThroughFeatureSettings() {
         let settings = PlatformSettings(backend: MemorySettingsBackend())
         let general = HostSettings.settings(settings)
-        #expect(general[HostSettings.launcherHotkey] == KeyCombo(.space, .option))
+        #expect(general[HostSettings.launcherHotkey] == KeyCombo(.space, .command))
         general[HostSettings.launcherHotkey] = nil
         #expect(settings.storage(for: "app.general.launcherHotkey") == .empty)
         #expect(general[HostSettings.launcherHotkey] == nil)

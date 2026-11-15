@@ -145,13 +145,30 @@ import Testing
         let fixture = RuntimeFixture()
         await fixture.start()
         let preferences = fixture.runtime.preferences
-        let launcher = KeyCombo(.space, .option)
+        let launcher = try #require(HostSettings.settings(fixture.fakes.settings)[HostSettings.launcherHotkey])
         #expect(throws: HotkeyError.self) { try preferences.setHotkey(launcher, for: RuntimeFixture.command("plain")) }
         let taken = KeyCombo(.t, [.control, .command])
         fixture.fakes.hotkeys.addConflict(HotkeyConflict(owner: "System", canOverride: false), for: taken)
         #expect(throws: HotkeyError.self) { try preferences.setHotkey(taken, for: RuntimeFixture.command("plain")) }
         #expect(preferences.hotkeys.isEmpty)
         #expect(fixture.fakes.hotkeys.registered.isEmpty)
+    }
+
+    @Test func aMacOSShortcutRefusesAnItemHotkeyAndKeepsItsMark() async throws {
+        let fixture = RuntimeFixture()
+        await fixture.start()
+        let preferences = fixture.runtime.preferences
+        let held = KeyCombo(.space, [.control, .option, .command])
+        fixture.fakes.hotkeys.addSystemShortcut(held)
+        #expect(preferences.hotkeyConflicts(for: held, excluding: nil).map(\.isSystemShortcut) == [true])
+        let spotlight = HotkeyConflict(owner: "Spotlight", canOverride: false, isSystemShortcut: true)
+        #expect(throws: HotkeyError.conflict([spotlight])) {
+            try preferences.setHotkey(held, for: RuntimeFixture.command("plain"))
+        }
+        #expect(preferences.hotkeys.isEmpty)
+        // The launcher hotkey is one of the launcher's own bindings, not a macOS shortcut.
+        let launcher = try #require(HostSettings.settings(fixture.fakes.settings)[HostSettings.launcherHotkey])
+        #expect(preferences.hotkeyConflicts(for: launcher, excluding: nil).map(\.isSystemShortcut) == [false])
     }
 
     @Test func aSwitchedOffCommandLosesItsBindingButKeepsItsHotkey() async throws {

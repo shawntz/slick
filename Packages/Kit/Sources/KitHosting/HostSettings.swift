@@ -38,7 +38,10 @@ public enum HostSettings {
     public static let resetToRootAfter = SettingKey("resetToRootAfter", default: 90)
 
     /// The global hotkey that opens the panel. Nil when the user cleared it.
-    public static let launcherHotkey = SettingKey("launcherHotkey", default: KeyCombo?.some(KeyCombo(.space, .option)))
+    ///
+    /// Command-Space by default. Spotlight holds it on a new Mac, so the launcher waits until the user
+    /// turns Spotlight's shortcut off and binds it then. Onboarding walks the user through that.
+    public static let launcherHotkey = SettingKey("launcherHotkey", default: KeyCombo?.some(KeyCombo(.space, .command)))
 
     // MARK: Root search
 

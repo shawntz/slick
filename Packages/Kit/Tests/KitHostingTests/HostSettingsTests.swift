@@ -11,7 +11,7 @@ import Testing
         #expect(general[HostSettings.summonStrategy] == .layerOpacity)
         #expect(general[HostSettings.panelScreen] == .pointer)
         #expect(general[HostSettings.resetToRootAfter] == 90)
-        #expect(general[HostSettings.launcherHotkey] == KeyCombo(.space, .option))
+        #expect(general[HostSettings.launcherHotkey] == KeyCombo(.space, .command))
         #expect(general[HostSettings.showSuggestions])
         #expect(general[HostSettings.suggestionCount] == 5)
         #expect(general[HostSettings.showFavorites])
