@@ -570,10 +570,14 @@ fn a_panic_in_a_part_reaches_the_calling_thread() {
     assert_eq!(hits.load(Ordering::Relaxed), 16, "the other parts still ran");
 }
 
+/// Folder listings typed char by char in the allocation sessions, inside the synthetic root and
+/// outside the index.
+const BROWSE_QUERIES: &[&str] = &["/synthetic/ffi-test/rep", "/synthetic/ffi-test/", "/elsewhere/x"];
+
 /// One typing session: every query typed char by char, through the C ABI.
 fn type_queries(ix: &Index, s: &Session, o: &SlickFilesOptions, out: &mut [SlickFileHit]) -> usize {
     let mut found = 0;
-    for q in QUERIES {
+    for q in QUERIES.iter().chain(BROWSE_QUERIES) {
         assert_eq!(slick_files_session_reset(s.0), OK);
         for end in (1..=q.len()).filter(|&e| q.is_char_boundary(e)) {
             let n = slick_files_search(ix.0, s.0, q.as_ptr(), end, o, out.as_mut_ptr(), out.len());
@@ -599,7 +603,7 @@ fn type_queries_direct(
         ..slick_files::SearchOptions::default()
     };
     let mut found = 0;
-    for q in QUERIES {
+    for q in QUERIES.iter().chain(BROWSE_QUERIES) {
         searcher.reset();
         for end in (1..=q.len()).filter(|&e| q.is_char_boundary(e)) {
             searcher.search(&snap, &q[..end], &opts, par, hits);
@@ -640,7 +644,7 @@ fn allocations(
 }
 
 #[test]
-fn the_c_abi_adds_no_allocations_to_a_warm_search() {
+fn a_warm_search_allocates_nothing() {
     let ix = synthetic(20_000, 3);
     let o = SlickFilesOptions {
         flags: SLICK_FILES_SEARCH_SERIAL,
@@ -648,18 +652,18 @@ fn the_c_abi_adds_no_allocations_to_a_warm_search() {
         ..SlickFilesOptions::default()
     };
     let (ffi, straight) = allocations(&ix, &o, &slick_files::Serial, |f| alloc::on_this_thread(f));
-    // slick-files itself allocates while it parses a query and merges parts; see the report.
     println!("one thread, five typing sessions: {ffi} allocations through the C ABI, {straight} straight");
-    assert_eq!(ffi, straight, "the C ABI adds no allocations");
+    // Parsing, the narrowing stack, merging parts and folder listings reuse their buffers.
+    assert_eq!((ffi, straight), (0, 0), "a warm search allocates nothing");
 }
 
 #[test]
-fn the_c_abi_adds_no_allocations_to_a_warm_parallel_search() {
+fn a_warm_parallel_search_allocates_nothing() {
     alloc::in_child("tests::files::warm_parallel_search_child");
 }
 
 #[test]
-#[ignore = "runs alone in a child process, see the_c_abi_adds_no_allocations_to_a_warm_parallel_search"]
+#[ignore = "runs alone in a child process, see a_warm_parallel_search_allocates_nothing"]
 fn warm_parallel_search_child() {
     assert!(std::env::var_os(alloc::CHILD).is_some(), "run through the parent test");
     let ix = synthetic(200_000, 5);
@@ -672,11 +676,7 @@ fn warm_parallel_search_child() {
     };
     let (ffi, straight) = allocations(&ix, &o, &gcd, |f| alloc::on_every_thread(f));
     println!("parallel, five typing sessions: {ffi} allocations through the C ABI, {straight} straight");
-    // Parts race for the running threshold, so the crate's own count varies by a few either way.
-    assert!(
-        ffi <= straight + straight / 100,
-        "the C ABI adds no allocations on any thread"
-    );
+    assert_eq!((ffi, straight), (0, 0), "a warm search allocates nothing on any thread");
 }
 
 #[test]
@@ -888,4 +888,313 @@ fn hostile_arguments_come_back_as_statuses() {
 /// A pointer one byte into `out`, so it is not aligned for `SlickFileHit`.
 fn unsafe_misaligned(out: &mut [SlickFileHit]) -> *mut SlickFileHit {
     out.as_mut_ptr().cast::<u8>().wrapping_add(1).cast()
+}
+
+// ---- cancelling walks, nested roots and folders outside the index
+
+const CANCELLED: i32 = SlickStatus::Cancelled as i32;
+
+struct Flag(*mut SlickFilesCancel);
+
+impl Flag {
+    fn new() -> Flag {
+        let mut c = null_mut();
+        assert_eq!(slick_files_cancel_new(&mut c), OK);
+        Flag(c)
+    }
+}
+
+impl Drop for Flag {
+    fn drop(&mut self) {
+        assert_eq!(slick_files_cancel_free(self.0), OK);
+    }
+}
+
+/// A tree of 1 + 30 + 30 × 40 = 1,231 folders, each leaf with one file.
+fn large_tree() -> (Tree, usize) {
+    let t = Tree::new("large");
+    for g in 0..30 {
+        for l in 0..40 {
+            t.file(&format!("g{g:02}/l{l:02}/item.txt"), 1);
+        }
+    }
+    (t, 1 + 30 + 30 * 40)
+}
+
+#[test]
+fn new_layouts_are_fixed() {
+    assert_eq!(size_of::<SlickFilesListItem>(), 24);
+    assert_eq!(size_of::<SlickFilesListInfo>(), 24);
+    assert_eq!(SlickStatus::Cancelled as i32, -8);
+    assert_eq!(SLICK_ABI_VERSION, 4);
+}
+
+#[test]
+fn a_cancelled_build_returns_promptly_with_the_cancelled_status() {
+    let (t, folders) = large_tree();
+    let s = Setup::new(&[&t.0], None, SLICK_FILES_RULES_RECOMMENDED);
+    let flag = Flag::new();
+    let build = |flag: *const SlickFilesCancel| {
+        let mut ix: *mut SlickFiles = std::ptr::dangling_mut::<SlickFiles>();
+        let mut stats = SlickFilesWalkStats::default();
+        let rc = slick_files_build_cancellable(
+            &s.config,
+            s.strings.as_ptr(),
+            s.strings.len(),
+            flag,
+            &mut ix,
+            &mut stats,
+        );
+        (rc, Index(ix), stats)
+    };
+    // Stopped at the 50th folder of 1,231: the call returns at that folder, without the index.
+    assert_eq!(slick_files_cancel_after(flag.0, 49), OK);
+    let (rc, ix, stats) = build(flag.0);
+    assert_eq!(rc, CANCELLED);
+    assert!(ix.0.is_null(), "no index comes back");
+    assert_eq!(stats, SlickFilesWalkStats::default(), "the stats are left alone");
+    assert_eq!(slick_files_cancel_is_set(flag.0), 1);
+    // A flag that is set before the call stops it before the first folder.
+    let (rc, ix, _) = build(flag.0);
+    assert!(rc == CANCELLED && ix.0.is_null());
+    // Cleared, the same flag lets the walk finish.
+    assert_eq!(slick_files_cancel_reset(flag.0), OK);
+    assert_eq!(slick_files_cancel_is_set(flag.0), 0);
+    let (rc, ix, stats) = build(flag.0);
+    assert_eq!(rc, OK);
+    assert!(!ix.0.is_null());
+    assert_eq!(stats.dirs as usize, folders);
+    // A flag set from another thread while the walk runs stops it too, or the walk had already
+    // finished; either way the call returns a status and never hangs.
+    let flag2 = Flag::new();
+    let ptr = flag2.0 as usize;
+    let (rc, raw) = std::thread::scope(|scope| {
+        let walker = scope.spawn(|| {
+            let (rc, ix, _) = build(ptr as *const SlickFilesCancel);
+            let raw = ix.0 as usize;
+            std::mem::forget(ix);
+            (rc, raw)
+        });
+        assert_eq!(slick_files_cancel_set(ptr as *const SlickFilesCancel), OK);
+        walker.join().expect("the walk returns")
+    });
+    let _ix = Index(raw as *mut SlickFiles);
+    assert!(rc == CANCELLED || rc == OK, "status {rc}");
+}
+
+#[test]
+fn rebuild_open_and_apply_can_be_cancelled() {
+    let (t, _) = large_tree();
+    let s = Setup::new(&[&t.0], None, SLICK_FILES_RULES_RECOMMENDED);
+    let ix = s.build();
+    let count = slick_files_count(ix.0);
+    t.file("g00/l00/new.txt", 1);
+    let flag = Flag::new();
+    let mut stats = SlickFilesWalkStats::default();
+    assert_eq!(slick_files_cancel_after(flag.0, 10), OK);
+    assert_eq!(slick_files_rebuild_cancellable(ix.0, flag.0, &mut stats), CANCELLED);
+    assert_eq!(slick_files_count(ix.0), count, "the old snapshot stays");
+    assert_eq!(slick_files_cancel_reset(flag.0), OK);
+    assert_eq!(slick_files_rebuild_cancellable(ix.0, flag.0, &mut stats), OK);
+    assert_eq!(slick_files_count(ix.0), count + 1);
+
+    // A subtree rescan of the whole root, stopped partway, changes nothing.
+    t.file("g29/l39/new.txt", 1);
+    let root = t.bytes("");
+    let e = SlickFilesEvent {
+        path_start: 0,
+        path_len: root.len() as u32,
+        flags: 1,
+        reserved: 0,
+    };
+    let mut up = SlickFilesUpdateStats::default();
+    assert_eq!(slick_files_cancel_after(flag.0, 20), OK);
+    assert_eq!(
+        slick_files_apply_cancellable(ix.0, &e, 1, root.as_ptr(), root.len(), flag.0, &mut up),
+        CANCELLED
+    );
+    assert_eq!(up, SlickFilesUpdateStats::default());
+    assert_eq!(slick_files_count(ix.0), count + 1);
+    assert_eq!(slick_files_apply(ix.0, &e, 1, root.as_ptr(), root.len(), &mut up), OK);
+    assert_eq!((up.added, slick_files_count(ix.0)), (1, count + 2));
+
+    // Opening a saved file is never interrupted; building after a refused file is.
+    let file = t.path("index.bin");
+    let fb = file.as_os_str().as_bytes();
+    assert_eq!(slick_files_save(ix.0, fb.as_ptr(), fb.len(), 3), OK);
+    assert_eq!(slick_files_cancel_reset(flag.0), OK);
+    assert_eq!(slick_files_cancel_set(flag.0), OK);
+    let open = |s: &Setup| {
+        let mut out = null_mut();
+        let mut info = SlickFilesOpenInfo::default();
+        let rc = slick_files_open_or_build_cancellable(
+            fb.as_ptr(),
+            fb.len(),
+            &s.config,
+            s.strings.as_ptr(),
+            s.strings.len(),
+            flag.0,
+            &mut out,
+            &mut info,
+        );
+        (rc, Index(out), info)
+    };
+    let (rc, opened, info) = open(&s);
+    assert_eq!((rc, info.opened, info.event_id), (OK, 1, 3));
+    assert!(!opened.0.is_null());
+    let other = Setup::new(&[&t.0], None, 0);
+    let (rc, built, _) = open(&other);
+    assert_eq!(rc, CANCELLED, "other rules refuse the file, and the build stops");
+    assert!(built.0.is_null());
+}
+
+#[test]
+fn cancel_flags_refuse_bad_arguments() {
+    assert_eq!(slick_files_cancel_new(null_mut()), NULL);
+    assert_eq!(slick_files_cancel_set(null()), NULL);
+    assert_eq!(slick_files_cancel_reset(null()), NULL);
+    assert_eq!(slick_files_cancel_is_set(null()), NULL);
+    assert_eq!(slick_files_cancel_after(null(), 3), NULL);
+    assert_eq!(slick_files_cancel_free(null_mut()), OK);
+    assert_eq!(slick_files_rebuild_cancellable(null(), null(), null_mut()), NULL);
+}
+
+#[test]
+fn a_root_inside_a_skipped_folder_is_kept_with_the_flag() {
+    let t = Tree::home();
+    t.file("Library/Mobile Documents/drive/plan.md", 3);
+    let cloud = t.path("Library/Mobile Documents");
+    let flags = SLICK_FILES_RULES_RECOMMENDED | SLICK_FILES_RULES_ONE_FILESYSTEM;
+    let session = Session::new();
+    for (extra, found) in [(0, 0), (SLICK_FILES_RULES_KEEP_UNREACHED_ROOTS, 1)] {
+        let ix = Setup::new(&[&t.0, &cloud], Some(&t.0), flags | extra).build();
+        slick_files_session_reset(session.0);
+        let hits = session.search(&ix, "plan");
+        assert_eq!(hits.len(), found, "flags {extra}");
+        if found == 1 {
+            assert_eq!(session.names(&t, &hits), ["Library/Mobile Documents/drive/plan.md"]);
+            let cache = session.search(&ix, "cache");
+            assert!(cache.is_empty(), "the rest of Library stays skipped");
+        }
+    }
+}
+
+/// Lists a folder through the C ABI, growing the buffers once when they are short.
+fn list(path: &Path, s: &Setup) -> (i32, SlickFilesListInfo, Vec<(String, SlickFilesListItem)>) {
+    let p = path.as_os_str().as_bytes();
+    let mut info = SlickFilesListInfo::default();
+    let mut items = vec![SlickFilesListItem::default(); 2];
+    let mut names = vec![0u8; 8];
+    let call = |items: &mut Vec<SlickFilesListItem>, names: &mut Vec<u8>, info: &mut SlickFilesListInfo| {
+        slick_files_list_folder(
+            p.as_ptr(),
+            p.len(),
+            &s.config,
+            s.strings.as_ptr(),
+            s.strings.len(),
+            items.as_mut_ptr(),
+            items.len(),
+            names.as_mut_ptr(),
+            names.len(),
+            info,
+        )
+    };
+    let mut rc = call(&mut items, &mut names, &mut info);
+    if rc == SMALL {
+        items.resize(info.items as usize, SlickFilesListItem::default());
+        names.resize(info.name_bytes as usize, 0);
+        rc = call(&mut items, &mut names, &mut info);
+    }
+    let listed = items
+        .iter()
+        .take(rc.max(0) as usize)
+        .map(|i| {
+            let n = &names[i.name_start as usize..(i.name_start + i.name_len) as usize];
+            (String::from_utf8_lossy(n).into_owned(), *i)
+        })
+        .collect();
+    (rc, info, listed)
+}
+
+#[test]
+fn a_folder_outside_the_index_is_listed_into_caller_buffers() {
+    let t = Tree::home();
+    let s = Setup::recommended(&t);
+    let (rc, info, listed) = list(&t.0, &s);
+    let names: Vec<&str> = listed.iter().map(|(n, _)| n.as_str()).collect();
+    assert_eq!(
+        names,
+        ["Tool.app", "café", "docs", "photos", "projects"],
+        "sorted by name, without hidden names, node_modules or the home folder's Library"
+    );
+    assert_eq!(rc, 5);
+    assert_eq!((info.items, info.complete, info.problem), (5, 1, SLICK_FILES_LIST_OK));
+    let app = listed[0].1;
+    assert_eq!(app.flags, SLICK_FILES_ENTRY_DIR | SLICK_FILES_ENTRY_PACKAGE);
+    assert_eq!(app.size, u64::MAX);
+    let (_, _, docs) = list(&t.path("docs"), &s);
+    let report = docs.iter().find(|(n, _)| n == "report 2024.pdf").expect("listed");
+    assert_eq!((report.1.size, report.1.flags), (4_000, 0));
+    assert!(report.1.mtime > 0);
+
+    // Measuring with no room, then an empty folder.
+    let mut info = SlickFilesListInfo::default();
+    let p = t.bytes("docs");
+    let rc = slick_files_list_folder(
+        p.as_ptr(),
+        p.len(),
+        &s.config,
+        s.strings.as_ptr(),
+        s.strings.len(),
+        null_mut(),
+        0,
+        null_mut(),
+        0,
+        &mut info,
+    );
+    assert_eq!((rc, info.items), (SMALL, 3));
+    assert_eq!(
+        info.name_bytes as usize,
+        "readme.md".len() + "report 2024.pdf".len() + "Meeting Notes.txt".len()
+    );
+    fs::create_dir_all(t.path("empty")).expect("mkdir");
+    let (rc, info, _) = list(&t.path("empty"), &s);
+    assert_eq!((rc, info.items, info.name_bytes), (0, 0, 0));
+
+    // Why a folder could not be listed.
+    let problem = |rel: &str| {
+        let (rc, info, _) = list(&t.path(rel), &s);
+        assert_eq!(rc, IO, "{rel}");
+        info.problem
+    };
+    assert_eq!(problem("missing"), SLICK_FILES_LIST_MISSING);
+    assert_eq!(problem("docs/readme.md"), SLICK_FILES_LIST_NOT_FOLDER);
+    std::os::unix::fs::symlink(t.path("docs"), t.path("docs-link")).expect("symlink");
+    assert_eq!(
+        problem("docs-link"),
+        SLICK_FILES_LIST_NOT_FOLDER,
+        "a link is never followed"
+    );
+
+    // Bad arguments.
+    let rel = b"docs";
+    let call = |path: &[u8], info: *mut SlickFilesListInfo| {
+        slick_files_list_folder(
+            path.as_ptr(),
+            path.len(),
+            &s.config,
+            s.strings.as_ptr(),
+            s.strings.len(),
+            null_mut(),
+            0,
+            null_mut(),
+            0,
+            info,
+        )
+    };
+    let mut info = SlickFilesListInfo::default();
+    assert_eq!(call(rel, &mut info), BAD, "a relative path");
+    assert_eq!(call(b"", &mut info), BAD);
+    assert_eq!(call(b"/tmp\0x", &mut info), BAD);
+    assert_eq!(call(&p, null_mut()), NULL);
 }

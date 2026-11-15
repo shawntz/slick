@@ -10,7 +10,7 @@
 #include <stdbool.h>
 
 // The version of this C ABI. Bump it whenever the generated header changes.
-#define SLICK_ABI_VERSION 3
+#define SLICK_ABI_VERSION 4
 
 // Key test vector: the 64-bit FNV-1a hash (offset basis 0xcbf29ce484222325, prime
 // 0x100000001b3) of the UTF-8 item id "app:com.example.Editor" is 0xb5f6c1de724e0e9e. Of "" it
@@ -288,6 +288,28 @@
 // `SlickFilesConfig.flags`: do not enter folders on another volume.
 #define SLICK_FILES_RULES_ONE_FILESYSTEM 4
 
+// `SlickFilesConfig.flags`: keep a root nested in another when the walk of the outer root never
+// enters it, because a skipped path, a skipped or hidden name or a package lies on the way, or the
+// root itself is skipped. iCloud Drive inside a skipped Library folder is the case. Without this
+// flag every nested root is dropped.
+#define SLICK_FILES_RULES_KEEP_UNREACHED_ROOTS 8
+
+// `SlickFilesListInfo.problem`: the folder was listed.
+#define SLICK_FILES_LIST_OK 0
+
+// `SlickFilesListInfo.problem`: the folder does not exist.
+#define SLICK_FILES_LIST_MISSING 1
+
+// `SlickFilesListInfo.problem`: the path names a file, or a symbolic link, which is never
+// followed.
+#define SLICK_FILES_LIST_NOT_FOLDER 2
+
+// `SlickFilesListInfo.problem`: reading the folder was not allowed.
+#define SLICK_FILES_LIST_DENIED 3
+
+// `SlickFilesListInfo.problem`: the folder could not be read for another reason.
+#define SLICK_FILES_LIST_FAILED 4
+
 // `SlickFilesOpenInfo.load_error`: the file opened.
 #define SLICK_FILES_LOAD_OK 0
 
@@ -326,8 +348,11 @@ enum SlickStatus
   SLICK_STATUS_INVALID_ARGUMENT = -5,
   // The output buffer is too small; the call reports the size it needs.
   SLICK_STATUS_BUFFER_TOO_SMALL = -6,
-  // The data directory could not be created, read or written.
+  // The data directory could not be created, read or written. For a folder listing, the folder
+  // could not be read.
   SLICK_STATUS_IO = -7,
+  // A walk stopped early because its cancel flag was set. Nothing was published.
+  SLICK_STATUS_CANCELLED = -8,
 };
 #ifndef __cplusplus
 #if __STDC_VERSION__ >= 202311L
@@ -351,6 +376,9 @@ typedef struct SlickEngine SlickEngine;
 
 // An opaque file index.
 typedef struct SlickFiles SlickFiles;
+
+// An opaque cancel flag for walks.
+typedef struct SlickFilesCancel SlickFilesCancel;
 
 // An opaque search session.
 typedef struct SlickFilesSession SlickFilesSession;
@@ -593,6 +621,36 @@ typedef struct {
   // Wall time, microseconds.
   uint64_t elapsed_us;
 } SlickFilesUpdateStats;
+
+// One child of a folder listed from disk, 24 bytes. Its name is a span of the names buffer.
+typedef struct {
+  // Size in bytes, `u64::MAX` for a folder.
+  uint64_t size;
+  // Byte offset of the name in the names buffer.
+  uint32_t name_start;
+  // Byte length of the name.
+  uint32_t name_len;
+  // Modification time, Unix seconds.
+  uint32_t mtime;
+  // `SLICK_FILES_ENTRY_*`: folder, package, hidden or symbolic link.
+  uint8_t flags;
+  // Zero.
+  uint8_t reserved[3];
+} SlickFilesListItem;
+
+// What `slick_files_list_folder` found, 24 bytes.
+typedef struct {
+  // Children the rules keep: the items written, or the room the items buffer needs.
+  uint64_t items;
+  // Bytes of all their names: the room the names buffer needs.
+  uint64_t name_bytes;
+  // `SLICK_FILES_LIST_*`.
+  uint8_t problem;
+  // 1 when every entry was read; 0 when reading stopped partway and some may be missing.
+  uint8_t complete;
+  // Zero.
+  uint8_t reserved[6];
+} SlickFilesListInfo;
 
 // Facts about a snapshot, 40 bytes.
 typedef struct {
@@ -900,6 +958,16 @@ int32_t slick_files_build(const SlickFilesConfig *config,
                           SlickFiles **out,
                           SlickFilesWalkStats *stats);
 
+// `slick_files_build` that stops when `cancel` is set, from any thread. The walker checks it once
+// per folder; a stopped build returns `SLICK_STATUS_CANCELLED`, stores NULL in `*out` and leaves
+// `*stats` alone. A NULL `cancel` never stops.
+int32_t slick_files_build_cancellable(const SlickFilesConfig *config,
+                                      const uint8_t *strings,
+                                      size_t strings_len,
+                                      const SlickFilesCancel *cancel,
+                                      SlickFiles **out,
+                                      SlickFilesWalkStats *stats);
+
 // Opens the index file at `path` when it was saved for the same roots and rules, and otherwise
 // builds a new index. Stores the index in `*out` and what happened in `*info` when it is not
 // NULL. Reads or walks the disk: call it off the main thread.
@@ -910,6 +978,18 @@ int32_t slick_files_open_or_build(const uint8_t *path,
                                   size_t strings_len,
                                   SlickFiles **out,
                                   SlickFilesOpenInfo *info);
+
+// `slick_files_open_or_build` whose build stops when `cancel` is set. Opening the file is not
+// interrupted. A stopped build returns `SLICK_STATUS_CANCELLED`, stores NULL in `*out` and leaves
+// `*info` alone. A NULL `cancel` never stops.
+int32_t slick_files_open_or_build_cancellable(const uint8_t *path,
+                                              size_t path_len,
+                                              const SlickFilesConfig *config,
+                                              const uint8_t *strings,
+                                              size_t strings_len,
+                                              const SlickFilesCancel *cancel,
+                                              SlickFiles **out,
+                                              SlickFilesOpenInfo *info);
 
 // Builds an index of about `entries` synthetic entries below the absolute path `root` in memory,
 // deterministic for each `seed`, and stores it in `*out`. Nothing is read from or written to the
@@ -937,8 +1017,69 @@ int32_t slick_files_apply(const SlickFiles *index,
                           size_t paths_len,
                           SlickFilesUpdateStats *stats);
 
+// `slick_files_apply` that stops when `cancel` is set. Subtree rescans and the full walk after
+// lost history check it once per folder. A stopped batch returns `SLICK_STATUS_CANCELLED`, changes
+// nothing and leaves `*stats` alone; apply the events again, or rebuild, to catch up. A NULL
+// `cancel` never stops.
+int32_t slick_files_apply_cancellable(const SlickFiles *index,
+                                      const SlickFilesEvent *events,
+                                      size_t count,
+                                      const uint8_t *paths,
+                                      size_t paths_len,
+                                      const SlickFilesCancel *cancel,
+                                      SlickFilesUpdateStats *stats);
+
 // Walks every root again and publishes the result. Fills `*stats` when it is not NULL.
 int32_t slick_files_rebuild(const SlickFiles *index, SlickFilesWalkStats *stats);
+
+// `slick_files_rebuild` that stops when `cancel` is set. A stopped rebuild returns
+// `SLICK_STATUS_CANCELLED`, keeps the snapshot the index had and leaves `*stats` alone. A NULL
+// `cancel` never stops.
+int32_t slick_files_rebuild_cancellable(const SlickFiles *index,
+                                        const SlickFilesCancel *cancel,
+                                        SlickFilesWalkStats *stats);
+
+// Creates a cancel flag that is not set and stores it in `*out`.
+int32_t slick_files_cancel_new(SlickFilesCancel **out);
+
+// Frees a cancel flag. NULL is allowed. Call it only after every call that uses the flag has
+// returned.
+int32_t slick_files_cancel_free(SlickFilesCancel *cancel);
+
+// Sets the flag. Every walk that checks it stops at its next folder. Safe from any thread, also
+// while a walk runs.
+int32_t slick_files_cancel_set(const SlickFilesCancel *cancel);
+
+// Clears the flag, so it can stop another walk.
+int32_t slick_files_cancel_reset(const SlickFilesCancel *cancel);
+
+// Returns 1 when the flag is set, else 0.
+int32_t slick_files_cancel_is_set(const SlickFilesCancel *cancel);
+
+// Lets `folders` more folder checks pass and then sets the flag, so a test stops a walk at a
+// known point without racing a second thread. 0 sets it at once. For tests.
+int32_t slick_files_cancel_after(const SlickFilesCancel *cancel, uint64_t folders);
+
+// Lists the folder at the absolute `path` from disk, with the rules of `config` (spans into
+// `strings`; its roots are not used), sorted by name, for browsing a folder the index does not
+// hold. Writes one item per child into `items` and the names, back to back, into `names`, and
+// returns the number of items. Always fills `*info`. Returns `SLICK_STATUS_BUFFER_TOO_SMALL` when
+// either buffer is short; `info` then gives the room both need, so call it with capacities 0 to
+// measure. Returns `SLICK_STATUS_IO` when the folder cannot be listed, with the reason in
+// `info.problem`. A symbolic link at the end of `path` is not followed.
+//
+// Reads the disk: call it off the main thread. Reading a folder macOS guards, such as Desktop or
+// Downloads, can raise a permission prompt, so list only folders the user chose to browse.
+int32_t slick_files_list_folder(const uint8_t *path,
+                                size_t path_len,
+                                const SlickFilesConfig *config,
+                                const uint8_t *strings,
+                                size_t strings_len,
+                                SlickFilesListItem *items,
+                                size_t items_cap,
+                                uint8_t *names,
+                                size_t names_cap,
+                                SlickFilesListInfo *info);
 
 // Writes the current snapshot to `path` atomically, with mode 0600. `event_id` is the FSEvents id
 // the snapshot is current to. Returns `SLICK_STATUS_IO` when the file cannot be written.

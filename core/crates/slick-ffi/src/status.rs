@@ -21,8 +21,11 @@ pub enum SlickStatus {
     InvalidArgument = -5,
     /// The output buffer is too small; the call reports the size it needs.
     BufferTooSmall = -6,
-    /// The data directory could not be created, read or written.
+    /// The data directory could not be created, read or written. For a folder listing, the folder
+    /// could not be read.
     Io = -7,
+    /// A walk stopped early because its cancel flag was set. Nothing was published.
+    Cancelled = -8,
 }
 
 impl From<EngineError> for SlickStatus {
