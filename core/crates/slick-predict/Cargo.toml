@@ -1,0 +1,18 @@
+[package]
+name = "slick-predict"
+description = "Learning for ranking: query affinity, the zero-query model and its event log, plus a simulator to tune them."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# The library has no dependencies. The `sim` example is the session simulator that tunes the ranking
+# constants: it drives the real engine (slick-engine, which depends on this crate; Cargo allows that
+# cycle for dev-dependencies) with slick-match as the matcher. The app links only the library.
+[dev-dependencies]
+slick-engine = { path = "../slick-engine" }
+slick-match = { path = "../slick-match" }
