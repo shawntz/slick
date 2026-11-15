@@ -58,6 +58,11 @@ public enum HostSettings {
     public static let inlineCompletion = SettingKey("inlineCompletion", default: true)
 
     /// The commands in the fallback list under root results, in order, as `cmd:` ID strings.
+    ///
+    /// Superseded by ``ItemPreferences/fallbackChoices``, which gives each fallback a switch and an
+    /// order. Root search still honors a list here while the user has set no fallback choice, so a
+    /// pane that writes this key keeps working until it moves to the choices. New code writes the
+    /// choices.
     public static let fallbackCommands = SettingKey("fallbackCommands", default: [String]())
 
     /// The command Tab runs with the typed text, as a `cmd:` ID string. Empty when none.

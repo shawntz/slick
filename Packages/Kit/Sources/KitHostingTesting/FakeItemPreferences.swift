@@ -1,7 +1,7 @@
 import Kit
 import KitHosting
 
-/// Item preferences in memory.
+/// Item preferences in memory, the fallback choices included.
 ///
 /// With a ``FakeFeatureDirectory``, turning a feature or command on or off also updates the
 /// directory, and turning a feature on or off calls the registered feature's
@@ -12,6 +12,7 @@ import KitHosting
     public private(set) var aliases: [ItemID: String] = [:]
     public private(set) var hotkeys: [ItemID: KeyCombo] = [:]
     public private(set) var favorites: [ItemID] = []
+    public private(set) var fallbackChoices = FallbackChoices()
 
     /// The launcher hotkey, reported as a conflict that cannot be overridden. Default nil.
     public var launcherHotkey: KeyCombo?
@@ -77,6 +78,11 @@ import KitHosting
     public func setFavorites(_ ids: [ItemID]) {
         var seen: Set<ItemID> = []
         favorites = ids.filter { seen.insert($0).inserted }
+        changes.send()
+    }
+
+    public func setFallbackChoices(_ choices: FallbackChoices) {
+        fallbackChoices = choices
         changes.send()
     }
 

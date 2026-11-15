@@ -1,6 +1,6 @@
 import Kit
 
-/// What the user attached to items: aliases, hotkeys, favorites and off switches.
+/// What the user attached to items: aliases, hotkeys, favorites, off switches and the fallback list.
 ///
 /// Host's feature runtime implements it and keeps it in settings. Root reads aliases and favorites
 /// for ranking and the empty state. SettingsUI edits all of it. Any item can carry an alias, a hotkey
@@ -59,6 +59,40 @@ import Kit
     /// Turns one command on or off. A command that is off leaves root search, and its hotkey and
     /// fallback do nothing. Its alias and hotkey are kept for when it comes back on.
     func setEnabled(_ enabled: Bool, command id: ItemID)
+
+    /// The user's fallback switches and order. Root search shows the fallbacks that are on, in this
+    /// order: read them with ``FeatureDirectory/fallbacks(_:)``. Empty until the user changes a
+    /// fallback, so each one follows its ``Kit/Fallback/startsOn``.
+    ///
+    /// The default answers empty, for an implementation that does not store choices yet.
+    var fallbackChoices: FallbackChoices { get }
+
+    /// Replaces the fallback choices, stores them and sends ``changes``.
+    ///
+    /// The default ignores the call, for an implementation that does not store choices yet. Host's
+    /// must store them with the aliases and favorites.
+    func setFallbackChoices(_ choices: FallbackChoices)
+}
+
+extension ItemPreferences {
+    public var fallbackChoices: FallbackChoices { FallbackChoices() }
+
+    public func setFallbackChoices(_ choices: FallbackChoices) {}
+
+    /// Turns one fallback on or off, as its switch in settings does.
+    public func setFallback(_ id: ItemID, isOn: Bool) {
+        var choices = fallbackChoices
+        choices.setOn(isOn, for: id)
+        setFallbackChoices(choices)
+    }
+
+    /// Stores the user's fallback order, as settings does after the user moved one. Pass every
+    /// fallback settings lists, in the new order.
+    public func setFallbackOrder(_ ids: [ItemID]) {
+        var choices = fallbackChoices
+        choices.setOrder(ids)
+        setFallbackChoices(choices)
+    }
 }
 
 extension ItemPreferences {

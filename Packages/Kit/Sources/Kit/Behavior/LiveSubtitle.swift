@@ -1,9 +1,19 @@
-/// How a command appears in the fallback list.
+/// How a command appears in the fallback list under root results.
+///
+/// A fallback is a switch the user owns. Root search shows the fallbacks that are on, in the user's
+/// order, under every typed query. Until the user sets a fallback's switch in settings, it follows
+/// ``startsOn``, which is false by default: a fallback that starts on sits under everything the
+/// user types.
 public struct Fallback: Sendable {
     /// The row title for the typed text, such as `Search the web for "kit"`.
     public var title: @Sendable (String) -> String
+    /// True puts the command in the fallback list until the user turns it off. Keep it false, the
+    /// default, except for the feature's own default web search, or for an item the user marked as
+    /// a fallback in the feature itself, such as a quicklink.
+    public var startsOn: Bool
 
-    public init(title: @escaping @Sendable (String) -> String) {
+    public init(startsOn: Bool = false, title: @escaping @Sendable (String) -> String) {
+        self.startsOn = startsOn
         self.title = title
     }
 }
