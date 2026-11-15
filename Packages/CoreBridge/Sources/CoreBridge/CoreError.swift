@@ -19,6 +19,9 @@ public enum CoreError: Error, Equatable, Sendable {
     case bufferTooSmall
     /// The data directory could not be created, read or written.
     case io
+    /// A walk of the file index stopped early because its `FileWalkCancellation` was cancelled.
+    /// Nothing was published.
+    case cancelled
     /// The linked static library implements another ABI version than the header: run `make core`.
     case abiMismatch(expected: UInt32, linked: UInt32)
     /// A status this version of CoreBridge does not know.
@@ -40,6 +43,7 @@ public enum CoreError: Error, Equatable, Sendable {
         case SLICK_STATUS_INVALID_ARGUMENT.rawValue: self = .invalidArgument
         case SLICK_STATUS_BUFFER_TOO_SMALL.rawValue: self = .bufferTooSmall
         case SLICK_STATUS_IO.rawValue: self = .io
+        case SLICK_STATUS_CANCELLED.rawValue: self = .cancelled
         default: self = .unknown(status)
         }
     }

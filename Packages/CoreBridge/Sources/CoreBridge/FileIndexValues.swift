@@ -2,7 +2,8 @@ import SlickCoreC
 
 /// What a file index holds and skips.
 public struct FileIndexConfiguration: Hashable, Sendable {
-    /// Absolute folders to index. Nested and repeated roots are dropped.
+    /// Absolute folders to index. Repeated roots are dropped, and so are nested ones unless
+    /// `keepsRootsInSkippedFolders` keeps them.
     public var roots: [String]
     /// The home folder. With the recommended rules, its Library folder is skipped.
     public var home: String?
@@ -22,6 +23,10 @@ public struct FileIndexConfiguration: Hashable, Sendable {
     public var leafExtensions: [String]
     /// Walker threads for a full build; 0 picks a default.
     public var walkerThreads: Int
+    /// Keep a root that lies inside another root but below a folder that root skips, such as
+    /// iCloud Drive's folder inside the skipped Library folder. A root below a skipped or hidden
+    /// name or inside a package is kept too. Off drops every nested root.
+    public var keepsRootsInSkippedFolders: Bool
 
     public init(
         roots: [String],
@@ -32,7 +37,8 @@ public struct FileIndexConfiguration: Hashable, Sendable {
         skipNames: [String] = [],
         skipPaths: [String] = [],
         leafExtensions: [String] = [],
-        walkerThreads: Int = 0
+        walkerThreads: Int = 0,
+        keepsRootsInSkippedFolders: Bool = false
     ) {
         self.roots = roots
         self.home = home
@@ -43,6 +49,7 @@ public struct FileIndexConfiguration: Hashable, Sendable {
         self.skipPaths = skipPaths
         self.leafExtensions = leafExtensions
         self.walkerThreads = walkerThreads
+        self.keepsRootsInSkippedFolders = keepsRootsInSkippedFolders
     }
 
     /// Runs `body` with the C config and the strings buffer its spans point into.
@@ -67,6 +74,7 @@ public struct FileIndexConfiguration: Hashable, Sendable {
             (useRecommendedRules ? UInt32(SLICK_FILES_RULES_RECOMMENDED) : 0)
             | (includeHidden ? UInt32(SLICK_FILES_RULES_INCLUDE_HIDDEN) : 0)
             | (oneFileSystem ? UInt32(SLICK_FILES_RULES_ONE_FILESYSTEM) : 0)
+            | (keepsRootsInSkippedFolders ? UInt32(SLICK_FILES_RULES_KEEP_UNREACHED_ROOTS) : 0)
         return strings.withUnsafeBufferPointer { s in body(&raw, s.baseAddress, s.count) }
     }
 }

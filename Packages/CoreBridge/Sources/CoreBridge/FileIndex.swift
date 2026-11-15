@@ -10,7 +10,7 @@ import SlickCoreC
 public final class FileIndex: Sendable {
     nonisolated(unsafe) let handle: OpaquePointer
 
-    private init(handle: OpaquePointer) {
+    init(handle: OpaquePointer) {
         self.handle = handle
     }
 

@@ -10,7 +10,7 @@ import Testing
 /// The measured region calls the queries one by one and repeats them with a `while` loop: in debug
 /// builds a `for` loop over a range or an array allocates on every iteration by itself, which
 /// would hide what the queries do.
-@Suite("Allocations", .serialized)
+@Suite("Allocations", .serialized, .timeLimit(.minutes(2)))
 struct AllocationTests {
     struct Fixture {
         let engine: Engine
@@ -133,6 +133,58 @@ struct AllocationTests {
         print("highlight allocations: engine \(a), engine offsets \(b), index \(c)")
         #expect(total > 0)
         #expect(allocations == 0, "\(allocations) allocations in 300 highlight calls")
+    }
+
+    /// A warm file search allocates nothing on the calling thread, in Swift or in Rust: query
+    /// parsing, the narrowing stack, the typo pass, the folder tier, path fragments and folder
+    /// listings reuse their buffers. One thread, because the parallel parts run on other threads;
+    /// the Rust tests count those.
+    @Test func aWarmFileSearchAllocatesNothing() throws {
+        let index = try FileIndex.synthetic(root: "/synthetic/alloc", entries: 20_000, seed: 3)
+        let session = try FileSearchSession(capacity: 50)
+        let options = FileSearchOptions(now: 1_794_000_000, parallel: false)
+        let s = "s"
+        let sc = "sc"
+        let scr = "scr"
+        let screnshot = "screnshot"
+        let docs = "docs r"
+        let docsRe = "docs re"
+        let pdf = "report .pdf"
+        let fragment = "src/ma"
+        let accented = "café"
+        let browse = "/synthetic/alloc/re"
+        func typing() throws -> Int {
+            var n = 0
+            session.reset()
+            n += try session.search(s, in: index, options: options)
+            n += try session.search(sc, in: index, options: options)
+            n += try session.search(scr, in: index, options: options)
+            n += try session.search(screnshot, in: index, options: options)
+            session.reset()
+            n += try session.search(docs, in: index, options: options)
+            n += try session.search(docsRe, in: index, options: options)
+            session.reset()
+            n += try session.search(pdf, in: index, options: options)
+            n += try session.search(fragment, in: index, options: options)
+            n += try session.search(accented, in: index, options: options)
+            n += try session.search(browse, in: index, options: options)
+            return n
+        }
+        var total = 0
+        var round = 0
+        while round < 3 {
+            total += try typing()
+            round += 1
+        }
+        round = 0
+        bench_alloc_count_begin()
+        while round < 10 {
+            total += try typing()
+            round += 1
+        }
+        let allocations = bench_alloc_count_end()
+        #expect(total > 0)
+        #expect(allocations == 0, "\(allocations) allocations in 100 warm file searches")
     }
 
     /// Reading a hit's path into the session's buffer allocates nothing.
