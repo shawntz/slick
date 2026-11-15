@@ -10,6 +10,7 @@ import Kit
 /// | Key | Type | What it does |
 /// |---|---|---|
 /// | `pressHotkey` | `true` | does what the launcher hotkey does, through its binding |
+/// | `systemShortcuts` | strings | plays the macOS shortcuts that hold these combinations, as Spotlight holds `cmd+space` on a new Mac; `[]` turns them all off. The launcher notices on its own timer or when settings opens |
 /// | `setFeatures` | object | turns each feature, by ID, on or off |
 /// | `setSettings` | object | sets general settings: `themeName`, `visibleRows`, `inlineCompletion`, `panelSizing` or `launcherHotkey`; a name with a dot, such as `windows.showsLayoutName`, sets that feature setting as stored |
 /// | `setHotkey` | object | gives `item` the hotkey `keys`, as settings does; `""` clears it |
@@ -22,9 +23,10 @@ import Kit
 /// | `settings` | strings | what settings was asked to open, exactly: a pane name, `""` for the last pane, or `features/<id>` |
 /// | `aliases` | object | each item ID has exactly this alias |
 /// | `favorites` | strings | the favorites, exactly, in order |
-/// | `hud` | string | the last HUD's title |
+/// | `hud` | string | the last HUD's title; `{brand}` stands for the app's name |
 /// | `pasteboardText` | string | the text on the run's private pasteboard |
 /// | `hotkeyBound` | bool | a launcher hotkey is bound |
+/// | `hotkeyWaiting` | string | the owner of the macOS shortcut the launcher hotkey waits behind, `""` for none |
 /// | `launcherHotkey` | string | the launcher hotkey bound now, as `KeyCombo` writes it |
 /// | `hotkeyRefused` | bool | the last `setHotkey` was refused |
 /// | `itemHotkeys` | object | each item ID has exactly this hotkey; `""` for none |
@@ -32,6 +34,7 @@ import Kit
 /// | `featuresActive` | object | each feature, by ID, is active or not |
 nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var pressHotkey: Bool?
+    var systemShortcuts: [String]?
     var setFeatures: [String: Bool]?
     var setSettings: [String: SettingValue]?
     var setHotkey: HotkeyRequest?
@@ -47,6 +50,7 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var hud: String?
     var pasteboardText: String?
     var hotkeyBound: Bool?
+    var hotkeyWaiting: String?
     var launcherHotkey: String?
     var hotkeyRefused: Bool?
     var itemHotkeys: [String: String]?
@@ -81,10 +85,11 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey, CaseIterable {
-        case pressHotkey, setFeatures, setSettings, setHotkey, copyAsOtherApp, pressKeys, link, linkOutcome
-        case launched, opened
+        case pressHotkey, systemShortcuts, setFeatures, setSettings, setHotkey, copyAsOtherApp, pressKeys, link
+        case linkOutcome, launched, opened
         case settings
-        case aliases, favorites, hud, pasteboardText, hotkeyBound, launcherHotkey, hotkeyRefused, itemHotkeys
+        case aliases, favorites, hud, pasteboardText, hotkeyBound, hotkeyWaiting, launcherHotkey, hotkeyRefused
+        case itemHotkeys
         case theme, featuresActive
     }
 
@@ -101,6 +106,7 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         }
         let container = try decoder.container(keyedBy: CodingKeys.self)
         pressHotkey = try container.decodeIfPresent(Bool.self, forKey: .pressHotkey)
+        systemShortcuts = try container.decodeIfPresent([String].self, forKey: .systemShortcuts)
         setFeatures = try container.decodeIfPresent([String: Bool].self, forKey: .setFeatures)
         setSettings = try container.decodeIfPresent([String: SettingValue].self, forKey: .setSettings)
         setHotkey = try container.decodeIfPresent(HotkeyRequest.self, forKey: .setHotkey)
@@ -116,11 +122,17 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         hud = try container.decodeIfPresent(String.self, forKey: .hud)
         pasteboardText = try container.decodeIfPresent(String.self, forKey: .pasteboardText)
         hotkeyBound = try container.decodeIfPresent(Bool.self, forKey: .hotkeyBound)
+        hotkeyWaiting = try container.decodeIfPresent(String.self, forKey: .hotkeyWaiting)
         launcherHotkey = try container.decodeIfPresent(String.self, forKey: .launcherHotkey)
         hotkeyRefused = try container.decodeIfPresent(Bool.self, forKey: .hotkeyRefused)
         itemHotkeys = try container.decodeIfPresent([String: String].self, forKey: .itemHotkeys)
         theme = try container.decodeIfPresent(String.self, forKey: .theme)
         featuresActive = try container.decodeIfPresent([String: Bool].self, forKey: .featuresActive)
+    }
+
+    /// The expected HUD title with the app's name put in.
+    var resolvedHUD: String? {
+        hud?.replacingOccurrences(of: "{brand}", with: Brand.name)
     }
 
     /// The link with the app's scheme put in.

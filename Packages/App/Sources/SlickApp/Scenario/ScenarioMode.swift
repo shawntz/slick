@@ -216,6 +216,9 @@ enum ScenarioMode {
         if step.pressHotkey == true, !assembly.hotkey.simulatePress() {
             problems.append("no launcher hotkey is bound")
         }
+        if let shortcuts = step.systemShortcuts {
+            problems += playSystemShortcuts(shortcuts, hotkeys: assembly.platform.hotkeys)
+        }
         for (featureID, enabled) in (step.setFeatures ?? [:]).sorted(by: { $0.key < $1.key }) {
             guard assembly.runtime.feature(featureID) != nil else {
                 problems.append("no feature \(featureID)")
@@ -286,7 +289,7 @@ enum ScenarioMode {
             let favorites = assembly.runtime.preferences.favorites.map(\.rawValue)
             if favorites != expected { problems.append("favorites were \(favorites), expected \(expected)") }
         }
-        if let expected = step.hud {
+        if let expected = step.resolvedHUD {
             let last = assembly.recordingHUD?.shown.last?.title
             if last != expected { problems.append("the last HUD was \(last ?? "none"), expected \(expected)") }
         }
@@ -296,6 +299,10 @@ enum ScenarioMode {
         }
         if let expected = step.hotkeyBound, (assembly.hotkey.bound != nil) != expected {
             problems.append(expected ? "no launcher hotkey is bound" : "a launcher hotkey is bound")
+        }
+        if let expected = step.hotkeyWaiting {
+            let owner = assembly.hotkey.wait?.owner ?? ""
+            if owner != expected { problems.append("the launcher hotkey waited for \(owner), expected \(expected)") }
         }
         if let expected = step.launcherHotkey {
             let bound = assembly.hotkey.bound?.description ?? ""
@@ -316,6 +323,23 @@ enum ScenarioMode {
             problems.append("feature \(featureID) was \(active ? "not active" : "active")")
         }
         return problems.isEmpty ? nil : problems.joined(separator: "; ")
+    }
+
+    /// Makes the run's inert hotkey system report macOS shortcuts on these combinations. Returns the
+    /// problems.
+    static func playSystemShortcuts(_ keys: [String], hotkeys: HotkeyCenter) -> [String] {
+        guard let system = hotkeys.system as? InertHotkeySystem else { return ["the hotkey system is not inert"] }
+        var shortcuts: [SymbolicHotkey] = []
+        var problems: [String] = []
+        for text in keys {
+            if let combo = KeyCombo(parsing: text) {
+                shortcuts.append(SymbolicHotkey(holding: combo))
+            } else {
+                problems.append("cannot read the keys \(text)")
+            }
+        }
+        system.setSymbolicHotkeys(shortcuts)
+        return problems
     }
 
     /// Whether the last `setHotkey` of the run was refused. Nil before the first one.

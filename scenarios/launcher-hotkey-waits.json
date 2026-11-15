@@ -1,0 +1,15 @@
+{
+  "name": "The launcher hotkey waits while Spotlight holds Command-Space and binds once it is free",
+  "timeLimit": 20,
+  "steps": [
+    { "app": { "hotkeyBound": true, "launcherHotkey": "cmd+space", "hotkeyWaiting": "" } },
+    { "app": { "systemShortcuts": ["cmd+space"], "setSettings": { "launcherHotkey": "ctrl+opt+k" }, "launcherHotkey": "ctrl+opt+k", "hotkeyWaiting": "" } },
+    { "app": { "setSettings": { "launcherHotkey": "cmd+space" }, "hotkeyBound": false, "hotkeyWaiting": "Spotlight" } },
+    { "app": { "setHotkey": { "item": "app:com.example.notes", "keys": "cmd+space" }, "hotkeyRefused": true, "itemHotkeys": { "app:com.example.notes": "" } } },
+    { "app": { "link": "{scheme}://settings", "settings": [""], "hotkeyBound": false, "hotkeyWaiting": "Spotlight" } },
+    { "app": { "systemShortcuts": [], "link": "{scheme}://settings/general", "settings": ["", "general"], "hotkeyBound": true, "launcherHotkey": "cmd+space", "hotkeyWaiting": "", "hud": "⌘Space Now Opens {brand}" } },
+    { "app": { "pressHotkey": true } },
+    { "expect": { "visible": true } },
+    { "dismiss": true }
+  ]
+}
