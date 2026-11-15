@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// A matched run of UTF-16 code units in a title, as the matcher reports it.
 nonisolated public struct HighlightRange: Sendable, Equatable, Hashable {
@@ -46,10 +47,15 @@ nonisolated public struct ListRow: Sendable, Equatable {
     public var icon: CGImage?
     /// What accessibility clients read. Nil reads "title, subtitle".
     public var accessibilityLabel: String?
+    /// The subtitle's colour, or nil for the theme's subtitle colour. The list moves it toward the
+    /// theme's title colour until it reaches 3:1 over the glass, as glass rule 5 asks of secondary
+    /// text, so any colour stays readable in both appearances.
+    public var subtitleColor: CGColor?
 
     public init(
         id: UInt64, title: String, titleHighlights: [HighlightRange] = [], subtitle: String = "",
-        accessories: [RowAccessory] = [], icon: CGImage? = nil, accessibilityLabel: String? = nil
+        accessories: [RowAccessory] = [], icon: CGImage? = nil, accessibilityLabel: String? = nil,
+        subtitleColor: CGColor? = nil
     ) {
         self.id = id
         self.title = title
@@ -58,12 +64,13 @@ nonisolated public struct ListRow: Sendable, Equatable {
         self.accessories = accessories
         self.icon = icon
         self.accessibilityLabel = accessibilityLabel
+        self.subtitleColor = subtitleColor
     }
 
     public static func == (lhs: ListRow, rhs: ListRow) -> Bool {
         lhs.id == rhs.id && lhs.icon === rhs.icon && lhs.title == rhs.title && lhs.subtitle == rhs.subtitle
             && lhs.titleHighlights == rhs.titleHighlights && lhs.accessories == rhs.accessories
-            && lhs.accessibilityLabel == rhs.accessibilityLabel
+            && lhs.accessibilityLabel == rhs.accessibilityLabel && lhs.subtitleColor == rhs.subtitleColor
     }
 }
 
@@ -72,10 +79,43 @@ nonisolated public struct ListSection: Sendable, Equatable {
     /// The header text, or nil for a section without a header.
     public var title: String?
     public var rows: [ListRow]
+    /// A number drawn after the header text, such as how many rows the section holds. Nil draws
+    /// none. A section with a count and no title shows a header with the count alone.
+    public var count: Int?
 
-    public init(title: String? = nil, rows: [ListRow]) {
+    public init(title: String? = nil, rows: [ListRow], count: Int? = nil) {
         self.title = title
         self.rows = rows
+        self.count = count
+    }
+
+    /// Whether the section draws a header line.
+    var hasHeader: Bool { title != nil || count != nil }
+
+    /// The header as drawn and read aloud, or nil for none.
+    var headerText: String? { SectionHeader.text(title: title, count: count) }
+}
+
+/// The text of a list or grid section header: its title, then its count after an en space.
+nonisolated enum SectionHeader {
+    /// Half an em: a gap that scales with the header font and needs no theme metric.
+    static let gap = "\u{2002}"
+
+    static func text(title: String?, count: Int?) -> String? {
+        switch (title, count) {
+        case (nil, nil): nil
+        case (let title?, nil): title
+        case (nil, let count?): count.formatted()
+        case (let title?, let count?): title + gap + count.formatted()
+        }
+    }
+
+    /// What accessibility clients read: the title and the count as separate words.
+    static func spoken(title: String?, count: Int?) -> String? {
+        switch (title, count) {
+        case (let title?, let count?): "\(title), \(count.formatted())"
+        default: text(title: title, count: count)
+        }
     }
 }
 

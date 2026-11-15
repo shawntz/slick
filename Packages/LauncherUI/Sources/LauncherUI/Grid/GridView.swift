@@ -285,8 +285,8 @@ public final class GridView: NSView, LauncherContentView {
         let maxY = Double(min(dirtyRect.maxY, viewport) + scrollOffset)
         for header in layoutModel.headers(overlapping: minY, maxY) {
             RowRenderer.drawHeader(
-                content.sections[header.section].title ?? "", top: CGFloat(header.y) - scrollOffset, in: context,
-                theme: theme, scale: scale)
+                content.sections[header.section].headerText ?? "", top: CGFloat(header.y) - scrollOffset,
+                in: context, theme: theme, scale: scale)
         }
         for index in layoutModel.cells(overlapping: minY, maxY) {
             guard let frame = cellRect(index), needsToDraw(frame), let cell = cell(at: index) else { continue }
@@ -346,14 +346,14 @@ public final class GridView: NSView, LauncherContentView {
             guard let frame = oldLayout.cellFrame(index) else { continue }
             if index >= layoutModel.cellCount || layoutModel.cellFrame(index) != frame { dirty(frame) }
         }
-        // A header is clean when the same title sits at the same place before and after.
+        // A header is clean when the same text sits at the same place before and after.
         let oldHeaders = Set(
             oldLayout.headers(overlapping: top, top + Double(oldViewport)).map {
-                HeaderMark(y: $0.y, title: old.sections[$0.section].title)
+                HeaderMark(y: $0.y, text: old.sections[$0.section].headerText)
             })
         let newHeaders = Set(
             layoutModel.headers(overlapping: top, top + Double(newViewport)).map {
-                HeaderMark(y: $0.y, title: content.sections[$0.section].title)
+                HeaderMark(y: $0.y, text: content.sections[$0.section].headerText)
             })
         for header in oldHeaders.symmetricDifference(newHeaders) {
             setNeedsDisplay(
@@ -408,7 +408,7 @@ public final class GridView: NSView, LauncherContentView {
 /// A section header's place and text, for diffing.
 private struct HeaderMark: Hashable {
     var y: Double
-    var title: String?
+    var text: String?
 }
 
 /// What a cell's typesetting depends on, so a typeset can follow its cell as it moves.

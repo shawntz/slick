@@ -39,6 +39,10 @@ public final class ResultListView: NSView, LauncherContentView {
     private(set) var theme: ResolvedTheme?
     private var typesets: [Int: RowTypeset] = [:]
     private var typesetWidth: CGFloat = 0
+    /// Lines kept across updates, so rows that keep their text are not typeset again. Benchmarks
+    /// turn it off to compare.
+    let lineCache = RowLineCache()
+    @_spi(Testing) public var usesLineCache = true
     private let indicator = ScrollIndicatorView()
     var accessibilityCache: [NSAccessibilityElement]?
     /// The visible rows last reported through `onVisibleRowsChange`.
@@ -77,6 +81,7 @@ public final class ResultListView: NSView, LauncherContentView {
     public func apply(_ theme: ResolvedTheme) {
         self.theme = theme
         typesets.removeAll(keepingCapacity: true)
+        lineCache.removeAll()
         indicator.apply(theme)
         relayout(content)
         needsDisplay = true
@@ -272,7 +277,8 @@ public final class ResultListView: NSView, LauncherContentView {
             switch line.kind {
             case .header(let section):
                 RowRenderer.drawHeader(
-                    content.sections[section].title ?? "", top: rect.minY, in: context, theme: theme, scale: scale)
+                    content.sections[section].headerText ?? "", top: rect.minY, in: context, theme: theme,
+                    scale: scale)
             case .row(let section, let row, let index):
                 let model = content.sections[section].rows[row]
                 RowRenderer.drawRow(
@@ -298,7 +304,8 @@ public final class ResultListView: NSView, LauncherContentView {
         if let cached = typesets[index] { return cached }
         let typeset = RowTypesetter.typeset(
             row, width: bounds.width, height: height, style: content.rowStyle,
-            emphasizesMatches: content.emphasizesMatches, theme: theme ?? fallbackTheme, scale: scale
+            emphasizesMatches: content.emphasizesMatches, theme: theme ?? fallbackTheme, scale: scale,
+            lines: usesLineCache ? lineCache : nil
         )
         typesets[index] = typeset
         return typeset
@@ -352,6 +359,7 @@ public final class ResultListView: NSView, LauncherContentView {
         switch (line.kind, candidate.kind) {
         case (.header(let a), .header(let b)):
             return content.sections[a].title == other.sections[b].title
+                && content.sections[a].count == other.sections[b].count
         case (.row(let sectionA, let rowA, let indexA), .row(let sectionB, let rowB, let indexB)):
             return indexA == indexB && content.sections[sectionA].rows[rowA] == other.sections[sectionB].rows[rowB]
         default:

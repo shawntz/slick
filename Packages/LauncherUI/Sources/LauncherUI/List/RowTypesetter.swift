@@ -30,10 +30,16 @@ struct RowTypeset {
 
 /// Typesets rows with Core Text. Fonts and colours come from a resolved theme.
 enum RowTypesetter {
+    /// Glass rule 5's least contrast for secondary text. A row's own subtitle colour is held to it.
+    static let secondaryTextRatio = 3.0
+
+    /// Typesets `row`. With `lines`, lines already made for the same text and style are reused;
+    /// the result is the same either way.
     static func typeset(
         _ row: ListRow, width: CGFloat, height: CGFloat, style: RowStyle, emphasizesMatches: Bool,
-        theme: ResolvedTheme, scale: CGFloat
+        theme: ResolvedTheme, scale: CGFloat, lines: RowLineCache? = nil
     ) -> RowTypeset {
+        let lines = LineSource(cache: lines)
         let metrics = theme.theme.list
         let iconSize = CGFloat(metrics.iconSize)
         let iconFrame = CGRect(
@@ -50,7 +56,7 @@ enum RowTypesetter {
             guard
                 let placed = place(
                     accessory, right: right, limit: accessoryLimit, rowHeight: height,
-                    baseline: centerBaseline, theme: theme, scale: scale)
+                    baseline: centerBaseline, theme: theme, scale: scale, lines: lines)
             else { break }
             accessories.append(placed.accessory)
             right = placed.minX - CGFloat(metrics.accessorySpacing)
@@ -58,27 +64,38 @@ enum RowTypesetter {
         let textRight = accessories.isEmpty ? right : right + CGFloat(metrics.accessorySpacing - metrics.accessoryGap)
         let available = max(0, textRight - textX)
 
-        let titleLine = CTLineCreateWithAttributedString(
-            titleString(row, emphasizesMatches: emphasizesMatches, theme: theme))
+        let emphasized = emphasizesMatches && !row.titleHighlights.isEmpty
+        let titleLine = lines.line(
+            .init(
+                text: row.title, role: .title(emphasized: emphasized), highlights: emphasized ? row.titleHighlights : []
+            )
+        ) {
+            CTLineCreateWithAttributedString(titleString(row, emphasizesMatches: emphasizesMatches, theme: theme))
+        }
         let titleWidth = lineWidth(titleLine)
+        let subtitleColor =
+            row.subtitleColor.map { theme.legible($0, minimumRatio: secondaryTextRatio) } ?? theme.subtitle
         let subtitleLine =
             row.subtitle.isEmpty
             ? nil
-            : CTLineCreateWithAttributedString(
-                attributed(row.subtitle, font: theme.subtitleFont, color: theme.subtitle))
+            : lines.line(.init(text: row.subtitle, role: .subtitle, color: row.subtitleColor)) {
+                CTLineCreateWithAttributedString(
+                    attributed(row.subtitle, font: theme.subtitleFont, color: subtitleColor))
+            }
 
         var title: RowTypeset.PlacedLine
         var subtitle: RowTypeset.PlacedLine?
         switch style {
         case .oneLine:
             let gap = CGFloat(metrics.titleSubtitleGap)
-            let fittedTitle = truncate(titleLine, to: available, font: titleFont, color: theme.title)
+            let fittedTitle = lines.truncate(titleLine, to: available, .title, font: titleFont, color: theme.title)
             title = .init(line: fittedTitle, origin: CGPoint(x: textX, y: centerBaseline))
             if let subtitleLine {
                 // The subtitle gives way first; it is dropped once it would be too narrow to read.
                 let room = available - titleWidth - gap
                 if room >= CGFloat(metrics.minimumSubtitleWidth) {
-                    let fitted = truncate(subtitleLine, to: room, font: theme.subtitleFont, color: theme.subtitle)
+                    let fitted = lines.truncate(
+                        subtitleLine, to: room, .subtitle, font: theme.subtitleFont, color: subtitleColor)
                     subtitle = .init(line: fitted, origin: CGPoint(x: textX + titleWidth + gap, y: centerBaseline))
                 }
             }
@@ -90,13 +107,14 @@ enum RowTypesetter {
             let top = (height - titleBlock - (subtitleLine == nil ? 0 : gap + subtitleBlock)) / 2
             let titleBaseline = snap(top + CTFontGetAscent(titleFont), scale)
             title = .init(
-                line: truncate(titleLine, to: available, font: titleFont, color: theme.title),
+                line: lines.truncate(titleLine, to: available, .title, font: titleFont, color: theme.title),
                 origin: CGPoint(x: textX, y: titleBaseline))
             if let subtitleLine {
                 let subtitleBaseline = snap(
                     titleBaseline + CTFontGetDescent(titleFont) + gap + CTFontGetAscent(subtitleFont), scale)
                 subtitle = .init(
-                    line: truncate(subtitleLine, to: available, font: subtitleFont, color: theme.subtitle),
+                    line: lines.truncate(
+                        subtitleLine, to: available, .subtitle, font: subtitleFont, color: subtitleColor),
                     origin: CGPoint(x: textX, y: subtitleBaseline))
             }
         }
@@ -114,25 +132,28 @@ enum RowTypesetter {
 
     private static func place(
         _ accessory: RowAccessory, right: CGFloat, limit: CGFloat, rowHeight: CGFloat, baseline: CGFloat,
-        theme: ResolvedTheme, scale: CGFloat
+        theme: ResolvedTheme, scale: CGFloat, lines: LineSource
     ) -> (accessory: RowTypeset.Accessory, minX: CGFloat)? {
         let metrics = theme.theme.list
         let room = right - limit
         guard room > 0 else { return nil }
         switch accessory {
         case .text(let text):
-            var line = CTLineCreateWithAttributedString(
-                attributed(text, font: theme.accessoryFont, color: theme.accessory))
+            var line = lines.line(.init(text: text, role: .accessory)) {
+                CTLineCreateWithAttributedString(attributed(text, font: theme.accessoryFont, color: theme.accessory))
+            }
             // Only text gives way to fit; capsules and icons that do not fit are dropped.
             if lineWidth(line) > room {
                 guard room >= CGFloat(metrics.minimumSubtitleWidth) else { return nil }
-                line = truncate(line, to: room, font: theme.accessoryFont, color: theme.accessory)
+                line = lines.truncate(line, to: room, .accessory, font: theme.accessoryFont, color: theme.accessory)
             }
             let x = right - lineWidth(line)
             return (.text(.init(line: line, origin: CGPoint(x: x, y: baseline))), x)
         case .tag(let text, let color):
             let colors = theme.tagColors(color)
-            let line = CTLineCreateWithAttributedString(attributed(text, font: theme.tagFont, color: colors.text))
+            let line = lines.line(.init(text: text, role: .tag(color))) {
+                CTLineCreateWithAttributedString(attributed(text, font: theme.tagFont, color: colors.text))
+            }
             let height = CGFloat(metrics.tagHeight)
             let capsuleWidth = ceil(lineWidth(line) + CGFloat(metrics.tagPadding) * 2)
             guard capsuleWidth <= room else { return nil }
@@ -147,8 +168,9 @@ enum RowTypesetter {
             var placed: [RowTypeset.Accessory] = []
             var x = right
             for key in keys.reversed() {
-                let line = CTLineCreateWithAttributedString(
-                    attributed(key, font: theme.keycapFont, color: theme.keycapText))
+                let line = lines.line(.init(text: key, role: .keycap)) {
+                    CTLineCreateWithAttributedString(attributed(key, font: theme.keycapFont, color: theme.keycapText))
+                }
                 let height = CGFloat(metrics.keycapHeight)
                 let capWidth = max(
                     CGFloat(metrics.keycapMinWidth), ceil(lineWidth(line) + CGFloat(metrics.keycapPadding) * 2))
@@ -242,5 +264,25 @@ enum RowTypesetter {
 
     static func snap(_ value: CGFloat, _ scale: CGFloat) -> CGFloat {
         (value * scale).rounded() / scale
+    }
+
+    /// Makes lines through a cache when there is one, and directly otherwise.
+    struct LineSource {
+        let cache: RowLineCache?
+
+        func line(_ key: RowLineCache.Key, make: () -> CTLine) -> CTLine {
+            cache?.line(key, make: make) ?? make()
+        }
+
+        /// `line` cut to `width` with an ellipsis in `font` and `color`, or `line` when it fits.
+        func truncate(
+            _ line: CTLine, to width: CGFloat, _ ending: RowLineCache.Ending, font: CTFont, color: CGColor
+        ) -> CTLine {
+            guard lineWidth(line) > width else { return line }
+            let token = self.line(.init(text: "…", role: .ellipsis(of: ending), color: color)) {
+                CTLineCreateWithAttributedString(attributed("…", font: font, color: color))
+            }
+            return CTLineCreateTruncatedLine(line, Double(max(0, width)), .end, token) ?? line
+        }
     }
 }

@@ -9,10 +9,10 @@ extension ResultListView {
         var elements: [NSAccessibilityElement] = []
         var index = 0
         for section in content.sections where !section.rows.isEmpty {
-            if let title = section.title {
+            if let label = SectionHeader.spoken(title: section.title, count: section.count) {
                 let header = NSAccessibilityElement()
                 header.setAccessibilityRole(.staticText)
-                header.setAccessibilityLabel(title)
+                header.setAccessibilityLabel(label)
                 header.setAccessibilityParent(self)
                 elements.append(header)
             }

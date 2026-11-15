@@ -64,7 +64,9 @@ extension ResultListView {
         let font = theme.sectionHeaderFont
         let ascent = CTFontGetAscent(font)
         return layoutModel.lines.compactMap { line -> CGRect? in
-            guard case .header(let section) = line.kind, let title = content.sections[section].title else { return nil }
+            guard case .header(let section) = line.kind, let title = content.sections[section].headerText else {
+                return nil
+            }
             let top = CGFloat(line.y) - scrollOffset
             guard top >= 0, top + CGFloat(line.height) <= viewportHeight else { return nil }
             let width = RowTypesetter.lineWidth(

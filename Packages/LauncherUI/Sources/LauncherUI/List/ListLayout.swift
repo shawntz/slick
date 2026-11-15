@@ -33,7 +33,7 @@ nonisolated struct ListLayout: Sendable, Equatable {
         var y = metrics.verticalPadding
         var index = 0
         for (sectionIndex, section) in content.sections.enumerated() where !section.rows.isEmpty {
-            if section.title != nil {
+            if section.hasHeader {
                 lines.append(Line(kind: .header(section: sectionIndex), y: y, height: metrics.sectionHeaderHeight))
                 y += metrics.sectionHeaderHeight
             }

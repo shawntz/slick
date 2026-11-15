@@ -70,11 +70,21 @@ nonisolated public struct GridCell: Sendable, Equatable {
 nonisolated public struct GridSection: Sendable, Equatable {
     public var title: String?
     public var cells: [GridCell]
+    /// A number drawn after the header text, such as how many cells the section holds. Nil draws
+    /// none. A section with a count and no title shows a header with the count alone.
+    public var count: Int?
 
-    public init(title: String? = nil, cells: [GridCell]) {
+    public init(title: String? = nil, cells: [GridCell], count: Int? = nil) {
         self.title = title
         self.cells = cells
+        self.count = count
     }
+
+    /// Whether the section draws a header line.
+    var hasHeader: Bool { title != nil || count != nil }
+
+    /// The header as drawn, or nil for none.
+    var headerText: String? { SectionHeader.text(title: title, count: count) }
 }
 
 /// Everything a grid shows.

@@ -40,7 +40,7 @@ extension GridView {
         let font = theme.sectionHeaderFont
         for header in layoutModel.headers(overlapping: top, top + Double(viewportHeight)) {
             let y = CGFloat(header.y) - scrollOffset
-            guard y >= 0, let title = content.sections[header.section].title else { continue }
+            guard y >= 0, let title = content.sections[header.section].headerText else { continue }
             let width = RowTypesetter.lineWidth(
                 CTLineCreateWithAttributedString(
                     RowTypesetter.attributed(title, font: font, color: theme.sectionHeader)))

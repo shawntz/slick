@@ -59,7 +59,7 @@ nonisolated struct GridLayout: Sendable, Equatable {
         for (index, section) in content.sections.enumerated() where !section.cells.isEmpty {
             if !blocks.isEmpty { y += spacing }
             var headerY: Double?
-            if section.title != nil {
+            if section.hasHeader {
                 headerY = y
                 y += headerHeight
             }

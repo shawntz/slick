@@ -30,6 +30,17 @@ public final class ActionCardView: CardSurface, PanelOverlay {
         list.select(index)
     }
 
+    /// Clears the filter text and, with `filtersItself` on, shows every action again with the first
+    /// one selected. Call it before reusing the card, so a filter typed last time hides nothing. It
+    /// does not call `onQueryChange`.
+    public func clearFilter() {
+        guard !query.isEmpty else { return }
+        filterField.stringValue = ""
+        guard filtersItself else { return }
+        list.apply(content.sections)
+        list.select(0)
+    }
+
     let filterField = PanelTextField()
     let list = CardListView()
     private let divider = NSView()
