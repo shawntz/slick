@@ -86,6 +86,8 @@ public final class RootSearch: RootSource {
     var providerTasks: [Task<Void, Never>] = []
     /// Pending providers that have not delivered yet. The snapshot is loading while this is above 0.
     var providersOutstanding = 0
+    /// One listener per instant provider that declares ``InstantProvider/answersChanged``.
+    var answerListeners: [ObjectIdentifier: Task<Void, Never>] = [:]
 
     // MARK: Suggestion triggers
 
@@ -236,6 +238,8 @@ public final class RootSearch: RootSource {
         suggestionTimer = nil
         for slot in slots.values { slot.stop() }
         for slot in triggerSlots.values { slot.stop() }
+        for listener in answerListeners.values { listener.cancel() }
+        answerListeners = [:]
         cancelProviders()
         stopLiveSubtitles()
         engine = nil

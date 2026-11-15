@@ -72,8 +72,8 @@ struct DirectoryPlan {
     var commandFeatures: [ItemID: String] = [:]
     /// Every command that is on and declares a fallback.
     var fallbacks: [ItemID: FallbackEntry] = [:]
-    /// The features' default fallback list: those commands in registration order.
-    var defaultFallbacks: [ItemID] = []
+    /// Those commands in registration order, for the user's fallback choices to arrange.
+    var fallbackCommands: [CommandEntry] = []
     var sources: [SourceEntry] = []
 
     init() {}
@@ -129,7 +129,7 @@ struct DirectoryPlan {
                 fallbacks[entry.id] = FallbackEntry(
                     id: entry.id, title: fallback.title, subtitle: feature.manifest.name,
                     icon: entry.command.icon ?? feature.manifest.icon)
-                defaultFallbacks.append(entry.id)
+                fallbackCommands.append(entry)
             }
         }
     }
@@ -141,11 +141,16 @@ struct DirectoryPlan {
         }
     }
 
-    /// The fallback list: the user's choice from settings when it names any command, else the
-    /// features' defaults. Commands that are off or declare no fallback are left out.
-    func fallbackList(chosen: [String]) -> [FallbackEntry] {
-        let ids = chosen.isEmpty ? defaultFallbacks : chosen.compactMap(ItemID.init(rawValue:))
-        return ids.compactMap { fallbacks[$0] }
+    /// The fallback list root search shows: the fallbacks that are on, in the user's order, as
+    /// ``FallbackChoices/list(_:)`` arranges them. A fallback the user never switched follows its
+    /// ``Fallback/startsOn``. While the user has set no choice, a list in the older
+    /// ``HostSettings/fallbackCommands`` setting still decides, in its order, so a settings pane
+    /// that writes it keeps working. Commands that are off or declare no fallback are left out.
+    func fallbackList(choices: FallbackChoices, legacy: [String]) -> [FallbackEntry] {
+        if choices.isEmpty, !legacy.isEmpty {
+            return legacy.compactMap(ItemID.init(rawValue:)).compactMap { fallbacks[$0] }
+        }
+        return choices.list(fallbackCommands).compactMap { $0.isOn ? fallbacks[$0.id] : nil }
     }
 }
 

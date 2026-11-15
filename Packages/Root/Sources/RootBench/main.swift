@@ -201,7 +201,8 @@ func makeRoot(size: Int) async -> (RootSearch, FakeClock, SyntheticSource) {
     let commands = (0..<20).map { i in
         Command(
             id: "command\(i)", title: "\(verbs[i % verbs.count]) Bench \(nouns[i % nouns.count])",
-            fallback: i < 2 ? Fallback { "Search Bench \(i) for \"\($0)\"" } : nil
+            // Two fallbacks that start on, so every typed query builds the fallback section as before.
+            fallback: i < 2 ? Fallback(startsOn: true) { "Search Bench \(i) for \"\($0)\"" } : nil
         ) { _ in .close() }
     }
     let manifest = FeatureManifest(id: "bench", name: "Bench", icon: .symbol("gauge"))

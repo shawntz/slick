@@ -181,6 +181,16 @@ extension RootSearch {
         }
     }
 
+    /// Reads the fallback list again from the directory plan, the user's fallback choices and the
+    /// older setting. True when the list changed.
+    func refreshFallbacks() -> Bool {
+        let next = plan.fallbackList(
+            choices: configuration.preferences.fallbackChoices, legacy: settingsCache.fallbackCommands)
+        let changed = next.map(\.id) != fallbacks.map(\.id)
+        fallbacks = next
+        return changed
+    }
+
     func applyLearningPaused() {
         let paused = settingsCache.learningPaused
         worker.perform { engine in
@@ -195,8 +205,7 @@ extension RootSearch {
             applyLearningPaused()
             inspector.changes.send()
         }
-        if old.fallbackCommands != settingsCache.fallbackCommands {
-            fallbacks = plan.fallbackList(chosen: settingsCache.fallbackCommands)
+        if old.fallbackCommands != settingsCache.fallbackCommands, refreshFallbacks() {
             reconcileVisibleRows()
         }
         if old.tabCommand != settingsCache.tabCommand, inSession, !Self.isBlank(snapshot.query),
@@ -229,6 +238,7 @@ extension RootSearch {
             Task { [weak self] in
                 for await _ in preferenceChanges {
                     self?.applyAliases()
+                    if self?.refreshFallbacks() == true { self?.reconcileVisibleRows() }
                     self?.prepareEmptySnapshot()
                 }
             })

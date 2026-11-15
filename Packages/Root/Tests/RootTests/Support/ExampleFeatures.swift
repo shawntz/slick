@@ -22,7 +22,8 @@ final class LibraryFeature: Feature {
         [
             Command(id: "open", title: "Open Library") { _ in .close() },
             Command(
-                id: "search", title: "Search Library", fallback: Fallback { "Search Library for \"\($0)\"" }
+                id: "search", title: "Search Library",
+                fallback: Fallback(startsOn: true) { "Search Library for \"\($0)\"" }
             ) { _ in .close() },
             Command(id: "hidden", title: "Hidden Maintenance", showsInRoot: false) { _ in .close() },
         ]
