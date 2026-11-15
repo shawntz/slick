@@ -1,0 +1,32 @@
+{
+  "name": "Emoji answer a colon in root search and fill a grid",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": ":thumbs" },
+    { "expect": { "rows": ["Thumbs Up", "Thumbs Down", "Search Google for \":thumbs\"", "Search Wikipedia for \":thumbs\"", "Search Colors with \":thumbs\""], "selection": "Thumbs Up" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "pasteboardText": "👍" } },
+    { "summon": true },
+    { "press": "escape" },
+    { "type": "search emoji" },
+    { "expect": { "selection": "Search Emoji and Symbols" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "grid" } },
+    { "type": "grinning" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "rowsInclude": ["Grinning Face", "Grinning Cat"] } },
+    { "press": "escape" },
+    { "type": "star struck" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "selection": "Star-Struck" } },
+    { "capture": { "name": "grid", "key": true } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "pasteboardText": "🤩" } }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "A snippet made in the panel is found and pasted",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "create snippet" },
+    { "expect": { "selection": "Create Snippet" } },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "page": "form", "title": "Create Snippet", "fieldErrors": [] } },
+    { "fill": { "field": "name", "value": "Synthetic Greeting" } },
+    { "fill": { "field": "text", "value": "Hello from a synthetic snippet" } },
+    { "fill": { "field": "keyword", "value": "sgreet" } },
+    { "press": "cmd+return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "toast": "Saved Synthetic Greeting", "page": "root" } },
+    { "press": "escape" },
+    { "type": "synthetic greeting" },
+    { "expect": { "selection": "Synthetic Greeting" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "pasteboardText": "Hello from a synthetic snippet" } }
+  ]
+}

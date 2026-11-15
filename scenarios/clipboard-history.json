@@ -1,0 +1,25 @@
+{
+  "name": "Clipboard history lists what other apps copied and pastes it back",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "setFeatures": { "clipboard": true }, "featuresActive": { "clipboard": true } } },
+    { "app": { "copyAsOtherApp": ["first synthetic copy", "second synthetic copy", "third synthetic copy"] } },
+    { "summon": true },
+    { "type": "clipboard history" },
+    { "expect": { "selection": "Clipboard History" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "list", "rows": ["third synthetic copy", "second synthetic copy", "first synthetic copy"] } },
+    { "capture": { "name": "history", "key": true } },
+    { "type": "first" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "rows": ["first synthetic copy"] } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Paste", "Copy to Clipboard", "Pin", "Save as Snippet", "Delete", "Delete All", "Search the Web", "Search With"] } },
+    { "press": "cmd+k" },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "pasteboardText": "first synthetic copy" } }
+  ]
+}

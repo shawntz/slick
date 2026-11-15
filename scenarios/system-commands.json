@@ -1,0 +1,29 @@
+{
+  "name": "System commands ask before they act and report what they did",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "reboot" },
+    { "expect": { "selection": "Restart" } },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "card": "Restart your Mac now?" } },
+    { "capture": { "name": "restart-asks", "key": true } },
+    { "press": "escape" },
+    { "expect": { "card": "", "visible": true } },
+    { "press": "escape" },
+    { "type": "set volume" },
+    { "expect": { "selection": "Set Volume" } },
+    { "press": "tab" },
+    { "type": "40" },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "app": { "hud": "Volume 40%" } },
+    { "summon": true },
+    { "press": "escape" },
+    { "type": "toggle dark mode" },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "app": { "hud": "Switched to dark mode", "launched": [], "opened": [] } }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Quicklinks take an argument in the search bar and open the link",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "search wikipedia" },
+    { "expect": { "selection": "Search Wikipedia" } },
+    { "press": "tab" },
+    { "type": "Ada Lovelace" },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "opened": ["https://en.wikipedia.org/wiki/Special:Search?search=Ada%20Lovelace"] } }
+  ]
+}
