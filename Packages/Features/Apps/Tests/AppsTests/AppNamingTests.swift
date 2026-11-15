@@ -105,7 +105,8 @@ struct AppNamingTests {
                 == "Viewer")
         // A display name that differs from the file name wins over a bundle name that matches it.
         let both: [String: Any] = ["CFBundleDisplayName": "Viewer Pro", "CFBundleName": "Viewer"]
-        #expect(AppNaming.finderName(localized: ["CFBundleName": "Anzeige"], info: both, fileName: "Viewer") == "Viewer")
+        #expect(
+            AppNaming.finderName(localized: ["CFBundleName": "Anzeige"], info: both, fileName: "Viewer") == "Viewer")
     }
 
     /// Some localizations put soft hyphens inside long words. Left in, they would split the word
