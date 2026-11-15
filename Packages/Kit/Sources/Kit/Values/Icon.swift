@@ -20,7 +20,9 @@ public enum Icon: Hashable, Sendable, Codable {
     /// A website's icon. The host shows a cached favicon, or a generic globe until one is cached.
     case favicon(domain: String)
     /// An image at an `https` URL, such as a script's icon. The host downloads it off the main thread
-    /// the first time a row shows it, caches it, and draws a generic image until then.
+    /// the first time a row shows it, caches it, and draws a generic image until then. That download
+    /// is a request the user did not ask for, so features keep this off rows: download after a user
+    /// action into the cache folder and use ``image(path:)``. See the house rules in docs/FEATURES.md.
     case remote(URL)
     /// One icon in light appearance and another in dark. Only this case is boxed, so the common cases
     /// cost no allocation.
