@@ -14,9 +14,44 @@ extension FeatureHarness {
 
     /// The instant providers' answers for a root query.
     public func instantAnswers(for query: String) -> [InstantAnswer] {
+        instantProviders.compactMap { provider in
+            if let signal = provider.answersChanged {
+                answerGenerations[ObjectIdentifier(provider)] = signal.generation
+            }
+            return provider.answer(for: query)
+        }
+    }
+
+    /// Waits until one of the feature's instant providers sends ``InstantProvider/answersChanged``,
+    /// then returns every instant provider's answer for the query, as root search asks again for
+    /// the query on screen. Returns at once when a provider sent it since the harness last asked
+    /// for answers. Throws ``HarnessError/noAnswerSignal`` when no provider declares one.
+    public func instantAnswersAfterChange(for query: String) async throws -> [InstantAnswer] {
+        let signals = instantProviders.compactMap { provider in
+            provider.answersChanged.map { (id: ObjectIdentifier(provider), signal: $0) }
+        }
+        guard !signals.isEmpty else { throw HarnessError.noAnswerSignal }
+        let streams = signals.map { $0.signal.stream() }
+        let changed = signals.contains { entry in
+            answerGenerations[entry.id].map { $0 != entry.signal.generation } ?? false
+        }
+        if !changed {
+            await withTaskGroup(of: Void.self) { group in
+                for stream in streams {
+                    group.addTask { for await _ in stream { return } }
+                }
+                await group.next()
+                group.cancelAll()
+            }
+        }
+        return instantAnswers(for: query)
+    }
+
+    /// The feature's instant providers, in declaration order.
+    var instantProviders: [any InstantProvider] {
         feature.liveProviders.compactMap { provider in
             guard case .instant(let instant) = provider else { return nil }
-            return instant.answer(for: query)
+            return instant
         }
     }
 

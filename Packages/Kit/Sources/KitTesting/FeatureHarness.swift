@@ -75,6 +75,8 @@ import Kit
     var seenIssues: [FeatureIssue] = []
     var serialTail: Task<Void, Never>?
     var running: Set<String> = []
+    /// Each instant provider's answer signal generation when the harness last asked it.
+    var answerGenerations: [ObjectIdentifier: Int] = [:]
 
     /// Makes the feature with ``Feature/init(context:)`` over the fakes. To give the feature a test
     /// double of its own service, call `fakes.override(_:with:)` first.
@@ -275,8 +277,10 @@ import Kit
     }
 
     public func dismiss() {
+        let wasOpen = !isClosed
         isClosed = true
         visibleToast = nil
         visibleToastID = nil
+        if wasOpen { tellPagesThePanelClosed() }
     }
 }

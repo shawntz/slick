@@ -35,7 +35,8 @@ extension FeatureHarness {
         var missing = permissions.filter { !fakes.permissions.status(of: $0).isGranted }
         if grantsMissingPermissions {
             for permission in missing {
-                _ = await fakes.permissions.request(permission)
+                // As the host's card does, a grant also tells the feature, when its manifest lists it.
+                if await fakes.permissions.request(permission).isGranted { await announceGrant(of: permission) }
             }
             missing = missing.filter { !fakes.permissions.status(of: $0).isGranted }
         }
@@ -60,6 +61,7 @@ extension FeatureHarness {
             guard grantsMissingPermissions, await fakes.permissions.request(permission).isGranted else {
                 throw HarnessError.permissionRequired([permission])
             }
+            await announceGrant(of: permission)
             outcome = try await runHandler(handler, context: context, policy: policy, key: key)
         }
         try await finish(outcome)
@@ -113,8 +115,10 @@ extension FeatureHarness {
     private func finish(_ outcome: ActionOutcome) async throws {
         switch outcome {
         case .close(let hud):
+            let wasOpen = !isClosed
             isClosed = true
             visibleToast = nil
+            if wasOpen { tellPagesThePanelClosed() }
             if let hud { huds.append(hud) }
         case .keepOpen:
             break

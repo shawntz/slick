@@ -29,6 +29,8 @@ public enum HarnessError: Error, Hashable, CustomStringConvertible {
     case pageCannotChange
     /// No toast with a button is showing.
     case noToastAction
+    /// None of the feature's instant providers declares ``InstantProvider/answersChanged``.
+    case noAnswerSignal
 
     public var description: String {
         switch self {
@@ -48,6 +50,7 @@ public enum HarnessError: Error, Hashable, CustomStringConvertible {
         case .notASubmenu(let id): "action \"\(id)\" is not a submenu"
         case .pageCannotChange: "the page's source has no change signal and reloads on no settings"
         case .noToastAction: "no toast with a button is showing"
+        case .noAnswerSignal: "no instant provider of the feature declares answersChanged"
         }
     }
 }
