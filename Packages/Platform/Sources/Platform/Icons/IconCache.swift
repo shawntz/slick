@@ -3,6 +3,7 @@ import Foundation
 import Kit
 import KitHosting
 import Synchronization
+import UniformTypeIdentifiers
 
 /// The live icon provider. The main thread only looks icons up; everything else runs off it.
 ///
@@ -67,15 +68,17 @@ import Synchronization
     ///   - http: Downloads remote images.
     ///   - settings: Holds `fetchRemoteIcons`.
     ///   - watcher: Watches the favicon folder after ``start()``.
+    ///   - readGuard: Where the loader may read files and app bundles on its own. Elsewhere a file
+    ///     gets its type's icon, an app the generic app icon and an image a placeholder.
     public init(
         folders: Folders, renderer: any IconRenderer, apps: any AppIconSource, http: any HTTPService,
         settings: any SettingsService, watcher: (any FileWatchService)? = nil, memoryLimit: Int = 32 << 20,
-        rebuildDelay: Duration = .seconds(2)
+        rebuildDelay: Duration = .seconds(2), readGuard: ReadGuard = .anywhere
     ) {
         loader = IconLoader(
             renderer: renderer, apps: apps, atlasFolder: folders.atlas,
             favicons: FaviconFolder(folder: folders.favicons),
-            remote: RemoteImageStore(folder: folders.remote, http: http, settings: settings))
+            remote: RemoteImageStore(folder: folders.remote, http: http, settings: settings), readGuard: readGuard)
         self.watcher = watcher
         self.settings = settings
         self.memoryLimit = memoryLimit
@@ -383,17 +386,19 @@ nonisolated final class IconLoader: Sendable {
     let atlasFolder: URL
     let favicons: FaviconFolder
     let remote: RemoteImageStore
+    let readGuard: ReadGuard
     private let queue: OperationQueue
 
     init(
         renderer: any IconRenderer, apps: any AppIconSource, atlasFolder: URL, favicons: FaviconFolder,
-        remote: RemoteImageStore
+        remote: RemoteImageStore, readGuard: ReadGuard = .anywhere
     ) {
         self.renderer = renderer
         self.apps = apps
         self.atlasFolder = atlasFolder
         self.favicons = favicons
         self.remote = remote
+        self.readGuard = readGuard
         queue = OperationQueue()
         queue.name = "platform.icons"
         queue.maxConcurrentOperationCount = 4
@@ -424,15 +429,23 @@ nonisolated final class IconLoader: Sendable {
             return IconDrawing.swatch(color, pixels: pixels, isDark: key.isDark)
         case .app(let bundleID):
             let location = apps.location(of: bundleID)
+            if let location, !readGuard.mayRead(location) {
+                return renderer.fileType(UTType.applicationBundle.identifier, pixels: pixels)
+            }
             return Bitmap.image(pixels: pixels) { context in
                 renderer.drawApplication(bundleID: bundleID, at: location, in: context, pixels: pixels)
             }
         case .file(let path):
+            guard readGuard.mayRead(URL(filePath: path)) else {
+                return renderer.fileType(Self.typeWithoutReading(path), pixels: pixels)
+            }
             return renderer.file(at: path, pixels: pixels)
         case .fileType(let type):
             return renderer.fileType(type, pixels: pixels)
         case .image(let path):
-            return IconDrawing.imageFile(at: URL(filePath: path), pixels: pixels)
+            let url = URL(filePath: path)
+            guard readGuard.mayRead(url) else { return placeholder("photo", pixels: pixels) }
+            return IconDrawing.imageFile(at: url, pixels: pixels)
         case .favicon(let domain):
             if let file = favicons.file(for: domain), let image = IconDrawing.imageFile(at: file, pixels: pixels) {
                 return image
@@ -443,6 +456,16 @@ nonisolated final class IconLoader: Sendable {
         case .adaptive(let light, _):
             return render(IconKey(icon: light, pixels: pixels, isDark: key.isDark))
         }
+    }
+
+    /// The type whose icon stands for a file the loader may not read: its extension, an app bundle
+    /// for ".app", and a folder for a path that ends in "/" or has no extension.
+    static func typeWithoutReading(_ path: String) -> String {
+        let url = URL(filePath: path)
+        let pathExtension = url.pathExtension.lowercased()
+        if path.hasSuffix("/") || pathExtension.isEmpty { return UTType.folder.identifier }
+        if pathExtension == "app" { return UTType.applicationBundle.identifier }
+        return pathExtension
     }
 
     @concurrent func remoteImage(_ url: URL, pixels: Int) async -> CGImage? {

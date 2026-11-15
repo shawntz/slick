@@ -10,7 +10,8 @@ import Synchronization
 /// LaunchServices once, on a background queue, and the next lookup finds the answer.
 ///
 /// Names come from `CFBundleDisplayName`, then `CFBundleName`, then the file name. They are not
-/// localized.
+/// localized. A lookup never reads an app the read guard keeps it from, such as one in the
+/// Downloads folder: reading there could make macOS show a prompt nobody asked for.
 nonisolated public final class ApplicationCatalog: Sendable {
     private struct State {
         var scanned: [String: AppInfo] = [:]
@@ -24,6 +25,7 @@ nonisolated public final class ApplicationCatalog: Sendable {
     /// The folders a scan reads.
     public let folders: [URL]
     private let locate: @Sendable (String) -> URL?
+    private let readGuard: ReadGuard
     private let state = Mutex(State())
     /// Sent after a scan or a lookup added apps.
     public let changes = ChangeSignal()
@@ -32,9 +34,13 @@ nonisolated public final class ApplicationCatalog: Sendable {
     ///   - folders: The folders to scan, such as ``standardFolders(home:)``.
     ///   - locate: Finds an app's location by bundle ID when a lookup misses, such as
     ///     `WorkspaceSystem.applicationURL(bundleID:)`. Called on a background queue.
-    public init(folders: [URL], locate: @escaping @Sendable (String) -> URL? = { _ in nil }) {
+    ///   - readGuard: Where a lookup may read an app's `Info.plist`.
+    public init(
+        folders: [URL], locate: @escaping @Sendable (String) -> URL? = { _ in nil }, readGuard: ReadGuard = .anywhere
+    ) {
         self.folders = folders
         self.locate = locate
+        self.readGuard = readGuard
     }
 
     /// The usual app folders: `/Applications`, `/System/Applications`, the Core Services apps and
@@ -119,10 +125,11 @@ nonisolated public final class ApplicationCatalog: Sendable {
 
     private func lookUp(_ bundleID: String) {
         let locate = locate
+        let readGuard = readGuard
         DispatchQueue.global(qos: .utility).async { [self] in
-            guard let url = locate(bundleID), let app = Self.application(at: url), app.bundleID == bundleID else {
-                return
-            }
+            guard let url = locate(bundleID), readGuard.mayRead(url), let app = Self.application(at: url),
+                app.bundleID == bundleID
+            else { return }
             insert([app])
             changes.send()
         }

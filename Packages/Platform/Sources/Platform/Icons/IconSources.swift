@@ -19,14 +19,21 @@ nonisolated public protocol AppIconSource: Sendable {
     var changes: ChangeSignal { get }
 }
 
-/// The live app list: the ``ApplicationCatalog``, stamped with each app's `Info.plist` date.
+/// The live app list: the ``ApplicationCatalog``, stamped with each app's `Info.plist` date. An app
+/// the read guard keeps the loader from, such as one running from the Downloads folder, is left
+/// out, so building the atlas never reads there.
 nonisolated public struct CatalogAppIcons: AppIconSource {
     public let catalog: ApplicationCatalog
     private let locate: @Sendable (String) -> URL?
+    private let readGuard: ReadGuard
 
-    public init(catalog: ApplicationCatalog, locate: @escaping @Sendable (String) -> URL? = { _ in nil }) {
+    public init(
+        catalog: ApplicationCatalog, locate: @escaping @Sendable (String) -> URL? = { _ in nil },
+        readGuard: ReadGuard = .anywhere
+    ) {
         self.catalog = catalog
         self.locate = locate
+        self.readGuard = readGuard
     }
 
     public var changes: ChangeSignal {
@@ -35,7 +42,7 @@ nonisolated public struct CatalogAppIcons: AppIconSource {
 
     public func appIconEntries() -> [AppIconEntry] {
         catalog.applications.values.compactMap { app in
-            guard let url = app.url else { return nil }
+            guard let url = app.url, readGuard.mayRead(url) else { return nil }
             let plist = url.appending(path: "Contents/Info.plist", directoryHint: .notDirectory)
             let date = (try? plist.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
             let seconds = date.map { String(Int($0.timeIntervalSince1970)) } ?? "0"
