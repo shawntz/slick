@@ -85,6 +85,7 @@ CoreBridge  ->  nothing in Swift, links libslick_ffi.a
 - A feature never imports another feature, `Host`, `Root`, `Platform` or `App`. Features talk to each other through Kit contracts.
 - `Host`, `Root`, `Platform` and `SettingsUI` never import each other. They meet through the protocols in `KitHosting`, and `App` connects them. A feature never imports `KitHosting`.
 - Only `CoreBridge` sees the C header. Only `slick-ffi` exports symbols.
+- `LauncherUITesting` is for tests, demos and captures. The one product use is the recording build of Host, compiled only when `SCENARIO_RECORDING=1`, so the app links none of it.
 - `Kit` and `LauncherUI` stay small, because every package that depends on them compiles its own copy.
 - New code goes in a new file. Shared files that many people touch, such as the feature list in `App`, change one line at a time.
 
@@ -160,6 +161,8 @@ Kit is the vocabulary every feature is written in. It has no dependencies. Featu
 - **Services.** Everything with a side effect sits behind a protocol on `FeatureContext`: pasteboard, workspace, hotkeys, permissions (status and changes), process runner, HTTP, storage paths, settings, secrets, clock, usage tracking, fuzzy indexes, selection, file watching, file dialogs, text expansion. Async requirements that do work are `@concurrent`. A service only one feature uses is named by a `FeatureServiceKey`, which picks the live or isolated implementation per run environment and takes a test override. Each Kit service has a fake in `KitTesting`, which also holds `FeatureHarness`; `settle()` waits until a feature's background loops have handled what the fakes sent. Optional weight lives in separate targets: `KitStorage` (SQLite with cancellable queries, atomic JSON files) and `KitTemplates` (placeholders).
 - **Run environment.** `live`, `scenario`, `selftest`, `bench`. Outside `live`, side effects go to fakes and features get the isolated implementation of their own services.
 
+A command may stay out of deep links with `allowsDeepLinks: false`, which hidden commands that act at once use. A settings picker may ask before a choice that deletes data. `FeatureValidator.pendingIssues` lists rules that are not enforced yet.
+
 Root search reserves the namespaces `cmd` and `app`. The Apps feature, and only it, may use `app`, because it owns those rows.
 
 Exact signatures live in the code. `docs/FEATURES.md` walks through writing a feature.
@@ -196,6 +199,10 @@ LauncherUI draws. It knows nothing about features, the engine or Kit. It takes d
 ### Platform
 
 Live implementations of Kit's service protocols. Carbon hotkeys with conflict checks through `CopySymbolicHotKeys`. The pasteboard client, including paste into the frontmost app. The icon cache with its atlas. Permission checks that never prompt unless the user asked and never block: answers come from a cache refreshed in the background. Frontmost-app tracking and the system context. Text expansion as a pure typing state machine behind a listen-only event tap. Outside the live environment every service is inert: it keeps books and touches nothing on the Mac.
+
+Three rules protect the user from the services themselves. A read guard keeps background reads, such as icons and the app catalog, out of Downloads, other volumes and other apps' data, where a read can raise a system prompt; a generic icon shows instead. Text expansion ignores and forgets typing in the app's own windows. A paste waits until the panel has given up key focus, and fails with a message if it never does.
+
+A hotkey that an enabled macOS shortcut holds is marked as a system shortcut. Item and feature hotkeys are refused for it. The launcher hotkey alone may wait for it.
 
 ### Host
 
@@ -249,7 +256,7 @@ Root search is a list like any other to the panel, with a special data source. R
 
 ### SettingsUI
 
-A separate SwiftUI window with eight panes: general, appearance with a live theme editor, root search, features with per-command alias, hotkey and enable switch, permissions, learning inspector, advanced and about. Theme edits apply when saved. Onboarding covers the hotkey and permissions. Features contribute panes declaratively.
+A separate SwiftUI window with eight panes: general, appearance with a live theme editor, root search, features with per-command alias, hotkey and enable switch, permissions, learning inspector, advanced and about. Theme edits apply when saved. Onboarding has six steps: welcome, the hotkey, optional features, permissions, a theme, done. The hotkey step walks the user through turning off Spotlight's shortcut when Spotlight holds the launcher hotkey, with the system's own words for each control, and confirms the moment the combination is free. Optional features lists every feature that is off by default, which is how clipboard history gets switched on. The permissions step shows only what the enabled features need and asks macOS for nothing until the user presses Allow. App tells settings whether the launcher hotkey is bound or waiting through `LauncherHotkeyStatus`. Features contribute panes declaratively.
 
 ### Features
 
@@ -270,7 +277,9 @@ The executable. `Packages/App/Sources/Slick/main.swift` is one line; everything 
 
 `start()` registers the features from `Features.swift`, one line each, activates them and binds the launcher hotkey from `HostSettings.launcherHotkey`, again whenever the setting changes. `shutdown()` unbinds it, deactivates the features, flushes Root, lets the engine go and stops Platform.
 
-**The launcher**, with no arguments: an accessory app with no Dock icon. A second copy asks the running one to open its panel and quits. A menu bar item with a bolt opens the launcher, settings and quit, and follows `HostSettings.showStatusItem`. Command-comma opens settings. Onboarding shows on the first launch. Quitting waits for `shutdown()`. On the first launch only, Root asks App for light priors: the Dock's apps, the running apps and Spotlight use counts for apps in the system's app folders, gathered off the main thread with no prompt.
+**The launcher**, with no arguments: an accessory app with no Dock icon. One copy runs per data folder: the live launcher holds a lock on `launcher.lock` there, which the kernel frees when the process ends, and a second copy asks the first to open its panel and quits. Selftests, benches and scenarios use temporary folders and never take the lock. A menu bar item with a bolt opens the launcher, settings and quit, and follows `HostSettings.showStatusItem`. It appears before the features activate, because it is the only way in while the hotkey waits. Command-comma opens settings. Onboarding shows on the first launch, also before the features activate. Quitting waits for `shutdown()`, for 5 seconds at most. On the first launch only, Root asks App for light priors: the Dock's apps, the running apps and Spotlight use counts for apps in the system's app folders, gathered off the main thread with no prompt.
+
+**The launcher hotkey** is `HostSettings.launcherHotkey`, Command-Space by default. Spotlight holds that combination on a new Mac. While an enabled macOS shortcut holds the combination, the launcher hotkey waits: nothing is bound, no error shows, and onboarding, the General pane and the menu bar menu each say who holds it and offer to open Keyboard settings. The moment the combination is free, App binds it and shows a HUD. A refusal by one of the launcher's own bindings is different: the last working combination stays bound and a failure HUD shows.
 
 **Deep links**, in the scheme from `Kit.Brand`:
 
@@ -302,9 +311,14 @@ Budgets are main-thread CPU time, measured inside the app bundle, where the main
 | A live provider's instant path | 100 µs |
 | Summon, excluding `makeKey` | 1 ms |
 | One-shot interactions: open the action panel, push a page, show a form | 8 ms p99, which is one frame at 120 Hz |
-| Idle | no timers except the 4 Hz pasteboard poll, which runs off the main thread |
+| Idle | no timers except the 4 Hz pasteboard poll, which runs off the main thread, and the two waits below |
 
-Where this stands in November 2026, measured with the main thread held to background priority, the slowest case: the engine query takes 316 µs p99 at 3,000 items against 300, and 972 µs at 10,000 against 1 ms. At normal priority both are about four times faster. From the field editor's change callback to the commit, the panel takes 1.4 to 1.9 ms p50 and 2.6 to 3.1 ms p99. The field editor's own work before that callback adds about 2 ms, so the whole keystroke is still over its 3 ms median budget. Replacing the field editor with a Core Text input is the planned fix. A typical root catalog holds about 3,000 items.
+Where this stands in November 2026, measured in the joined app with eight features registered: a root search takes 22 µs p50 and 53 µs p99 over 3,113 items, and 34 µs and 104 µs over 10,113. A keystroke takes 1.3 ms p50 and 4.8 to 5.8 ms p99 from the field editor to the commit, so the p99 budget holds in some runs and not in others. Most of that tail is drawing the rows and the Core Animation commit, 3.7 ms at p99. A streamed detail append takes 0.98 to 1.21 ms p50. The summon path takes 0.02 ms without `makeKey`, opening the action panel 1.6 to 1.9 ms p50, and pushing a page 1.7 ms p50.
+
+Two waits may run a timer while the app is idle, and both end by themselves:
+
+- While the launcher hotkey waits behind a macOS shortcut, App reads the system's shortcuts every 2 seconds for 10 minutes, then every 30 seconds. No timer runs once the hotkey is bound.
+- While a feature listens for a permission it lacks, Platform's one shared poller checks every second while the app is active or for two minutes after the user pressed a Grant button, and every 10 seconds otherwise. With no listener there is no poller. A feature opens such a stream only while the permission is missing.
 
 Rules that keep it that way:
 
@@ -391,6 +405,7 @@ make ui-legibility           # LauncherUI contrast over a sweep of glass tints
 make test-LauncherUI-budget  # LauncherUI budget tests in a release build
 make ui-showcase             # regenerate the site's product pictures
 make ui-record               # LauncherUI clip in motion, then MP4 and GIF copies
+make media                   # record every storyboard in scenarios/media and publish the clips to site/media
 ```
 
 Release builds move their symbols into `build/Slick.app.dSYM` beside the bundle and strip the executable. Debug builds keep the symbols in place. `STRIP=0` or `STRIP=1` overrides either. In November 2026 that took the bundle from 18.5 MB to 10.8 MB. With the code added since, the bundle is 11.5 MB: the executable is 7.8 MB, about 0.6 MB of it the Rust core, and the compiled icon, `Assets.car`, is 3.9 MB.
