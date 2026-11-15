@@ -3,7 +3,8 @@ import KitHosting
 import Observation
 
 /// The general pane: the launcher hotkey, open at login, the menu bar item, where and how big the
-/// panel opens, and when it returns to root search.
+/// panel opens, and when it returns to root search. While a macOS shortcut holds the launcher
+/// hotkey, the pane says so under the recorder, with a button that opens Keyboard settings.
 @Observable final class GeneralModel {
     /// A choice for how long the panel keeps the page the user left.
     struct ResetChoice: Hashable, Identifiable {
@@ -40,6 +41,27 @@ import Observation
             Task { [stream = context.general.changes(of: HostSettings.launcherHotkey)] in
                 for await _ in stream { recorder.refresh() }
             })
+        if let status = context.launcherHotkey {
+            tasks.follow(status.statusChanges, bumping: revision)
+        }
+    }
+
+    // MARK: Launcher hotkey
+
+    /// The stored launcher hotkey while a macOS shortcut holds it and nothing is bound, or nil.
+    var hotkeyWait: LauncherHotkeyWait? {
+        revision.track()
+        return context.launcherHotkey?.wait
+    }
+
+    /// The sentence under the recorder while the hotkey waits.
+    var hotkeyWaitNote: String? {
+        hotkeyWait.map(SpotlightShortcutGuide.waitingNote)
+    }
+
+    /// Opens the Keyboard pane of System Settings, where the shortcut that holds the hotkey lives.
+    func openKeyboardSettings() {
+        context.openKeyboardSettings()
     }
 
     private var general: FeatureSettings { context.general }

@@ -50,6 +50,23 @@ final class SettingsContext {
         return conflict.owner
     }
 
+    /// The launcher hotkey's binding, when App passed it.
+    var launcherHotkey: (any LauncherHotkeyStatus)? { dependencies.launcherHotkey }
+
+    /// Opens the Keyboard pane of System Settings on its Spotlight shortcuts. Only a button the user
+    /// pressed calls it.
+    func openKeyboardSettings() {
+        let workspace = services.workspace
+        let toasts = toasts
+        Task {
+            do {
+                try await workspace.open(SpotlightShortcutGuide.keyboardSettingsURL)
+            } catch {
+                toasts.show(error, title: "Could Not Open Keyboard Settings")
+            }
+        }
+    }
+
     /// A recorder model for a target, with conflicts named for people. The recorder keeps the
     /// context; the context never holds a recorder, so there is no cycle.
     func recorder(_ target: HotkeyTarget) -> HotkeyRecorderModel {

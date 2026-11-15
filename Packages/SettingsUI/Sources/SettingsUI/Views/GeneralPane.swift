@@ -8,10 +8,18 @@ struct GeneralPane: View {
         Form {
             Section("Launcher") {
                 LabeledContent {
-                    HotkeyRecorder(model: model.launcherHotkey)
+                    HotkeyRecorder(model: model.launcherHotkey, showsHeldNote: model.hotkeyWait == nil)
                 } label: {
                     Text("Hotkey")
                     Text("Opens the launcher from any app.")
+                }
+                if let note = model.hotkeyWaitNote {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(note, systemImage: "hourglass")
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button(SpotlightShortcutGuide.openButton) { model.openKeyboardSettings() }
+                    }
                 }
                 Toggle(isOn: $model.launchAtLogin) {
                     Text("Open at login")

@@ -130,6 +130,9 @@ struct HotkeyRecorderRepresentable: NSViewRepresentable {
 /// A hotkey recorder: the field, a clear button, and the conflict review under it.
 struct HotkeyRecorder: View {
     let model: HotkeyRecorderModel
+    /// False leaves out the note that a macOS shortcut holds the stored combination, for a host
+    /// that shows its own notice about it.
+    var showsHeldNote = true
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
@@ -150,7 +153,7 @@ struct HotkeyRecorder: View {
             }
             // Forms line rows up by text baseline; the field has none SwiftUI can see.
             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
-            if let note = model.note {
+            if let note = model.note, showsHeldNote || !isHeld {
                 Text(note)
                     .font(.callout)
                     .foregroundStyle(isWarning ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
@@ -171,7 +174,14 @@ struct HotkeyRecorder: View {
     }
 
     private var isWarning: Bool {
-        if case .review = model.state { return false }
-        return true
+        switch model.state {
+        case .review, .held: false
+        default: true
+        }
+    }
+
+    private var isHeld: Bool {
+        if case .held = model.state { return true }
+        return false
     }
 }

@@ -4,7 +4,8 @@ import KitHosting
 /// The hotkeys settings edits, each as a ``HotkeyTarget``.
 enum HotkeyTargets {
     /// The launcher hotkey in ``HostSettings/launcherHotkey``. Taking a combination from one of the
-    /// user's items clears that item's hotkey, so two bindings never share it.
+    /// user's items clears that item's hotkey, so two bindings never share it. A combination a macOS
+    /// shortcut holds is stored: the app binds it the moment the user turns that shortcut off.
     static func launcher(general: FeatureSettings, preferences: any ItemPreferences) -> HotkeyTarget {
         HotkeyTarget(
             title: "Launcher hotkey",
@@ -18,7 +19,8 @@ enum HotkeyTargets {
                     try releaseItems(holding: combo, preferences: preferences)
                 }
                 general[HostSettings.launcherHotkey] = combo
-            })
+            },
+            waitsForSystemShortcuts: true)
     }
 
     /// One item's hotkey through ``ItemPreferences``, which takes a combination over from another

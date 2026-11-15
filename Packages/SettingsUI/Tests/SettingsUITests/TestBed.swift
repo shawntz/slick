@@ -21,6 +21,8 @@ import LauncherUI
     let helper: HelperFeature
     var lookUp: [ItemID: Row] = [:]
     var grants: [Permission] = []
+    /// The launcher hotkey's binding, as App would report it.
+    let hotkeyStatus = FakeLauncherHotkeyStatus()
 
     init(permissions: PermissionStatus = .granted) {
         root = FileManager.default.temporaryDirectory.appending(path: "settingsui-\(UUID().uuidString)")
@@ -46,7 +48,8 @@ import LauncherUI
                 version: "1.2", build: "34",
                 links: [AboutInfo.Link(title: "Source", url: URL(string: "https://example.com/source")!)]),
             lookUpItem: { [weak self] id in self?.lookUp[id] },
-            bundleIdentifier: { url in "com.example." + url.deletingPathExtension().lastPathComponent.lowercased() })
+            bundleIdentifier: { url in "com.example." + url.deletingPathExtension().lastPathComponent.lowercased() },
+            launcherHotkey: hotkeyStatus)
     }
 
     func context() -> SettingsContext {
@@ -63,6 +66,32 @@ import LauncherUI
     static let list = ItemID.command(feature: "sample", command: "list")
     static let clear = ItemID.command(feature: "sample", command: "clear")
     static let show = ItemID.command(feature: "helper", command: "show")
+}
+
+/// The launcher hotkey's binding as a test sets it. ``checkNow()`` counts calls.
+@MainActor final class FakeLauncherHotkeyStatus: LauncherHotkeyStatus {
+    let statusChanges = ChangeSignal()
+    var bound: KeyCombo? = KeyCombo(.space, .command)
+    var wait: LauncherHotkeyWait?
+    private(set) var checks = 0
+
+    /// Plays the app waiting behind a macOS shortcut.
+    func startWaiting(_ combo: KeyCombo = KeyCombo(.space, .command), owner: String = "Spotlight") {
+        bound = nil
+        wait = LauncherHotkeyWait(combo: combo, owner: owner)
+        statusChanges.send()
+    }
+
+    /// Plays the app binding the combination it waited for.
+    func bindWaited() {
+        bound = wait?.combo
+        wait = nil
+        statusChanges.send()
+    }
+
+    func checkNow() {
+        checks += 1
+    }
 }
 
 /// Waits until `condition` holds, for work that a model starts in a task, such as a confirmation

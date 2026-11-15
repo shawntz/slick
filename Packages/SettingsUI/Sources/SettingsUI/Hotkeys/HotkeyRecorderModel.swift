@@ -13,6 +13,9 @@ struct HotkeyTarget {
     /// Stores a combination, or nil to clear it. `replacing` lists the conflicts the user agreed to
     /// take the combination from. Throws when the system or the host refuses.
     var write: @MainActor (KeyCombo?, _ replacing: [HotkeyConflict]) throws -> Void
+    /// True stores a combination that a macOS shortcut holds, instead of refusing it, because the
+    /// target waits until the user turns that shortcut off. Only the launcher hotkey does.
+    var waitsForSystemShortcuts = false
 }
 
 /// A hotkey recorder's state and rules, apart from the control that draws it.
@@ -24,7 +27,8 @@ struct HotkeyTarget {
 /// Rules: a combination needs Command, Option or Control, unless its key is F1 to F20. Escape stops
 /// recording, Delete clears the hotkey, and Tab moves focus on. A combination that something else
 /// uses is not stored until the user agrees to take it over; one that cannot be taken over, such as
-/// the launcher hotkey, is refused with the owner's name.
+/// the launcher hotkey, is refused with the owner's name. A target that waits for system shortcuts
+/// stores a combination a macOS shortcut holds and names the holder.
 @Observable final class HotkeyRecorderModel {
     /// What the recorder shows.
     enum State: Equatable {
@@ -37,6 +41,8 @@ struct HotkeyTarget {
         case review(KeyCombo, [HotkeyConflict])
         /// The combination is in use by something that cannot give it up.
         case blocked(KeyCombo, [HotkeyConflict])
+        /// The combination is stored, but macOS shortcuts hold it, so it works once they are off.
+        case held(KeyCombo, [HotkeyConflict])
         /// The last key press was not a valid hotkey, or storing it failed.
         case message(String)
     }
@@ -130,21 +136,32 @@ struct HotkeyTarget {
             return
         }
         let conflicts = target.conflicts(combo)
-        if conflicts.isEmpty {
+        let held = heldBy(conflicts)
+        let blocking = conflicts.filter { !$0.canOverride && !held.contains($0) }
+        let others = conflicts.filter(\.canOverride)
+        if !blocking.isEmpty {
+            state = .blocked(combo, blocking)
+        } else if !others.isEmpty {
+            state = .review(combo, others)
+        } else {
             state = .idle
             store(combo, replacing: [])
-        } else if conflicts.contains(where: { !$0.canOverride }) {
-            state = .blocked(combo, conflicts.filter { !$0.canOverride })
-        } else {
-            state = .review(combo, conflicts)
+            if state == .idle && !held.isEmpty { state = .held(combo, held) }
         }
     }
 
     /// Takes the combination under review from its owners.
     func confirmReplace() {
         guard case .review(let combo, let conflicts) = state else { return }
+        let held = heldBy(target.conflicts(combo))
         state = .idle
         store(combo, replacing: conflicts)
+        if state == .idle && !held.isEmpty { state = .held(combo, held) }
+    }
+
+    /// The macOS shortcuts among the conflicts that this target may wait behind.
+    private func heldBy(_ conflicts: [HotkeyConflict]) -> [HotkeyConflict] {
+        target.waitsForSystemShortcuts ? conflicts.filter(\.isSystemShortcut) : []
     }
 
     /// Drops a review, a refusal or a message, keeping the stored combination.
@@ -195,6 +212,8 @@ struct HotkeyTarget {
             "\(combo.displayString) is used by \(owners(conflicts)). Replace it?"
         case .blocked(let combo, let conflicts):
             "\(combo.displayString) is used by \(owners(conflicts)), which keeps it. Choose another."
+        case .held(let combo, let conflicts):
+            "\(owners(conflicts)) holds \(combo.displayString) for now. \(Brand.name) takes it as soon as you turn that shortcut off."
         case .message(let text): text
         }
     }

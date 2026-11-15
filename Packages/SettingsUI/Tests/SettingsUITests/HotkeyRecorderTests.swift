@@ -150,7 +150,7 @@ import Testing
         let combo = KeyCombo(.space, [.control, .option])
         try bed.preferences.setHotkey(combo, for: TestBed.list)
         let model = bed.context().recorder(HotkeyTargets.launcher(general: bed.general, preferences: bed.preferences))
-        #expect(model.combo == KeyCombo(.space, .option))
+        #expect(model.combo == KeyCombo(.space, .command))
         model.beginRecording()
         model.handle(key: .space, modifiers: [.control, .option])
         guard case .review = model.state else {
@@ -164,22 +164,76 @@ import Testing
 
     @Test func reRecordingTheSameLauncherHotkeyIsNotAConflict() {
         let bed = TestBed()
-        bed.preferences.launcherHotkey = KeyCombo(.space, .option)
-        let model = bed.context().recorder(HotkeyTargets.launcher(general: bed.general, preferences: bed.preferences))
-        model.beginRecording()
-        model.handle(key: .space, modifiers: .option)
-        #expect(model.state == .idle)
-        #expect(bed.general[HostSettings.launcherHotkey] == KeyCombo(.space, .option))
-    }
-
-    @Test func systemShortcutsAreReviewedByName() {
-        let bed = TestBed()
-        let combo = KeyCombo(.space, .command)
-        bed.preferences.addConflict(HotkeyConflict(owner: "Spotlight", canOverride: false), for: combo)
+        bed.preferences.launcherHotkey = KeyCombo(.space, .command)
         let model = bed.context().recorder(HotkeyTargets.launcher(general: bed.general, preferences: bed.preferences))
         model.beginRecording()
         model.handle(key: .space, modifiers: .command)
+        #expect(model.state == .idle)
+        #expect(bed.general[HostSettings.launcherHotkey] == KeyCombo(.space, .command))
+    }
+
+    @Test func theLauncherStoresACombinationAMacOSShortcutHoldsAndNamesTheHolder() {
+        let bed = TestBed()
+        let combo = KeyCombo(.space, [.control])
+        let owner = "Select the previous input source"
+        bed.preferences.addSystemShortcut(combo, owner: owner)
+        let model = bed.context().recorder(HotkeyTargets.launcher(general: bed.general, preferences: bed.preferences))
+        model.beginRecording()
+        model.handle(key: .space, modifiers: .control)
+        #expect(
+            model.state
+                == .held(
+                    combo,
+                    [HotkeyConflict(owner: owner, canOverride: false, isSystemShortcut: true)]
+                ))
+        #expect(model.note?.hasPrefix("Select the previous input source holds ⌃Space for now.") == true)
+        #expect(bed.general[HostSettings.launcherHotkey] == combo)
+        model.dismiss()
+        #expect(model.note == nil)
+    }
+
+    @Test func aHeldCombinationAnItemHoldsIsReviewedFirstThenStored() throws {
+        let bed = TestBed()
+        let combo = KeyCombo(.space, [.control, .shift])
+        try bed.preferences.setHotkey(combo, for: TestBed.list)
+        bed.preferences.addSystemShortcut(combo)
+        let model = bed.context().recorder(HotkeyTargets.launcher(general: bed.general, preferences: bed.preferences))
+        model.propose(combo)
+        guard case .review(_, let others) = model.state else {
+            Issue.record("no review: \(model.state)")
+            return
+        }
+        #expect(others.map(\.canOverride) == [true])
+        model.confirmReplace()
+        guard case .held = model.state else {
+            Issue.record("not held: \(model.state)")
+            return
+        }
+        #expect(bed.general[HostSettings.launcherHotkey] == combo)
+        #expect(bed.preferences.hotkeys[TestBed.list] == nil)
+    }
+
+    @Test func anItemHotkeyStillRefusesACombinationAMacOSShortcutHolds() {
+        let bed = TestBed()
+        let combo = KeyCombo(.space, .command)
+        bed.preferences.addSystemShortcut(combo)
+        let model = bed.context().recorder(
+            HotkeyTargets.item(TestBed.open, title: "Open", preferences: bed.preferences))
+        model.beginRecording()
+        model.handle(key: .space, modifiers: .command)
         #expect(model.note == "⌘Space is used by Spotlight, which keeps it. Choose another.")
-        #expect(bed.general[HostSettings.launcherHotkey] == KeyCombo(.space, .option))
+        #expect(bed.preferences.hotkeys[TestBed.open] == nil)
+
+        // A feature's own hotkey setting is refused too.
+        let settings = bed.sampleSettings()
+        let setting = bed.context().recorder(
+            HotkeyTargets.setting(
+                SampleSettings.pickHotkey.erased, title: "Pick", settings: settings, preferences: bed.preferences))
+        setting.propose(combo)
+        guard case .blocked = setting.state else {
+            Issue.record("not blocked: \(setting.state)")
+            return
+        }
+        #expect(settings[SampleSettings.pickHotkey] == nil)
     }
 }

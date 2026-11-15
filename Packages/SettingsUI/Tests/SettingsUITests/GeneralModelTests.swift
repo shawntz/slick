@@ -28,6 +28,23 @@ import Testing
         #expect(!bed.general[HostSettings.showStatusItem])
     }
 
+    @Test func saysUnderTheRecorderWhileAMacOSShortcutHoldsTheHotkey() async {
+        let bed = TestBed()
+        let model = GeneralModel(context: bed.context())
+        #expect(model.hotkeyWait == nil)
+        #expect(model.hotkeyWaitNote == nil)
+
+        bed.hotkeyStatus.startWaiting()
+        #expect(model.hotkeyWait == LauncherHotkeyWait(combo: KeyCombo(.space, .command), owner: "Spotlight"))
+        #expect(model.hotkeyWaitNote?.hasPrefix("Spotlight holds ⌘Space, so it does not open") == true)
+        model.openKeyboardSettings()
+        #expect(await eventually { bed.fakes.workspace.opened == [SpotlightShortcutGuide.keyboardSettingsURL] })
+
+        bed.hotkeyStatus.bindWaited()
+        #expect(model.hotkeyWait == nil)
+        #expect(!model.isUnreachable)
+    }
+
     @Test func keepsVisibleRowsInRange() {
         let bed = TestBed()
         let model = GeneralModel(context: bed.context())

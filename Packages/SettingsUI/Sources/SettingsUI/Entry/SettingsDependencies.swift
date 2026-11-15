@@ -21,6 +21,8 @@ import LauncherUI
 /// - `themes`: the theme store the panel observes. The window selects, saves, imports and exports
 ///   themes through it and writes ``HostSettings/themeName``.
 /// - `dataDirectory`: the app's data folder, revealed from the advanced pane.
+/// - `launcherHotkey`: whether the launcher hotkey is bound or waits behind a macOS shortcut. App's
+///   launcher hotkey implements it. Nil shows no waiting notice.
 public struct SettingsDependencies {
     public var services: Services
     public var features: any FeatureDirectory
@@ -42,6 +44,8 @@ public struct SettingsDependencies {
     /// The bundle ID of an app the user picked in an open dialog. The default reads the app's
     /// Info.plist. Tests pass a lookup over synthetic paths.
     public var bundleIdentifier: @MainActor (URL) -> String?
+    /// The launcher hotkey's binding, for the notice that it waits behind a macOS shortcut.
+    public var launcherHotkey: (any LauncherHotkeyStatus)?
 
     public init(
         services: Services,
@@ -55,7 +59,8 @@ public struct SettingsDependencies {
         about: AboutInfo = .fromMainBundle(),
         lookUpItem: @escaping @MainActor (ItemID) -> Row? = { _ in nil },
         grantPermission: (@MainActor (Permission) async -> PermissionStatus)? = nil,
-        bundleIdentifier: @escaping @MainActor (URL) -> String? = { Bundle(url: $0)?.bundleIdentifier }
+        bundleIdentifier: @escaping @MainActor (URL) -> String? = { Bundle(url: $0)?.bundleIdentifier },
+        launcherHotkey: (any LauncherHotkeyStatus)? = nil
     ) {
         self.services = services
         self.features = features
@@ -69,6 +74,7 @@ public struct SettingsDependencies {
         self.lookUpItem = lookUpItem
         self.grantPermission = grantPermission
         self.bundleIdentifier = bundleIdentifier
+        self.launcherHotkey = launcherHotkey
     }
 }
 
