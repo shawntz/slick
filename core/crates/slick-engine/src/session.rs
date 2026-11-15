@@ -188,14 +188,16 @@ impl Session {
     /// completion and returns true.
     pub(crate) fn complete_with(&mut self, text: &str) -> bool {
         let q = self.query.chars();
-        let mut chars = text.char_indices();
+        // Composed, as titles and queries are folded, so a decomposed title completes too.
+        let mut glyphs = slick_match::fold::composed(text.chars());
+        let mut at = 0usize;
         for &qc in q {
-            match chars.next() {
-                Some((_, c)) if fold(c) == qc => {}
+            match glyphs.next() {
+                Some(g) if fold(g.c) == qc => at += g.bytes as usize,
                 _ => return false,
             }
         }
-        let rest = chars.next().map_or("", |(at, _)| &text[at..]);
+        let rest = &text[at..];
         self.completion.clear();
         self.completion.push_str(rest);
         !rest.is_empty()

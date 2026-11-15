@@ -20,9 +20,10 @@ pub(crate) struct NameInfo {
     pub multibyte: bool,
 }
 
-/// Folds `name` into `out`: lowercase, diacritics stripped, one char to one char. Returns the
-/// word-start bits and the 64-bit presence mask, exactly as `fold::fold_str(name, 0)` would.
-/// Invalid UTF-8 folds like `String::from_utf8_lossy`. `chars` is scratch space.
+/// Folds `name` into `out`: composed, lowercase, diacritics stripped, one composed char to one
+/// char, so a decomposed name folds like the same name composed. Returns the word-start bits and
+/// the 64-bit presence mask, exactly as `fold::fold_str(name, 0)` would. Invalid UTF-8 folds like
+/// `String::from_utf8_lossy`. `chars` is scratch space.
 pub(crate) fn fold_into(name: &[u8], out: &mut Vec<u8>, chars: &mut Vec<char>) -> (u64, u64, u64) {
     out.clear();
     chars.clear();
@@ -31,6 +32,9 @@ pub(crate) fn fold_into(name: &[u8], out: &mut Vec<u8>, chars: &mut Vec<char>) -
         if !chunk.invalid().is_empty() {
             chars.push(char::REPLACEMENT_CHARACTER);
         }
+    }
+    if !name.is_ascii() {
+        fold::compose_in_place(chars);
     }
     let mut ws = 0u64;
     let mut mask = 0u64;
@@ -195,6 +199,10 @@ mod tests {
         "mixedÜMLAUTTest",
         "a-b_c.d e",
         "x\u{301}y",
+        "Cre\u{300}me Bru\u{302}le\u{301}e.txt",
+        "\u{304b}\u{3099}\u{304f}\u{3099}.png",
+        "\u{1100}\u{1161}\u{11a8} note",
+        "\u{301}leading mark",
         "ﬁle ligature",
         "ΣΊΣΥΦΟΣ",
         "tab\tname",

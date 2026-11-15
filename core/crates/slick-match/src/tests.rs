@@ -398,3 +398,82 @@ fn word_prefix_bound_covers_the_best_word_prefix_quality() {
     }
     assert_eq!(FIELD_BONUS[0] + MAX_QUALITY + MAX_LIFT, TIER_GAP - 1);
 }
+
+/// Decomposed text: a base char and its combining marks, as Foundation's file URLs and older Mac
+/// volumes store names.
+const NFD_SAMPLES: &[(&str, &str)] = &[
+    ("Cre\u{300}me Bru\u{302}le\u{301}e Recipe", "Crème Brûlée Recipe"),
+    ("Cafe\u{301}", "Café"),
+    ("A\u{30a}lesund", "Ålesund"),
+    ("U\u{308}bersicht", "Übersicht"),
+    ("\u{304b}\u{3099}\u{304f}\u{3099}", "\u{304c}\u{3050}"),
+    ("\u{1100}\u{1161}\u{11a8} note", "\u{ac01} note"),
+    ("\u{438}\u{306} file", "\u{439} file"),
+    ("x\u{301}y", "xy"),
+    ("1\u{fe0f}\u{20e3} plan", "1 plan"),
+];
+
+#[test]
+fn decomposed_text_folds_like_composed_text() {
+    for &(nfd, nfc) in NFD_SAMPLES {
+        let (d, _) = fold::fold_str(nfd, 0);
+        let (c, _) = fold::fold_str(nfc, 0);
+        assert_eq!(
+            (&d.bytes, d.ws, d.mask, d.initials, d.initials2),
+            (&c.bytes, c.ws, c.mask, c.initials, c.initials2),
+            "{nfd:?}"
+        );
+        assert!(!d.one_to_one, "{nfd:?}: composing changes the char count");
+        assert_eq!(Query::new(nfd).full, Query::new(nfc).full, "{nfd:?} as a query");
+        let mut chars: Vec<char> = nfd.chars().collect();
+        fold::compose_in_place(&mut chars);
+        let glyphs: Vec<char> = fold::composed(nfd.chars()).map(|g| g.c).collect();
+        assert_eq!(chars, glyphs, "{nfd:?}: both ways compose alike");
+        let units: u32 = fold::composed(nfd.chars()).map(|g| g.units).sum();
+        assert_eq!(units as usize, nfd.encode_utf16().count());
+        let bytes: u32 = fold::composed(nfd.chars()).map(|g| g.bytes).sum();
+        assert_eq!(bytes as usize, nfd.len());
+    }
+    // Composed text is left alone.
+    let (plain, _) = fold::fold_str("Crème Brûlée Recipe", 0);
+    assert_eq!(plain.bytes, b"creme brulee recipe");
+}
+
+#[test]
+fn decomposed_titles_match_and_highlight_like_composed_ones() {
+    let titles = ["Cre\u{300}me Bru\u{302}le\u{301}e Recipe", "Crème Brûlée Recipe"];
+    let a = Arena::from_titles(titles);
+    let q = Query::new("creme");
+    let hits = run(&a, "creme", None);
+    assert_eq!(hits.len(), 2);
+    assert_eq!(hits[0].tier(), hits[1].tier(), "the same tier both ways");
+    assert_eq!(hits[0].tier(), PREFIX);
+    let mut scratch = HighlightScratch::default();
+    let mut out = Vec::new();
+    highlight::ranges(&a, 0, &q, titles[0], &mut scratch, &mut out);
+    assert_eq!(out, vec![(0, 6)], "the range covers the combining mark");
+    highlight::ranges(&a, 1, &q, titles[1], &mut scratch, &mut out);
+    assert_eq!(out, vec![(0, 5)]);
+    let q = Query::new("brulee");
+    highlight::ranges(&a, 0, &q, titles[0], &mut scratch, &mut out);
+    assert_eq!(out, vec![(7, 8)], "both marks inside the word are covered");
+    highlight::ranges(&a, 1, &q, titles[1], &mut scratch, &mut out);
+    assert_eq!(out, vec![(6, 6)]);
+}
+
+#[test]
+fn a_path_window_after_decomposed_folders_starts_at_the_basename() {
+    let decomposed = "/Cafe\u{301}/Cre\u{300}me notes.txt";
+    let composed_path = "/Café/Crème notes.txt";
+    let a = Arena::from_paths([decomposed, composed_path]);
+    let q = Query::new("creme");
+    let hits = run(&a, "creme", None);
+    assert_eq!(hits.len(), 2);
+    assert_eq!(hits[0].tier(), hits[1].tier());
+    let mut scratch = HighlightScratch::default();
+    let mut out = Vec::new();
+    highlight::ranges(&a, 0, &q, decomposed, &mut scratch, &mut out);
+    assert_eq!(out, vec![(7, 6)]);
+    highlight::ranges(&a, 1, &q, composed_path, &mut scratch, &mut out);
+    assert_eq!(out, vec![(6, 5)]);
+}

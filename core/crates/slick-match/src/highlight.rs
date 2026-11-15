@@ -57,15 +57,16 @@ pub fn ranges(a: &Arena, e: usize, q: &Query, orig: &str, scratch: &mut Highligh
     }
     pos.sort_unstable();
     pos.dedup();
-    // Folding maps one char to one char, so char i of the folded entry is char i of `orig`.
+    // Folding maps one composed char to one char, so char i of the folded entry is composed char
+    // i of `orig`, which covers one char of `orig` or a base char with its combining marks.
     let win_chars = char_count(&a.item(e)[..a.win[e] as usize]) as u32;
     let mut next = 0;
     let mut utf16 = 0u32;
-    for (ci, c) in orig.chars().enumerate() {
+    for (ci, g) in crate::fold::composed(orig.chars()).enumerate() {
         if next == pos.len() {
             break;
         }
-        let units = c.len_utf16() as u32;
+        let units = g.units;
         if pos[next] + win_chars == ci as u32 {
             match out.last_mut() {
                 Some((start, len)) if *start + *len == utf16 => *len += units,

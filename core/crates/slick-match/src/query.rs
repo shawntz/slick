@@ -65,7 +65,8 @@ impl Query {
     /// Refolds this query from `raw`, reusing every buffer.
     pub fn set(&mut self, raw: &str) {
         self.full_c.clear();
-        for c in raw.chars().take(MAX_QUERY_CHARS) {
+        for g in fold::composed(raw.chars().take(MAX_QUERY_CHARS)) {
+            let c = g.c;
             let f = if c.is_whitespace() { ' ' } else { fold::fold_char(c) };
             if f == ' ' && self.full_c.last().is_none_or(|&last| last == ' ') {
                 continue;

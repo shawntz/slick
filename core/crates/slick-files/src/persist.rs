@@ -43,7 +43,10 @@ use std::sync::Arc;
 
 const MAGIC: [u8; 8] = [0x89, b'F', b'I', b'D', b'X', 0x0D, 0x0A, 0x1A];
 /// Format version. Bump it whenever the layout or the meaning of a column changes.
-pub const VERSION: u32 = 1;
+///
+/// 2: names stored decomposed fold like composed ones, which changes their folded copies, masks
+/// and word starts. A version 1 file is refused and the index is walked again.
+pub const VERSION: u32 = 2;
 const HEADER: usize = 128;
 const ORDER: u32 = 0x0102_0304;
 const ALIGN: usize = 64;

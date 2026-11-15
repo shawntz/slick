@@ -235,3 +235,39 @@ fn paths_rebuild_from_parents() {
     assert_eq!(&buf[..n], b"/home/someone/projects/launcher/src/main.rs");
     assert_eq!(f.snap.path_to_slice(id, &mut buf[..8]), Err(n));
 }
+
+#[test]
+fn a_decomposed_name_ranks_and_highlights_like_a_composed_one() {
+    let composed_name = "crème brûlée.txt";
+    let decomposed_name = "cre\u{300}me bru\u{302}le\u{301}e.txt";
+    for (name, range) in [(composed_name, (0, 5)), (decomposed_name, (0, 6))] {
+        let mut b = Builder::new();
+        let root = b.root(b"/home/someone", NOW);
+        let id = b.add(root, name.as_bytes(), 0, NOW - DAY, 10);
+        let snap = Arc::new(b.finish());
+        let mut s = Searcher::new();
+        let mut out = Vec::new();
+        let o = opts();
+        s.search(&snap, "creme", &o, &Serial, &mut out);
+        assert_eq!(out.len(), 1, "{name:?}");
+        assert_eq!(out[0].id, id);
+        assert_eq!(
+            out[0].tier(),
+            slick_files::rank::tier::PREFIX,
+            "{name:?} matches at prefix"
+        );
+        let mut ranges = Vec::new();
+        s.highlight(&out[0], "creme", &o, &mut ranges);
+        assert_eq!(ranges, vec![range], "{name:?}: the range covers the combining mark");
+        // Typed char by char, narrowing keeps the match.
+        s.reset();
+        for q in ["c", "cr", "cre", "crem", "creme", "creme b", "creme bru"] {
+            s.search(&snap, q, &o, &Serial, &mut out);
+            assert_eq!(out.first().map(|h| h.id), Some(id), "{name:?} for {q:?}");
+        }
+        // A decomposed query finds both.
+        s.reset();
+        s.search(&snap, "cre\u{300}me", &o, &Serial, &mut out);
+        assert_eq!(out.first().map(|h| h.id), Some(id));
+    }
+}
