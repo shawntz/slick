@@ -33,6 +33,17 @@ import KitHosting
         systemConflicts[combo, default: []].append(conflict)
     }
 
+    /// Makes ``hotkeyConflicts(for:excluding:)`` report an enabled macOS shortcut, such as
+    /// Spotlight's, for the combination.
+    public func addSystemShortcut(_ combo: KeyCombo, owner: String = "Spotlight") {
+        addConflict(HotkeyConflict(owner: owner, canOverride: false, isSystemShortcut: true), for: combo)
+    }
+
+    /// Removes the conflicts added for the combination, as when the user turns a macOS shortcut off.
+    public func removeConflicts(for combo: KeyCombo) {
+        systemConflicts[combo] = nil
+    }
+
     public func setAlias(_ alias: String?, for id: ItemID) {
         aliases[id] = alias.flatMap { $0.isEmpty ? nil : $0 }
         changes.send()

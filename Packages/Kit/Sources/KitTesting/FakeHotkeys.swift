@@ -23,6 +23,17 @@ public final class FakeHotkeys: HotkeyService {
         state.withLock { $0.conflicts[combo, default: []].append(conflict) }
     }
 
+    /// Makes ``conflicts(for:)`` report an enabled macOS shortcut, such as Spotlight's, for the
+    /// combination. ``register(_:id:handler:)`` refuses it, as the live service does.
+    public func addSystemShortcut(_ combo: KeyCombo, owner: String = "Spotlight") {
+        addConflict(HotkeyConflict(owner: owner, canOverride: false, isSystemShortcut: true), for: combo)
+    }
+
+    /// Removes every conflict added for the combination, as when the user turns a macOS shortcut off.
+    public func removeConflicts(for combo: KeyCombo) {
+        state.withLock { $0.conflicts[combo] = nil }
+    }
+
     /// Runs the handler registered under the ID, as if the user pressed the hotkey. Returns false when
     /// nothing is registered under it.
     @discardableResult

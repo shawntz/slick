@@ -18,10 +18,15 @@ public struct HotkeyConflict: Hashable, Sendable {
     public var owner: String
     /// True when Slick may take the combination over after asking the user.
     public var canOverride: Bool
+    /// True when an enabled macOS keyboard shortcut holds the combination, such as Spotlight's.
+    /// Slick can never take it over. The launcher hotkey alone may wait for the user to turn that
+    /// shortcut off; every other hotkey is refused.
+    public var isSystemShortcut: Bool
 
-    public init(owner: String, canOverride: Bool) {
+    public init(owner: String, canOverride: Bool, isSystemShortcut: Bool = false) {
         self.owner = owner
         self.canOverride = canOverride
+        self.isSystemShortcut = isSystemShortcut
     }
 }
 
