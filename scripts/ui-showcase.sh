@@ -103,7 +103,7 @@ SHOTS = [
         "File results beside a preview of the selected note and its details.",
         f"{NAME}'s search panel in dark mode, inside a Search Files view with “plan” typed "
         "and a Kind filter set to All Kinds. On the left, six files and a folder match. On the "
-        "right, the selected file, Atlas launch plan.md, is shown as formatted Markdown with "
+        "right, the selected file, Sourdough plan.md, is shown as formatted Markdown with "
         "headings, a numbered list, bullet points and a code block. Under it, a table lists its "
         "kind, size, folder, tags and dates.",
     ),
