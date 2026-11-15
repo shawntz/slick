@@ -1,5 +1,5 @@
 import AppKit
-import LauncherUI
+@_spi(Testing) import LauncherUI
 import LauncherUITesting
 
 /// Main-thread cost of the part 2 components, measured like the row update: the work, then an
@@ -130,6 +130,20 @@ enum ComponentBench {
     /// Opening the action card over a list, and one keystroke into its filter. The host keeps one
     /// card and presents it again, as `LauncherSurface.present(_:)` advises; the first open of a
     /// new card is timed apart.
+    /// Where an action card open goes, from the last `actionCard()` run.
+    struct OpenSplit {
+        var present: [Double] = []
+        var display: [Double] = []
+        var commit: [Double] = []
+        /// Whole opens by line cache mode, with `compare`.
+        var byMode: [String: [Double]] = [:]
+    }
+
+    /// Alternate the card's line cache off and on, open by open.
+    static var compare = false
+
+    static var lastOpenSplit = OpenSplit()
+
     static func actionCard() async -> (open: Result, filter: Result) {
         let list = ResultListView()
         let scene = makeScene(list)
@@ -147,9 +161,28 @@ enum ComponentBench {
         scene.surface.prewarm(card)
         var opens: [Double] = []
         var filters: [Double] = []
+        var split = OpenSplit()
         for step in 0..<44 {
             card.apply(SyntheticComponents.actions)
-            let open = timed(scene) { scene.surface.present(card) }
+            // `compare` turns the card's line cache off for every other open, so both see the same load.
+            if compare { card.usesLineCache = step % 2 == 1 }
+            let start = LatencyClock.threadCPUNanoseconds()
+            scene.surface.present(card)
+            let presented = LatencyClock.threadCPUNanoseconds()
+            scene.surface.panel.displayIfNeeded()
+            let drawn = LatencyClock.threadCPUNanoseconds()
+            CATransaction.flush()
+            let committed = LatencyClock.threadCPUNanoseconds()
+            let open = Double(committed - start) / 1e6
+            if step >= 4 {
+                split.present.append(Double(presented - start) / 1e6)
+                split.display.append(Double(drawn - presented) / 1e6)
+                split.commit.append(Double(committed - drawn) / 1e6)
+                if compare {
+                    split.byMode[step % 2 == 1 ? "line cache" : "no line cache", default: []].append(
+                        Double(committed - start) / 1e6)
+                }
+            }
             let editor = scene.surface.panel.queryFieldEditor
             let filter = timed(scene) {
                 editor.insertText("s", replacementRange: NSRange(location: NSNotFound, length: 0))
@@ -169,6 +202,7 @@ enum ComponentBench {
             }
         }
         await finish(scene)
+        lastOpenSplit = split
         return (
             Result(
                 label: "action card open, present + draw + commit", cpu: LatencySummary(opens), budget: .keystroke,

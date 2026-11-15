@@ -7,10 +7,12 @@ import LauncherUITesting
 /// changed rows, a keystroke split into its parts, the lens glide, the glass height animation and
 /// the components.
 ///
-/// `parts=summon,rows,keystroke,motion,components` picks the parts; all run by default. Only the
-/// summon part takes key status, about 120 ms per summon. Every other batch waits for 15 s of idle
-/// input first, shows the panel in a corner without key status, and stays on screen under two
-/// seconds.
+/// `parts=summon,rows,keystroke,motion,components` picks the parts; all run by default. `parts=card`
+/// splits the action card's open into present, display and commit; with `compare=1` it turns the
+/// card's line cache off for every other open. Only the
+/// summon part takes key status, about 120 ms per summon; each of its batches waits for 120 s of
+/// idle input and stops the moment input arrives. Every other batch waits for 15 s of idle input
+/// first, shows the panel in a corner without key status, and stays on screen under two seconds.
 enum BenchMode {
     static let allParts = ["summon", "rows", "keystroke", "motion", "components"]
 
@@ -44,6 +46,18 @@ enum BenchMode {
         if parts.contains("components") {
             passed = await components(verdicts: &verdicts) && passed
         }
+        if parts.contains("card") {
+            // `compare=1` alternates the card's line cache off and on, open by open.
+            ComponentBench.compare = options.int("compare", 0) == 1
+            var modes: [String: [Double]] = [:]
+            for _ in 0..<max(1, options.int("cardRounds", 1)) {
+                passed = await actionCard(verdicts: &verdicts) && passed
+                for (mode, samples) in ComponentBench.lastOpenSplit.byMode { modes[mode, default: []] += samples }
+            }
+            for (mode, samples) in modes.sorted(by: { $0.key < $1.key }) {
+                say("whole open, \(mode): n=\(samples.count) min / p50 / p99 \(triple(samples))")
+            }
+        }
         say("\n## Budgets")
         for verdict in verdicts { say(verdict) }
         return passed
@@ -53,19 +67,26 @@ enum BenchMode {
         var passed = true
         say("## Summon (key status, n=\(cycles) per row; times from the trigger, ms)")
         var summonTable = TextTable([
-            "strategy", "ramp", "path excl. makeKey p50/p99", "makeKey p50/p99", "first pixels p50/p99",
+            "strategy", "key first", "ramp", "path excl. makeKey p50/p99", "makeKey p50/p99", "first pixels p50/p99",
             "key look p50/p99", "frames 1-5, share of the key look",
         ])
         var paths: [Double] = []  // the default strategy's, which the budget covers
-        for (strategy, ramp) in [
-            (SummonStrategy.layerOpacity, 0), (.layerOpacity, 2), (.layerOpacity, 3), (.orderFront, 0),
+        for (strategy, keyFirst, ramp) in [
+            (SummonStrategy.layerOpacity, true, 0), (.layerOpacity, false, 0), (.layerOpacity, false, 2),
+            (.orderFront, false, 0),
         ] {
-            let result = await SummonBench.run(strategy: strategy, rampFrames: ramp, cycles: cycles)
-            if strategy == .layerOpacity && ramp == Theme.standard.motion.summonRampFrames { paths = result.paths }
+            let result = await SummonBench.run(strategy: strategy, rampFrames: ramp, keyFirst: keyFirst, cycles: cycles)
+            if result.interrupted {
+                verdicts.append("summon: input arrived; the run stopped: FAIL")
+                return false
+            }
+            if strategy == .layerOpacity, keyFirst, ramp == Theme.standard.motion.summonRampFrames {
+                paths = result.paths
+            }
             let trajectory = SummonBench.medianTrajectory(result.trajectories).map { format($0) }.joined(separator: " ")
             summonTable.add([
-                strategy.rawValue, "\(ramp)", pair(result.paths), pair(result.makeKey), pair(result.firstPixels),
-                pair(result.keyLook), trajectory,
+                strategy.rawValue, keyFirst ? "yes" : "no", "\(ramp)", pair(result.paths), pair(result.makeKey),
+                pair(result.firstPixels), pair(result.keyLook), trajectory,
             ])
         }
         say(summonTable.render())
@@ -166,6 +187,31 @@ enum BenchMode {
             passed = passed && ok
         }
         say(componentTable.render())
+        return passed
+    }
+
+    /// Opening the action card, split into the present call, the display and the commit.
+    private static func actionCard(verdicts: inout [String]) async -> Bool {
+        say("\n## Action card open (main-thread CPU, ms)")
+        let card = await ComponentBench.actionCard()
+        let split = ComponentBench.lastOpenSplit
+        var table = TextTable(["part", "n", "min / p50 / p99"])
+        table.add(["present", "\(split.present.count)", triple(split.present)])
+        table.add(["display", "\(split.display.count)", triple(split.display)])
+        table.add(["commit", "\(split.commit.count)", triple(split.commit)])
+        table.add(["whole open", "\(card.open.cpu.count)", triple(card.open.cpu)])
+        table.add(["filter keystroke", "\(card.filter.cpu.count)", triple(card.filter.cpu)])
+        say(table.render())
+        say(card.open.note)
+        var passed = true
+        for result in [card.open, card.filter] {
+            let ok = result.budget.violation(result.cpu, label: result.label) == nil
+            verdicts.append(
+                String(
+                    format: "%@: p50 %.3f, p99 %.3f ms (budget %.1f / %.1f ms): %@", result.label, result.cpu.p50,
+                    result.cpu.p99, result.budget.p50, result.budget.p99, ok ? "PASS" : "FAIL"))
+            passed = passed && ok
+        }
         return passed
     }
 

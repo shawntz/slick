@@ -9,6 +9,9 @@ import LauncherUITesting
 /// (flat grey), the flatter look of a glass that is not yet key, and the full key look. First
 /// pixels are the first frame 30% of the way from hidden to the key look; the key look is the
 /// first frame past 85%. The trajectory shows how each summon gets there, frame by frame.
+///
+/// Every batch takes key status six times, about 120 ms each, so it waits for 120 s without
+/// input and stops the moment input arrives.
 enum SummonBench {
     struct Result {
         var paths: [Double] = []
@@ -17,12 +20,15 @@ enum SummonBench {
         var keyLook: [Double] = []
         /// Per summon, the progress from hidden (0) to key look (1) of each displayed frame.
         var trajectories: [[Double]] = []
+        /// True when input arrived and the run stopped early.
+        var interrupted = false
     }
 
-    static func run(strategy: SummonStrategy, rampFrames: Int, cycles: Int) async -> Result {
+    static func run(strategy: SummonStrategy, rampFrames: Int, keyFirst: Bool, cycles: Int) async -> Result {
         var theme = Theme.standard
         theme.motion.summonRampFrames = rampFrames
         let scene = DemoScene(theme: theme, strategy: strategy)
+        scene.summoner.makesKeyBeforeShowing = keyFirst
         scene.summoner.prewarm()
         await pause(ms: 150)
         let insets = theme.panel.shadowInsets
@@ -32,7 +38,13 @@ enum SummonBench {
         while done < cycles {
             let count = min(6, cycles - done)
             // Each batch takes key status six times, so it waits until nobody is typing.
-            guard await IdleGate.wait(seconds: 15, until: Date().addingTimeInterval(1800)) else { break }
+            guard await IdleGate.wait(seconds: 120, interval: 1, until: Date().addingTimeInterval(1800)) else { break }
+            let watch = IdleGuard.Watch()
+            watch.onInput = {
+                result.interrupted = true
+                scene.summoner.dismiss(returnFocus: true)
+            }
+            watch.start()
             // The stream only includes windows that are ordered in when it starts.
             if strategy == .orderFront { scene.surface.panel.orderFrontRegardless() }
             let watcher = FrameWatcher()
@@ -40,7 +52,7 @@ enum SummonBench {
             if strategy == .orderFront { scene.surface.panel.orderOut(nil) }
             await pause(ms: 150)
             var starts: [UInt64] = []
-            for _ in 0..<count {
+            for _ in 0..<count where !result.interrupted {
                 scene.summoner.takesKeyStatus = true
                 starts.append(LatencyClock.now())
                 scene.summoner.summon()
@@ -51,6 +63,11 @@ enum SummonBench {
                 await pause(ms: 160)
             }
             await watcher.stop()
+            watch.stop()
+            if result.interrupted || watch.inputArrived {
+                result.interrupted = true
+                break
+            }
             analyse(watcher.snapshot(), starts: starts, into: &result)
             done += count
             await pause(ms: 600)

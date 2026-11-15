@@ -10,6 +10,7 @@
 //   scripts/ui-showcase.sh                      product shots for site/media, behind the idle guard
 //   scripts/ui-demo.sh record [idle=120]        a short clip in motion, then MP4 and GIF copies
 //   scripts/ui-demo.sh noise                    pixel noise in flat areas of the grid, detail and list
+//   scripts/ui-demo.sh flash [idle=120]         flat frames before the glass's key look, per summon
 //
 // It must run as an app launched through LaunchServices: a terminal process gets lower
 // scheduling priority and its numbers are not comparable. Every mode ends with a
@@ -44,10 +45,11 @@ Task { @MainActor in
     case "showcase": passed = await ShowcaseMode.run(options)
     case "record": passed = await RecordMode.run(options)
     case "noise": passed = await NoiseMode.run(options)
+    case "flash": passed = await FlashMode.run(options)
     default:
         say(
             "unknown mode \(options.mode); use shots, components, legibility, vibrancy, bench, type, accessibility, "
-                + "showcase, record or noise")
+                + "showcase, record, noise or flash")
         passed = false
     }
     say("\(options.mode) \(passed ? "PASS" : "FAIL")")
