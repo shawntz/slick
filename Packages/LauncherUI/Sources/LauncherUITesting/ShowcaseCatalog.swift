@@ -172,7 +172,7 @@ public enum ShowcaseCatalog {
         let q = fileQuery
         let markdown = ShowcaseIcons.document("text.alignleft", accent: 0x7B4BEA)
         let rows = [
-            row(31, "Atlas launch plan.md", "", query: q, accessories: [.text("Markdown")], icon: markdown),
+            row(31, "Sourdough plan.md", "", query: q, accessories: [.text("Markdown")], icon: markdown),
             row(
                 32, "Garden plan.pdf", "", query: q, accessories: [.text("PDF")],
                 icon: ShowcaseIcons.document("doc.richtext", accent: 0xE0334A)),
@@ -193,19 +193,19 @@ public enum ShowcaseCatalog {
 
     /// The selected file's text.
     public static let markdown = """
-        # Atlas launch plan
-        The beta opens on **Monday** for 40 testers. Keep the scope *small* and run `make check` before every build.
+        # Sourdough plan
+        Feed the starter on **Friday** night and keep the dough *warm*, close to `24 °C`, while it rises.
 
-        ## This week
-        1. Freeze the feature list.
-        2. Record the walkthrough.
-        3. Send the invites, then [collect feedback](https://example.com/atlas).
+        ## Saturday
+        1. Mix the flour, water and starter.
+        2. Fold the dough four times an hour apart.
+        3. Shape the loaf, then [read the baking notes](https://example.com/sourdough).
 
-        - Fix the two open crash reports.
-        - Write the release notes last.
+        - Heat the oven with the pot inside.
+        - Let the loaf cool before slicing.
 
         ```
-        make release VERSION=0.9.0
+        500 g flour · 350 g water · 10 g salt
         ```
         """
 
@@ -213,10 +213,10 @@ public enum ShowcaseCatalog {
     public static let metadata: [MetadataItem] = [
         .label("Kind", value: "Markdown document"),
         .label("Size", value: "3 KB"),
-        .label("Where", value: "Documents › Atlas"),
+        .label("Where", value: "Documents › Kitchen"),
         .tags(
             "Tags",
-            [MetadataTag("Planning", color: ThemeColor(.purple)), MetadataTag("Team", color: ThemeColor(.blue))]),
+            [MetadataTag("Baking", color: ThemeColor(.purple)), MetadataTag("Weekend", color: ThemeColor(.blue))]),
         .separator,
         .label("Created", value: "Monday at 14:05"),
         .label("Modified", value: "Today at 09:41"),
@@ -427,21 +427,22 @@ public enum ShowcaseCatalog {
     public static func noteForm() -> FormContent {
         FormContent(items: [
             FormItem(
-                id: "title", label: "Title", kind: .text(placeholder: "Note title"), value: .text("Atlas launch plan")),
+                id: "title", label: "Title", kind: .text(placeholder: "Note title"), value: .text("Sourdough plan")),
             FormItem(
                 id: "folder", label: "Folder",
                 kind: .dropdown([
-                    MenuOption(id: "projects", title: "Projects"), MenuOption(id: "inbox", title: "Inbox"),
-                ]), value: .option("projects")),
-            FormItem(id: "tags", label: "Tags", kind: .tags(placeholder: "Add tag"), value: .tags(["launch", "team"])),
+                    MenuOption(id: "recipes", title: "Recipes"), MenuOption(id: "inbox", title: "Inbox"),
+                ]), value: .option("recipes")),
+            FormItem(
+                id: "tags", label: "Tags", kind: .tags(placeholder: "Add tag"), value: .tags(["baking", "weekend"])),
             FormItem(
                 id: "body", label: "Note", kind: .multiline(placeholder: "Write something"),
                 value: .text(
-                    "The beta opens on Monday for 40 testers. Collect feedback in one place and fix the two open crash reports first."
+                    "Feed the starter on Friday night. Mix and fold on Saturday morning, then bake the loaf in the hot pot."
                 )),
             FormItem(
                 id: "file", label: "Attachment", kind: .filePath(placeholder: "Choose a file", buttonTitle: "Choose…"),
-                value: .text("~/Desktop/walkthrough.mov")),
+                value: .text("~/Desktop/loaf.jpg")),
             FormItem(id: "separator", label: "", kind: .separator),
             FormItem(id: "pin", label: "", kind: .checkbox(label: "Pin to the top of the list"), value: .bool(true)),
             FormItem(
