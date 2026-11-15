@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template. scripts/info-plist.sh replaces each name between at signs with its value. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>@BRAND_NAME@</string>
+	<key>CFBundleIdentifier</key>
+	<string>@BRAND_BUNDLE_ID@</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>@BRAND_NAME@</string>
+	<key>CFBundleDisplayName</key>
+	<string>@BRAND_NAME@</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@BUILD_NUMBER@</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>@BRAND_BUNDLE_ID@</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>@BRAND_URL_SCHEME@</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSMinimumSystemVersion</key>
+	<string>@MIN_MACOS@</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
+	<key>NSSupportsSuddenTermination</key>
+	<false/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Open source under the MIT license.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>@BRAND_NAME@ sends Apple Events to run your scripts and to control apps you ask it to, for example to open a URL in your browser or empty the Trash.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>@BRAND_NAME@ reads your upcoming events to suggest meetings to join and to rank results by what is happening now.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>@BRAND_NAME@ can search and create reminders from the launcher.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>@BRAND_NAME@ uses your location for answers that depend on where you are, such as local time and weather, only when you ask for one.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>@BRAND_NAME@ uses your location for answers that depend on where you are, such as local time and weather, only when you ask for one.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>@BRAND_NAME@ can search your contacts from the launcher.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>@BRAND_NAME@ indexes files on your Desktop so you can find and open them quickly.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>@BRAND_NAME@ indexes files in Documents so you can find and open them quickly.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>@BRAND_NAME@ indexes files in Downloads so you can find and open them quickly.</string>
+</dict>
+</plist>

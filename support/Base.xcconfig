@@ -1,0 +1,8 @@
+// Shared settings for the optional Xcode project (make xcode). Signing defaults to "Sign to Run
+// Locally", so a fresh clone builds with no Apple account. To sign with your own Apple Development
+// identity, put DEVELOPMENT_TEAM and CODE_SIGN_IDENTITY in support/Local.xcconfig, which git
+// ignores. Never commit a team ID.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+#include? "Local.xcconfig"
