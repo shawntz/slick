@@ -153,9 +153,11 @@ extension Action {
     }
 
     /// Moves files to the Trash after a confirmation, then reloads the page. Root forgets the files,
-    /// so they stop showing up as remembered rows.
+    /// so they stop showing up as remembered rows. The question names one file through
+    /// ``DisplayText/fileName(_:limit:)``, so a line break or a direction override in its name
+    /// shows as it is stored and is never obeyed.
     public static func moveToTrash(_ urls: [URL], title: String = "Move to Trash") -> Action {
-        let what = urls.count == 1 ? "\"\(urls[0].lastPathComponent)\"" : "\(urls.count) items"
+        let what = urls.count == 1 ? "“\(DisplayText.fileName(urls[0].lastPathComponent))”" : "\(urls.count) items"
         return Action(
             title, id: "move-to-trash", icon: .symbol("trash"), shortcut: .remove, style: .destructive,
             confirmation: Confirmation("Move \(what) to the Trash?", confirmTitle: "Move to Trash", isDestructive: true)

@@ -169,7 +169,7 @@ struct FileSearchSketchTests {
         #expect(harness.quickLooks == [[URL(filePath: "/tmp/kit-example/notes.md")]])
 
         try await harness.perform("move-to-trash")
-        #expect(harness.confirmations.map(\.title) == ["Move \"notes.md\" to the Trash?"])
+        #expect(harness.confirmations.map(\.title) == ["Move “notes.md” to the Trash?"])
         #expect(harness.fakes.workspace.trashed == [URL(filePath: "/tmp/kit-example/notes.md")])
         #expect(harness.toasts.map(\.title) == ["Moved to Trash"])
     }
