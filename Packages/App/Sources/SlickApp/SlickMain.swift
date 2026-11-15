@@ -68,7 +68,8 @@ public enum SlickMain {
         app.setActivationPolicy(.accessory)
         let host = ModeHost(name: name, limit: limit, body: body)
         app.delegate = host
-        app.run()
+        // The application holds its delegate weakly; keep it alive for as long as the app runs.
+        withExtendedLifetime(host) { app.run() }
         exit(0)
     }
 
