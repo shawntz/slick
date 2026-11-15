@@ -16,6 +16,20 @@ import Kit
     /// Sent after anything in ``features`` changed: a feature's declarations, or a feature or command
     /// turned on or off. Read ``features`` again when it fires.
     var changes: ChangeSignal { get }
+
+    /// Tells the features that the user granted a permission through one of Slick's own Grant
+    /// buttons. Each feature that is on and lists the permission in its manifest hears
+    /// ``Kit/Feature/permissionGranted(_:)``, in registration order. Returns once each has returned.
+    ///
+    /// SettingsUI calls it after a Grant button in settings or onboarding ends with the permission
+    /// granted, and after it sees a permission it asked for turn granted while it watches. Host's
+    /// runtime implements it, and calls it itself after a grant through the panel's permission
+    /// card. The default does nothing, for a directory that cannot reach its features.
+    func permissionGranted(_ permission: Permission) async
+}
+
+extension FeatureDirectory {
+    public func permissionGranted(_ permission: Permission) async {}
 }
 
 extension FeatureDirectory {

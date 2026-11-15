@@ -41,6 +41,12 @@ import Foundation
         issues += duplicates(in: manifest.permissions.map(\.permission)).map {
             "permission \($0.displayName) is listed twice"
         }
+        if manifest.isSuggestedInOnboarding && manifest.isEnabledByDefault {
+            issues.append(
+                FeatureIssue(
+                    "feature \"\(manifest.id)\" is on by default, so isSuggestedInOnboarding does nothing; "
+                        + "set isEnabledByDefault to false or drop the flag"))
+        }
         return issues
     }
 

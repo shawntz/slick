@@ -17,6 +17,9 @@ import KitTesting
     private var instances: [String: any Feature] = [:]
     private var disabledCommands: Set<ItemID> = []
 
+    /// Every permission passed to ``permissionGranted(_:)``, in order.
+    public private(set) var announcedGrants: [Permission] = []
+
     public init(_ entries: [FeatureEntry] = []) {
         self.entries = entries
     }
@@ -34,6 +37,16 @@ import KitTesting
         instances[entry.id] = feature
         entries.append(entry)
         return feature
+    }
+
+    /// Tells each registered feature that is on and lists the permission in its manifest, in
+    /// registration order, as Host's runtime does. Entries set directly have no feature to tell.
+    public func permissionGranted(_ permission: Permission) async {
+        announcedGrants.append(permission)
+        for entry in entries
+        where entry.isEnabled && entry.manifest.permissions.contains(where: { $0.permission == permission }) {
+            await instances[entry.id]?.permissionGranted(permission)
+        }
     }
 
     /// The feature object behind a registered entry.

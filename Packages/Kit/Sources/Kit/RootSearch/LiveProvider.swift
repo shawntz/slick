@@ -31,6 +31,20 @@ public enum LiveProvider: Sendable {
 
     /// The answer for the query, or nil. Called on every keystroke with the full query.
     func answer(for query: String) -> InstantAnswer?
+
+    /// Fires when an answer the provider gave may be different now for the same query, such as a
+    /// conversion that showed a loading row until exchange rates arrived. Send it from any thread.
+    /// Default nil.
+    ///
+    /// Root search then calls ``answer(for:)`` again for the query on screen, on the main thread,
+    /// and puts the new rows where the provider's old rows were: nothing above them moves. An
+    /// answer that is new for this query joins as the provider's own section after the results. A
+    /// nil answer takes the old rows away. Send it after the data changed, not on a timer.
+    var answersChanged: ChangeSignal? { get }
+}
+
+extension InstantProvider {
+    public var answersChanged: ChangeSignal? { nil }
 }
 
 /// An instant provider's answer.

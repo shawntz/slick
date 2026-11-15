@@ -62,6 +62,17 @@
     /// Called when the user turns the feature off and at quit. Stop what ``activate()`` started. The
     /// host cancels the feature's running action handlers.
     func deactivate() async
+
+    /// The user granted a permission the manifest lists, through one of Slick's own Grant buttons:
+    /// in the settings window, in onboarding, or on the panel's permission card. Called only while
+    /// the feature is on, once per grant, on the main actor.
+    ///
+    /// Start work that waited for the grant here, such as loading contacts into root search, and
+    /// send the change signals of what shows them. It replaces a permission stream held for the
+    /// whole session: a feature that only waits for a grant made in Slick needs no stream. A grant
+    /// the user makes straight in System Settings does not call it; read the status again when the
+    /// user next runs one of your commands, or hold a stream while that matters. Default nothing.
+    func permissionGranted(_ permission: Permission) async
 }
 
 extension Feature {
@@ -77,6 +88,7 @@ extension Feature {
     public var provides: [ProvidedService] { [] }
     public func activate() async {}
     public func deactivate() async {}
+    public func permissionGranted(_ permission: Permission) async {}
 }
 
 /// Who a feature is: its ID, name, icon and the permissions it may ask for.
@@ -94,6 +106,11 @@ public struct FeatureManifest: Sendable {
     public var permissions: [PermissionNeed]
     /// False keeps the feature off until the user turns it on, for features that watch the user.
     public var isEnabledByDefault: Bool
+    /// True starts the feature's switch on in onboarding's Optional Features step, so a new user
+    /// gets it unless they turn it off there. Only for a feature that is off by default; the
+    /// validator reports it on one that is on. A user who skips onboarding gets the feature off.
+    /// Default false.
+    public var isSuggestedInOnboarding: Bool
 
     public init(
         id: String,
@@ -101,7 +118,8 @@ public struct FeatureManifest: Sendable {
         icon: Icon,
         summary: String = "",
         permissions: [PermissionNeed] = [],
-        isEnabledByDefault: Bool = true
+        isEnabledByDefault: Bool = true,
+        isSuggestedInOnboarding: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -109,5 +127,6 @@ public struct FeatureManifest: Sendable {
         self.summary = summary
         self.permissions = permissions
         self.isEnabledByDefault = isEnabledByDefault
+        self.isSuggestedInOnboarding = isSuggestedInOnboarding
     }
 }
