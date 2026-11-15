@@ -97,6 +97,10 @@ import Kit
     /// harness has handed out so far. A test should expect this to be empty.
     public var issues: [FeatureIssue] { FeatureValidator.validate(feature) + seenIssues }
 
+    /// Problems under rules newer than some features, from ``FeatureValidator/pendingIssues(_:)``.
+    /// They do not count in ``issues`` yet. A new feature's tests should expect this to be empty too.
+    public var pendingIssues: [FeatureIssue] { FeatureValidator.pendingIssues(feature) }
+
     public func activate() async {
         await feature.activate()
     }

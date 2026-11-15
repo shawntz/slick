@@ -45,6 +45,11 @@ public struct Command: Identifiable, Sendable {
     /// False hides the command from root search; it can still run from a hotkey, a deep link or
     /// another command.
     public var showsInRoot: Bool
+    /// False keeps the command out of deep links: the app refuses a link that names it, even when the
+    /// user chose Always Allow for it. Set it on a hidden command that acts at once, such as one that
+    /// pastes, so a web page can never start it. ``FeatureValidator/pendingIssues(_:)`` reports a
+    /// hidden command with no ``confirmation`` that leaves it true.
+    public var allowsDeepLinks: Bool
     /// What happens when the command starts again before an earlier run has finished.
     public var runPolicy: RunPolicy
     /// More actions for the command's row in root search, such as Edit or Delete for a quicklink.
@@ -68,6 +73,7 @@ public struct Command: Identifiable, Sendable {
         liveSubtitle: LiveSubtitle? = nil,
         showsInRoot: Bool = true,
         runPolicy: RunPolicy = .serial,
+        allowsDeepLinks: Bool = true,
         run: @escaping Run
     ) {
         self.id = id
@@ -84,6 +90,7 @@ public struct Command: Identifiable, Sendable {
         self.liveSubtitle = liveSubtitle
         self.showsInRoot = showsInRoot
         self.runPolicy = runPolicy
+        self.allowsDeepLinks = allowsDeepLinks
         self.run = run
     }
 
