@@ -1,0 +1,4 @@
+module SlickCoreC {
+    header "slick_core.h"
+    export *
+}
