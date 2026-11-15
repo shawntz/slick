@@ -3,7 +3,7 @@ import Testing
 
 @testable import CoreBridge
 
-@Suite("Highlights into a reused array, and the learning summary")
+@Suite("Highlights into a reused array, and the learning summary", .timeLimit(.minutes(2)))
 struct HighlightAndSummaryTests {
     let items = [
         app("Safari"),

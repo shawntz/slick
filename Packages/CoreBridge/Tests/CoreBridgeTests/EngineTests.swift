@@ -20,7 +20,7 @@ func keys(_ buffer: QueryBuffer) -> [ItemKey] {
     (0..<buffer.count).map { buffer[$0].key }
 }
 
-@Suite("Engine")
+@Suite("Engine", .timeLimit(.minutes(2)))
 struct EngineTests {
     let items = [
         app("Safari"),
@@ -142,7 +142,7 @@ struct EngineTests {
     }
 }
 
-@Suite("Fuzzy index")
+@Suite("Fuzzy index", .timeLimit(.minutes(2)))
 struct FuzzyIndexTests {
     @Test func setQueryAndHighlight() throws {
         let index = try FuzzyIndex()

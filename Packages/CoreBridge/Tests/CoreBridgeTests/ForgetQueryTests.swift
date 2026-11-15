@@ -3,7 +3,7 @@ import Testing
 
 @testable import CoreBridge
 
-@Suite("Forgetting a query")
+@Suite("Forgetting a query", .timeLimit(.minutes(2)))
 struct ForgetQueryTests {
     let items = [app("Term"), app("Terminal")]
 

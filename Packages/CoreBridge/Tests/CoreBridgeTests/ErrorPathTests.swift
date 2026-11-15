@@ -5,7 +5,7 @@ import Testing
 
 /// The edges of the Swift API: limits, refusals, oversized results and strings that are not stored
 /// as contiguous UTF-8.
-@Suite("Error paths")
+@Suite("Error paths", .timeLimit(.minutes(2)))
 struct ErrorPathTests {
     func temporaryDirectory(_ name: String) -> URL {
         URL(fileURLWithPath: #filePath)

@@ -3,7 +3,7 @@ import Testing
 
 @testable import CoreBridge
 
-@Suite("Rust core")
+@Suite("Rust core", .timeLimit(.minutes(2)))
 struct RustCoreTests {
     @Test func linkedLibraryMatchesTheHeader() throws {
         #expect(RustCore.abiVersion == RustCore.expectedABIVersion)
@@ -42,7 +42,7 @@ struct RustCoreTests {
     }
 }
 
-@Suite("Item keys")
+@Suite("Item keys", .timeLimit(.minutes(2)))
 struct ItemKeyTests {
     @Test func theHeaderTestVectorHolds() {
         #expect(ItemKey(id: "app:com.example.Editor").rawValue == SLICK_KEY_TEST_VALUE)

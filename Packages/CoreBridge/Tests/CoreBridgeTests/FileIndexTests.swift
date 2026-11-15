@@ -74,7 +74,7 @@ func relativePaths(_ session: FileSearchSession, _ tree: SyntheticTree) -> [Stri
         .map { String($0.dropFirst(tree.root.path.count + 1)) }
 }
 
-@Suite("File index")
+@Suite("File index", .timeLimit(.minutes(2)))
 struct FileIndexTests {
     @Test func theSwiftValuesMatchTheHeader() {
         #expect(FileEntryFlags.directory.rawValue == UInt8(SLICK_FILES_ENTRY_DIR))

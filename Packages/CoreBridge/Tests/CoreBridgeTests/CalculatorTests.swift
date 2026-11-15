@@ -20,7 +20,7 @@ func fixedCalculator(rates: Bool = true, zones: Bool = true) throws -> Calculato
     return calculator
 }
 
-@Suite("Calculator")
+@Suite("Calculator", .timeLimit(.minutes(2)))
 struct CalculatorTests {
     @Test func theSwiftEnumsMatchTheHeader() {
         #expect(CalculatorKind.number.rawValue == UInt8(SLICK_CALC_KIND_NUMBER))
