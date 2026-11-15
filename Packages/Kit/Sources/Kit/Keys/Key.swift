@@ -110,3 +110,22 @@ extension Key {
     public static let period = Key(code: 0x2F)
     public static let comma = Key(code: 0x2B)
 }
+
+/// The digit row and the two keys beside it, on a US ANSI layout. Their codes are the
+/// `kVK_ANSI_` constants, so a combination stays on the same physical key in every layout.
+extension Key {
+    public static let zero = Key(code: 0x1D)
+    public static let one = Key(code: 0x12)
+    public static let two = Key(code: 0x13)
+    public static let three = Key(code: 0x14)
+    public static let four = Key(code: 0x15)
+    public static let five = Key(code: 0x17)
+    public static let six = Key(code: 0x16)
+    public static let seven = Key(code: 0x1A)
+    public static let eight = Key(code: 0x1C)
+    public static let nine = Key(code: 0x19)
+    /// The "-" key.
+    public static let minus = Key(code: 0x1B)
+    /// The "=" key.
+    public static let equal = Key(code: 0x18)
+}
