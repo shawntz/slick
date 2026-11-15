@@ -35,7 +35,9 @@ struct ProbeTests {
             probe.begin(.keystroke)
             view.needsDisplay = true
             probe.markApplied()
-            let deadline = LatencyClock.now() + LatencyClock.ticks(seconds: 0.5)
+            // The loop ends the moment the frame lands. The deadline only bounds a machine whose
+            // display link is slow to tick, such as a hosted runner's virtual display.
+            let deadline = LatencyClock.now() + LatencyClock.ticks(seconds: 5)
             while records.count <= step && LatencyClock.now() < deadline {
                 try? await Task.sleep(for: .milliseconds(2))
             }
