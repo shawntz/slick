@@ -47,7 +47,11 @@ extension PermissionSystem {
 /// - Full Disk Access and protected folders have no check that never prompts: reading a protected
 ///   folder to find out can raise its prompt. Their status is what the last request or recheck
 ///   found, remembered across launches, and `.notDetermined` before that. Full Disk Access granted
-///   counts as every protected folder granted.
+///   counts as every protected folder granted except iCloud Drive: macOS guards iCloud Drive with a
+///   service of its own, and whether Full Disk Access spares its prompt cannot be known without a
+///   read. A folder request made while Full Disk Access is on remembers nothing for the folder,
+///   because the folder's probe passes through Full Disk Access and proves nothing about the folder's
+///   own grant.
 /// - Automation can be checked only while the target app runs. The center remembers the last
 ///   answer a check found, so while the app is not running the status is that answer, or
 ///   `.notDetermined` when no check or request ever found one.
@@ -63,7 +67,20 @@ extension PermissionSystem {
 /// - Full Disk Access has no check. Within ``fastPollingWindow`` after the user asked for it, the
 ///   center finds out again with ``PermissionSystem/recheck(_:)`` whenever the user may have come
 ///   back from System Settings: ``userMayHaveReturned()``, at most every two seconds, until it
-///   finds the grant.
+///   finds the grant. Outside that window it finds out again on the same occasions, at most every
+///   ``followUpRecheckInterval`` seconds, while Full Disk Access reads granted, so a grant taken
+///   away is noticed, or while a stream waits for it or for a folder it covers. The recheck never
+///   prompts. The app also calls ``userMayHaveReturned()`` at launch.
+///
+/// How soon a permission taken away in System Settings shows here:
+///
+/// | Permission | A read of ``status(of:)`` reports it |
+/// |---|---|
+/// | One with a check, such as Accessibility or Calendars | at the second read after the answer is ``cacheLifetime`` old: the first returns the kept answer and checks in the background. An open stream hears it within one poll. |
+/// | Automation | the same while the app runs; otherwise the last answer stands |
+/// | Full Disk Access | at the next launch, or when this app or another app next comes forward, at most ``followUpRecheckInterval`` seconds after the last recheck |
+/// | A folder granted through Full Disk Access | when Full Disk Access does |
+/// | A folder granted on its own prompt | never: only a read can tell, and a read where no grant is on record raises the prompt. A reader that is refused finds out itself. |
 ///
 /// What the center remembers lives in the settings service under ``namespace``.
 nonisolated public final class PermissionCenter: PermissionService {
@@ -141,6 +158,13 @@ nonisolated public final class PermissionCenter: PermissionService {
     public func request(_ permission: Permission) async -> PermissionStatus {
         noteAsked(permission)
         if await checkNow(permission) == .granted { return announceStatus(of: permission) }
+        if case .protectedFolder(let folder) = permission, Self.fullDiskAccessCovers(folder),
+            await fullDiskAccessIsOnNow()
+        {
+            // The folder's probe would pass through Full Disk Access and prove nothing about its
+            // own grant, so nothing is remembered for the folder: it follows Full Disk Access.
+            return announceStatus(of: permission)
+        }
         markAsked(permission)
         if let answer = await system.request(permission), answer != .notDetermined {
             remember(answer, for: permission)
@@ -199,21 +223,32 @@ nonisolated public final class PermissionCenter: PermissionService {
     }
 
     /// Says the user may have come back from System Settings: the app became active, or another
-    /// app came forward. Shortly after the user asked for Full Disk Access, which has no check, the
-    /// center finds out again, at most every ``recheckInterval`` seconds, until it is granted.
-    public func userMayHaveReturned() {
+    /// app came forward. Full Disk Access has no check, so the center finds out again: every
+    /// ``recheckInterval`` seconds at most shortly after the user asked for it, until it is granted;
+    /// otherwise every ``followUpRecheckInterval`` seconds at most, while it reads granted or while
+    /// a stream waits for it or for a folder it covers. True when a recheck started.
+    @discardableResult public func userMayHaveReturned() -> Bool {
         let now = clock.now
-        let shouldRecheck = polling.withLock { polling -> Bool in
-            guard let asked = polling.askedAt[.fullDiskAccess], isRecent(asked) else { return false }
-            if let last = polling.lastRecheck, now.timeIntervalSince(last) < Self.recheckInterval { return false }
-            polling.lastRecheck = now
-            return true
-        }
-        guard shouldRecheck else { return }
-        Task.detached(priority: .utility) { [self] in
-            if let answer = await system.recheck(.fullDiskAccess), answer != .notDetermined {
-                remember(answer, for: .fullDiskAccess)
+        // Full Disk Access has no check: its status is what the center remembers.
+        let readsGranted = remembered(.fullDiskAccess) == .granted
+        let (shouldRecheck, askedRecently) = polling.withLock { polling -> (Bool, Bool) in
+            let askedRecently = polling.askedAt[.fullDiskAccess].map(isRecent) ?? false
+            let isAwaited = polling.watched.keys.contains(where: Self.waitsOnFullDiskAccess)
+            let interval: TimeInterval
+            if askedRecently {
+                interval = Self.recheckInterval
+            } else if readsGranted || isAwaited {
+                interval = Self.followUpRecheckInterval
+            } else {
+                return (false, false)
             }
+            if let last = polling.lastRecheck, now.timeIntervalSince(last) < interval { return (false, false) }
+            polling.lastRecheck = now
+            return (true, askedRecently)
+        }
+        guard shouldRecheck else { return false }
+        Task.detached(priority: .utility) { [self] in
+            keepRecheck(await system.recheck(.fullDiskAccess), userAsked: askedRecently)
             // Stop asking before anyone hears the answer. Announcing first let a listener come
             // back in while the ask was still on the books, which cost one more recheck.
             if status(of: .fullDiskAccess) == .granted {
@@ -221,6 +256,7 @@ nonisolated public final class PermissionCenter: PermissionService {
             }
             announceStatus(of: .fullDiskAccess)
         }
+        return true
     }
 
     /// True while open streams check every ``pollInterval``.
@@ -241,8 +277,17 @@ nonisolated public final class PermissionCenter: PermissionService {
 
     /// A second open of the same pane within this many seconds is skipped.
     static let repeatedOpenWindow: TimeInterval = 2
-    /// The fewest seconds between two rechecks of Full Disk Access.
+    /// The fewest seconds between two rechecks of Full Disk Access shortly after the user asked.
     static let recheckInterval: TimeInterval = 2
+    /// The fewest seconds between two rechecks of Full Disk Access otherwise: while it reads
+    /// granted, or while a stream waits for it.
+    public static let followUpRecheckInterval: TimeInterval = 10
+
+    /// True when Full Disk Access spares the folder's own prompt. Not known for iCloud Drive, so the
+    /// center does not count on it there.
+    static func fullDiskAccessCovers(_ folder: ProtectedFolder) -> Bool {
+        folder != .iCloudDrive
+    }
 
     /// Permissions macOS has no prompt for: the user grants them in System Settings.
     static func onlySettingsCanGrant(_ permission: Permission) -> Bool {
@@ -254,6 +299,33 @@ nonisolated public final class PermissionCenter: PermissionService {
 
     private func isRecent(_ date: Date) -> Bool {
         clock.now.timeIntervalSince(date) < fastPollingWindow.timeInterval
+    }
+
+    /// True for Full Disk Access and every folder it covers: a grant of Full Disk Access ends a
+    /// stream's wait for any of them.
+    private static func waitsOnFullDiskAccess(_ permission: Permission) -> Bool {
+        switch permission {
+        case .fullDiskAccess: true
+        case .protectedFolder(let folder): fullDiskAccessCovers(folder)
+        default: false
+        }
+    }
+
+    /// Finds out whether Full Disk Access is on right now, with the recheck that never prompts, and
+    /// keeps the answer. False when the recheck has no answer.
+    private func fullDiskAccessIsOnNow() async -> Bool {
+        let answer = await system.recheck(.fullDiskAccess)
+        keepRecheck(answer, userAsked: false)
+        announceStatus(of: .fullDiskAccess)
+        return answer == .granted
+    }
+
+    /// Keeps what a recheck of Full Disk Access found. A recheck the user did not ask for records a
+    /// grant, or corrects a remembered grant, and leaves a status that was never asked about alone.
+    private func keepRecheck(_ answer: PermissionStatus?, userAsked: Bool) {
+        guard let answer, answer != .notDetermined else { return }
+        guard userAsked || answer == .granted || remembered(.fullDiskAccess) == .granted else { return }
+        remember(answer, for: .fullDiskAccess)
     }
 
     /// Records that the user asked for the permission now, which speeds up the poller.
@@ -336,7 +408,7 @@ nonisolated public final class PermissionCenter: PermissionService {
             }
             return checked
         }
-        if case .protectedFolder = permission,
+        if case .protectedFolder(let folder) = permission, Self.fullDiskAccessCovers(folder),
             resolve(.fullDiskAccess, checked: cachedCheck(.fullDiskAccess)) == .granted
         {
             return .granted
@@ -389,9 +461,18 @@ nonisolated public final class PermissionCenter: PermissionService {
     }
 
     /// Tells open streams the permission's status; each stream passes it on only when it changed.
+    /// Full Disk Access also tells the streams of the folders it covers, whose status follows it.
     @discardableResult private func announceStatus(of permission: Permission) -> PermissionStatus {
         let status = status(of: permission)
         announcements.send(Announcement(permission: permission, status: status))
+        if permission == .fullDiskAccess {
+            let folders = polling.withLock { polling in
+                polling.watched.keys.filter { $0 != .fullDiskAccess && Self.waitsOnFullDiskAccess($0) }
+            }
+            for folder in folders {
+                announcements.send(Announcement(permission: folder, status: self.status(of: folder)))
+            }
+        }
         return status
     }
 

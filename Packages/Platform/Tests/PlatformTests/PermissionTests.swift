@@ -56,9 +56,10 @@ import Testing
         // A new center over the same settings, as after a relaunch, remembers it without asking.
         let relaunched = makeCenter()
         #expect(relaunched.status(of: .fullDiskAccess) == .granted)
-        for folder in ProtectedFolder.allCases {
+        for folder in ProtectedFolder.allCases where folder != .iCloudDrive {
             #expect(relaunched.status(of: .protectedFolder(folder)) == .granted)
         }
+        #expect(relaunched.status(of: .protectedFolder(.iCloudDrive)) == .notDetermined)
 
         // The user turned it off later. A feature finds out, the host asks again, and the probe
         // corrects the memory instead of the remembered grant short-circuiting the request.
@@ -421,6 +422,12 @@ import Testing
         let home = URL(filePath: "/synthetic/home", directoryHint: .isDirectory)
         let desktop = ProtectedLocations.targets(for: .desktop, home: home, removableVolumes: [], networkVolumes: [])
         #expect(desktop.map { $0.url.path(percentEncoded: false) } == ["/synthetic/home/Desktop/"])
+        let iCloud = ProtectedLocations.targets(for: .iCloudDrive, home: home, removableVolumes: [], networkVolumes: [])
+        #expect(
+            iCloud.map { $0.url.path(percentEncoded: false) } == [
+                "/synthetic/home/Library/Mobile Documents/com~apple~CloudDocs/"
+            ])
+        #expect(iCloud.allSatisfy { $0.isDirectory })
         let volume = URL(filePath: "/Volumes/SYNTHETIC", directoryHint: .isDirectory)
         #expect(
             ProtectedLocations.targets(

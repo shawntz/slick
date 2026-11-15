@@ -20,7 +20,8 @@ public enum Permission: Hashable, Sendable, Codable {
     case automation(bundleID: String)
     /// Reading a folder macOS guards on its own, such as Desktop. The first read shows a system
     /// prompt, so a file index lists these folders only after the user granted them through the
-    /// host's card, or granted Full Disk Access.
+    /// host's card, or granted Full Disk Access. iCloud Drive is the exception: only its own grant
+    /// counts, see ``ProtectedFolder/iCloudDrive``.
     case protectedFolder(ProtectedFolder)
 
     /// The name System Settings uses.
@@ -48,6 +49,12 @@ public enum ProtectedFolder: String, Hashable, Sendable, Codable, CaseIterable {
     case downloads
     case removableVolumes
     case networkVolumes
+    /// The iCloud Drive folder, `~/Library/Mobile Documents/com~apple~CloudDocs`. macOS guards it with
+    /// a service of its own. Its status is known only from a read made after the user pressed Grant:
+    /// whether iCloud Drive is on, whether the user allowed it, and whether Full Disk Access spares
+    /// its prompt cannot be known without reading it. Until then it reads `.notDetermined`, also
+    /// while Full Disk Access is on.
+    case iCloudDrive
 
     /// The name System Settings uses under Files and Folders.
     public var displayName: String {
@@ -57,6 +64,7 @@ public enum ProtectedFolder: String, Hashable, Sendable, Codable, CaseIterable {
         case .downloads: "Downloads Folder"
         case .removableVolumes: "Removable Volumes"
         case .networkVolumes: "Network Volumes"
+        case .iCloudDrive: "iCloud Drive"
         }
     }
 }

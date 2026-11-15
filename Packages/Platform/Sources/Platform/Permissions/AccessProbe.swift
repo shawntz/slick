@@ -61,8 +61,14 @@ nonisolated enum ProtectedLocations {
         ]
     }
 
+    /// The iCloud Drive folder in the home folder.
+    static func iCloudDrive(home: URL) -> URL {
+        home.appending(path: "Library/Mobile Documents/com~apple~CloudDocs", directoryHint: .isDirectory)
+    }
+
     /// The folders that stand for a protected folder permission. Removable and network volumes are
-    /// probed through whatever such volumes are mounted, so there may be none.
+    /// probed through whatever such volumes are mounted, so there may be none. iCloud Drive is probed
+    /// through its folder, which is missing when iCloud Drive is off: the probe then has no answer.
     static func targets(
         for folder: ProtectedFolder, home: URL, removableVolumes: [URL], networkVolumes: [URL]
     ) -> [AccessProbe.Target] {
@@ -73,6 +79,7 @@ nonisolated enum ProtectedLocations {
             case .downloads: [home.appending(path: "Downloads", directoryHint: .isDirectory)]
             case .removableVolumes: removableVolumes
             case .networkVolumes: networkVolumes
+            case .iCloudDrive: [iCloudDrive(home: home)]
             }
         return urls.map { AccessProbe.Target(url: $0, isDirectory: true) }
     }
@@ -84,8 +91,12 @@ nonisolated enum ProtectedLocations {
     ///
     /// - The Desktop, Documents and Downloads folders need their folder permission.
     /// - Anything under `/Volumes` may be a removable or a network volume, so it needs both.
-    /// - Other apps' data, iCloud Drive, cloud storage folders, Mail and Messages need Full Disk
-    ///   Access, which also grants every folder permission.
+    /// - Anything under `~/Library/Mobile Documents` needs iCloud Drive's own grant. That folder
+    ///   holds iCloud Drive and every app's iCloud documents, and macOS guards all of it with the
+    ///   iCloud Drive service. Full Disk Access does not count there, because whether it spares that
+    ///   prompt is not known. Files kept only in iCloud would also download on a read.
+    /// - Other apps' data, cloud storage folders, Mail and Messages need Full Disk Access, which also
+    ///   grants Desktop, Documents, Downloads and the volumes.
     static func permissionsNeeded(toRead url: URL, home: URL) -> [Permission] {
         func normalized(_ url: URL) -> String {
             let path = url.standardizedFileURL.path(percentEncoded: false).lowercased()
@@ -105,9 +116,10 @@ nonisolated enum ProtectedLocations {
         if path.hasPrefix("/volumes/"), path.count > "/volumes/".count {
             return [.protectedFolder(.removableVolumes), .protectedFolder(.networkVolumes)]
         }
-        let guardedLibraries = [
-            "Containers", "Group Containers", "Mobile Documents", "CloudStorage", "Mail", "Messages", "Safari",
-        ]
+        if isInside(home + "/library/mobile documents") {
+            return [.protectedFolder(.iCloudDrive)]
+        }
+        let guardedLibraries = ["Containers", "Group Containers", "CloudStorage", "Mail", "Messages", "Safari"]
         if guardedLibraries.contains(where: { isInside(home + "/library/" + $0.lowercased()) }) {
             return [.fullDiskAccess]
         }

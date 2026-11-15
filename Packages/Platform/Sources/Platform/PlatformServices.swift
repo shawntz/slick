@@ -198,7 +198,8 @@ import KitHosting
     /// Starts listening to the Mac: the frontmost app, key focus in this app's windows, whether
     /// this app is active, the app folders, power, displays, audio, session starts, the icon atlas
     /// and the favicon folder. It also checks every permission once in the background, so no later
-    /// ``PermissionCenter/status(of:)`` waits. Call it once, on the main thread, after
+    /// ``PermissionCenter/status(of:)`` waits, and finds out again whether a remembered Full Disk
+    /// Access grant still holds. Call it once, on the main thread, after
     /// `NSApplication.shared` exists. Does nothing outside `live`.
     public func start() {
         guard environment.touchesRealSystem, catalogRefresh == nil else { return }
@@ -212,6 +213,9 @@ import KitHosting
         Task.detached(priority: .utility) {
             await permissions.refresh(PermissionCenter.checkedAtLaunch)
         }
+        // A Full Disk Access grant remembered from an earlier launch may have been taken away
+        // meanwhile. The recheck never prompts.
+        permissions.userMayHaveReturned()
     }
 
     /// Stops listening, stops text expansion, removes every hotkey and waits for pending settings

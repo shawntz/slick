@@ -24,8 +24,12 @@ import Testing
             Self.needed("/Volumes/SYNTHETIC/notes.txt") == [
                 .protectedFolder(.removableVolumes), .protectedFolder(.networkVolumes),
             ])
-        for library in ["Containers/com.example.other", "Group Containers/x", "Mobile Documents", "CloudStorage/y"] {
+        for library in ["Containers/com.example.other", "Group Containers/x", "CloudStorage/y"] {
             #expect(Self.needed("/synthetic/home/Library/" + library + "/file") == [.fullDiskAccess], "\(library)")
+        }
+        // Everything in Mobile Documents is iCloud's, and only iCloud Drive's own grant opens it.
+        for library in ["Mobile Documents", "Mobile Documents/com~apple~CloudDocs/a.txt", "mobile documents/x/y"] {
+            #expect(Self.needed("/synthetic/home/Library/" + library) == [.protectedFolder(.iCloudDrive)], "\(library)")
         }
         // Places no permission guards.
         for path in [
