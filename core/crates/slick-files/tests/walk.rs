@@ -161,3 +161,43 @@ fn symlinked_root_is_resolved_once() {
         .collect();
     assert_eq!(paths, vec!["/real".to_string(), "/real/x.txt".to_string()]);
 }
+
+#[test]
+fn a_folder_listed_from_disk_says_why_it_failed() {
+    let t = TempTree::new("list-folder");
+    fixture(&t);
+    let r = rules_for(&t);
+    let root = walk::list_folder_checked(&t.root, &r).expect("list");
+    assert!(root.complete);
+    let names: Vec<String> = root
+        .entries
+        .iter()
+        .map(|e| String::from_utf8_lossy(&e.name).into_owned())
+        .collect();
+    assert_eq!(
+        names,
+        ["Editor.app", "docs", "link-in", "link-out", "locked", "proj"],
+        "sorted by name, with the rules applied: no hidden name and no skipped Library"
+    );
+    let app = &root.entries[0];
+    assert_eq!(app.flags, flags::DIR | flags::PACKAGE);
+    assert_eq!(app.size, None, "a folder has no size");
+    let docs = walk::list_folder_checked(&t.path("docs"), &r).expect("list docs");
+    assert_eq!(
+        docs.entries
+            .iter()
+            .find(|e| e.name == b"guide.pdf")
+            .and_then(|e| e.size),
+        Some(2_000)
+    );
+    let kind = |p: PathBuf| walk::list_folder_checked(&p, &r).err().map(|e| e.kind());
+    assert_eq!(kind(t.path("missing")), Some(std::io::ErrorKind::NotFound));
+    assert_eq!(kind(t.path("docs/guide.pdf")), Some(std::io::ErrorKind::NotADirectory));
+    assert_eq!(
+        kind(t.path("link-in")),
+        Some(std::io::ErrorKind::NotADirectory),
+        "a link is never followed"
+    );
+    assert_eq!(kind(t.path("locked")), Some(std::io::ErrorKind::PermissionDenied));
+    support::unlock_all(&t.root);
+}

@@ -6,11 +6,12 @@
 //! The writer does all of its disk access and copying on a private copy of the snapshot that
 //! shares every unchanged chunk with the published one, then swaps the pointer.
 
+use crate::cancel::{self, Cancel, Cancelled};
 use crate::persist::{self, FileMeta, LoadError};
 use crate::rules::{Compiled, Rules};
 use crate::store::{Builder, EntryId, Snapshot, flags};
 use crate::update::{self, Event, UpdateStats};
-use crate::walk::{self, Method, Scratch, WalkStats};
+use crate::walk::{self, ListError, Method, Scratch, WalkStats};
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
@@ -20,21 +21,32 @@ use std::time::Instant;
 /// What to index.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Config {
-    /// Absolute folders. Nested roots are dropped; symbolic links in a root path are resolved
-    /// once, when the index is built.
+    /// Absolute folders. Nested roots are dropped, except as `keep_unreached_roots` says; symbolic
+    /// links in a root path are resolved once, when the index is built.
     pub roots: Vec<PathBuf>,
     pub rules: Rules,
     /// Walker threads for a full build.
     pub threads: usize,
+    /// Keep a root nested in another when the walk of the outer root never enters it, because a
+    /// skipped path, a skipped or hidden name, or a package lies on the way, or the root is itself
+    /// skipped. iCloud Drive inside a skipped Library folder is the case this is for. Off by
+    /// default: every nested root is dropped.
+    pub keep_unreached_roots: bool,
 }
 
 impl Config {
     pub fn new(roots: Vec<PathBuf>, rules: Rules) -> Config {
         let threads = std::thread::available_parallelism().map_or(4, |n| n.get()).clamp(1, 8);
-        Config { roots, rules, threads }
+        Config {
+            roots,
+            rules,
+            threads,
+            keep_unreached_roots: false,
+        }
     }
 
-    /// The roots as the index stores them: resolved, without nesting, in the given order.
+    /// The roots as the index stores them: resolved, without nesting, in the given order. With
+    /// `keep_unreached_roots`, a nested root stays when no walk of an outer root would enter it.
     pub(crate) fn resolved_roots(&self) -> Vec<Vec<u8>> {
         let mut out: Vec<Vec<u8>> = Vec::new();
         for r in &self.roots {
@@ -44,11 +56,25 @@ impl Config {
                 out.push(b);
             }
         }
-        let all = out.clone();
-        out.retain(|p| {
-            !all.iter()
-                .any(|q| q != p && p.starts_with(q) && (p.get(q.len()) == Some(&b'/') || q == b"/"))
-        });
+        let rules = self.keep_unreached_roots.then(|| self.rules.compile());
+        // Outer roots are decided first, and only a root that stays can cover a nested one: a
+        // package root that is dropped does not cover its contents.
+        let mut order: Vec<usize> = (0..out.len()).collect();
+        order.sort_by_key(|&i| out[i].len());
+        let mut keep = vec![false; out.len()];
+        for &i in &order {
+            let p = &out[i];
+            keep[i] = !order.iter().any(|&j| {
+                let q = &out[j];
+                keep[j]
+                    && j != i
+                    && p.starts_with(q)
+                    && (p.get(q.len()) == Some(&b'/') || q.as_slice() == b"/")
+                    && rules.as_ref().is_none_or(|r| r.enters(q, p))
+            });
+        }
+        let mut kept = keep.iter();
+        out.retain(|_| kept.next().copied().unwrap_or(false));
         out
     }
 
@@ -97,14 +123,19 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// Walks every root into a fresh snapshot.
-fn build_snapshot(config: &Config, rules: &Compiled) -> (Snapshot, Vec<u64>, WalkStats) {
+/// Walks every root into a fresh snapshot, unless `stop` is set first.
+fn build_snapshot(
+    config: &Config,
+    rules: &Compiled,
+    stop: &Cancel,
+) -> Result<(Snapshot, Vec<u64>, WalkStats), Cancelled> {
     let began = Instant::now();
     let mut b = Builder::new();
     let mut devs = Vec::new();
     let mut stats = WalkStats::default();
     for root in config.resolved_roots() {
-        match walk::walk(&root, 0, rules, config.threads, Method::Bulk, None) {
+        match walk::walk(&root, 0, rules, config.threads, Method::Bulk, None, stop) {
+            Err(ListError::Cancelled) => return Err(Cancelled),
             Ok(tree) => {
                 let id = b.root(&root, tree.meta.mtime);
                 walk::graft(&mut b.snap, id, &tree);
@@ -124,7 +155,15 @@ fn build_snapshot(config: &Config, rules: &Compiled) -> (Snapshot, Vec<u64>, Wal
     let mut s = b.finish();
     s.rules_hash = config.fingerprint();
     stats.elapsed = began.elapsed();
-    (s, devs, stats)
+    Ok((s, devs, stats))
+}
+
+/// The result of a walk that no one can cancel.
+fn uncancelled<T>(r: Result<T, Cancelled>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(Cancelled) => unreachable!("a walk without a cancel flag was cancelled"),
+    }
 }
 
 fn root_devs(config: &Config) -> Vec<u64> {
@@ -138,9 +177,15 @@ fn root_devs(config: &Config) -> Vec<u64> {
 impl FileIndex {
     /// Walks every root and returns the index with what the walk saw.
     pub fn build(config: Config) -> (FileIndex, WalkStats) {
+        uncancelled(FileIndex::build_cancellable(config, &cancel::NEVER))
+    }
+
+    /// [`FileIndex::build`] that stops early when `stop` is set, from any thread. The walker
+    /// checks `stop` once per folder.
+    pub fn build_cancellable(config: Config, stop: &Cancel) -> Result<(FileIndex, WalkStats), Cancelled> {
         let rules = config.rules.compile();
-        let (snap, devs, stats) = build_snapshot(&config, &rules);
-        (FileIndex::with(config, rules, snap, devs), stats)
+        let (snap, devs, stats) = build_snapshot(&config, &rules, stop)?;
+        Ok((FileIndex::with(config, rules, snap, devs), stats))
     }
 
     /// An index over a snapshot made elsewhere, such as a [`Builder`] fed with synthetic entries.
@@ -207,13 +252,20 @@ impl FileIndex {
     /// Applies one batch of FSEvents events and publishes the result. Blocks other writers, never
     /// readers.
     pub fn apply(&self, events: &[Event]) -> UpdateStats {
+        uncancelled(self.apply_cancellable(events, &cancel::NEVER))
+    }
+
+    /// [`FileIndex::apply`] that stops early when `stop` is set. A stopped batch changes nothing:
+    /// the index keeps the snapshot it had, and the events are not applied. Rescans of whole
+    /// subtrees and the full walk after lost history check `stop` once per folder.
+    pub fn apply_cancellable(&self, events: &[Event], stop: &Cancel) -> Result<UpdateStats, Cancelled> {
         let began = Instant::now();
         let mut stats = UpdateStats::default();
         let mut guard = lock(&self.writer);
         let w = &mut *guard;
         let t = update::targets(&w.work, &w.rules, events, &mut stats);
         if t.full {
-            let (snap, devs, _) = build_snapshot(&w.config, &w.rules);
+            let (snap, devs, _) = build_snapshot(&w.config, &w.rules, stop)?;
             w.work = snap;
             w.devs = devs;
             stats.full = true;
@@ -227,7 +279,21 @@ impl FileIndex {
                     .unwrap_or(0)
             };
             for &(id, deep) in &t.list {
-                update::rescan(&mut w.work, id, deep, &w.rules, &root_dev, &mut w.scratch, &mut stats);
+                let stopped = update::rescan(
+                    &mut w.work,
+                    id,
+                    deep,
+                    &w.rules,
+                    &root_dev,
+                    &mut w.scratch,
+                    &mut stats,
+                    stop,
+                );
+                if stopped {
+                    // Drop the half-applied batch: the next writer starts from what readers see.
+                    w.work = (*self.snapshot()).clone();
+                    return Err(Cancelled);
+                }
             }
         }
         let dead = w.work.slots() - w.work.len();
@@ -239,18 +305,24 @@ impl FileIndex {
             stats.published = true;
         }
         stats.elapsed = began.elapsed();
-        stats
+        Ok(stats)
     }
 
     /// Walks every root again and publishes the result.
     pub fn rebuild(&self) -> WalkStats {
+        uncancelled(self.rebuild_cancellable(&cancel::NEVER))
+    }
+
+    /// [`FileIndex::rebuild`] that stops early when `stop` is set. A stopped rebuild keeps the
+    /// snapshot the index had.
+    pub fn rebuild_cancellable(&self, stop: &Cancel) -> Result<WalkStats, Cancelled> {
         let mut guard = lock(&self.writer);
         let w = &mut *guard;
-        let (snap, devs, stats) = build_snapshot(&w.config, &w.rules);
+        let (snap, devs, stats) = build_snapshot(&w.config, &w.rules, stop)?;
         w.work = snap;
         w.devs = devs;
         self.publish(w);
-        stats
+        Ok(stats)
     }
 
     /// Writes the published snapshot to `path` atomically. `event_id` is the FSEvents id the
@@ -269,6 +341,45 @@ impl FileIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn roots_below_a_skip_stay_only_when_asked() {
+        let mut rules = Rules::recommended(Some(Path::new("/tmp/vf-home")));
+        rules.skip_names.push("Skipped".into());
+        let roots = |keep: bool| {
+            let mut c = Config::new(
+                vec![
+                    PathBuf::from("/tmp/vf-home"),
+                    PathBuf::from("/tmp/vf-home/Library/Mobile Documents"),
+                    PathBuf::from("/tmp/vf-home/Library"),
+                    PathBuf::from("/tmp/vf-home/docs"),
+                    PathBuf::from("/tmp/vf-home/docs/Skipped/inner"),
+                    PathBuf::from("/tmp/vf-home/.dot/inner"),
+                    PathBuf::from("/tmp/vf-home/Editor.app/Contents"),
+                    PathBuf::from("/tmp/vf-home/Editor.app"),
+                ],
+                rules.clone(),
+            );
+            c.keep_unreached_roots = keep;
+            c.resolved_roots()
+                .iter()
+                .map(|p| String::from_utf8_lossy(p).into_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(roots(false), vec!["/tmp/vf-home"]);
+        assert_eq!(
+            roots(true),
+            vec![
+                "/tmp/vf-home",
+                "/tmp/vf-home/Library",
+                "/tmp/vf-home/docs/Skipped/inner",
+                "/tmp/vf-home/.dot/inner",
+                "/tmp/vf-home/Editor.app/Contents",
+            ],
+            "Library is skipped and holds Mobile Documents, which is dropped below the Library root; \
+             docs is walked; a package is one entry of the outer root but its contents are not"
+        );
+    }
 
     #[test]
     fn nested_and_repeated_roots_collapse() {

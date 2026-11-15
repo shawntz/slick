@@ -9,9 +9,12 @@
 //! - Folders named by [`Rules::leaf_extensions`] are indexed and not entered. With
 //!   [`Rules::one_filesystem`], a folder on another volume is indexed and not entered.
 //! - Entries of one folder are sorted by name, so a walk always assigns the same ids.
+//! - Every walker thread checks the walk's [`Cancel`] before it lists a folder. A cancelled walk
+//!   returns [`ListError::Cancelled`] and its partial result is dropped.
 
 pub(crate) mod bulk;
 
+use crate::cancel::{self, Cancel};
 use crate::rules::{Compiled, Rules};
 use crate::store::{EntryId, MAX_DEPTH, NewEntry, Snapshot, flags};
 use std::ffi::OsStr;
@@ -21,7 +24,7 @@ use std::os::macos::fs::MetadataExt as _;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::Path;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::time::{Duration, Instant};
 
@@ -81,6 +84,8 @@ pub(crate) enum ListError {
     /// Permission denied.
     Denied,
     Other,
+    /// The walk's [`Cancel`] was set before every folder was listed.
+    Cancelled,
 }
 
 fn classify(e: &io::Error) -> ListError {
@@ -312,8 +317,9 @@ fn process(
 
 /// Walks the folder at `start`, which sits `depth` levels below its root, with up to `threads`
 /// threads. With [`Rules::one_filesystem`], folders on a device other than `dev` (or the start
-/// folder's device when `dev` is `None`; 0 means unknown) are not entered. Fails only when `start`
-/// itself is gone or is not a folder.
+/// folder's device when `dev` is `None`; 0 means unknown) are not entered. Fails when `start`
+/// itself is gone or is not a folder, and with [`ListError::Cancelled`] when `stop` was set before
+/// every folder was listed.
 pub(crate) fn walk(
     start: &[u8],
     depth: usize,
@@ -321,8 +327,12 @@ pub(crate) fn walk(
     threads: usize,
     method: Method,
     dev: Option<u64>,
+    stop: &Cancel,
 ) -> Result<Tree, ListError> {
     let began = Instant::now();
+    if stop.check() {
+        return Err(ListError::Cancelled);
+    }
     let meta = match open_dir(start) {
         Ok((_, m)) => m,
         Err(ListError::Denied) | Err(ListError::Other) => {
@@ -354,15 +364,25 @@ pub(crate) fn walk(
         depth,
     };
     let mut results: Vec<(u32, Listing)> = Vec::new();
+    // The start folder passed the check above; every other folder is checked before it is listed.
+    let mut checked_first = false;
+    let mut check = |stop: &Cancel| std::mem::replace(&mut checked_first, true) && stop.check();
+    let mut cut = false;
     if threads <= 1 {
         let mut s = Scratch::default();
         let mut stack = vec![first];
         while let Some(job) = stack.pop() {
+            if check(stop) {
+                cut = true;
+                break;
+            }
             let (l, jobs) = process(&job, rules, method, dev, &next, &mut s);
             results.push((job.id, l));
             stack.extend(jobs.into_iter().rev());
         }
     } else {
+        let first_done = AtomicBool::new(false);
+        let stopped = AtomicBool::new(false);
         let queue = Mutex::new(Queue {
             jobs: vec![first],
             active: 0,
@@ -375,6 +395,12 @@ pub(crate) fn walk(
                 let job = {
                     let mut q = queue.lock().unwrap_or_else(|e| e.into_inner());
                     loop {
+                        if !q.jobs.is_empty() && first_done.swap(true, Ordering::Relaxed) && stop.check() {
+                            // Drop the waiting folders. Threads that are listing one finish it and
+                            // then find the queue empty.
+                            q.jobs.clear();
+                            stopped.store(true, Ordering::Relaxed);
+                        }
                         if let Some(j) = q.jobs.pop() {
                             q.active += 1;
                             break Some(j);
@@ -412,6 +438,10 @@ pub(crate) fn walk(
                 }
             }
         });
+        cut = stopped.load(Ordering::Relaxed);
+    }
+    if cut {
+        return Err(ListError::Cancelled);
     }
     let total = next.load(Ordering::Relaxed) as usize;
     let mut listings: Vec<Listing> = (0..total).map(|_| Listing::default()).collect();
@@ -466,9 +496,17 @@ pub(crate) fn graft(w: &mut Snapshot, dir: EntryId, tree: &Tree) -> usize {
 /// Walks `path` with the given rules and method and reports what it saw, without building an
 /// index. For measuring enumeration methods.
 pub fn measure(path: &Path, rules: &Rules, threads: usize, method: Method) -> io::Result<WalkStats> {
-    walk(path.as_os_str().as_bytes(), 0, &rules.compile(), threads, method, None)
-        .map(|t| t.stats)
-        .map_err(|e| io::Error::other(format!("{e:?}")))
+    walk(
+        path.as_os_str().as_bytes(),
+        0,
+        &rules.compile(),
+        threads,
+        method,
+        None,
+        &cancel::NEVER,
+    )
+    .map(|t| t.stats)
+    .map_err(|e| io::Error::other(format!("{e:?}")))
 }
 
 /// One child of a folder listed straight from disk.
@@ -482,21 +520,47 @@ pub struct DiskEntry {
 }
 
 /// Lists a folder from disk with the rules applied, sorted by name. For folder queries outside
-/// the index. Call it off the main thread.
+/// the index. Call it off the main thread. A folder that is missing, is not a folder (a symbolic
+/// link to one counts as not a folder) or may not be read fails with `NotFound`,
+/// `NotADirectory` or `PermissionDenied`.
 pub fn list_folder(path: &Path, rules: &Rules) -> io::Result<Vec<DiskEntry>> {
+    list_folder_checked(path, rules).map(|l| l.entries)
+}
+
+/// What [`list_folder_checked`] read.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FolderListing {
+    /// The children the rules keep, sorted by name.
+    pub entries: Vec<DiskEntry>,
+    /// False when the folder opened but reading its entries failed partway, so some may be
+    /// missing.
+    pub complete: bool,
+}
+
+/// [`list_folder`] that also says whether the listing is complete.
+pub fn list_folder_checked(path: &Path, rules: &Rules) -> io::Result<FolderListing> {
     let (_, l) = list_dir(
         path.as_os_str().as_bytes(),
         &rules.compile(),
         Method::Bulk,
         &mut Scratch::default(),
     )
-    .map_err(|e| io::Error::other(format!("{e:?}")))?;
-    Ok((0..l.items.len())
+    .map_err(|e| match e {
+        ListError::Gone => io::Error::from(io::ErrorKind::NotFound),
+        ListError::NotDir => io::Error::from(io::ErrorKind::NotADirectory),
+        ListError::Denied => io::Error::from(io::ErrorKind::PermissionDenied),
+        ListError::Other | ListError::Cancelled => io::Error::other("the folder could not be listed"),
+    })?;
+    let entries = (0..l.items.len())
         .map(|i| DiskEntry {
             name: l.name(i).to_vec(),
             flags: l.items[i].flags,
             mtime: l.items[i].mtime,
             size: (l.items[i].flags & flags::DIR == 0).then_some(l.items[i].size),
         })
-        .collect())
+        .collect();
+    Ok(FolderListing {
+        entries,
+        complete: !l.unreadable,
+    })
 }

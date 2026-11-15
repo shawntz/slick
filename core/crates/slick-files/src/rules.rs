@@ -215,6 +215,13 @@ impl Compiled {
         }
     }
 
+    /// True when a walk of `root` enters the folder at `dir`, a path below it: no component on the
+    /// way is skipped, hidden or a package, and `dir` itself is not skipped. A package at `dir`
+    /// counts as entered, because the walk indexes it as one item.
+    pub(crate) fn enters(&self, root: &[u8], dir: &[u8]) -> bool {
+        self.route(root, dir) == Route::Index
+    }
+
     /// What an event at `path` below `root` can change.
     pub(crate) fn route(&self, root: &[u8], path: &[u8]) -> Route {
         let root = trim(root);

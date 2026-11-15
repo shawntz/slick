@@ -17,6 +17,7 @@
 //! `slick-ffi/src/files.rs`.
 
 mod browse;
+mod cancel;
 mod col;
 mod hash;
 mod highlight;
@@ -35,6 +36,7 @@ pub mod walk;
 #[cfg(test)]
 mod tests;
 
+pub use cancel::{Cancel, Cancelled};
 pub use index::{Config, FileIndex};
 pub use persist::{FileMeta, LoadError};
 pub use rank::{Prefer, RankParams};

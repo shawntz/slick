@@ -12,8 +12,12 @@
 //! - `UserDropped`, `KernelDropped` and `EventIdsWrapped` mean history was lost: every root is
 //!   walked again from scratch;
 //! - paths below a skipped name, a hidden name or a package, and paths outside the roots, are
-//!   ignored before any disk access.
+//!   ignored before any disk access;
+//! - a root kept inside another root, below a folder that root skips, is listed again when an
+//!   event above it inside the outer root creates, removes or renames something, and rescanned
+//!   whole with `MustScanSubDirs`, because the event may have moved it.
 
+use crate::cancel::Cancel;
 use crate::rules::{Compiled, Route};
 use crate::store::{EntryId, NONE, NewEntry, Snapshot, flags};
 use crate::walk::{self, ListError, Method, Scratch};
@@ -131,18 +135,29 @@ pub(crate) fn targets(w: &Snapshot, rules: &Compiled, events: &[Event], stats: &
             }
             continue;
         };
+        let sub = ev.flags & (event_flags::MUST_SCAN_SUB_DIRS | event_flags::ROOT_CHANGED) != 0;
+        let structural = ev.flags == 0
+            || ev.flags & (event_flags::ITEM_CREATED | event_flags::ITEM_REMOVED | event_flags::ITEM_RENAMED) != 0;
+        let mut nested = false;
+        if (sub || structural) && w.roots.len() > 1 {
+            // Roots nested below this path: the outer root's walk never reaches them.
+            for r in w.roots.iter() {
+                let rp = trim(&r.path);
+                if rp.len() > path.len() && rp.starts_with(path) && (rp[path.len()] == b'/' || path == b"/") {
+                    *deep.entry(r.id).or_default() |= sub;
+                    nested = true;
+                }
+            }
+        }
         match rules.route(&root.path, path) {
             Route::Index => {}
             Route::Ignore => {
-                stats.ignored += 1;
+                stats.ignored += usize::from(!nested);
                 continue;
             }
             Route::Refresh(n) => {
                 // A skipped name or a package's direct child came or went: refresh the time of
                 // the entry that holds it. Content edits of such files change nothing indexed.
-                let structural = ev.flags == 0
-                    || ev.flags & (event_flags::ITEM_CREATED | event_flags::ITEM_REMOVED | event_flags::ITEM_RENAMED)
-                        != 0;
                 match w.lookup(&path[..n]) {
                     Some((id, true)) if structural => {
                         deep.entry(id).or_default();
@@ -152,7 +167,6 @@ pub(crate) fn targets(w: &Snapshot, rules: &Compiled, events: &[Event], stats: &
                 continue;
             }
         }
-        let sub = ev.flags & (event_flags::MUST_SCAN_SUB_DIRS | event_flags::ROOT_CHANGED) != 0;
         let Some((id, exact)) = w.lookup(path) else {
             stats.ignored += 1;
             continue;
@@ -190,7 +204,9 @@ pub(crate) fn targets(w: &Snapshot, rules: &Compiled, events: &[Event], stats: &
 }
 
 /// Rescans `dir`, a folder or an entry whose parent is then rescanned, and with `subtree`
-/// every folder below it.
+/// every folder below it. Checks `stop` before each folder it lists and returns true when it
+/// stopped early, leaving `w` half updated; the caller then drops `w`.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn rescan(
     w: &mut Snapshot,
     dir: EntryId,
@@ -199,7 +215,8 @@ pub(crate) fn rescan(
     root_dev: &dyn Fn(&Snapshot, EntryId) -> u64,
     s: &mut Scratch,
     stats: &mut UpdateStats,
-) {
+    stop: &Cancel,
+) -> bool {
     let mut work = vec![(dir, subtree)];
     let mut olds: Vec<EntryId> = Vec::new();
     let mut kids: Vec<EntryId> = Vec::new();
@@ -223,6 +240,9 @@ pub(crate) fn rescan(
         path.clear();
         if !w.path_into(d, &mut path) {
             continue;
+        }
+        if stop.check() {
+            return true;
         }
         stats.rescans += 1;
         let dev = root_dev(w, d);
@@ -320,8 +340,10 @@ pub(crate) fn rescan(
                     child.push(b'/');
                 }
                 child.extend_from_slice(name);
-                if let Ok(tree) = walk::walk(&child, depth + 1, rules, 1, Method::Bulk, Some(dev)) {
-                    stats.added += walk::graft(w, id, &tree);
+                match walk::walk(&child, depth + 1, rules, 1, Method::Bulk, Some(dev), stop) {
+                    Ok(tree) => stats.added += walk::graft(w, id, &tree),
+                    Err(ListError::Cancelled) => return true,
+                    Err(_) => {}
                 }
             }
         }
@@ -331,6 +353,7 @@ pub(crate) fn rescan(
         }
         w.link_children(d, &kids);
     }
+    false
 }
 
 fn mark_unreadable(w: &mut Snapshot, d: EntryId, stats: &mut UpdateStats) {
