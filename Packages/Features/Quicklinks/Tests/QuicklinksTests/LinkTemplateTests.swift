@@ -114,6 +114,18 @@ struct LinkTemplateTests {
         #expect(await render(template, ["Term": "a b"]) == "https://x.example.com/a%20b?again=a%20b")
     }
 
+    /// The short form is Kit's, so it takes what an argument takes and its mistakes point at it.
+    @Test func theShortFormTakesADefaultAndSharesTheLongFormsValue() async {
+        let withDefault = "https://x.example.com/{query default=\"kit\"}"
+        #expect(LinkTemplate(withDefault).arguments.first?.defaultValue == "kit")
+        #expect(await render(withDefault) == "https://x.example.com/kit")
+        let both = "https://x.example.com/{query}?again={argument name=\"Query\"}"
+        #expect(LinkTemplate(both).arguments.count == 1)
+        #expect(await render(both, ["Query": "a b"]) == "https://x.example.com/a%20b?again=a%20b")
+        let wrong = LinkTemplate("https://x.example.com/{query}/{query name=\"x\"}")
+        #expect(wrong.issues.map(\.range) == [30..<46], "in the link as written")
+    }
+
     @Test func theShortFormIsTheQueryArgument() async {
         let template = LinkTemplate("https://search.example.org/?q={query}")
         #expect(template.arguments.map(\.key) == [LinkTemplate.queryArgumentName])

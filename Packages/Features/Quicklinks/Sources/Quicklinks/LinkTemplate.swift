@@ -2,7 +2,7 @@ import Foundation
 import Kit
 import KitTemplates
 
-/// A quicklink's link: Kit's placeholder grammar, with `{query}` as a short form of
+/// A quicklink's link: Kit's placeholder grammar with Kit's `{query}` short form for
 /// `{argument name="Query"}`, rendered so every value is encoded for the part of the link it lands
 /// in.
 ///
@@ -21,10 +21,7 @@ import KitTemplates
 /// the template, and be a web link when the scheme came from a value.
 nonisolated struct LinkTemplate: Sendable {
     /// The name of the argument that `{query}` stands for, and that built-in searches use.
-    static let queryArgumentName = "Query"
-    /// The short form, as Alfred and older Raycast links write it.
-    static let queryShorthand = "{query}"
-    static let queryExpansion = "{argument name=\"\(queryArgumentName)\"}"
+    static let queryArgumentName = TemplateShorthands.queryArgumentName
     /// The longest link the form accepts, in UTF-16 code units.
     static let maximumLength = 4096
 
@@ -59,7 +56,7 @@ nonisolated struct LinkTemplate: Sendable {
 
     /// The link as written.
     let source: String
-    /// The link with `{query}` expanded, as Kit parsed it.
+    /// The link as Kit parsed it, with `{query}` as an argument.
     let template: Template
     let parts: [Part]
     /// The scheme written in the link, lowercased, such as `https`. Nil when the link starts with a
@@ -70,14 +67,10 @@ nonisolated struct LinkTemplate: Sendable {
     let webHost: String?
     /// True when a value starts the link, as in `{clipboard}`.
     let startsWithValue: Bool
-    /// Where `{query}` was written, in UTF-16 offsets into ``source``.
-    private let shorthands: [Range<Int>]
 
     init(_ source: String) {
         self.source = source
-        let (expanded, shorthands) = Self.expandShorthand(source)
-        self.shorthands = shorthands
-        template = Template(expanded)
+        template = Template(source, shorthands: .query)
         var scanner = ComponentScanner()
         var parts: [Part] = []
         for segment in template.segments {
@@ -86,7 +79,7 @@ nonisolated struct LinkTemplate: Sendable {
                 scanner.read(text)
                 parts.append(.text(text))
             case .placeholder(let placeholder):
-                let alone = Template(Self.substring(of: expanded, utf16: placeholder.sourceRange))
+                let alone = Template(Self.substring(of: source, utf16: placeholder.sourceRange), shorthands: .query)
                 parts.append(.value(Value(placeholder: placeholder, template: alone, component: scanner.value())))
             }
         }
@@ -145,9 +138,7 @@ nonisolated struct LinkTemplate: Sendable {
     }
 
     /// Mistakes in recognised placeholders, with ranges in ``source``.
-    var issues: [TemplateIssue] {
-        template.issues.map { TemplateIssue($0.message, range: originalRange($0.range)) }
-    }
+    var issues: [TemplateIssue] { template.issues }
 
     // MARK: Rendering
 
@@ -231,49 +222,6 @@ nonisolated struct LinkTemplate: Sendable {
             return FieldError(Strings.linkNeedsHost)
         }
         return nil
-    }
-
-    // MARK: The short form
-
-    /// Replaces each `{query}` with the argument it stands for, and returns where each one was.
-    static func expandShorthand(_ source: String) -> (String, [Range<Int>]) {
-        guard source.contains(queryShorthand) else { return (source, []) }
-        var result = ""
-        var ranges: [Range<Int>] = []
-        var rest = source[...]
-        var offset = 0
-        let length = queryShorthand.utf16.count
-        while let found = rest.range(of: queryShorthand) {
-            let before = rest[..<found.lowerBound]
-            result += before
-            offset += before.utf16.count
-            ranges.append(offset..<offset + length)
-            offset += length
-            result += queryExpansion
-            rest = rest[found.upperBound...]
-        }
-        result += rest
-        return (result, ranges)
-    }
-
-    /// A range in the expanded text as a range in ``source``.
-    private func originalRange(_ range: Range<Int>) -> Range<Int> {
-        let lower = originalOffset(range.lowerBound, isUpper: false)
-        return lower..<max(lower, originalOffset(range.upperBound, isUpper: true))
-    }
-
-    private func originalOffset(_ offset: Int, isUpper: Bool) -> Int {
-        let grow = Self.queryExpansion.utf16.count - Self.queryShorthand.utf16.count
-        var delta = 0
-        for range in shorthands {
-            let start = range.lowerBound + delta
-            if offset <= start { break }
-            if offset < start + Self.queryExpansion.utf16.count {
-                return isUpper ? range.upperBound : range.lowerBound
-            }
-            delta += grow
-        }
-        return offset - delta
     }
 
     private static func substring(of text: String, utf16 range: Range<Int>) -> String {

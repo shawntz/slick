@@ -1,5 +1,6 @@
-/// Every string a user reads, in one place so it can be translated later. Command and action titles
-/// use title case, as macOS menus do. Everything else is a plain sentence.
+/// Every string a user reads, in one place so it can be translated later. Command, action, section,
+/// empty-state, toast and HUD titles, buttons and menu items use title case, as macOS menus do.
+/// Everything else is a plain sentence.
 nonisolated enum Strings {
     // MARK: Feature
 
@@ -55,14 +56,14 @@ nonisolated enum Strings {
     // MARK: Toasts and HUDs
 
     static let copiedLink = "Copied Link"
-    static let savedQuicklink = "Saved quicklink"
-    static let deletedQuicklink = "Deleted quicklink"
-    static func turnedOff(_ name: String) -> String { "\(name) is off" }
-    static func turnedOn(_ name: String) -> String { "\(name) is on" }
-    static func defaultEngineSet(_ name: String) -> String { "\(name) is the default search engine" }
-    static let restoredDefaults = "Restored the default web searches"
+    static let savedQuicklink = "Saved Quicklink"
+    static let deletedQuicklink = "Deleted Quicklink"
+    static func turnedOff(_ name: String) -> String { "\(name) Is Off" }
+    static func turnedOn(_ name: String) -> String { "\(name) Is On" }
+    static func defaultEngineSet(_ name: String) -> String { "\(name) Is the Default Search Engine" }
+    static let restoredDefaults = "Restored the Default Web Searches"
     static func imported(_ count: Int) -> String {
-        count == 1 ? "Imported 1 quicklink" : "Imported \(count) quicklinks"
+        count == 1 ? "Imported 1 Quicklink" : "Imported \(count) Quicklinks"
     }
     static func importSkipped(duplicates: Int, invalid: Int) -> String? {
         var parts: [String] = []
@@ -74,25 +75,25 @@ nonisolated enum Strings {
         return "Skipped " + parts.joined(separator: " and ") + "."
     }
     static func exported(_ count: Int) -> String {
-        count == 1 ? "Exported 1 quicklink" : "Exported \(count) quicklinks"
+        count == 1 ? "Exported 1 Quicklink" : "Exported \(count) Quicklinks"
     }
 
     // MARK: Errors
 
-    static func linkNotValid(_ name: String) -> String { "\(name) did not make a valid link" }
+    static func linkNotValid(_ name: String) -> String { "\(name) Did Not Make a Valid Link" }
     static let linkNotValidMessage = "Edit the quicklink and check its link."
     static let linkNotWeb = "The text that starts this link is not a web address, so it was not opened."
     static let linkSchemeChanged = "A value changed what kind of link this is, so it was not opened."
-    static let couldNotOpen = "Could not open the link"
-    static let fileUnreadableTitle = "The quicklinks file could not be read"
+    static let couldNotOpen = "Could Not Open the Link"
+    static let fileUnreadableTitle = "The Quicklinks File Could Not Be Read"
     static let fileUnreadableMessage =
         "Fix the file or delete it to start over. Changes are not saved until then."
-    static let importUnreadable = "The file is not a quicklinks export"
+    static let importUnreadable = "The File Is Not a Quicklinks Export"
     static let importUnreadableMessage = "Choose a JSON file with a list of quicklinks, each with a name and a link."
-    static let importTooLarge = "The file is too large to import"
-    static let noSearchEngine = "No web search is turned on"
+    static let importTooLarge = "The File Is Too Large to Import"
+    static let noSearchEngine = "No Web Search Is Turned On"
     static let noSearchEngineMessage = "Turn on a web search in Search Quicklinks."
-    static let quicklinkGone = "This quicklink no longer exists"
+    static let quicklinkGone = "This Quicklink No Longer Exists"
 
     // MARK: List
 

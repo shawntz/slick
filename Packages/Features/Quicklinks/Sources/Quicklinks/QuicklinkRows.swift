@@ -90,7 +90,7 @@ enum QuicklinkCommand {
             subtitle: entry.template.webHost.map(QuicklinkRows.siteName) ?? Strings.featureName,
             icon: entry.icon, keywords: entry.quicklink.keywords,
             arguments: entry.commandArguments, requires: entry.requires,
-            fallback: offersFallback ? Fallback { Strings.fallbackTitle(name, $0) } : nil
+            fallback: offersFallback ? Fallback(startsOn: true) { Strings.fallbackTitle(name, $0) } : nil
         ) { [unowned feature] context in
             // Read the quicklink again: the host may hold this command for a moment after a change.
             guard let current = feature.entry(id: id) else { throw ActionFailure(Strings.quicklinkGone) }

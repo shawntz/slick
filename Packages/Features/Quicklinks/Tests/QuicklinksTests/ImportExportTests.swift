@@ -17,7 +17,7 @@ struct ImportExportTests {
         quicklinks.fakes.fileDialogs.saveLocation = destination
         try await quicklinks.harness.run("export")
         #expect(quicklinks.fakes.fileDialogs.saveRequests.first?.suggestedName == Strings.exportFileName)
-        #expect(quicklinks.harness.toasts.last?.title == "Exported 3 quicklinks")
+        #expect(quicklinks.harness.toasts.last?.title == "Exported 3 Quicklinks")
 
         let exported = try JSONDecoder().decode([ExchangedQuicklink].self, from: Data(contentsOf: destination))
         #expect(exported.map(\.name) == ["Sample Docs", "Sample Tracker", "Sample Search"])
@@ -48,7 +48,7 @@ struct ImportExportTests {
         #expect(names.suffix(3) == ["Sample Docs", "Sample Tracker", "Sample Search"])
         #expect(names.count == DefaultSearches.all.count + 3, "the built-ins were duplicates")
         let toast = try #require(target.harness.toasts.last)
-        #expect(toast.title == "Imported 3 quicklinks")
+        #expect(toast.title == "Imported 3 Quicklinks")
         #expect(toast.message == "Skipped \(DefaultSearches.all.count) duplicates.")
         let imported = try #require(target.feature.entries.last?.quicklink)
         #expect(imported.id != Samples.search.id && !imported.isBuiltIn && imported.isFallback)
