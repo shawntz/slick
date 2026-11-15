@@ -21,7 +21,7 @@ nonisolated enum EmojiStrings {
     static let symbolsFilterSection = "Symbols"
     static let noMatchesTitle = "No Matching Emoji or Symbols"
     static let noMatchesMessage = "Try another word, such as heart or arrow."
-    static let dataUnreadable = "The emoji data could not be read."
+    static let dataUnreadable = "The Emoji Data Could Not Be Read"
 
     static func groupTitle(_ group: EmojiGroup) -> String {
         switch group {
@@ -59,12 +59,12 @@ nonisolated enum EmojiStrings {
     static let copyWithSkinTone = "Copy with Skin Tone"
     static let twoSkinTones = "Two Skin Tones"
     static let copyName = "Copy Name"
-    static let copiedName = "Copied the name"
+    static let copiedName = "Copied the Name"
     static let copyCodePoints = "Copy Code Points"
-    static let copiedCodePoints = "Copied the code points"
+    static let copiedCodePoints = "Copied the Code Points"
     static let pin = "Pin to Top"
     static let unpin = "Unpin"
-    static func pinnedToast(_ glyph: String) -> String { "Pinned \(glyph) to the top of the grid" }
+    static func pinnedToast(_ glyph: String) -> String { "Pinned \(glyph) to the Top of the Grid" }
     static func unpinnedToast(_ glyph: String) -> String { "Unpinned \(glyph)" }
 
     static func toneTitle(_ tone: SkinTone) -> String {
@@ -89,8 +89,8 @@ nonisolated enum EmojiStrings {
     static let skinTone = "Skin tone"
     static let skinToneInfo = "Applies to every emoji that comes in skin tones."
     static let returnAction = "Return"
-    static let returnPastes = "Pastes into the frontmost app"
-    static let returnCopies = "Copies to the clipboard"
+    static let returnPastes = "Pastes into the Frontmost App"
+    static let returnCopies = "Copies to the Clipboard"
     static let includeSymbols = "Show symbols"
     static let includeSymbolsInfo =
         "Adds arrows, math, currency, punctuation, keyboard and box drawing symbols to the grid."
@@ -103,6 +103,6 @@ nonisolated enum EmojiStrings {
     static let clearRecentsQuestion = "Clear recently used emoji?"
     static let clearRecentsMessage = "The grid and the colon search forget which emoji and symbols you used."
     static let clearRecentsConfirm = "Clear"
-    static let clearedRecents = "Cleared recently used emoji"
+    static let clearedRecents = "Cleared Recently Used Emoji"
     static func dataNote(_ version: String) -> String { "Data from Unicode: \(version)." }
 }

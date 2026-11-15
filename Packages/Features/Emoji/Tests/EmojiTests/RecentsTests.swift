@@ -81,7 +81,7 @@ struct RecentsTests {
         harness.confirmationAnswer = true
         try await harness.pressSettingsButton("Clear Recently Used")
         #expect(fakes.usage.recentlyUsed(namespace: "emoji", limit: 10).isEmpty)
-        #expect(harness.toasts.last?.title == "Cleared recently used emoji")
+        #expect(harness.toasts.last?.title == "Cleared Recently Used Emoji")
         try await harness.run("search")
         #expect(harness.sections.first?.title == "Smileys & Emotion")
     }

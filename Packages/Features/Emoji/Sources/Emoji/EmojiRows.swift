@@ -1,23 +1,33 @@
 import Kit
 
-/// How emoji rank against each other when they match a query equally well: pins first, then recent
-/// use, then the emoji people use most, then the order of the grid.
+/// How emoji rank against each other when they match a query in the same tier: pins first, then
+/// recent use, then the ten most used emoji in their order. Every other common emoji shares one
+/// score and the rest share another, so the matcher orders each group: a name that starts with the
+/// query comes before a keyword match, and a shorter name comes first. "grinning" finds Grinning
+/// Face before Beaming Face with Smiling Eyes, which only has the keyword, and "heart" still finds
+/// Red Heart, one of the ten.
 nonisolated enum EmojiRanking {
     /// A use counts this much more than the whole static score, so any recent use wins.
     static let usageWeight = 1_000.0
     /// A pin outweighs any amount of use.
     static let pinWeight = 1_000_000_000.0
+    /// How many of the most used emoji keep their own order inside a tier.
+    static let leadingCount = 10
+    /// The score every common emoji below the leading ones shares.
+    static let commonScore = 100.0
 
-    /// The score without usage: a common emoji gets 200 minus its rank, and every entry gets less
-    /// than 1 for its position, so the order of the grid breaks the remaining ties.
-    static func staticScore(_ entry: EmojiEntry, position: Int, count: Int) -> Double {
-        let common = entry.commonRank > 0 ? Double(max(1, 200 - entry.commonRank)) : 0
-        return common + 1 - Double(position) / Double(max(count, 1))
+    /// The score without usage.
+    static func staticScore(_ entry: EmojiEntry) -> Double {
+        switch entry.commonRank {
+        case 1...leadingCount: commonScore + Double(leadingCount + 1 - entry.commonRank)
+        case (leadingCount + 1)...: commonScore
+        default: 0
+        }
     }
 
     /// The full score, given the item's frecency from the usage service.
-    static func score(_ entry: EmojiEntry, position: Int, count: Int, frecency: Double) -> Double {
-        staticScore(entry, position: position, count: count) + frecency * usageWeight
+    static func score(_ entry: EmojiEntry, frecency: Double) -> Double {
+        staticScore(entry) + frecency * usageWeight
     }
 }
 
@@ -53,14 +63,13 @@ nonisolated enum EmojiRows {
 
     /// The same as ``sections(_:_:)``, on the calling thread, for benchmarks.
     static func build(_ catalog: EmojiCatalog, _ options: Options) -> [ListSection] {
-        let count = catalog.entries.count
         var all: [Row] = []
-        all.reserveCapacity(count)
+        all.reserveCapacity(catalog.entries.count)
         var byGroup = [[Row]](repeating: [], count: EmojiGroup.allCases.count)
         let pinned = Set(options.pinnedKeys)
-        for (position, entry) in catalog.entries.enumerated() where allows(entry, options) {
+        for entry in catalog.entries where allows(entry, options) {
             let id = ItemID(EmojiLibrary.namespace, entry.key)
-            var rank = EmojiRanking.score(entry, position: position, count: count, frecency: options.frecency[id] ?? 0)
+            var rank = EmojiRanking.score(entry, frecency: options.frecency[id] ?? 0)
             if pinned.contains(entry.key) { rank += EmojiRanking.pinWeight }
             let row = row(entry, id: id, tone: options.tone, rankHint: rank)
             all.append(row)

@@ -48,7 +48,7 @@ struct ActionTests {
         try await harness.perform("copy-name")
         try await harness.perform("copy-code-points")
         #expect(fakes.pasteboard.copiedTexts == ["Thumbs Up", "U+1F44D U+1F3FD"])
-        #expect(harness.huds == ["Copied the name", "Copied the code points"])
+        #expect(harness.huds == ["Copied the Name", "Copied the Code Points"])
         #expect(fakes.usage.recorded.isEmpty, "copying the name is not a use of the emoji")
 
         let symbol = try await select("Euro")

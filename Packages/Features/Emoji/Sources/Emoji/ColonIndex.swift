@@ -8,7 +8,8 @@ import Foundation
 /// terms that start with it. Built once, off the main thread, when the feature activates.
 nonisolated struct ColonIndex: Sendable {
     /// How a query matched an entry, strongest first. The tiers follow root search's contract: a
-    /// weaker tier never outranks a stronger one.
+    /// weaker tier never outranks a stronger one. Inside a tier the score decides, then a match on
+    /// the name beats a keyword, then the shorter name wins, as the matcher orders the grid.
     enum Tier: UInt8, Comparable {
         /// The query is the whole name.
         case exact
@@ -30,6 +31,7 @@ nonisolated struct ColonIndex: Sendable {
     /// allocates nothing after the first.
     struct Scratch {
         fileprivate var stamps: [UInt32]
+        /// Per entry, its best tier times two, plus one when that match came from a keyword only.
         fileprivate var tiers: [UInt8]
         fileprivate var generation: UInt32 = 0
         fileprivate var candidates: [Int32] = []
@@ -62,6 +64,8 @@ nonisolated struct ColonIndex: Sendable {
     private let isEmoji: [Bool]
     /// Each entry's score without usage. See ``EmojiRanking``.
     private let scores: [Double]
+    /// Each entry's name length in characters, for the last tie-break.
+    private let nameLengths: [UInt16]
 
     /// The number of entries.
     let count: Int
@@ -132,7 +136,8 @@ nonisolated struct ColonIndex: Sendable {
         self.wordTerms = wordTerms
         self.nameWordCounts = nameWordCounts
         isEmoji = entries.map(\.group.isEmoji)
-        scores = entries.enumerated().map { EmojiRanking.staticScore($1, position: $0, count: entries.count) }
+        scores = entries.map(EmojiRanking.staticScore)
+        nameLengths = entries.map { UInt16(min($0.name.count, Int(UInt16.max))) }
         count = entries.count
     }
 
@@ -140,7 +145,8 @@ nonisolated struct ColonIndex: Sendable {
     /// over the candidates.
     static let maximumWords = 10
 
-    /// The best matches for a query, best first: by tier, then by score with usage, then by position.
+    /// The best matches for a query, best first: by tier, then by score with usage, then a name match
+    /// before a keyword match, then the shorter name, then position.
     /// `query` is the text after the colon. `frecency` maps entry positions to their frecency.
     func search(
         _ query: Substring, limit: Int, includeSymbols: Bool, frecency: [Int: Double], scratch: inout Scratch
@@ -161,35 +167,35 @@ nonisolated struct ColonIndex: Sendable {
             let token = tokens[0]
             forEachTerm(startingWith: token) { term in
                 let exact = Int(lengths[term]) == token.count
-                let tier: Tier =
-                    switch kinds[term] {
-                    case .name: exact ? .exact : .prefix
-                    case .keyword: exact ? .prefix : .keywords
-                    case .nameWord: .nameWords
-                    case .keywordWord: .keywords
-                    }
-                note(owners[term], tier, &scratch)
+                switch kinds[term] {
+                case .name: note(owners[term], exact ? .exact : .prefix, fromName: true, &scratch)
+                case .keyword: note(owners[term], exact ? .prefix : .keywords, fromName: false, &scratch)
+                case .nameWord: note(owners[term], .nameWords, fromName: true, &scratch)
+                case .keywordWord: note(owners[term], .keywords, fromName: false, &scratch)
+                }
             }
         } else {
             let joined = Self.join(tokens)
             forEachTerm(startingWith: joined) { term in
                 let exact = Int(lengths[term]) == joined.count
                 switch kinds[term] {
-                case .name: note(owners[term], exact ? .exact : .prefix, &scratch)
-                case .keyword: note(owners[term], exact ? .prefix : .keywords, &scratch)
+                case .name: note(owners[term], exact ? .exact : .prefix, fromName: true, &scratch)
+                case .keyword: note(owners[term], exact ? .prefix : .keywords, fromName: false, &scratch)
                 case .nameWord, .keywordWord: break
                 }
             }
             forEachTerm(startingWith: tokens[0]) { term in
                 let owner = owners[term]
                 let position = Int(owner)
-                if scratch.stamps[position] == scratch.generation, scratch.tiers[position] <= Tier.nameWords.rawValue {
+                if scratch.stamps[position] == scratch.generation,
+                    scratch.tiers[position] >> 1 <= Tier.nameWords.rawValue
+                {
                     return
                 }
                 if allTokensStartWords(tokens, of: position, namesOnly: true) {
-                    note(owner, .nameWords, &scratch)
+                    note(owner, .nameWords, fromName: true, &scratch)
                 } else if allTokensStartWords(tokens, of: position, namesOnly: false) {
-                    note(owner, .keywords, &scratch)
+                    note(owner, .keywords, fromName: false, &scratch)
                 }
             }
         }
@@ -198,14 +204,16 @@ nonisolated struct ColonIndex: Sendable {
 
     // MARK: Matching
 
-    private func note(_ owner: Int32, _ tier: Tier, _ scratch: inout Scratch) {
+    /// Keeps the entry's best match: the stronger tier, and in one tier a match on the name.
+    private func note(_ owner: Int32, _ tier: Tier, fromName: Bool, _ scratch: inout Scratch) {
         let position = Int(owner)
+        let rank = tier.rawValue << 1 | (fromName ? 0 : 1)
         if scratch.stamps[position] != scratch.generation {
             scratch.stamps[position] = scratch.generation
-            scratch.tiers[position] = tier.rawValue
+            scratch.tiers[position] = rank
             scratch.candidates.append(owner)
-        } else if tier.rawValue < scratch.tiers[position] {
-            scratch.tiers[position] = tier.rawValue
+        } else if rank < scratch.tiers[position] {
+            scratch.tiers[position] = rank
         }
     }
 
@@ -217,16 +225,24 @@ nonisolated struct ColonIndex: Sendable {
         }
     }
 
+    private struct Candidate {
+        let match: Match
+        let score: Double
+        let fromName: Bool
+        let nameLength: UInt16
+    }
+
     private func best(limit: Int, includeSymbols: Bool, frecency: [Int: Double], scratch: Scratch) -> [Match] {
-        var best: [(match: Match, score: Double)] = []
+        var best: [Candidate] = []
         best.reserveCapacity(limit + 1)
         for owner in scratch.candidates {
             let position = Int(owner)
-            guard includeSymbols || isEmoji[position], let tier = Tier(rawValue: scratch.tiers[position]) else {
-                continue
-            }
-            let score = scores[position] + (frecency[position] ?? 0) * EmojiRanking.usageWeight
-            let candidate = (match: Match(position: position, tier: tier), score: score)
+            let rank = scratch.tiers[position]
+            guard includeSymbols || isEmoji[position], let tier = Tier(rawValue: rank >> 1) else { continue }
+            let candidate = Candidate(
+                match: Match(position: position, tier: tier),
+                score: scores[position] + (frecency[position] ?? 0) * EmojiRanking.usageWeight,
+                fromName: rank & 1 == 0, nameLength: nameLengths[position])
             let place = best.firstIndex { Self.ranks(candidate, before: $0) } ?? best.count
             guard place < limit else { continue }
             best.insert(candidate, at: place)
@@ -235,9 +251,11 @@ nonisolated struct ColonIndex: Sendable {
         return best.map(\.match)
     }
 
-    private static func ranks(_ lhs: (match: Match, score: Double), before rhs: (match: Match, score: Double)) -> Bool {
+    private static func ranks(_ lhs: Candidate, before rhs: Candidate) -> Bool {
         if lhs.match.tier != rhs.match.tier { return lhs.match.tier < rhs.match.tier }
         if lhs.score != rhs.score { return lhs.score > rhs.score }
+        if lhs.fromName != rhs.fromName { return lhs.fromName }
+        if lhs.nameLength != rhs.nameLength { return lhs.nameLength < rhs.nameLength }
         return lhs.match.position < rhs.match.position
     }
 

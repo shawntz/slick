@@ -38,3 +38,26 @@ extension FeatureHarness {
         Array(rows.prefix(limit).map(\.title))
     }
 }
+
+/// The grid's rows for a query in the order the app shows them. Host filtering orders by tier, then
+/// rank hint, then the matcher's own order. Inside one tier the engine's matcher puts a title match
+/// before a keyword match; KitTesting's fake index orders by title length alone, so this applies the
+/// engine's rule on top of it.
+func gridOrder(_ query: String, options: EmojiRows.Options = EmojiRows.Options()) -> [Row] {
+    guard let results = EmojiRows.build(bundledCatalog, options).last?.rows else { return [] }
+    let index = SimpleFuzzyIndex(results.map { FuzzyEntry(title: $0.title, keywords: $0.keywords) })
+    let matcher = index.search(query, limit: .max).enumerated().sorted { lhs, rhs in
+        if lhs.element.tier != rhs.element.tier { return lhs.element.tier < rhs.element.tier }
+        let lhsTitle = !lhs.element.highlights.isEmpty
+        let rhsTitle = !rhs.element.highlights.isEmpty
+        if lhsTitle != rhsTitle { return lhsTitle }
+        return lhs.offset < rhs.offset
+    }.map(\.element)
+    return matcher.enumerated().sorted { lhs, rhs in
+        if lhs.element.tier != rhs.element.tier { return lhs.element.tier < rhs.element.tier }
+        let lhsHint = results[lhs.element.index].rankHint
+        let rhsHint = results[rhs.element.index].rankHint
+        if lhsHint != rhsHint { return lhsHint > rhsHint }
+        return lhs.offset < rhs.offset
+    }.map { results[$0.element.index] }
+}

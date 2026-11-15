@@ -29,6 +29,10 @@ The skin tone menus show only for emoji that take a tone. Two-person emoji also 
 
 Pins are kept in the `pinned` setting as keys, in the order they were pinned. They show under Pinned above Recently Used, and rank first among equal matches in the grid and the colon search.
 
+## Ranking
+
+Inside one match tier, pins come first, then recent use, then the ten most used emoji in their order. Every other common emoji shares one score and the rest share another, so the matcher's own order decides among them: a name that starts with the query comes before a keyword match, and a shorter name comes first. So "grinning" finds Grinning Face before Beaming Face with Smiling Eyes, which only has the keyword, and "heart" still finds Red Heart. Colon search applies the same order itself. In the grid the host filters, and KitTesting's fake index orders equal tiers by title length alone, so `gridOrder` in the tests applies the engine's title-first rule.
+
 ## The data
 
 `Sources/Emoji/Catalog/EmojiData.swift` is generated. It holds one line per emoji or symbol: glyph, name, group, Emoji version, common rank, keywords and skin tone variants. The data is Swift source rather than a resource file because the app bundle does not carry SwiftPM resource bundles.
