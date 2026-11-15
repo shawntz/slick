@@ -1,0 +1,2 @@
+# Matches the Swift line length in .swift-format.
+max_width = 120

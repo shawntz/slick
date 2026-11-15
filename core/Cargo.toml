@@ -1,0 +1,56 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/slick-match",
+    "crates/slick-predict",
+    "crates/slick-engine",
+    "crates/slick-calc",
+    "crates/slick-files",
+    "crates/slick-ffi",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.100"
+license = "MIT"
+publish = false
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "warn"
+
+# The app links exactly one Rust static library (slick-ffi), built with this profile.
+# - lto "fat" and codegen-units 1: best code for the query path. LTO covers every crate and std
+#   because there is one staticlib. There is no cross-language LTO with Swift.
+# - panic "unwind": keeps catch_unwind at the C boundary meaningful (see slick-ffi/src/lib.rs).
+# - debug "line-tables-only": enough for Instruments and crash symbolication, small archive.
+# - strip "none": strip has no effect on a staticlib. Stripping happens on the linked app binary.
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "unwind"
+debug = "line-tables-only"
+strip = "none"
+incremental = false
+
+# Measures the panic = "abort" alternative. Not used by the app.
+[profile.release-abort]
+inherits = "release"
+panic = "abort"
+
+# Fast inner loop for people working on the core.
+[profile.dev]
+opt-level = 1
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2
+
+# Build scripts and proc macros (cbindgen, syn, serde) run once, so compile them fast.
+[profile.release.build-override]
+opt-level = 0
+debug = false
