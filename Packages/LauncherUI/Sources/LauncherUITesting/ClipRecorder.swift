@@ -19,6 +19,9 @@ nonisolated public final class ClipRecorder: NSObject, SCStreamOutput, SCStreamD
         public let pixels: CVPixelBuffer
         /// Seconds since the first frame, which is 0.
         public let time: Double
+        /// When the window server displayed it, in mach ticks on `LatencyClock`'s clock, or 0 when
+        /// the stream did not say.
+        public var displayTime: UInt64 = 0
     }
 
     /// What one recording delivered.
@@ -132,6 +135,7 @@ nonisolated public final class ClipRecorder: NSObject, SCStreamOutput, SCStreamD
             let pixels = buffer.imageBuffer
         else { return }
         let presentation = buffer.presentationTimeStamp
+        let displayTime = (info[.displayTime] as? NSNumber)?.uint64Value ?? 0
         let handler: (@Sendable (Frame) -> Void)? = lock.withLock {
             guard let onFrame else { return nil }
             if startTime == nil { startTime = presentation }
@@ -139,7 +143,7 @@ nonisolated public final class ClipRecorder: NSObject, SCStreamOutput, SCStreamD
             return onFrame
         }
         guard let handler, let startTime = lock.withLock({ startTime }) else { return }
-        handler(Frame(pixels: pixels, time: max(0, (presentation - startTime).seconds)))
+        handler(Frame(pixels: pixels, time: max(0, (presentation - startTime).seconds), displayTime: displayTime))
     }
 
     public func stream(_ stream: SCStream, didStopWithError error: any Error) {

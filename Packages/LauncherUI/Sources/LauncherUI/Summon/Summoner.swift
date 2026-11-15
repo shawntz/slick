@@ -3,10 +3,10 @@ import QuartzCore
 
 /// How the panel appears and disappears.
 nonisolated public enum SummonStrategy: String, Sendable, CaseIterable {
-    /// The panel stays ordered in; its root layer's opacity flips between 0 and 1. First pixels
-    /// arrive about one refresh earlier than with a window-server order change, and the main
-    /// thread spends about 0.1 ms. The hidden panel passes clicks through and is hidden from
-    /// accessibility.
+    /// The panel stays ordered in; its root layer's opacity flips between 0 and 1. A plain
+    /// opacity change reaches the screen about one refresh sooner than a window-server order
+    /// change, and the main thread spends about 0.1 ms on it. The hidden panel passes clicks
+    /// through and is hidden from accessibility.
     case layerOpacity
     /// `orderFront` and `orderOut`. Simplest semantics, one refresh slower to first pixels.
     case orderFront
@@ -24,8 +24,14 @@ nonisolated public struct SummonTimings: Sendable, Equatable {
     public var accessibility: Double = 0
     /// `makeKey`, a window-server round trip that the summon budget excludes.
     public var makeKey: Double = 0
+    /// Laying out and committing the glass's key look right after `makeKey`, when the panel
+    /// becomes key before it shows. This is AppKit's own response to the key change, about 1 to
+    /// 1.5 ms. When the panel shows first, the same work runs after `summon()` returns and no
+    /// step counts it. Like `makeKey`, it is not part of `excludingMakeKey`.
+    public var keyLook: Double = 0
 
-    /// Everything except `makeKey`: the part the summon budget covers.
+    /// Everything except `makeKey` and the glass's response to it: the part the summon budget
+    /// covers.
     public var excludingMakeKey: Double { placement + show + flush + accessibility }
 }
 
@@ -44,11 +50,24 @@ public final class Summoner {
     /// False shows the panel without making it key: no keyboard focus and the flatter look of a
     /// non-key glass. For tests and measurements that must not take the keyboard.
     public var takesKeyStatus = true
+    /// Make the panel key, and lay out the glass for its key look, before the first visible
+    /// frame. Applies to `layerOpacity` with `takesKeyStatus`.
+    ///
+    /// The glass draws its key look with a layer that AppKit turns on in the first layout after
+    /// the window becomes key, and the render server shows that layer two refreshes after its
+    /// commit. A panel that shows first and becomes key after shows the flatter non-key glass for
+    /// one to three refreshes: a bright flash in dark mode, a grey one in light mode. With this
+    /// on, the first frame on screen is the key look. It arrives about one refresh later than the
+    /// flat first frame did, and no later than the key look did. False restores the old order.
+    public var makesKeyBeforeShowing = true
     /// Called after every dismiss, to prepare the next summon's content.
     public var prepareNext: (() -> Void)?
     public private(set) var isShown = false
     /// Step timings of the last summon.
     public private(set) var lastTimings = SummonTimings()
+    /// Makes the panel key. Tests replace it, so they can check the order without taking key
+    /// status.
+    var keyChange: (GlassPanel) -> Void = { $0.makeKey() }
 
     private var root: NSView { surface.rootView }
     private static let rampKey = "summonRamp"
@@ -95,11 +114,23 @@ public final class Summoner {
 
         if followsPointerScreen { surface.followPointerScreen() }
         timings.placement = split()
+        let keyFirst = makesKeyBeforeShowing && takesKeyStatus && strategy == .layerOpacity
+        if keyFirst {
+            // The panel is ordered in at zero opacity, so it becomes key unseen. The glass turns
+            // its key look on in its next layout. Run that layout and commit it now, while the
+            // panel is still invisible, so the opacity flip below is a small commit of its own
+            // and the first visible frame already has the key look.
+            keyChange(panel)
+            timings.makeKey = split()
+            surface.glass.layoutSubtreeIfNeeded()
+            CATransaction.flush()
+            timings.keyLook = split()
+        }
         switch strategy {
         case .layerOpacity:
             setRootOpacity(1, ramp: true)
             timings.show = split()
-            // Send the visible frame to the render server before the key change, which can stall.
+            // Send the visible frame to the render server before anything else can stall it.
             CATransaction.flush()
             timings.flush = split()
         case .orderFront:
@@ -109,8 +140,10 @@ public final class Summoner {
         }
         root.setAccessibilityHidden(false)
         timings.accessibility = split()
-        if takesKeyStatus { panel.makeKey() }
-        timings.makeKey = split()
+        if !keyFirst {
+            if takesKeyStatus { keyChange(panel) }
+            timings.makeKey = split()
+        }
         // Only when nothing in the panel has focus; otherwise this costs 1.2 ms per summon. A form
         // field or an open card keeps the focus it had.
         if !(panel.firstResponder is NSView) { surface.queryField.installEditor() }
@@ -135,8 +168,9 @@ public final class Summoner {
     }
 
     /// Sets the root layer's opacity in its own transaction, with no implicit animation. With
-    /// `ramp`, a theme that asks for it fades in over a few refreshes: the glass shows its full
-    /// look about two refreshes after `makeKey`, and a short fade hides the flatter look before.
+    /// `ramp`, a theme that asks for it fades in over a few refreshes. With
+    /// `makesKeyBeforeShowing` the first frame already has the key look, so a ramp is a matter of
+    /// style; without it, a ramp softens the flatter look the glass shows before it is key.
     private func setRootOpacity(_ opacity: Float, ramp: Bool = false) {
         guard let layer = root.layer else { return }
         CATransaction.begin()
