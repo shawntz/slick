@@ -147,7 +147,7 @@ struct ProcessListTests {
         #expect(confirmation.confirmTitle == "Quit")
         #expect(outcome.kind == .keepOpen)
         #expect(system.processes.requests == [.quit(pid: 203)])
-        #expect(system.harness.toasts.map(\.title) == ["Asked example-indexer to quit"])
+        #expect(system.harness.toasts.map(\.title) == ["Asked example-indexer to Quit"])
         #expect(!system.harness.rows.map(\.title).contains("example-indexer"), "the page reloaded")
         #expect(system.harness.issues.isEmpty, "after the page and its actions were shown")
     }
@@ -171,7 +171,7 @@ struct ProcessListTests {
         #expect(confirmation.message == "Example Browser stops at once. Anything it has not saved is lost.")
         #expect(confirmation.isDestructive)
         #expect(system.processes.requests == [.forceQuit(pid: 202)])
-        #expect(system.harness.toasts.map(\.title) == ["Forced Example Browser to quit"])
+        #expect(system.harness.toasts.map(\.title) == ["Forced Example Browser to Quit"])
     }
 
     @Test func decliningQuitsNothing() async throws {
@@ -190,7 +190,7 @@ struct ProcessListTests {
         system.processes.exit(204)
         system.harness.throwsActionErrors = false
         try await system.harness.perform("quit")
-        #expect(system.harness.toasts.map(\.title) == ["example-helper has already quit"])
+        #expect(system.harness.toasts.map(\.title) == ["example-helper Has Already Quit"])
         #expect(system.processes.requests.isEmpty)
     }
 
@@ -202,7 +202,7 @@ struct ProcessListTests {
         system.harness.throwsActionErrors = false
         try await system.harness.perform("force-quit")
         #expect(system.processes.requests.isEmpty)
-        #expect(system.harness.toasts.map(\.title) == ["example-helper has already quit"])
+        #expect(system.harness.toasts.map(\.title) == ["example-helper Has Already Quit"])
     }
 
     @Test func copiesTheProcessID() async throws {
@@ -210,7 +210,7 @@ struct ProcessListTests {
         try system.harness.select(title: "Example Editor")
         try await system.harness.perform("copy-pid")
         #expect(system.fakes.pasteboard.copiedTexts == ["201"])
-        #expect(system.harness.huds == ["Copied process ID"])
+        #expect(system.harness.huds == ["Copied Process ID"])
     }
 
     @Test func actionsComeFromThePayloadAlone() async throws {

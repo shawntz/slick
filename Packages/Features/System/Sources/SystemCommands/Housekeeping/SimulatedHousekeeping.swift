@@ -6,19 +6,20 @@ import Synchronization
 nonisolated final class SimulatedHousekeeping: HousekeepingService {
     /// What a caller asked the service to do.
     enum Request: Hashable, Sendable {
-        case emptyTrash(includingVolumes: Bool)
+        case emptyTrash
         case eject(path: String, keepingOtherPartitions: Bool)
         case setShowsHiddenFiles(Bool)
     }
 
     private struct State {
         var trashItems: Int
-        var volumeTrashItems: Int
         var disks: [Disk]
         var showsHiddenFiles = false
         var requests: [Request] = []
-        /// Items that stay in the Trash, as items in use do.
-        var stuckItems = 0
+        /// False makes Finder give no count, so the question goes without one.
+        var countsTrash = true
+        /// False makes Finder still be emptying at the end of the wait, as with a large Trash.
+        var finishesEmptying = true
         /// Disks that refuse to eject, as disks in use do.
         var busyDisks: Set<String> = []
         /// Thrown by every Trash call, such as a missing permission.
@@ -29,8 +30,8 @@ nonisolated final class SimulatedHousekeeping: HousekeepingService {
 
     private let state: Mutex<State>
 
-    init(trashItems: Int = 0, volumeTrashItems: Int = 0, disks: [Disk] = []) {
-        state = Mutex(State(trashItems: trashItems, volumeTrashItems: volumeTrashItems, disks: disks))
+    init(trashItems: Int = 0, disks: [Disk] = []) {
+        state = Mutex(State(trashItems: trashItems, disks: disks))
     }
 
     /// Every request, in order.
@@ -43,14 +44,19 @@ nonisolated final class SimulatedHousekeeping: HousekeepingService {
 
     var hiddenFilesShown: Bool { state.withLock { $0.showsHiddenFiles } }
 
-    /// Makes every Trash call fail, as when macOS keeps the Trash from the app.
+    /// Makes every Trash call fail, as when Finder may not be sent events yet.
     func failTrash(with failure: SystemFailure?) {
         state.withLock { $0.trashFailure = failure }
     }
 
-    /// Makes this many items refuse to be deleted.
-    func keepInTrash(_ count: Int) {
-        state.withLock { $0.stuckItems = count }
+    /// Makes Finder give no count, or give one again.
+    func setCountsTrash(_ counts: Bool) {
+        state.withLock { $0.countsTrash = counts }
+    }
+
+    /// Makes Finder still be emptying when the wait ends, or finish in time again.
+    func setFinishesEmptying(_ finishes: Bool) {
+        state.withLock { $0.finishesEmptying = finishes }
     }
 
     /// Makes a disk refuse to eject.
@@ -63,22 +69,19 @@ nonisolated final class SimulatedHousekeeping: HousekeepingService {
         state.withLock { $0.finderRestarts = restarts }
     }
 
-    func trashItemCount(includingVolumes: Bool) async throws -> Int {
+    func trashItemCount() async throws -> Int? {
         try state.withLock { state in
             if let failure = state.trashFailure { throw failure }
-            return state.trashItems + (includingVolumes ? state.volumeTrashItems : 0)
+            return state.countsTrash ? state.trashItems : nil
         }
     }
 
-    func emptyTrash(includingVolumes: Bool) async throws -> TrashResult {
+    func emptyTrash() async throws -> Bool {
         try state.withLock { state in
             if let failure = state.trashFailure { throw failure }
-            state.requests.append(.emptyTrash(includingVolumes: includingVolumes))
-            let total = state.trashItems + (includingVolumes ? state.volumeTrashItems : 0)
-            let failed = min(state.stuckItems, total)
-            state.trashItems = failed
-            if includingVolumes { state.volumeTrashItems = 0 }
-            return TrashResult(deleted: total - failed, failed: failed)
+            state.requests.append(.emptyTrash)
+            state.trashItems = 0
+            return state.finishesEmptying
         }
     }
 

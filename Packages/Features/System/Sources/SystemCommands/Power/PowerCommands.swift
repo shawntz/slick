@@ -32,7 +32,8 @@ extension SystemFeature {
     }
 
     /// A command that acts at once. The panel closes first, so it is not on screen when the Mac
-    /// wakes, the screen unlocks or the screen saver ends. A failure then shows as a HUD.
+    /// wakes, the screen unlocks or the screen saver ends. A failure then shows as a HUD. A request
+    /// this Mac cannot do at all says so first, in a toast with the panel still open.
     private func immediate(
         _ request: PowerRequest, id: String, title: String, icon: String, keywords: [String]
     ) -> Command {
@@ -41,6 +42,7 @@ extension SystemFeature {
             id: id, title: title, icon: .symbol(icon), keywords: keywords, runPolicy: .dropWhileRunning
         ) { context in
             try await SystemFailure.handle(Strings.Power.words(for: request)) {
+                try await power.checkAvailable(request)
                 context.dismiss()
                 try await power.perform(request)
                 return .close()

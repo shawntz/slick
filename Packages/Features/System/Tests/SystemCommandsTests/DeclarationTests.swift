@@ -67,7 +67,7 @@ struct DeclarationTests {
         #expect(manifest.id == "system")
         #expect(
             manifest.permissions.map(\.permission) == [
-                .fullDiskAccess, .automation(bundleID: "com.apple.systemevents"),
+                .automation(bundleID: "com.apple.finder"), .automation(bundleID: "com.apple.systemevents"),
                 .automation(bundleID: "com.apple.loginwindow"),
             ])
         let verbs: Set<Substring> = ["Count", "Switch", "Ask"]

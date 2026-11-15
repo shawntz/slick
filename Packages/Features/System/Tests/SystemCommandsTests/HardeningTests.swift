@@ -78,16 +78,8 @@ struct SafetyTests {
         system.harness.throwsActionErrors = false
         try await system.harness.perform(quit, row: row)
         #expect(system.processes.requests.isEmpty)
-        #expect(system.harness.toasts.map(\.title) == ["Could not quit example-helper"])
+        #expect(system.harness.toasts.map(\.title) == ["Could Not Quit example-helper"])
         #expect(system.harness.toasts.first?.message == "macOS needs this process to keep your session running.")
-    }
-
-    @Test func emptyingTheTrashNeverUnlocksALink() {
-        #expect(LiveHousekeeping.mayUnlock(isSymbolicLink: false, isLocked: true))
-        #expect(!LiveHousekeeping.mayUnlock(isSymbolicLink: true, isLocked: true), "it could unlock the target")
-        #expect(!LiveHousekeeping.mayUnlock(isSymbolicLink: nil, isLocked: true), "unknown counts as a link")
-        #expect(!LiveHousekeeping.mayUnlock(isSymbolicLink: false, isLocked: false), "it failed for another reason")
-        #expect(!LiveHousekeeping.mayUnlock(isSymbolicLink: false, isLocked: nil))
     }
 
     @Test func everyRunOutsideTheAppGetsTheSimulatedServices() {
@@ -169,7 +161,7 @@ struct OddInputTests {
         let none = SystemHarness(disks: [SystemHarness.drive, SystemHarness.backup])
         none.settings[SystemSettings.neverEject] = ["*"]
         let outcome = try await none.harness.run("eject-all-disks")
-        #expect(outcome.kind == .close(hud: "There are no disks to eject"))
+        #expect(outcome.kind == .close(hud: "No Disks to Eject"))
         #expect(none.housekeeping.requests.isEmpty)
     }
 
@@ -190,9 +182,9 @@ struct OddInputTests {
         system.housekeeping.setFinderRestarts(false)
         try await system.harness.run("toggle-hidden-files")
         #expect(system.harness.isClosed, "the panel closed before Finder was asked to quit")
-        #expect(system.harness.huds == ["Finder shows hidden files the next time it opens"])
+        #expect(system.harness.huds == ["Finder Shows Hidden Files the Next Time It Opens"])
         try await system.harness.run("toggle-hidden-files")
-        #expect(system.harness.huds.last == "Finder hides hidden files the next time it opens")
+        #expect(system.harness.huds.last == "Finder Hides Hidden Files the Next Time It Opens")
     }
 
     @Test func processesWithoutAUsableNameStillReadWell() async throws {

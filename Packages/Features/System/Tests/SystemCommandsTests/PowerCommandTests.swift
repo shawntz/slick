@@ -22,9 +22,9 @@ struct PowerCommandTests {
     }
 
     @Test(arguments: [
-        ("log-out", PowerRequest.logOut, "Log out now?", "Logging out"),
+        ("log-out", PowerRequest.logOut, "Log out now?", "Logging Out"),
         ("restart", .restart, "Restart your Mac now?", "Restarting"),
-        ("shut-down", .shutDown, "Shut down your Mac now?", "Shutting down"),
+        ("shut-down", .shutDown, "Shut down your Mac now?", "Shutting Down"),
     ])
     func sessionCommandsAlwaysAskFirst(id: String, request: PowerRequest, question: String, hud: String) async throws {
         let system = SystemHarness()
@@ -62,18 +62,40 @@ struct PowerCommandTests {
         #expect(system.power.requests.isEmpty)
     }
 
+    /// Lock Screen calls a private function. When macOS no longer has it, the command says so with
+    /// the panel still open, and says how to lock the screen instead.
     @Test func lockScreenSaysSoWhenThisMacCannotLock() async throws {
         let system = SystemHarness()
         system.power.fail(.lockScreen, with: .unavailable)
         try await system.runShowingErrors("lock-screen")
-        #expect(system.failureHUDs == ["Lock Screen is not available on this version of macOS"])
+        #expect(system.failureHUDs.isEmpty, "the panel stays open")
+        let failure = try #require(system.harness.actionErrors.first as? ActionFailure)
+        #expect(failure.title == "Lock Screen Is Not Available in This Version of macOS")
+        #expect(
+            failure.message
+                == "macOS no longer has the function the app uses to lock the screen. Press ⌃⌘Q to lock it instead.")
+        #expect(system.power.requests.isEmpty)
+    }
+
+    @Test func onlyLockScreenChecksBeforeItActs() async throws {
+        let system = SystemHarness()
+        system.power.fail(.sleep, with: .failed(code: 1))
+        try await system.runShowingErrors("sleep")
+        #expect(system.failureHUDs == ["Your Mac Could Not Go to Sleep"], "a failure while acting shows as a HUD")
+        try await system.harness.run("lock-screen")
+        #expect(system.power.requests == [.lockScreen])
+    }
+
+    @Test func theLiveLockLooksUpOneNamedSymbol() {
+        #expect(LivePower.lockScreenSymbol == "SACLockScreenImmediate")
+        #expect(LivePower.loginFramework.hasPrefix("/System/Library/PrivateFrameworks/login.framework/"))
     }
 
     @Test func aSystemErrorIsShownWithItsCode() async throws {
         let system = SystemHarness()
         system.power.fail(.sleep, with: .failed(code: -536_870_207))
         try await system.runShowingErrors("sleep")
-        #expect(system.failureHUDs == ["Your Mac could not go to sleep"])
+        #expect(system.failureHUDs == ["Your Mac Could Not Go to Sleep"])
         let failure = try #require(system.harness.actionErrors.first as? ActionFailure)
         #expect(failure.message == "macOS returned error -536870207.")
     }

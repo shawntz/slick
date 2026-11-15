@@ -2,8 +2,9 @@ import Foundation
 import Kit
 
 /// Every string a person reads in this feature, in one place so it can be translated later.
-/// Command titles use title case, as macOS menus do. Everything else is a plain sentence that says
-/// what will happen or what happened.
+/// Command, action, section, empty-state, toast and HUD titles, buttons and menu items use title
+/// case, as macOS menus do. Everything else is a plain sentence that says what will happen or what
+/// happened. Key combinations come from `KeyCombo.displayString`.
 nonisolated enum Strings {
     // MARK: - Feature
 
@@ -42,33 +43,35 @@ nonisolated enum Strings {
         static let restartQuestion = "Restart your Mac now?"
         static let shutDownQuestion = "Shut down your Mac now?"
 
-        static let loggingOut = "Logging out"
+        static let loggingOut = "Logging Out"
         static let restarting = "Restarting"
-        static let shuttingDown = "Shutting down"
+        static let shuttingDown = "Shutting Down"
 
         static func words(for request: PowerRequest) -> FailureWords {
             switch request {
             case .sleep:
                 FailureWords(
-                    failed: "Your Mac could not go to sleep", unavailable: "Sleep is not available on this Mac")
+                    failed: "Your Mac Could Not Go to Sleep", unavailable: "Sleep Is Not Available on This Mac")
             case .sleepDisplays:
                 FailureWords(
-                    failed: "The displays could not go to sleep",
-                    unavailable: "Sleep Displays is not available on this Mac")
+                    failed: "The Displays Could Not Go to Sleep",
+                    unavailable: "Sleep Displays Is Not Available on This Mac")
             case .lockScreen:
                 FailureWords(
-                    failed: "The screen could not be locked",
-                    unavailable: "Lock Screen is not available on this version of macOS")
+                    failed: "The Screen Could Not Be Locked",
+                    unavailable: "Lock Screen Is Not Available in This Version of macOS",
+                    unavailableMessage: "macOS no longer has the function the app uses to lock the screen. Press "
+                        + KeyCombo(.q, [.control, .command]).displayString + " to lock it instead.")
             case .startScreenSaver:
                 FailureWords(
-                    failed: "The screen saver could not start",
-                    unavailable: "The screen saver is not available on this Mac")
+                    failed: "The Screen Saver Could Not Start",
+                    unavailable: "The Screen Saver Is Not Available on This Mac")
             case .logOut:
-                FailureWords(failed: "Could not log out", unavailable: "Log Out is not available right now")
+                FailureWords(failed: "Could Not Log Out", unavailable: "Log Out Is Not Available Right Now")
             case .restart:
-                FailureWords(failed: "Could not restart", unavailable: "Restart is not available right now")
+                FailureWords(failed: "Could Not Restart", unavailable: "Restart Is Not Available Right Now")
             case .shutDown:
-                FailureWords(failed: "Could not shut down", unavailable: "Shut Down is not available right now")
+                FailureWords(failed: "Could Not Shut Down", unavailable: "Shut Down Is Not Available Right Now")
             }
         }
     }
@@ -78,39 +81,42 @@ nonisolated enum Strings {
     enum Trash {
         static let openTitle = "Open Trash"
         static let openKeywords = ["trash", "show trash", "bin", "deleted files"]
-        static let notOpened = "The Trash could not be opened"
+        static let notOpened = "The Trash Could Not Be Opened"
         static let title = "Empty Trash"
         static let keywords = ["emptytrash", "delete trash", "clear trash", "bin", "rubbish"]
-        static let alreadyEmpty = "The Trash is already empty"
+        static let alreadyEmpty = "The Trash Is Already Empty"
         static let question = "Empty the Trash?"
         static let confirm = "Empty Trash"
+        static let stillEmptying = "Finder Is Still Emptying the Trash"
         static let words = FailureWords(
-            failed: "The Trash could not be emptied", unavailable: "Empty Trash is not available on this Mac")
+            failed: "The Trash Could Not Be Emptied", unavailable: "Empty Trash Is Not Available on This Mac",
+            notFound: "Finder Is Not Running")
 
-        static func message(items: Int) -> String {
-            items == 1
-                ? "The item in the Trash will be deleted forever. You can't undo this."
-                : "The \(items) items in the Trash will be deleted forever. You can't undo this."
+        /// The question's message, with the number of items when Finder gave one.
+        static func message(items: Int?) -> String {
+            switch items {
+            case nil: "Every item in the Trash will be deleted forever. You can't undo this."
+            case 1: "The item in the Trash will be deleted forever. You can't undo this."
+            case let count?: "The \(count) items in the Trash will be deleted forever. You can't undo this."
+            }
         }
 
-        static func emptied(items: Int) -> String {
-            items == 1 ? "Deleted 1 item from the Trash" : "Deleted \(items) items from the Trash"
+        static func emptied(items: Int?) -> String {
+            switch items {
+            case nil: "Emptied the Trash"
+            case 1: "Deleted 1 Item from the Trash"
+            case let count?: "Deleted \(count) Items from the Trash"
+            }
         }
-
-        static func notDeleted(items: Int) -> String {
-            items == 1 ? "1 item could not be deleted" : "\(items) items could not be deleted"
-        }
-
-        static let notDeletedReason = "An item may be in use. Quit the app that uses it and try again."
     }
 
     enum Eject {
         static let title = "Eject All Disks"
         static let keywords = ["ejectall", "eject", "unmount", "drives", "volumes", "disk images"]
-        static let nothingToEject = "There are no disks to eject"
+        static let nothingToEject = "No Disks to Eject"
         static let confirm = "Eject"
         static let words = FailureWords(
-            failed: "Could not eject the disks", unavailable: "Eject All Disks is not available on this Mac")
+            failed: "Could Not Eject the Disks", unavailable: "Eject All Disks Is Not Available on This Mac")
 
         static func question(disks: Int) -> String {
             disks == 1 ? "Eject 1 disk?" : "Eject \(disks) disks?"
@@ -125,7 +131,7 @@ nonisolated enum Strings {
         }
 
         static func notEjected(names: [String], locale: Locale) -> String {
-            "Could not eject " + names.formatted(.list(type: .and).locale(locale))
+            "Could Not Eject " + names.formatted(.list(type: .and).locale(locale))
         }
 
         static let notEjectedReason = "A disk in use cannot be ejected. Quit the apps that use it and try again."
@@ -137,17 +143,17 @@ nonisolated enum Strings {
             "show hidden files", "hide hidden files", "dotfiles", "invisible files", "finder", "show all files",
         ]
         static let words = FailureWords(
-            failed: "Finder's hidden files setting could not be changed",
-            unavailable: "Finder is not available on this Mac")
+            failed: "Finder's Hidden Files Setting Could Not Be Changed",
+            unavailable: "Finder Is Not Available on This Mac")
 
         /// What the HUD says once the setting is written. Finder applies it when it restarts; a
         /// busy Finder that did not quit applies it the next time it opens.
         static func done(shows: Bool, finderRestarted: Bool) -> String {
             switch (shows, finderRestarted) {
-            case (true, true): "Finder now shows hidden files"
-            case (false, true): "Finder now hides hidden files"
-            case (true, false): "Finder shows hidden files the next time it opens"
-            case (false, false): "Finder hides hidden files the next time it opens"
+            case (true, true): "Finder Now Shows Hidden Files"
+            case (false, true): "Finder Now Hides Hidden Files"
+            case (true, false): "Finder Shows Hidden Files the Next Time It Opens"
+            case (false, false): "Finder Hides Hidden Files the Next Time It Opens"
             }
         }
     }
@@ -157,10 +163,12 @@ nonisolated enum Strings {
     enum Appearance {
         static let title = "Toggle Dark Mode"
         static let keywords = ["dark mode", "light mode", "appearance", "theme", "night mode"]
+        // These two HUDs keep sentence case for now: scenarios/system-commands.json checks this text.
+        // Change both together to "Switched to Dark Mode" and "Switched to Light Mode".
         static let dark = "Switched to dark mode"
         static let light = "Switched to light mode"
         static let words = FailureWords(
-            failed: "The appearance could not be changed", unavailable: "System Events is not available on this Mac")
+            failed: "The Appearance Could Not Be Changed", unavailable: "System Events Is Not Available on This Mac")
     }
 
     // MARK: - Sound
@@ -180,20 +188,20 @@ nonisolated enum Strings {
         static let setVolumeKeywords = ["volume", "sound level", "loudness"]
         static let levelPlaceholder = "0 to 100"
 
-        static let muted = "Sound muted"
-        static let unmuted = "Sound unmuted"
+        static let muted = "Sound Muted"
+        static let unmuted = "Sound Unmuted"
 
         static func volume(_ percent: Int) -> String {
             "Volume \(percent)%"
         }
 
-        static let invalidLevel = "Enter a volume from 0 to 100"
+        static let invalidLevel = "Enter a Volume from 0 to 100"
         static let invalidLevelHint = "For example, 40 or 40%."
-        static let noOutput = "There is no sound output to change"
-        static let noVolumeControl = "This output device has no volume control"
-        static let cannotMute = "This output device cannot be muted"
-        static let volumeWords = FailureWords(failed: "The volume could not be changed", unavailable: noVolumeControl)
-        static let muteWords = FailureWords(failed: "The sound could not be muted or unmuted", unavailable: cannotMute)
+        static let noOutput = "No Sound Output to Change"
+        static let noVolumeControl = "This Output Device Has No Volume Control"
+        static let cannotMute = "This Output Device Cannot Be Muted"
+        static let volumeWords = FailureWords(failed: "The Volume Could Not Be Changed", unavailable: noVolumeControl)
+        static let muteWords = FailureWords(failed: "The Sound Could Not Be Muted or Unmuted", unavailable: cannotMute)
     }
 
     // MARK: - Processes
@@ -240,7 +248,7 @@ nonisolated enum Strings {
         static let quit = "Quit Process"
         static let forceQuit = "Force Quit Process"
         static let copyPID = "Copy Process ID"
-        static let copiedPID = "Copied process ID"
+        static let copiedPID = "Copied Process ID"
         static let refresh = "Refresh"
 
         static func quitQuestion(_ name: String) -> String {
@@ -265,17 +273,17 @@ nonisolated enum Strings {
         static let forceQuitConfirm = "Force Quit"
 
         static func askedToQuit(_ name: String) -> String {
-            "Asked \(name) to quit"
+            "Asked \(name) to Quit"
         }
 
         static func forcedToQuit(_ name: String) -> String {
-            "Forced \(name) to quit"
+            "Forced \(name) to Quit"
         }
 
         static func words(quitting name: String) -> FailureWords {
             FailureWords(
-                failed: "Could not quit \(name)", unavailable: "Could not quit \(name)",
-                notFound: "\(name) has already quit")
+                failed: "Could Not Quit \(name)", unavailable: "Could Not Quit \(name)",
+                notFound: "\(name) Has Already Quit")
         }
     }
 
@@ -288,9 +296,9 @@ nonisolated enum Strings {
 
         static func volumeStepOption(_ step: VolumeStep) -> String {
             switch step {
-            case .keys: "Same as the volume keys"
-            case .fivePercent: "5 percent"
-            case .tenPercent: "10 percent"
+            case .keys: "Same as the Volume Keys"
+            case .fivePercent: "5 Percent"
+            case .tenPercent: "10 Percent"
             }
         }
 
@@ -304,15 +312,16 @@ nonisolated enum Strings {
 
         static let processes = "Kill Process"
         static let sortBy = "Sort by"
-        static let sortByInfo = "The order the list opens in. Press Command-P in the list to change it there."
+        static let sortByInfo =
+            "The order the list opens in. Press \(KeyCombo(.p, .command).displayString) in the list to change it there."
         static let refresh = "Refresh every"
         static let refreshInfo = "The list updates CPU and memory use this often while it is open."
 
         static func refreshOption(_ refresh: ProcessRefresh) -> String {
             switch refresh {
-            case .oneSecond: "1 second"
-            case .twoSeconds: "2 seconds"
-            case .fiveSeconds: "5 seconds"
+            case .oneSecond: "1 Second"
+            case .twoSeconds: "2 Seconds"
+            case .fiveSeconds: "5 Seconds"
             }
         }
 
@@ -320,7 +329,7 @@ nonisolated enum Strings {
         static let showsBackgroundInfo = "Turn this off to list only apps with a Dock icon."
 
         static let permissions = "Permissions"
-        static let fullDiskAccessInfo = "Empty Trash needs it to count and delete what is in the Trash."
+        static let finderInfo = "Empty Trash needs it, because Finder counts and empties the Trash."
         static let systemEventsInfo =
             "Toggle Dark Mode needs it, because macOS changes the appearance through System Events."
         static let loginWindowInfo = "Log Out, Restart and Shut Down may need it on some Macs."
@@ -331,7 +340,7 @@ nonisolated enum Strings {
     // MARK: - Permission reasons
 
     enum Reasons {
-        static let fullDiskAccess = "Count and delete the items in the Trash."
+        static let finder = "Count and empty the Trash through Finder."
         static let systemEvents = "Switch between light and dark appearance through System Events."
         static let loginWindow = "Ask macOS to log out, restart or shut down."
     }

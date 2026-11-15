@@ -21,6 +21,13 @@ nonisolated final class SimulatedPower: PowerService {
         state.withLock { $0.failures[request] = failure }
     }
 
+    /// A request set to fail as unavailable fails here too, as the live check does.
+    func checkAvailable(_ request: PowerRequest) async throws {
+        try state.withLock { state in
+            if state.failures[request] == .unavailable { throw SystemFailure.unavailable }
+        }
+    }
+
     func perform(_ request: PowerRequest) async throws {
         try state.withLock { state in
             if let failure = state.failures[request] { throw failure }

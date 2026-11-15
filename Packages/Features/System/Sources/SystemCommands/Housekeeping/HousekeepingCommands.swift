@@ -40,26 +40,20 @@ extension SystemFeature {
         ]
     }
 
-    /// Counts the items, asks with the count, then deletes them with the panel closed. The Trash on
-    /// other disks is included only with Full Disk Access, which covers removable volumes too, so
-    /// reading them can never raise a system prompt.
+    /// Asks Finder for the count, asks the user, then has Finder empty the Trash with the panel
+    /// closed. When Finder gives no count, the question goes without one.
     private func emptyTrash(_ context: ActionContext) async throws -> ActionOutcome {
-        let includingVolumes = context.permissions.isGranted(.fullDiskAccess)
         let housekeeping = housekeeping
         return try await SystemFailure.handle(Strings.Trash.words) {
-            let count = try await housekeeping.trashItemCount(includingVolumes: includingVolumes)
-            guard count > 0 else { return .close(hud: HUD(Strings.Trash.alreadyEmpty)) }
+            let count = try await housekeeping.trashItemCount()
+            guard count != 0 else { return .close(hud: HUD(Strings.Trash.alreadyEmpty)) }
             let confirmation = Confirmation(
                 Strings.Trash.question, message: Strings.Trash.message(items: count),
                 confirmTitle: Strings.Trash.confirm, isDestructive: true)
             guard await context.confirm(confirmation) else { return .keepOpen }
             context.dismiss()
-            let result = try await housekeeping.emptyTrash(includingVolumes: includingVolumes)
-            guard result.failed == 0 else {
-                throw ActionFailure(
-                    Strings.Trash.notDeleted(items: result.failed), message: Strings.Trash.notDeletedReason)
-            }
-            return .close(hud: .success(Strings.Trash.emptied(items: result.deleted)))
+            guard try await housekeeping.emptyTrash() else { return .close(hud: HUD(Strings.Trash.stillEmptying)) }
+            return .close(hud: .success(Strings.Trash.emptied(items: count)))
         }
     }
 

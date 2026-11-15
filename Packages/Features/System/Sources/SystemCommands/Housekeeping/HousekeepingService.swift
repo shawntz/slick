@@ -11,24 +11,19 @@ nonisolated struct Disk: Hashable, Sendable {
     var isNetwork: Bool
 }
 
-/// How emptying the Trash went.
-nonisolated struct TrashResult: Hashable, Sendable {
-    var deleted: Int
-    /// Items that could not be deleted, such as those in use.
-    var failed: Int
-}
-
 /// The Trash, mounted disks and Finder's hidden files setting.
 ///
-/// The live implementation deletes the user's files and ejects their disks. Tests, scenarios,
+/// The live implementation empties the user's Trash and ejects their disks. Tests, scenarios,
 /// self-tests and benchmarks get ``SimulatedHousekeeping``, which keeps everything in memory.
 nonisolated protocol HousekeepingService: Sendable {
-    /// How many items are in the Trash. `includingVolumes` adds the Trash folders on other mounted
-    /// disks. Throws ``SystemFailure/permissionMissing(_:)`` when macOS keeps the Trash from this app.
-    @concurrent func trashItemCount(includingVolumes: Bool) async throws -> Int
+    /// How many items Finder's Trash holds, on every volume and in iCloud Drive. Nil when Finder
+    /// gave no number. Throws ``SystemFailure/permissionMissing(_:)`` when this app may not send
+    /// Finder events yet, and ``SystemFailure/notFound`` when Finder is not running.
+    @concurrent func trashItemCount() async throws -> Int?
 
-    /// Deletes every item in the Trash for good.
-    @concurrent func emptyTrash(includingVolumes: Bool) async throws -> TrashResult
+    /// Asks Finder to delete every item in the Trash for good. Returns false when Finder was still
+    /// emptying at the end of the wait; it goes on and shows its own progress.
+    @concurrent func emptyTrash() async throws -> Bool
 
     /// The disks that can be ejected now, in the order macOS lists them. The startup disk and
     /// internal volumes are never among them.

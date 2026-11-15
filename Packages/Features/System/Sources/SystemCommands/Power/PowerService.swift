@@ -19,6 +19,11 @@ nonisolated protocol PowerService: Sendable {
     /// Does it. Returns once the system has accepted the request, which for sleep and the session
     /// requests is before the Mac acts on it. Throws ``SystemFailure``.
     @concurrent func perform(_ request: PowerRequest) async throws
+
+    /// Throws ``SystemFailure/unavailable`` when this Mac cannot do the request at all, without
+    /// doing it, so the command can say so while the panel is still open. Most requests can only
+    /// find out by trying, and pass.
+    @concurrent func checkAvailable(_ request: PowerRequest) async throws
 }
 
 /// The power service for each kind of run.

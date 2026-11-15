@@ -4,10 +4,10 @@ import Kit
 
 /// The real Trash, disks and Finder setting. Used only when the app runs for a person.
 ///
-/// - The Trash: `FileManager` lists and deletes the items in the user's Trash folder, and, when
-///   asked, in each mounted disk's `.Trashes/<uid>` folder. macOS guards the Trash, so this needs
-///   Full Disk Access; without it the listing fails and the command shows the permission card.
-///   Scripting Finder would need Automation instead, and the brief prefers frameworks.
+/// - The Trash: Finder counts and empties it through Apple Events, as its own Empty Trash menu item
+///   does. Finder's Trash takes in every volume and iCloud Drive, and Finder deals with locked items
+///   and items in use. This needs Automation for Finder only, never Full Disk Access, and the app
+///   never reads a Trash folder itself.
 /// - Disks: `FileManager.mountedVolumeURLs` and `FileManager.unmountVolume`, without UI, so the
 ///   command reports failures in its own words.
 /// - Hidden files: `CFPreferences` writes Finder's `AppleShowAllFiles`, then Finder is asked to quit
@@ -17,117 +17,79 @@ nonisolated final class LiveHousekeeping: HousekeepingService {
     static let finderID = "com.apple.finder"
     static let finder = URL(filePath: "/System/Library/CoreServices/Finder.app", directoryHint: .isDirectory)
     private static let showAllFilesKey = "AppleShowAllFiles"
-    /// Bookkeeping files Finder keeps in the Trash. They are not items the user threw away.
-    private static let ignoredNames: Set<String> = [".DS_Store", ".localized"]
 
     init() {}
 
     // MARK: - Trash
 
-    @concurrent func trashItemCount(includingVolumes: Bool) async throws -> Int {
-        var count = 0
-        for folder in try Self.trashFolders(includingVolumes: includingVolumes) {
-            count += try Self.items(in: folder).count
+    @concurrent func trashItemCount() async throws -> Int? {
+        let target = try Self.finderTarget()
+        do {
+            let reply = try AppleEvents.sendForResult(Self.countEvent(to: target), bundleID: Self.finderID)
+            guard let number = reply?.coerce(toDescriptorType: DescType(typeSInt32)) else { return nil }
+            return Int(number.int32Value)
+        } catch SystemFailure.failed {
+            // Finder did not count. The command then asks without a number.
+            return nil
         }
-        return count
     }
 
-    @concurrent func emptyTrash(includingVolumes: Bool) async throws -> TrashResult {
-        var result = TrashResult(deleted: 0, failed: 0)
-        for folder in try Self.trashFolders(includingVolumes: includingVolumes) {
-            for item in try Self.items(in: folder) {
-                if Self.delete(item) {
-                    result.deleted += 1
-                } else {
-                    result.failed += 1
-                }
+    @concurrent func emptyTrash() async throws -> Bool {
+        let target = try Self.finderTarget()
+        // Finder's "warns before emptying" (warn) would ask a second time after the command has
+        // asked. It is turned off for this one empty and put back at once.
+        let warns = Self.warnsBeforeEmptying
+        let warned = (try? AppleEvents.get(warns, from: target, bundleID: Self.finderID))?.booleanValue ?? false
+        if warned {
+            try? AppleEvents.set(warns, to: NSAppleEventDescriptor(boolean: false), in: target, bundleID: Self.finderID)
+        }
+        defer {
+            if warned {
+                try? AppleEvents.set(
+                    warns, to: NSAppleEventDescriptor(boolean: true), in: target, bundleID: Self.finderID)
             }
         }
-        return result
-    }
-
-    /// The user's Trash folder, then the Trash on each other writable mounted volume that has one.
-    /// Every folder is checked to be a Trash folder by name, before and after following links, so
-    /// neither a wrong answer from the system nor a Trash replaced by a link can point the delete at
-    /// another folder.
-    private static func trashFolders(includingVolumes: Bool) throws -> [URL] {
-        let manager = FileManager.default
-        guard
-            let home = try? manager.url(for: .trashDirectory, in: .userDomainMask, appropriateFor: nil, create: false),
-            isSafeTrashFolder(home)
-        else {
-            throw SystemFailure.unavailable
-        }
-        var folders = [home]
-        guard includingVolumes else { return folders }
-        let keys: [URLResourceKey] = [.volumeIsRootFileSystemKey, .volumeIsReadOnlyKey]
-        for volume in manager.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes])
-            ?? []
-        {
-            let values = try? volume.resourceValues(forKeys: Set(keys))
-            guard values?.volumeIsRootFileSystem != true, values?.volumeIsReadOnly != true else { continue }
-            guard
-                let trash = try? manager.url(
-                    for: .trashDirectory, in: .userDomainMask, appropriateFor: volume, create: false),
-                isSafeTrashFolder(trash), trash.standardizedFileURL != home.standardizedFileURL,
-                manager.fileExists(atPath: trash.path)
-            else { continue }
-            folders.append(trash)
-        }
-        return folders
-    }
-
-    /// A Trash folder by name, and still one once links are followed.
-    static func isSafeTrashFolder(_ url: URL) -> Bool {
-        isTrashFolder(url) && isTrashFolder(url.resolvingSymlinksInPath())
-    }
-
-    /// True for `~/.Trash` and for `<volume>/.Trashes/<uid>`.
-    static func isTrashFolder(_ url: URL) -> Bool {
-        let path = url.standardizedFileURL.pathComponents
-        guard path.count >= 3 else { return false }
-        return path.last == ".Trash" || path[path.count - 2] == ".Trashes"
-    }
-
-    /// The items directly inside a Trash folder.
-    private static func items(in folder: URL) throws -> [URL] {
         do {
-            return try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
-                .filter { !ignoredNames.contains($0.lastPathComponent) }
-        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
-            return []
-        } catch let error as CocoaError where error.code == .fileReadNoPermission {
-            throw SystemFailure.permissionMissing(.fullDiskAccess)
-        } catch let error as NSError
-            where error.domain == NSPOSIXErrorDomain && [EPERM, EACCES].contains(Int32(truncatingIfNeeded: error.code))
-        {
-            throw SystemFailure.permissionMissing(.fullDiskAccess)
-        } catch {
-            throw SystemFailure.failed(code: Int32(truncatingIfNeeded: (error as NSError).code))
-        }
-    }
-
-    /// Deletes one item. A locked item is unlocked and tried once more. Returns false when it stays.
-    ///
-    /// A link is never unlocked: changing its flags could change the file it points to, which may
-    /// lie outside the Trash.
-    private static func delete(_ item: URL) -> Bool {
-        let manager = FileManager.default
-        if (try? manager.removeItem(at: item)) != nil { return true }
-        let current = try? item.resourceValues(forKeys: [.isSymbolicLinkKey, .isUserImmutableKey])
-        guard mayUnlock(isSymbolicLink: current?.isSymbolicLink, isLocked: current?.isUserImmutable) else {
+            _ = try AppleEvents.sendForResult(Self.emptyEvent(to: target), bundleID: Self.finderID)
+            return true
+        } catch SystemFailure.failed(let code) where code == Int32(errAETimeout) {
+            // A large Trash takes Finder longer than the wait. Finder goes on and shows its progress.
             return false
         }
-        var unlocked = item
-        var values = URLResourceValues()
-        values.isUserImmutable = false
-        guard (try? unlocked.setResourceValues(values)) != nil else { return false }
-        return (try? manager.removeItem(at: item)) != nil
     }
 
-    /// True only for an item that is known to be locked and known not to be a link.
-    static func mayUnlock(isSymbolicLink: Bool?, isLocked: Bool?) -> Bool {
-        isSymbolicLink == false && isLocked == true
+    /// The trash (trsh) property of Finder's application object, from Finder.sdef.
+    static var trash: NSAppleEventDescriptor { AppleEvents.property("trsh", of: .null()) }
+
+    /// The trash's "warns before emptying" (warn) property, from Finder.sdef.
+    static var warnsBeforeEmptying: NSAppleEventDescriptor { AppleEvents.property("warn", of: trash) }
+
+    /// "count each item of trash": the core suite's count event (core/cnte) with the class item
+    /// (cobj), from Finder.sdef.
+    static func countEvent(to target: NSAppleEventDescriptor) -> NSAppleEventDescriptor {
+        let event = AppleEvents.event(AEEventClass(kAECoreSuite), AEEventID(kAECountElements), to: target)
+        event.setParam(trash, forKeyword: keyDirectObject)
+        event.setParam(
+            NSAppleEventDescriptor(typeCode: AppleEvents.fourCharCode("cobj")), forKeyword: AEKeyword(keyAEObjectClass))
+        return event
+    }
+
+    /// "empty trash": Finder's empty event (fndr/empt), from Finder.sdef.
+    static func emptyEvent(to target: NSAppleEventDescriptor) -> NSAppleEventDescriptor {
+        let event = AppleEvents.event(AppleEvents.fourCharCode("fndr"), AppleEvents.fourCharCode("empt"), to: target)
+        event.setParam(trash, forKeyword: keyDirectObject)
+        return event
+    }
+
+    /// Finder, once it is known to run and to take events from this app. Never prompts: a missing
+    /// Automation grant comes back as ``SystemFailure/permissionMissing(_:)``.
+    private static func finderTarget() throws -> NSAppleEventDescriptor {
+        guard !NSRunningApplication.runningApplications(withBundleIdentifier: finderID).isEmpty else {
+            throw SystemFailure.notFound
+        }
+        let target = AppleEvents.target(bundleID: finderID)
+        try AppleEvents.checkPermission(for: target, bundleID: finderID)
+        return target
     }
 
     // MARK: - Disks

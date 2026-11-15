@@ -11,7 +11,8 @@ import Kit
 /// - Sleep Displays: `/usr/bin/pmset displaysleepnow`, through Kit's process service. IOKit has no
 ///   public call for display sleep.
 /// - Lock Screen: `SACLockScreenImmediate` from the private login framework, looked up at run time.
-///   macOS has no public call to lock the screen. When the symbol is missing the command says so.
+///   macOS has no public call to lock the screen. The README lists this private function. When the
+///   framework or the symbol is missing, ``checkAvailable(_:)`` says so before the panel closes.
 /// - Start Screen Saver: opens `ScreenSaverEngine.app` with `NSWorkspace`.
 /// - Log Out, Restart and Shut Down: the Apple Events that loginwindow documents for this, sent
 ///   without its own dialog, since the command has already asked. Apps still get to save their work
@@ -27,6 +28,11 @@ nonisolated final class LivePower: PowerService {
 
     init(processes: any ProcessService) {
         self.processes = processes
+    }
+
+    @concurrent func checkAvailable(_ request: PowerRequest) async throws {
+        guard request == .lockScreen else { return }
+        guard Self.lockScreenFunction() != nil else { throw SystemFailure.unavailable }
     }
 
     @concurrent func perform(_ request: PowerRequest) async throws {
@@ -62,14 +68,20 @@ nonisolated final class LivePower: PowerService {
     /// is not documented, so it is not read: a wrong guess would report a failure after the screen
     /// had locked.
     private static func lockScreen() throws {
-        typealias LockScreen = @convention(c) () -> Void
-        guard let framework = dlopen(loginFramework, RTLD_LAZY),
-            let symbol = dlsym(framework, "SACLockScreenImmediate")
-        else {
-            throw SystemFailure.unavailable
-        }
-        let lock = unsafeBitCast(symbol, to: LockScreen.self)
+        guard let lock = lockScreenFunction() else { throw SystemFailure.unavailable }
         lock()
+    }
+
+    private typealias LockScreen = @convention(c) () -> Void
+    static let lockScreenSymbol = "SACLockScreenImmediate"
+
+    /// The private lock function, or nil when this macOS has no such framework or symbol. The
+    /// framework stays loaded once opened, as the system keeps it loaded anyway.
+    private static func lockScreenFunction() -> LockScreen? {
+        guard let framework = dlopen(loginFramework, RTLD_LAZY | RTLD_LOCAL),
+            let symbol = dlsym(framework, lockScreenSymbol)
+        else { return nil }
+        return unsafeBitCast(symbol, to: LockScreen.self)
     }
 
     /// Opens the screen saver engine, which starts the user's chosen screen saver.

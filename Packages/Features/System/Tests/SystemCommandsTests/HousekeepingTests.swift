@@ -8,8 +8,8 @@ import Testing
 @Suite("Empty Trash", .timeLimit(.minutes(1)))
 @MainActor
 struct EmptyTrashTests {
-    @Test func asksWithTheCountThenDeletesWithThePanelClosed() async throws {
-        let system = SystemHarness(trashItems: 9, volumeTrashItems: 3)
+    @Test func asksWithFindersCountThenEmptiesWithThePanelClosed() async throws {
+        let system = SystemHarness(trashItems: 12)
         let outcome = try await system.harness.run("empty-trash")
         let confirmation = try #require(system.harness.confirmations.first)
         #expect(confirmation.title == "Empty the Trash?")
@@ -17,8 +17,8 @@ struct EmptyTrashTests {
         #expect(confirmation.confirmTitle == "Empty Trash")
         #expect(confirmation.isDestructive)
         #expect(confirmation.suppressionKey == nil)
-        #expect(system.housekeeping.requests == [.emptyTrash(includingVolumes: true)])
-        #expect(outcome.kind == .close(hud: .success("Deleted 12 items from the Trash")))
+        #expect(system.housekeeping.requests == [.emptyTrash])
+        #expect(outcome.kind == .close(hud: .success("Deleted 12 Items from the Trash")))
         #expect(system.housekeeping.trashItems == 0)
     }
 
@@ -28,18 +28,29 @@ struct EmptyTrashTests {
         #expect(
             system.harness.confirmations.first?.message
                 == "The item in the Trash will be deleted forever. You can't undo this.")
-        #expect(system.harness.huds == [.success("Deleted 1 item from the Trash")])
+        #expect(system.harness.huds == [.success("Deleted 1 Item from the Trash")])
+    }
+
+    @Test func withoutACountTheQuestionAsksWithoutOne() async throws {
+        let system = SystemHarness(trashItems: 4)
+        system.housekeeping.setCountsTrash(false)
+        let outcome = try await system.harness.run("empty-trash")
+        #expect(
+            system.harness.confirmations.first?.message
+                == "Every item in the Trash will be deleted forever. You can't undo this.")
+        #expect(system.housekeeping.requests == [.emptyTrash])
+        #expect(outcome.kind == .close(hud: .success("Emptied the Trash")))
     }
 
     @Test func anEmptyTrashSaysSoWithoutAsking() async throws {
         let system = SystemHarness()
         let outcome = try await system.harness.run("empty-trash")
-        #expect(outcome.kind == .close(hud: "The Trash is already empty"))
+        #expect(outcome.kind == .close(hud: "The Trash Is Already Empty"))
         #expect(system.harness.confirmations.isEmpty)
         #expect(system.housekeeping.requests.isEmpty)
     }
 
-    @Test func decliningDeletesNothing() async throws {
+    @Test func decliningEmptiesNothing() async throws {
         let system = SystemHarness(trashItems: 4)
         system.harness.confirmationAnswer = false
         let outcome = try await system.harness.run("empty-trash")
@@ -48,32 +59,35 @@ struct EmptyTrashTests {
         #expect(system.housekeeping.trashItems == 4)
     }
 
-    @Test func otherDisksAreLeftOutWithoutFullDiskAccess() async throws {
-        let system = SystemHarness(trashItems: 2, volumeTrashItems: 5)
+    @Test func itNeedsAutomationForFinderAndNeverFullDiskAccess() async throws {
+        let system = SystemHarness(trashItems: 2)
         system.fakes.permissions.set(.fullDiskAccess, to: .denied)
         try await system.harness.run("empty-trash")
-        #expect(
-            system.harness.confirmations.first?.message
-                == "The 2 items in the Trash will be deleted forever. You can't undo this.")
-        #expect(system.housekeeping.requests == [.emptyTrash(includingVolumes: false)])
-    }
+        #expect(system.housekeeping.requests == [.emptyTrash], "Full Disk Access plays no part")
+        #expect(!SystemFeature.manifest.permissions.map(\.permission).contains(.fullDiskAccess))
 
-    @Test func aGuardedTrashShowsThePermissionCard() async throws {
-        let system = SystemHarness(trashItems: 2)
-        system.housekeeping.failTrash(with: .permissionMissing(.fullDiskAccess))
-        await #expect(throws: HarnessError.permissionRequired([.fullDiskAccess])) {
-            try await system.harness.run("empty-trash")
+        let blocked = SystemHarness(trashItems: 2)
+        blocked.housekeeping.failTrash(with: .permissionMissing(.automation(bundleID: "com.apple.finder")))
+        await #expect(throws: HarnessError.permissionRequired([.automation(bundleID: "com.apple.finder")])) {
+            try await blocked.harness.run("empty-trash")
         }
-        #expect(system.harness.confirmations.isEmpty)
+        #expect(blocked.harness.confirmations.isEmpty, "the card comes before the question")
     }
 
-    @Test func itemsThatStaySayHowManyAndWhy() async throws {
+    @Test func aLargeTrashSaysFinderIsStillEmptying() async throws {
         let system = SystemHarness(trashItems: 5)
-        system.housekeeping.keepInTrash(2)
+        system.housekeeping.setFinishesEmptying(false)
+        let outcome = try await system.harness.run("empty-trash")
+        #expect(outcome.kind == .close(hud: "Finder Is Still Emptying the Trash"))
+    }
+
+    @Test func withoutFinderItSaysSo() async throws {
+        let system = SystemHarness(trashItems: 5)
+        system.housekeeping.failTrash(with: .notFound)
         try await system.runShowingErrors("empty-trash")
-        #expect(system.failureHUDs == ["2 items could not be deleted"])
         let failure = try #require(system.harness.actionErrors.first as? ActionFailure)
-        #expect(failure.message == "An item may be in use. Quit the app that uses it and try again.")
+        #expect(failure.title == "Finder Is Not Running")
+        #expect(system.housekeeping.requests.isEmpty)
     }
 
     @Test func aHotkeyLaunchStillAsks() async throws {
@@ -92,31 +106,46 @@ struct EmptyTrashTests {
         #expect(system.harness.confirmations.isEmpty)
         #expect(system.housekeeping.requests.isEmpty)
     }
-
-    @Test func onlyTrashFoldersCountAsTrash() {
-        #expect(LiveHousekeeping.isTrashFolder(URL(filePath: "/Users/example/.Trash")))
-        #expect(LiveHousekeeping.isTrashFolder(URL(filePath: "/Volumes/Example Drive/.Trashes/501")))
-        #expect(!LiveHousekeeping.isTrashFolder(URL(filePath: "/Users/example")))
-        #expect(!LiveHousekeeping.isTrashFolder(URL(filePath: "/")))
-        #expect(!LiveHousekeeping.isTrashFolder(URL(filePath: "/Volumes/Example Drive")))
-    }
 }
 
-@Suite("Trash folder guard", .timeLimit(.minutes(1)))
-struct TrashFolderGuardTests {
-    @Test func aTrashThatIsALinkToAnotherFolderIsRefused() throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "system-tests-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: root) }
-        let elsewhere = root.appending(path: "Elsewhere")
-        let realTrash = root.appending(path: "home/.Trash")
-        try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: realTrash, withIntermediateDirectories: true)
-        let linkedTrash = root.appending(path: "other/.Trash")
-        try FileManager.default.createDirectory(
-            at: linkedTrash.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try FileManager.default.createSymbolicLink(at: linkedTrash, withDestinationURL: elsewhere)
-        #expect(LiveHousekeeping.isSafeTrashFolder(realTrash))
-        #expect(!LiveHousekeeping.isSafeTrashFolder(linkedTrash))
+/// The Apple Events the live service sends Finder, built but never sent.
+@Suite("Finder events", .timeLimit(.minutes(1)))
+struct FinderEventTests {
+    /// This test process, so the events address nothing else. Nothing is sent.
+    private let target = NSAppleEventDescriptor(processIdentifier: ProcessInfo.processInfo.processIdentifier)
+
+    @Test func countAsksForTheItemsOfTheTrash() throws {
+        let event = LiveHousekeeping.countEvent(to: target)
+        #expect(event.eventClass == AEEventClass(kAECoreSuite))
+        #expect(event.eventID == AEEventID(kAECountElements))
+        #expect(event.paramDescriptor(forKeyword: AEKeyword(keyAEObjectClass))?.typeCodeValue == fourCharCode("cobj"))
+        try expectTrash(event.paramDescriptor(forKeyword: keyDirectObject))
+    }
+
+    @Test func emptyIsFindersEmptyEventOnTheTrash() throws {
+        let event = LiveHousekeeping.emptyEvent(to: target)
+        #expect(event.eventClass == fourCharCode("fndr"))
+        #expect(event.eventID == fourCharCode("empt"))
+        try expectTrash(event.paramDescriptor(forKeyword: keyDirectObject))
+    }
+
+    @Test func theWarningIsAPropertyOfTheTrash() throws {
+        let warns = LiveHousekeeping.warnsBeforeEmptying
+        #expect(warns.forKeyword(AEKeyword(keyAEKeyData))?.typeCodeValue == fourCharCode("warn"))
+        try expectTrash(warns.forKeyword(AEKeyword(keyAEContainer)))
+    }
+
+    /// The trash property (trsh) of the application, which is the null descriptor.
+    private func expectTrash(_ specifier: NSAppleEventDescriptor?) throws {
+        let specifier = try #require(specifier)
+        #expect(specifier.descriptorType == DescType(typeObjectSpecifier))
+        #expect(specifier.forKeyword(AEKeyword(keyAEDesiredClass))?.typeCodeValue == DescType(cProperty))
+        #expect(specifier.forKeyword(AEKeyword(keyAEKeyData))?.typeCodeValue == fourCharCode("trsh"))
+        #expect(specifier.forKeyword(AEKeyword(keyAEContainer))?.descriptorType == DescType(typeNull))
+    }
+
+    private func fourCharCode(_ text: String) -> FourCharCode {
+        AppleEvents.fourCharCode(text)
     }
 }
 
@@ -164,7 +193,7 @@ struct EjectTests {
     @Test func nothingToEjectSaysSoWithoutAsking() async throws {
         let system = SystemHarness(disks: [SystemHarness.server])
         let outcome = try await system.harness.run("eject-all-disks")
-        #expect(outcome.kind == .close(hud: "There are no disks to eject"))
+        #expect(outcome.kind == .close(hud: "No Disks to Eject"))
         #expect(system.harness.confirmations.isEmpty)
     }
 
@@ -179,7 +208,7 @@ struct EjectTests {
         let system = SystemHarness(disks: [SystemHarness.drive, SystemHarness.backup])
         system.housekeeping.makeBusy(SystemHarness.drive.path)
         try await system.runShowingErrors("eject-all-disks")
-        #expect(system.failureHUDs == ["Could not eject Example Drive"])
+        #expect(system.failureHUDs == ["Could Not Eject Example Drive"])
         #expect(system.housekeeping.disks == [SystemHarness.drive])
     }
 
@@ -206,7 +235,7 @@ struct HiddenFilesTests {
         #expect(system.housekeeping.hiddenFilesShown)
         try await system.harness.run("toggle-hidden-files")
         #expect(!system.housekeeping.hiddenFilesShown)
-        #expect(system.harness.huds == ["Finder now shows hidden files", "Finder now hides hidden files"])
+        #expect(system.harness.huds == ["Finder Now Shows Hidden Files", "Finder Now Hides Hidden Files"])
         #expect(system.housekeeping.requests == [.setShowsHiddenFiles(true), .setShowsHiddenFiles(false)])
     }
 

@@ -43,7 +43,7 @@ struct AppearanceTests {
         let system = SystemHarness()
         system.appearance.fail(with: .unavailable)
         try await system.runShowingErrors("toggle-dark-mode")
-        #expect(system.harness.toasts.map(\.title) == ["System Events is not available on this Mac"])
+        #expect(system.harness.toasts.map(\.title) == ["System Events Is Not Available on This Mac"])
     }
 }
 
@@ -60,7 +60,7 @@ struct SoundTests {
         #expect(system.sound.device?.isMuted == true)
         try await system.harness.run("toggle-mute")
         #expect(system.sound.device?.isMuted == false)
-        #expect(system.harness.huds == ["Sound muted", "Sound unmuted", "Sound muted", "Sound unmuted"])
+        #expect(system.harness.huds == ["Sound Muted", "Sound Unmuted", "Sound Muted", "Sound Unmuted"])
     }
 
     @Test func volumeKeysMoveBySixteenthsByDefault() async throws {
@@ -135,7 +135,7 @@ struct SoundTests {
             return
         }
         try await system.runShowingErrors("set-volume", arguments: ["level": text])
-        #expect(system.harness.toasts.map(\.title) == ["Enter a volume from 0 to 100"])
+        #expect(system.harness.toasts.map(\.title) == ["Enter a Volume from 0 to 100"])
         #expect(system.harness.toasts.first?.message == "For example, 40 or 40%.")
         #expect(system.sound.device?.volume == 0.5)
     }
@@ -143,7 +143,7 @@ struct SoundTests {
     @Test func aDeviceWithoutAVolumeControlSaysSo() async throws {
         let system = SystemHarness(sound: SoundState(volume: nil, isMuted: false))
         try await system.runShowingErrors("volume-up")
-        #expect(system.harness.toasts.map(\.title) == ["This output device has no volume control"])
+        #expect(system.harness.toasts.map(\.title) == ["This Output Device Has No Volume Control"])
         try await system.runShowingErrors("set-volume", arguments: ["level": "20"])
         #expect(system.harness.toasts.count == 2)
     }
@@ -151,7 +151,7 @@ struct SoundTests {
     @Test func aDeviceThatCannotBeMutedSaysSo() async throws {
         let system = SystemHarness(sound: SoundState(volume: 0.5, isMuted: nil))
         try await system.runShowingErrors("toggle-mute")
-        #expect(system.harness.toasts.map(\.title) == ["This output device cannot be muted"])
+        #expect(system.harness.toasts.map(\.title) == ["This Output Device Cannot Be Muted"])
         try await system.harness.run("volume-up")
         #expect(system.sound.device?.volume == 0.5625, "the volume still works")
     }
@@ -161,7 +161,7 @@ struct SoundTests {
         for id in ["mute", "volume-down"] {
             try await system.runShowingErrors(id)
         }
-        #expect(system.harness.toasts.map(\.title) == Array(repeating: "There is no sound output to change", count: 2))
+        #expect(system.harness.toasts.map(\.title) == Array(repeating: "No Sound Output to Change", count: 2))
     }
 }
 

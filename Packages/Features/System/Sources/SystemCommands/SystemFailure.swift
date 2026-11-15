@@ -25,6 +25,8 @@ nonisolated struct FailureWords: Sendable {
     var unavailable: String
     /// The title when the thing to act on is gone. Defaults to ``unavailable``.
     var notFound: String?
+    /// A sentence under ``unavailable`` that says what to do instead.
+    var unavailableMessage: String?
 }
 
 extension SystemFailure {
@@ -40,7 +42,7 @@ extension SystemFailure {
             case .permissionMissing(let permission):
                 return .needsPermission(permission)
             case .unavailable:
-                throw ActionFailure(words.unavailable)
+                throw ActionFailure(words.unavailable, message: words.unavailableMessage)
             case .notFound:
                 throw ActionFailure(words.notFound ?? words.unavailable)
             case .protected:

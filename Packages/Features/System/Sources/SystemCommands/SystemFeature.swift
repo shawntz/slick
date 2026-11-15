@@ -17,7 +17,7 @@ public final class SystemFeature: Feature {
     public static let manifest = FeatureManifest(
         id: "system", name: Strings.featureName, icon: .symbol("power"), summary: Strings.featureSummary,
         permissions: [
-            PermissionNeed(.fullDiskAccess, reason: Strings.Reasons.fullDiskAccess),
+            PermissionNeed(.automation(bundleID: LiveHousekeeping.finderID), reason: Strings.Reasons.finder),
             PermissionNeed(.automation(bundleID: LiveAppearance.systemEventsID), reason: Strings.Reasons.systemEvents),
             PermissionNeed(.automation(bundleID: LivePower.loginWindowID), reason: Strings.Reasons.loginWindow),
         ])
@@ -78,7 +78,7 @@ public final class SystemFeature: Feature {
             SettingsSection(
                 Strings.Settings.permissions, footer: Strings.Settings.confirmationsNote,
                 items: [
-                    .permission(.fullDiskAccess, info: Strings.Settings.fullDiskAccessInfo),
+                    .permission(.automation(bundleID: LiveHousekeeping.finderID), info: Strings.Settings.finderInfo),
                     .permission(
                         .automation(bundleID: LiveAppearance.systemEventsID), info: Strings.Settings.systemEventsInfo),
                     .permission(.automation(bundleID: LivePower.loginWindowID), info: Strings.Settings.loginWindowInfo),

@@ -17,11 +17,11 @@ struct SystemHarness {
     let harness: FeatureHarness<SystemFeature>
 
     init(
-        trashItems: Int = 0, volumeTrashItems: Int = 0, disks: [Disk] = [], isDark: Bool = false,
+        trashItems: Int = 0, disks: [Disk] = [], isDark: Bool = false,
         sound state: SoundState? = SoundState(volume: 0.5, isMuted: false), processes: [ProcessSample] = [],
         rates: [Int32: Double] = [:], ownPID: Int32 = 99, permissions: PermissionStatus = .granted
     ) {
-        housekeeping = SimulatedHousekeeping(trashItems: trashItems, volumeTrashItems: volumeTrashItems, disks: disks)
+        housekeeping = SimulatedHousekeeping(trashItems: trashItems, disks: disks)
         appearance = SimulatedAppearance(isDark: isDark)
         sound = SimulatedSound(state)
         self.processes = SimulatedProcessTable(processes, rates: rates, ownPID: ownPID)
