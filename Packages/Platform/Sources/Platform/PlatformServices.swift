@@ -90,11 +90,16 @@ import KitHosting
     public let icons: IconCache
     public let systemContext: SystemContextCenter
     public let loginItem: any LoginItemControl
+    /// Whether one of this app's windows has key focus.
+    public let ownKeyFocus: OwnKeyFocus
 
     private let workspaceObserver: WorkspaceObserver?
+    private let keyFocusObserver: OwnKeyFocusObserver?
     private let contextMonitor: SystemContextMonitor?
     private let privatePasteboard: NSPasteboard?
     private var catalogRefresh: Task<Void, Never>?
+    private var activityObservers: [any NSObjectProtocol] = []
+    private var frontmostWatch: Task<Void, Never>?
 
     public init(_ configuration: Configuration) {
         self.configuration = configuration
@@ -107,6 +112,8 @@ import KitHosting
                 ? UserDefaultsSettingsBackend(suiteName: configuration.settingsSuite) : MemorySettingsBackend())
         let frontmost = FrontmostTracker()
         let fileWatcher = FSEventsWatcher()
+        let ownKeyFocus = OwnKeyFocus()
+        self.ownKeyFocus = ownKeyFocus
         self.clock = clock
         self.storage = storage
         self.settings = settings
@@ -114,11 +121,13 @@ import KitHosting
 
         if isLive {
             let workspaceSystem = NSWorkspaceSystem()
-            let catalog = ApplicationCatalog(
-                folders: ApplicationCatalog.standardFolders(home: storage.homeDirectory),
-                locate: { workspaceSystem.applicationURL(bundleID: $0) })
             let permissions = PermissionCenter(
                 system: MacPermissionSystem(homeDirectory: storage.homeDirectory), settings: settings, clock: clock)
+            // Background reads stay out of places where a read could make macOS ask the user.
+            let readGuard = ReadGuard.permissions(permissions, home: storage.homeDirectory)
+            let catalog = ApplicationCatalog(
+                folders: ApplicationCatalog.standardFolders(home: storage.homeDirectory),
+                locate: { workspaceSystem.applicationURL(bundleID: $0) }, readGuard: readGuard)
             let http = URLSessionHTTP()
             let keystrokes = CGEventKeystrokePoster()
             secrets = KeychainSecrets(backend: SecItemKeychain())
@@ -132,20 +141,24 @@ import KitHosting
             pasteboard = LivePasteboard(
                 pasteboard: .general, permissions: permissions, poster: keystrokes, clock: clock,
                 sourceApplication: { frontmost.current?.bundleID },
-                anotherAppIsFrontmost: LivePasteboard.waitForAnotherApp())
+                anotherAppIsFrontmost: LivePasteboard.waitForAnotherApp(ownWindowIsKey: { ownKeyFocus.isKey }))
             privatePasteboard = nil
             selection = AccessibilitySelection.live(permissions: permissions, frontmost: frontmost)
             textExpansion = TextExpansionCenter(
                 permissions: permissions, source: EventTapSource(), poster: keystrokes,
                 secureInput: SystemSecureInput(),
-                frontmostBundleID: { frontmost.current?.bundleID }, focusChanges: { frontmost.activations() })
+                frontmostBundleID: { frontmost.current?.bundleID },
+                focusChanges: { mergedSignals([frontmost.activations(), ownKeyFocus.changes()]) },
+                ownAppIsKey: { ownKeyFocus.isKey })
             icons = IconCache(
                 folders: storage.iconFolders, renderer: LiveIconRenderer(),
-                apps: CatalogAppIcons(catalog: catalog, locate: { workspaceSystem.applicationURL(bundleID: $0) }),
-                http: http, settings: settings, watcher: fileWatcher)
+                apps: CatalogAppIcons(
+                    catalog: catalog, locate: { workspaceSystem.applicationURL(bundleID: $0) }, readGuard: readGuard),
+                http: http, settings: settings, watcher: fileWatcher, readGuard: readGuard)
             systemContext = SystemContextCenter()
             loginItem = MainAppLoginItem()
             workspaceObserver = WorkspaceObserver(tracker: frontmost, catalog: catalog)
+            keyFocusObserver = OwnKeyFocusObserver(focus: ownKeyFocus)
             contextMonitor = SystemContextMonitor(center: systemContext, frontmost: frontmost, clock: clock)
         } else {
             let permissions = PermissionCenter(
@@ -175,19 +188,23 @@ import KitHosting
             systemContext = SystemContextCenter(configuration.syntheticContext)
             loginItem = MemoryLoginItem()
             workspaceObserver = nil
+            keyFocusObserver = nil
             contextMonitor = nil
         }
     }
 
     public var environment: RunEnvironment { configuration.environment }
 
-    /// Starts listening to the Mac: the frontmost app, the app folders, power, displays, audio,
-    /// session starts, the icon atlas and the favicon folder. It also checks every permission once
-    /// in the background, so no later ``PermissionCenter/status(of:)`` waits. Call it once, on the
-    /// main thread, after `NSApplication.shared` exists. Does nothing outside `live`.
+    /// Starts listening to the Mac: the frontmost app, key focus in this app's windows, whether
+    /// this app is active, the app folders, power, displays, audio, session starts, the icon atlas
+    /// and the favicon folder. It also checks every permission once in the background, so no later
+    /// ``PermissionCenter/status(of:)`` waits. Call it once, on the main thread, after
+    /// `NSApplication.shared` exists. Does nothing outside `live`.
     public func start() {
         guard environment.touchesRealSystem, catalogRefresh == nil else { return }
         workspaceObserver?.start()
+        keyFocusObserver?.start()
+        followAppActivity()
         contextMonitor?.start()
         catalogRefresh = workspace.catalog.refreshing(on: fileWatcher)
         icons.start()
@@ -201,6 +218,13 @@ import KitHosting
     /// writes. Call it when the app quits.
     public func stop() {
         workspaceObserver?.stop()
+        keyFocusObserver?.stop()
+        for observer in activityObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        activityObservers = []
+        frontmostWatch?.cancel()
+        frontmostWatch = nil
         contextMonitor?.stop()
         catalogRefresh?.cancel()
         catalogRefresh = nil
@@ -209,6 +233,27 @@ import KitHosting
         hotkeys.unregisterAll()
         privatePasteboard?.releaseGlobally()
         settings.flush()
+    }
+
+    /// Tells the permission center when this app becomes active or stops being active: permission
+    /// streams check faster while the user is in the app, such as in settings or onboarding.
+    private func followAppActivity() {
+        let permissions = permissions
+        permissions.setAppActive(NSApplication.shared.isActive)
+        let changes = workspace.frontmost.changes()
+        frontmostWatch = Task {
+            for await _ in changes {
+                permissions.userMayHaveReturned()
+            }
+        }
+        for (name, isActive) in [
+            (NSApplication.didBecomeActiveNotification, true), (NSApplication.didResignActiveNotification, false),
+        ] {
+            activityObservers.append(
+                NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { _ in
+                    permissions.setAppActive(isActive)
+                })
+        }
     }
 
     /// Plays another app copying `text` onto the private pasteboard of an isolated run, so a
