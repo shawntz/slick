@@ -1,0 +1,871 @@
+# Places the calculator knows, for "time in tokyo" and "3pm london in new york".
+#
+# One place per line: names separated by ";", then "|", then the IANA zone.
+# The first name is shown in answers. Every national capital is here, then the largest cities by
+# metro population, then countries, a few states and provinces, and common aliases.
+# When two places share a name, the larger one keeps the bare name and the other gets a
+# qualified alias, such as "San José, Costa Rica".
+# Keys are matched without case, diacritics, dots, apostrophes or hyphens.
+
+# Africa: capitals.
+Algiers | Africa/Algiers
+Luanda | Africa/Luanda
+Porto-Novo | Africa/Porto-Novo
+Gaborone | Africa/Gaborone
+Ouagadougou | Africa/Ouagadougou
+Gitega; Bujumbura | Africa/Bujumbura
+Praia | Atlantic/Cape_Verde
+Yaoundé; Yaounde | Africa/Douala
+Bangui | Africa/Bangui
+N'Djamena; Ndjamena | Africa/Ndjamena
+Moroni | Indian/Comoro
+Kinshasa | Africa/Kinshasa
+Brazzaville | Africa/Brazzaville
+Yamoussoukro | Africa/Abidjan
+Djibouti | Africa/Djibouti
+Cairo | Africa/Cairo
+Malabo | Africa/Malabo
+Asmara | Africa/Asmara
+Mbabane; Lobamba | Africa/Mbabane
+Addis Ababa | Africa/Addis_Ababa
+Libreville | Africa/Libreville
+Banjul | Africa/Banjul
+Accra | Africa/Accra
+Conakry | Africa/Conakry
+Bissau | Africa/Bissau
+Nairobi | Africa/Nairobi
+Maseru | Africa/Maseru
+Monrovia | Africa/Monrovia
+Tripoli | Africa/Tripoli
+Antananarivo | Indian/Antananarivo
+Lilongwe | Africa/Blantyre
+Bamako | Africa/Bamako
+Nouakchott | Africa/Nouakchott
+Port Louis | Indian/Mauritius
+Rabat | Africa/Casablanca
+Maputo | Africa/Maputo
+Windhoek | Africa/Windhoek
+Niamey | Africa/Niamey
+Abuja | Africa/Lagos
+Kigali | Africa/Kigali
+São Tomé; Sao Tome | Africa/Sao_Tome
+Dakar | Africa/Dakar
+Victoria, Seychelles; Victoria Seychelles | Indian/Mahe
+Freetown | Africa/Freetown
+Mogadishu | Africa/Mogadishu
+Pretoria; Bloemfontein | Africa/Johannesburg
+Juba | Africa/Juba
+Khartoum | Africa/Khartoum
+Dodoma | Africa/Dar_es_Salaam
+Lomé; Lome | Africa/Lome
+Tunis | Africa/Tunis
+Kampala | Africa/Kampala
+Lusaka | Africa/Lusaka
+Harare | Africa/Harare
+Laayoune; El Aaiun | Africa/El_Aaiun
+
+# Americas: capitals.
+St. John's, Antigua; St Johns Antigua; Saint John's Antigua | America/Antigua
+Buenos Aires | America/Argentina/Buenos_Aires
+Nassau | America/Nassau
+Bridgetown | America/Barbados
+Belmopan | America/Belize
+La Paz; Sucre | America/La_Paz
+Brasília; Brasilia | America/Sao_Paulo
+Ottawa | America/Toronto
+Santiago | America/Santiago
+Bogotá; Bogota | America/Bogota
+San José, Costa Rica; San Jose Costa Rica | America/Costa_Rica
+Havana | America/Havana
+Roseau | America/Dominica
+Santo Domingo | America/Santo_Domingo
+Quito | America/Guayaquil
+San Salvador | America/El_Salvador
+St. George's; St Georges; Saint George's | America/Grenada
+Guatemala City | America/Guatemala
+Georgetown | America/Guyana
+Port-au-Prince | America/Port-au-Prince
+Tegucigalpa | America/Tegucigalpa
+Kingston | America/Jamaica
+Mexico City; CDMX | America/Mexico_City
+Managua | America/Managua
+Panama City | America/Panama
+Asunción; Asuncion | America/Asuncion
+Lima | America/Lima
+Basseterre | America/St_Kitts
+Castries | America/St_Lucia
+Kingstown | America/St_Vincent
+Paramaribo | America/Paramaribo
+Port of Spain | America/Port_of_Spain
+Washington; Washington DC; DC | America/New_York
+Montevideo | America/Montevideo
+Caracas | America/Caracas
+San Juan | America/Puerto_Rico
+Nuuk | America/Nuuk
+Oranjestad | America/Aruba
+Willemstad | America/Curacao
+
+# Asia: capitals.
+Kabul | Asia/Kabul
+Yerevan | Asia/Yerevan
+Baku | Asia/Baku
+Manama | Asia/Bahrain
+Dhaka | Asia/Dhaka
+Thimphu | Asia/Thimphu
+Bandar Seri Begawan | Asia/Brunei
+Phnom Penh | Asia/Phnom_Penh
+Beijing; Peking | Asia/Shanghai
+Nicosia | Asia/Nicosia
+Tbilisi | Asia/Tbilisi
+New Delhi; Delhi | Asia/Kolkata
+Jakarta | Asia/Jakarta
+Tehran | Asia/Tehran
+Baghdad | Asia/Baghdad
+Jerusalem | Asia/Jerusalem
+Tokyo | Asia/Tokyo
+Amman | Asia/Amman
+Astana | Asia/Almaty
+Kuwait City | Asia/Kuwait
+Bishkek | Asia/Bishkek
+Vientiane | Asia/Vientiane
+Beirut | Asia/Beirut
+Kuala Lumpur; KL | Asia/Kuala_Lumpur
+Malé; Male | Indian/Maldives
+Ulaanbaatar; Ulan Bator | Asia/Ulaanbaatar
+Naypyidaw; Nay Pyi Taw | Asia/Yangon
+Kathmandu | Asia/Kathmandu
+Pyongyang | Asia/Pyongyang
+Muscat | Asia/Muscat
+Islamabad | Asia/Karachi
+Ramallah; East Jerusalem | Asia/Hebron
+Manila | Asia/Manila
+Doha | Asia/Qatar
+Riyadh | Asia/Riyadh
+Singapore | Asia/Singapore
+Seoul | Asia/Seoul
+Sri Jayawardenepura Kotte; Kotte | Asia/Colombo
+Damascus | Asia/Damascus
+Taipei | Asia/Taipei
+Dushanbe | Asia/Dushanbe
+Bangkok | Asia/Bangkok
+Dili | Asia/Dili
+Ankara | Europe/Istanbul
+Ashgabat | Asia/Ashgabat
+Abu Dhabi | Asia/Dubai
+Tashkent | Asia/Tashkent
+Hanoi | Asia/Ho_Chi_Minh
+Sanaa; Sana'a | Asia/Aden
+Hong Kong; HK | Asia/Hong_Kong
+Macau; Macao | Asia/Macau
+
+# Europe: capitals.
+Tirana | Europe/Tirane
+Andorra la Vella | Europe/Andorra
+Vienna; Wien | Europe/Vienna
+Minsk | Europe/Minsk
+Brussels; Bruxelles | Europe/Brussels
+Sarajevo | Europe/Sarajevo
+Sofia | Europe/Sofia
+Zagreb | Europe/Zagreb
+Prague; Praha | Europe/Prague
+Copenhagen; København | Europe/Copenhagen
+Tallinn | Europe/Tallinn
+Helsinki | Europe/Helsinki
+Paris | Europe/Paris
+Berlin | Europe/Berlin
+Athens | Europe/Athens
+Budapest | Europe/Budapest
+Reykjavík; Reykjavik | Atlantic/Reykjavik
+Dublin | Europe/Dublin
+Rome; Roma | Europe/Rome
+Pristina; Prishtina | Europe/Belgrade
+Riga | Europe/Riga
+Vaduz | Europe/Vaduz
+Vilnius | Europe/Vilnius
+Luxembourg | Europe/Luxembourg
+Valletta | Europe/Malta
+Chișinău; Chisinau | Europe/Chisinau
+Monaco | Europe/Monaco
+Podgorica | Europe/Podgorica
+Amsterdam | Europe/Amsterdam
+Skopje | Europe/Skopje
+Oslo | Europe/Oslo
+Warsaw; Warszawa | Europe/Warsaw
+Lisbon; Lisboa | Europe/Lisbon
+Bucharest | Europe/Bucharest
+Moscow | Europe/Moscow
+San Marino | Europe/San_Marino
+Belgrade | Europe/Belgrade
+Bratislava | Europe/Bratislava
+Ljubljana | Europe/Ljubljana
+Madrid | Europe/Madrid
+Stockholm | Europe/Stockholm
+Bern; Berne | Europe/Zurich
+Kyiv; Kiev | Europe/Kyiv
+London | Europe/London
+Vatican City; Vatican | Europe/Vatican
+Gibraltar | Europe/Gibraltar
+Douglas | Europe/Isle_of_Man
+Tórshavn; Torshavn | Atlantic/Faroe
+
+# Oceania: capitals.
+Canberra | Australia/Sydney
+Suva | Pacific/Fiji
+Tarawa; South Tarawa | Pacific/Tarawa
+Majuro | Pacific/Majuro
+Palikir | Pacific/Pohnpei
+Yaren | Pacific/Nauru
+Wellington | Pacific/Auckland
+Ngerulmud | Pacific/Palau
+Port Moresby | Pacific/Port_Moresby
+Apia | Pacific/Apia
+Honiara | Pacific/Guadalcanal
+Nukuʻalofa; Nukualofa | Pacific/Tongatapu
+Funafuti | Pacific/Funafuti
+Port Vila | Pacific/Efate
+Hagåtña; Hagatna | Pacific/Guam
+Papeete | Pacific/Tahiti
+Nouméa; Noumea | Pacific/Noumea
+Avarua | Pacific/Rarotonga
+
+# China.
+Shanghai | Asia/Shanghai
+Guangzhou; Canton | Asia/Shanghai
+Shenzhen | Asia/Shanghai
+Chongqing | Asia/Shanghai
+Tianjin | Asia/Shanghai
+Chengdu | Asia/Shanghai
+Wuhan | Asia/Shanghai
+Xi'an; Xian | Asia/Shanghai
+Hangzhou | Asia/Shanghai
+Nanjing | Asia/Shanghai
+Suzhou | Asia/Shanghai
+Shenyang | Asia/Shanghai
+Harbin | Asia/Shanghai
+Dalian | Asia/Shanghai
+Qingdao | Asia/Shanghai
+Zhengzhou | Asia/Shanghai
+Jinan | Asia/Shanghai
+Changsha | Asia/Shanghai
+Kunming | Asia/Shanghai
+Changchun | Asia/Shanghai
+Hefei | Asia/Shanghai
+Shantou | Asia/Shanghai
+Ningbo | Asia/Shanghai
+Shijiazhuang | Asia/Shanghai
+Taiyuan | Asia/Shanghai
+Xiamen | Asia/Shanghai
+Fuzhou | Asia/Shanghai
+Nanning | Asia/Shanghai
+Nanchang | Asia/Shanghai
+Guiyang | Asia/Shanghai
+Lanzhou | Asia/Shanghai
+Dongguan | Asia/Shanghai
+Foshan | Asia/Shanghai
+Wuxi | Asia/Shanghai
+Zhuhai | Asia/Shanghai
+Tangshan | Asia/Shanghai
+Xuzhou | Asia/Shanghai
+Wenzhou | Asia/Shanghai
+Quanzhou | Asia/Shanghai
+Huizhou | Asia/Shanghai
+Hohhot | Asia/Shanghai
+Lhasa | Asia/Shanghai
+Urumqi; Ürümqi | Asia/Urumqi
+Kaohsiung | Asia/Taipei
+Taichung | Asia/Taipei
+New Taipei | Asia/Taipei
+
+# India and South Asia.
+Mumbai; Bombay | Asia/Kolkata
+Kolkata; Calcutta | Asia/Kolkata
+Bengaluru; Bangalore | Asia/Kolkata
+Chennai; Madras | Asia/Kolkata
+Hyderabad | Asia/Kolkata
+Ahmedabad | Asia/Kolkata
+Pune | Asia/Kolkata
+Surat | Asia/Kolkata
+Jaipur | Asia/Kolkata
+Lucknow | Asia/Kolkata
+Kanpur | Asia/Kolkata
+Nagpur | Asia/Kolkata
+Indore | Asia/Kolkata
+Bhopal | Asia/Kolkata
+Patna | Asia/Kolkata
+Vadodara | Asia/Kolkata
+Ludhiana | Asia/Kolkata
+Agra | Asia/Kolkata
+Nashik | Asia/Kolkata
+Varanasi | Asia/Kolkata
+Kochi; Cochin | Asia/Kolkata
+Kozhikode; Calicut | Asia/Kolkata
+Coimbatore | Asia/Kolkata
+Visakhapatnam | Asia/Kolkata
+Thiruvananthapuram; Trivandrum | Asia/Kolkata
+Chandigarh | Asia/Kolkata
+Srinagar | Asia/Kolkata
+Amritsar | Asia/Kolkata
+Madurai | Asia/Kolkata
+Guwahati | Asia/Kolkata
+Bhubaneswar | Asia/Kolkata
+Goa; Panaji | Asia/Kolkata
+Karachi | Asia/Karachi
+Lahore | Asia/Karachi
+Faisalabad | Asia/Karachi
+Rawalpindi | Asia/Karachi
+Peshawar | Asia/Karachi
+Multan | Asia/Karachi
+Chittagong; Chattogram | Asia/Dhaka
+Colombo | Asia/Colombo
+
+# Southeast and East Asia.
+Ho Chi Minh City; Saigon; HCMC | Asia/Ho_Chi_Minh
+Da Nang | Asia/Ho_Chi_Minh
+Yangon; Rangoon | Asia/Yangon
+Mandalay | Asia/Yangon
+Surabaya | Asia/Jakarta
+Bandung | Asia/Jakarta
+Medan | Asia/Jakarta
+Denpasar; Bali | Asia/Makassar
+Makassar | Asia/Makassar
+Cebu | Asia/Manila
+Davao | Asia/Manila
+Quezon City | Asia/Manila
+George Town; Penang | Asia/Kuala_Lumpur
+Johor Bahru | Asia/Kuala_Lumpur
+Chiang Mai | Asia/Bangkok
+Phuket | Asia/Bangkok
+Osaka | Asia/Tokyo
+Nagoya | Asia/Tokyo
+Yokohama | Asia/Tokyo
+Kyoto | Asia/Tokyo
+Kobe | Asia/Tokyo
+Fukuoka | Asia/Tokyo
+Sapporo | Asia/Tokyo
+Sendai | Asia/Tokyo
+Hiroshima | Asia/Tokyo
+Okinawa; Naha | Asia/Tokyo
+Busan | Asia/Seoul
+Incheon | Asia/Seoul
+Daegu | Asia/Seoul
+
+# Middle East and Central Asia.
+Istanbul | Europe/Istanbul
+Izmir | Europe/Istanbul
+Bursa | Europe/Istanbul
+Antalya | Europe/Istanbul
+Dubai | Asia/Dubai
+Sharjah | Asia/Dubai
+Jeddah; Jiddah | Asia/Riyadh
+Mecca; Makkah | Asia/Riyadh
+Medina | Asia/Riyadh
+Dammam | Asia/Riyadh
+Mashhad | Asia/Tehran
+Isfahan | Asia/Tehran
+Tabriz | Asia/Tehran
+Shiraz | Asia/Tehran
+Basra | Asia/Baghdad
+Mosul | Asia/Baghdad
+Erbil | Asia/Baghdad
+Aleppo | Asia/Damascus
+Tel Aviv | Asia/Jerusalem
+Haifa | Asia/Jerusalem
+Gaza | Asia/Gaza
+Almaty | Asia/Almaty
+Samarkand | Asia/Samarkand
+
+# Russia.
+Saint Petersburg; St Petersburg; St. Petersburg | Europe/Moscow
+Kazan | Europe/Moscow
+Nizhny Novgorod | Europe/Moscow
+Samara | Europe/Samara
+Volgograd | Europe/Volgograd
+Rostov-on-Don; Rostov | Europe/Moscow
+Novosibirsk | Asia/Novosibirsk
+Yekaterinburg | Asia/Yekaterinburg
+Omsk | Asia/Omsk
+Krasnoyarsk | Asia/Krasnoyarsk
+Irkutsk | Asia/Irkutsk
+Vladivostok | Asia/Vladivostok
+Kaliningrad | Europe/Kaliningrad
+
+# Europe: other cities.
+Hamburg | Europe/Berlin
+Munich; München | Europe/Berlin
+Cologne; Köln | Europe/Berlin
+Frankfurt | Europe/Berlin
+Stuttgart | Europe/Berlin
+Düsseldorf; Dusseldorf | Europe/Berlin
+Leipzig | Europe/Berlin
+Dresden | Europe/Berlin
+Milan; Milano | Europe/Rome
+Naples; Napoli | Europe/Rome
+Turin; Torino | Europe/Rome
+Florence; Firenze | Europe/Rome
+Venice; Venezia | Europe/Rome
+Palermo | Europe/Rome
+Lyon | Europe/Paris
+Marseille | Europe/Paris
+Toulouse | Europe/Paris
+Nice | Europe/Paris
+Bordeaux | Europe/Paris
+Lille | Europe/Paris
+Strasbourg | Europe/Paris
+Manchester | Europe/London
+Birmingham | Europe/London
+Glasgow | Europe/London
+Edinburgh | Europe/London
+Liverpool | Europe/London
+Leeds | Europe/London
+Bristol | Europe/London
+Belfast | Europe/London
+Cardiff | Europe/London
+Rotterdam | Europe/Amsterdam
+The Hague; Den Haag | Europe/Amsterdam
+Antwerp | Europe/Brussels
+Porto | Europe/Lisbon
+Barcelona | Europe/Madrid
+Valencia | Europe/Madrid
+Seville; Sevilla | Europe/Madrid
+Bilbao | Europe/Madrid
+Málaga; Malaga | Europe/Madrid
+Zurich; Zürich | Europe/Zurich
+Geneva; Genève | Europe/Zurich
+Basel | Europe/Zurich
+Kraków; Krakow | Europe/Warsaw
+Wrocław; Wroclaw | Europe/Warsaw
+Gdańsk; Gdansk | Europe/Warsaw
+Kharkiv | Europe/Kyiv
+Odesa; Odessa | Europe/Kyiv
+Lviv | Europe/Kyiv
+Thessaloniki | Europe/Athens
+Gothenburg; Göteborg | Europe/Stockholm
+Bergen | Europe/Oslo
+Aarhus | Europe/Copenhagen
+Cork | Europe/Dublin
+Split | Europe/Zagreb
+Salzburg | Europe/Vienna
+Cluj-Napoca; Cluj | Europe/Bucharest
+
+# North America: other cities.
+New York; New York City; NYC; NY | America/New_York
+Los Angeles; LA | America/Los_Angeles
+Chicago | America/Chicago
+Houston | America/Chicago
+Dallas | America/Chicago
+Philadelphia | America/New_York
+Miami | America/New_York
+Atlanta | America/New_York
+Boston | America/New_York
+Phoenix | America/Phoenix
+San Francisco; SF | America/Los_Angeles
+Seattle | America/Los_Angeles
+Detroit | America/Detroit
+San Diego | America/Los_Angeles
+Minneapolis | America/Chicago
+Tampa | America/New_York
+Denver | America/Denver
+Baltimore | America/New_York
+St. Louis; Saint Louis; St Louis | America/Chicago
+Orlando | America/New_York
+Charlotte | America/New_York
+San Antonio | America/Chicago
+Portland | America/Los_Angeles
+Sacramento | America/Los_Angeles
+Pittsburgh | America/New_York
+Austin | America/Chicago
+Las Vegas; Vegas | America/Los_Angeles
+Cincinnati | America/New_York
+Kansas City | America/Chicago
+Columbus | America/New_York
+Indianapolis | America/Indiana/Indianapolis
+Cleveland | America/New_York
+San Jose | America/Los_Angeles
+Nashville | America/Chicago
+Virginia Beach | America/New_York
+Providence | America/New_York
+Jacksonville | America/New_York
+Milwaukee | America/Chicago
+Raleigh | America/New_York
+Oklahoma City | America/Chicago
+Memphis | America/Chicago
+Richmond | America/New_York
+Louisville | America/Kentucky/Louisville
+New Orleans | America/Chicago
+Salt Lake City | America/Denver
+Hartford | America/New_York
+Buffalo | America/New_York
+Honolulu | Pacific/Honolulu
+Anchorage | America/Anchorage
+Albuquerque | America/Denver
+Tucson | America/Phoenix
+El Paso | America/Denver
+Omaha | America/Chicago
+Boise | America/Boise
+Fort Worth | America/Chicago
+Silicon Valley; Palo Alto; Cupertino; Mountain View | America/Los_Angeles
+Toronto | America/Toronto
+Montreal; Montréal | America/Toronto
+Vancouver | America/Vancouver
+Calgary | America/Edmonton
+Edmonton | America/Edmonton
+Winnipeg | America/Winnipeg
+Halifax | America/Halifax
+Quebec City; Québec | America/Toronto
+Hamilton | America/Toronto
+Regina | America/Regina
+Saskatoon | America/Regina
+St. John's; St Johns; Saint John's | America/St_Johns
+Victoria, BC; Victoria BC | America/Vancouver
+Guadalajara | America/Mexico_City
+Monterrey | America/Monterrey
+Puebla | America/Mexico_City
+Tijuana | America/Tijuana
+León; Leon | America/Mexico_City
+Ciudad Juárez; Juarez | America/Ciudad_Juarez
+Cancún; Cancun | America/Cancun
+Mérida; Merida | America/Merida
+
+# South America: other cities.
+São Paulo; Sao Paulo | America/Sao_Paulo
+Rio de Janeiro; Rio | America/Sao_Paulo
+Belo Horizonte | America/Sao_Paulo
+Porto Alegre | America/Sao_Paulo
+Recife | America/Recife
+Fortaleza | America/Fortaleza
+Salvador | America/Bahia
+Curitiba | America/Sao_Paulo
+Manaus | America/Manaus
+Belém; Belem | America/Belem
+Goiânia; Goiania | America/Sao_Paulo
+Campinas | America/Sao_Paulo
+Córdoba; Cordoba | America/Argentina/Cordoba
+Rosario | America/Argentina/Cordoba
+Mendoza | America/Argentina/Mendoza
+Medellín; Medellin | America/Bogota
+Cali | America/Bogota
+Barranquilla | America/Bogota
+Cartagena | America/Bogota
+Maracaibo | America/Caracas
+Guayaquil | America/Guayaquil
+Arequipa | America/Lima
+Valparaíso; Valparaiso | America/Santiago
+
+# Africa: other cities.
+Lagos | Africa/Lagos
+Kano | Africa/Lagos
+Ibadan | Africa/Lagos
+Port Harcourt | Africa/Lagos
+Benin City | Africa/Lagos
+Johannesburg; Joburg | Africa/Johannesburg
+Cape Town | Africa/Johannesburg
+Durban | Africa/Johannesburg
+Gqeberha; Port Elizabeth | Africa/Johannesburg
+Alexandria | Africa/Cairo
+Giza | Africa/Cairo
+Abidjan | Africa/Abidjan
+Douala | Africa/Douala
+Dar es Salaam | Africa/Dar_es_Salaam
+Mombasa | Africa/Nairobi
+Casablanca | Africa/Casablanca
+Marrakesh; Marrakech | Africa/Casablanca
+Fez; Fes | Africa/Casablanca
+Tangier | Africa/Casablanca
+Oran | Africa/Algiers
+Kumasi | Africa/Accra
+Lubumbashi | Africa/Lubumbashi
+Mbuji-Mayi | Africa/Lubumbashi
+Omdurman | Africa/Khartoum
+Bulawayo | Africa/Harare
+
+# Oceania: other cities.
+Sydney | Australia/Sydney
+Melbourne | Australia/Melbourne
+Brisbane | Australia/Brisbane
+Perth | Australia/Perth
+Adelaide | Australia/Adelaide
+Gold Coast | Australia/Brisbane
+Darwin | Australia/Darwin
+Hobart | Australia/Hobart
+Auckland | Pacific/Auckland
+Christchurch | Pacific/Auckland
+
+# More large cities.
+Toluca | America/Mexico_City
+Zhongshan | Asia/Shanghai
+Changzhou | Asia/Shanghai
+Nantong | Asia/Shanghai
+Yantai | Asia/Shanghai
+Weifang | Asia/Shanghai
+Zibo | Asia/Shanghai
+Luoyang | Asia/Shanghai
+Baotou | Asia/Shanghai
+Handan | Asia/Shanghai
+Datong | Asia/Shanghai
+Shaoxing | Asia/Shanghai
+Jiangmen | Asia/Shanghai
+Linyi | Asia/Shanghai
+Rajkot | Asia/Kolkata
+Meerut | Asia/Kolkata
+Jabalpur | Asia/Kolkata
+Vijayawada | Asia/Kolkata
+Ranchi | Asia/Kolkata
+Raipur | Asia/Kolkata
+Jodhpur | Asia/Kolkata
+Gwalior | Asia/Kolkata
+Kota | Asia/Kolkata
+Thrissur | Asia/Kolkata
+Aurangabad | Asia/Kolkata
+Prayagraj; Allahabad | Asia/Kolkata
+Dhanbad | Asia/Kolkata
+Mysuru; Mysore | Asia/Kolkata
+Quetta | Asia/Karachi
+Gujranwala | Asia/Karachi
+Khulna | Asia/Dhaka
+Semarang | Asia/Jakarta
+Palembang | Asia/Jakarta
+Tangerang | Asia/Jakarta
+Bekasi | Asia/Jakarta
+Depok | Asia/Jakarta
+Hai Phong; Haiphong | Asia/Ho_Chi_Minh
+Kaduna | Africa/Lagos
+Onitsha | Africa/Lagos
+Kisangani | Africa/Kinshasa
+Pointe-Noire | Africa/Brazzaville
+Karaj | Asia/Tehran
+Qom | Asia/Tehran
+Ahvaz | Asia/Tehran
+Adana | Europe/Istanbul
+Konya | Europe/Istanbul
+Gaziantep | Europe/Istanbul
+Port Said | Africa/Cairo
+Katowice | Europe/Warsaw
+Nuremberg; Nürnberg | Europe/Berlin
+Malmö; Malmo | Europe/Stockholm
+Dnipro | Europe/Kyiv
+Chelyabinsk | Asia/Yekaterinburg
+Ufa | Asia/Yekaterinburg
+Perm | Asia/Yekaterinburg
+Voronezh | Europe/Moscow
+Krasnodar | Europe/Moscow
+
+# Countries. A country with several zones maps to its most populous one.
+Afghanistan | Asia/Kabul
+Albania | Europe/Tirane
+Algeria | Africa/Algiers
+Andorra | Europe/Andorra
+Angola | Africa/Luanda
+Antigua and Barbuda; Antigua | America/Antigua
+Argentina | America/Argentina/Buenos_Aires
+Armenia | Asia/Yerevan
+Australia | Australia/Sydney
+Austria | Europe/Vienna
+Azerbaijan | Asia/Baku
+Bahamas | America/Nassau
+Bahrain | Asia/Bahrain
+Bangladesh | Asia/Dhaka
+Barbados | America/Barbados
+Belarus | Europe/Minsk
+Belgium | Europe/Brussels
+Belize | America/Belize
+Benin | Africa/Porto-Novo
+Bhutan | Asia/Thimphu
+Bolivia | America/La_Paz
+Bosnia and Herzegovina; Bosnia | Europe/Sarajevo
+Botswana | Africa/Gaborone
+Brazil | America/Sao_Paulo
+Brunei | Asia/Brunei
+Bulgaria | Europe/Sofia
+Burkina Faso | Africa/Ouagadougou
+Burundi | Africa/Bujumbura
+Cabo Verde; Cape Verde | Atlantic/Cape_Verde
+Cambodia | Asia/Phnom_Penh
+Cameroon | Africa/Douala
+Canada | America/Toronto
+Central African Republic | Africa/Bangui
+Chad | Africa/Ndjamena
+Chile | America/Santiago
+China | Asia/Shanghai
+Colombia | America/Bogota
+Comoros | Indian/Comoro
+Democratic Republic of the Congo; DR Congo; DRC | Africa/Kinshasa
+Republic of the Congo; Congo | Africa/Brazzaville
+Costa Rica | America/Costa_Rica
+Côte d'Ivoire; Cote d'Ivoire; Ivory Coast | Africa/Abidjan
+Croatia | Europe/Zagreb
+Cuba | America/Havana
+Cyprus | Asia/Nicosia
+Czechia; Czech Republic | Europe/Prague
+Denmark | Europe/Copenhagen
+Dominica | America/Dominica
+Dominican Republic | America/Santo_Domingo
+Ecuador | America/Guayaquil
+Egypt | Africa/Cairo
+El Salvador | America/El_Salvador
+Equatorial Guinea | Africa/Malabo
+Eritrea | Africa/Asmara
+Estonia | Europe/Tallinn
+Eswatini; Swaziland | Africa/Mbabane
+Ethiopia | Africa/Addis_Ababa
+Fiji | Pacific/Fiji
+Finland | Europe/Helsinki
+France | Europe/Paris
+Gabon | Africa/Libreville
+Gambia | Africa/Banjul
+Germany | Europe/Berlin
+Ghana | Africa/Accra
+Greece | Europe/Athens
+Grenada | America/Grenada
+Guatemala | America/Guatemala
+Guinea | Africa/Conakry
+Guinea-Bissau | Africa/Bissau
+Guyana | America/Guyana
+Haiti | America/Port-au-Prince
+Honduras | America/Tegucigalpa
+Hungary | Europe/Budapest
+Iceland | Atlantic/Reykjavik
+India | Asia/Kolkata
+Indonesia | Asia/Jakarta
+Iran | Asia/Tehran
+Iraq | Asia/Baghdad
+Ireland | Europe/Dublin
+Israel | Asia/Jerusalem
+Italy | Europe/Rome
+Jamaica | America/Jamaica
+Japan | Asia/Tokyo
+Jordan | Asia/Amman
+Kazakhstan | Asia/Almaty
+Kenya | Africa/Nairobi
+Kiribati | Pacific/Tarawa
+Kosovo | Europe/Belgrade
+Kuwait | Asia/Kuwait
+Kyrgyzstan | Asia/Bishkek
+Laos | Asia/Vientiane
+Latvia | Europe/Riga
+Lebanon | Asia/Beirut
+Lesotho | Africa/Maseru
+Liberia | Africa/Monrovia
+Libya | Africa/Tripoli
+Liechtenstein | Europe/Vaduz
+Lithuania | Europe/Vilnius
+Madagascar | Indian/Antananarivo
+Malawi | Africa/Blantyre
+Malaysia | Asia/Kuala_Lumpur
+Maldives | Indian/Maldives
+Mali | Africa/Bamako
+Malta | Europe/Malta
+Marshall Islands | Pacific/Majuro
+Mauritania | Africa/Nouakchott
+Mauritius | Indian/Mauritius
+Mexico | America/Mexico_City
+Micronesia | Pacific/Pohnpei
+Moldova | Europe/Chisinau
+Mongolia | Asia/Ulaanbaatar
+Montenegro | Europe/Podgorica
+Morocco | Africa/Casablanca
+Mozambique | Africa/Maputo
+Myanmar; Burma | Asia/Yangon
+Namibia | Africa/Windhoek
+Nauru | Pacific/Nauru
+Nepal | Asia/Kathmandu
+Netherlands; Holland | Europe/Amsterdam
+New Zealand; NZ | Pacific/Auckland
+Nicaragua | America/Managua
+Niger | Africa/Niamey
+Nigeria | Africa/Lagos
+North Korea | Asia/Pyongyang
+North Macedonia; Macedonia | Europe/Skopje
+Norway | Europe/Oslo
+Oman | Asia/Muscat
+Pakistan | Asia/Karachi
+Palau | Pacific/Palau
+Palestine | Asia/Hebron
+Panama | America/Panama
+Papua New Guinea; PNG | Pacific/Port_Moresby
+Paraguay | America/Asuncion
+Peru | America/Lima
+Philippines | Asia/Manila
+Poland | Europe/Warsaw
+Portugal | Europe/Lisbon
+Puerto Rico | America/Puerto_Rico
+Qatar | Asia/Qatar
+Romania | Europe/Bucharest
+Russia | Europe/Moscow
+Rwanda | Africa/Kigali
+Saint Kitts and Nevis | America/St_Kitts
+Saint Lucia | America/St_Lucia
+Saint Vincent and the Grenadines; Saint Vincent | America/St_Vincent
+Samoa | Pacific/Apia
+São Tomé and Príncipe; Sao Tome and Principe | Africa/Sao_Tome
+Saudi Arabia | Asia/Riyadh
+Senegal | Africa/Dakar
+Serbia | Europe/Belgrade
+Seychelles | Indian/Mahe
+Sierra Leone | Africa/Freetown
+Slovakia | Europe/Bratislava
+Slovenia | Europe/Ljubljana
+Solomon Islands | Pacific/Guadalcanal
+Somalia | Africa/Mogadishu
+South Africa | Africa/Johannesburg
+South Korea; Korea | Asia/Seoul
+South Sudan | Africa/Juba
+Spain | Europe/Madrid
+Sri Lanka | Asia/Colombo
+Sudan | Africa/Khartoum
+Suriname | America/Paramaribo
+Sweden | Europe/Stockholm
+Switzerland | Europe/Zurich
+Syria | Asia/Damascus
+Taiwan | Asia/Taipei
+Tajikistan | Asia/Dushanbe
+Tanzania | Africa/Dar_es_Salaam
+Thailand | Asia/Bangkok
+Timor-Leste; East Timor | Asia/Dili
+Togo | Africa/Lome
+Tonga | Pacific/Tongatapu
+Trinidad and Tobago; Trinidad | America/Port_of_Spain
+Tunisia | Africa/Tunis
+Turkey; Türkiye; Turkiye | Europe/Istanbul
+Turkmenistan | Asia/Ashgabat
+Tuvalu | Pacific/Funafuti
+Uganda | Africa/Kampala
+Ukraine | Europe/Kyiv
+United Arab Emirates; UAE | Asia/Dubai
+United Kingdom; UK; Great Britain; Britain; England; Scotland; Wales | Europe/London
+United States; USA; America | America/New_York
+Uruguay | America/Montevideo
+Uzbekistan | Asia/Tashkent
+Vanuatu | Pacific/Efate
+Venezuela | America/Caracas
+Vietnam; Viet Nam | Asia/Ho_Chi_Minh
+Yemen | Asia/Aden
+Zambia | Africa/Lusaka
+Zimbabwe | Africa/Harare
+Greenland | America/Nuuk
+French Polynesia; Tahiti | Pacific/Tahiti
+New Caledonia | Pacific/Noumea
+Guam | Pacific/Guam
+
+# States and provinces with one main zone.
+California | America/Los_Angeles
+Texas | America/Chicago
+Florida | America/New_York
+Hawaii | Pacific/Honolulu
+Alaska | America/Anchorage
+Arizona | America/Phoenix
+Colorado | America/Denver
+Ontario | America/Toronto
+British Columbia; BC | America/Vancouver
+Alberta | America/Edmonton
+Quebec | America/Toronto
+Victoria | Australia/Melbourne
+New South Wales; NSW | Australia/Sydney
+Queensland | Australia/Brisbane
+Western Australia | Australia/Perth
+South Australia | Australia/Adelaide
+Tasmania | Australia/Hobart
+Northern Territory | Australia/Darwin
+Bavaria | Europe/Berlin
+Catalonia | Europe/Madrid
+Sicily | Europe/Rome
+Hokkaido | Asia/Tokyo

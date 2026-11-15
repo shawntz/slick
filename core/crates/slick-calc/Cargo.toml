@@ -1,0 +1,17 @@
+[package]
+name = "slick-calc"
+description = "Calculator for root search: arithmetic, units, dates and time zones."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# Latency against the InstantProvider budget: rejection p50 under 1 µs, any accepted query p99
+# under 100 µs. Run with `scripts/cargo.sh bench -p slick-calc`; exits non-zero when blown.
+[[bench]]
+name = "calc"
+harness = false
