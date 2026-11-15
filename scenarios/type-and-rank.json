@@ -20,7 +20,7 @@
     { "expect": { "query": "network", "selection": "Network", "ghost": "" } },
     { "press": "escape" },
     { "type": "zzqx" },
-    { "expect": { "rows": ["Search Google for \"zzqx\"", "Search Wikipedia for \"zzqx\"", "Search Colors with \"zzqx\""] } },
+    { "expect": { "rows": ["Search Google for \"zzqx\"", "Search Wikipedia for \"zzqx\""] } },
     { "press": "delete" },
     { "press": "delete" },
     { "press": "delete" },

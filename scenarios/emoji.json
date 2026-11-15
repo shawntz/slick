@@ -24,7 +24,7 @@
     { "summon": true },
     { "expect": { "page": "root", "query": "" } },
     { "type": ":thumbs" },
-    { "expect": { "rows": ["Thumbs Up", "Thumbs Down", "Search Google for \":thumbs\"", "Search Wikipedia for \":thumbs\"", "Search Colors with \":thumbs\""], "selection": "Thumbs Up" } },
+    { "expect": { "rows": ["Thumbs Up", "Thumbs Down", "Search Google for \":thumbs\"", "Search Wikipedia for \":thumbs\""], "selection": "Thumbs Up" } },
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "expect": { "visible": false } },

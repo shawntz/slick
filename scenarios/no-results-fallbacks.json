@@ -4,7 +4,7 @@
   "steps": [
     { "summon": true },
     { "type": "qwzxv kit" },
-    { "expect": { "rows": ["Search Google for \"qwzxv kit\"", "Search Wikipedia for \"qwzxv kit\"", "Search Colors with \"qwzxv kit\""], "selection": "Search Google for \"qwzxv kit\"" } },
+    { "expect": { "rows": ["Search Google for \"qwzxv kit\"", "Search Wikipedia for \"qwzxv kit\""], "selection": "Search Google for \"qwzxv kit\"" } },
     { "capture": { "name": "fallbacks", "key": true } },
     { "press": "cmd+k" },
     { "expect": { "actions": ["Run Command", "Open With", "Copy Link", "Edit Quicklink", "Duplicate Quicklink", "Turn Off Quicklink", "Delete Quicklink", "Add to Favorites", "Set Alias", "Set Hotkey", "Reset Ranking", "Disable Command"] } },

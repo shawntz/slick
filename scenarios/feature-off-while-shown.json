@@ -7,7 +7,7 @@
     { "expect": { "rowsInclude": ["Running Applications"] } },
     { "app": { "setFeatures": { "apps": false }, "featuresActive": { "apps": false } } },
     { "waitUntilIdle": 2 },
-    { "expect": { "rows": ["Search Google for \"running\"", "Search Wikipedia for \"running\"", "Search Colors with \"running\""], "visible": true } },
+    { "expect": { "rows": ["Search Google for \"running\"", "Search Wikipedia for \"running\""], "visible": true } },
     { "press": "escape" },
     { "type": "notes" },
     { "expect": { "selection": "Turn On Snippet Expansion" } },
