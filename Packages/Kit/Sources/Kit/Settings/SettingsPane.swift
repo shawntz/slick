@@ -36,6 +36,13 @@ public struct SettingsItem: Sendable {
     /// Help text under the control.
     public var info: String?
     public var control: SettingsControl
+    /// For a picker, whether choosing a value asks first. The settings window calls it with the
+    /// stored value, or the key's default when the user never set one, and the value chosen. When
+    /// it returns a confirmation, the window shows it and stores the choice only if the user goes
+    /// ahead; otherwise the picker returns to the stored value. Set it through
+    /// ``picker(_:key:options:info:confirm:)`` for a choice that deletes data at once, such as a
+    /// shorter history.
+    public var changeConfirmation: SettingChangeConfirmation?
 
     public init(title: String, info: String? = nil, control: SettingsControl) {
         self.title = title

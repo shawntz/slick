@@ -6,6 +6,10 @@ public enum HarnessError: Error, Hashable, CustomStringConvertible {
     case noSuchAction(String)
     case noSuchRow(String)
     case noSuchSettingsButton(String)
+    /// No picker in the settings pane has this title.
+    case noSuchSettingsPicker(String)
+    /// The picker has no option with this title.
+    case noSuchOption(String)
     /// The page stack is empty.
     case noPage
     /// The top page is not the kind the call needs.
@@ -32,6 +36,8 @@ public enum HarnessError: Error, Hashable, CustomStringConvertible {
         case .noSuchAction(let id): "no action \"\(id)\" for the selection"
         case .noSuchRow(let id): "no visible row \"\(id)\""
         case .noSuchSettingsButton(let title): "no settings button \"\(title)\""
+        case .noSuchSettingsPicker(let title): "no settings picker \"\(title)\""
+        case .noSuchOption(let title): "no option \"\(title)\" in the picker"
         case .noPage: "no page is open"
         case .wrongPage(let expected): "the top page is not a \(expected) page"
         case .permissionRequired(let permissions): "needs " + permissions.map(\.displayName).joined(separator: ", ")
