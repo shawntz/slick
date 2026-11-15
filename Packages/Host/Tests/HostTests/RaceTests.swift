@@ -206,4 +206,24 @@ import Testing
         #expect(fixture.titles(page.list) == ["alpha"])
         #expect(source.requests.map(\.query) == ["", "a", "al", "alp", "alph"])
     }
+
+    /// A paste closes the panel through the handler and through the pasteboard, then its outcome
+    /// closes it again. Only the first close does anything; the next summon is a fresh one.
+    @Test func closingThePanelTwiceInOneRunIsHarmless() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        fixture.type("e")
+        let ends = fixture.root.calls.filter { $0 == .end }.count
+        await fixture.runtime.runtime.pipeline.runCommand(RuntimeFixture.command("close-twice"), launch: .root).value
+        #expect(!fixture.panel.isPanelVisible)
+        #expect(fixture.root.calls.filter { $0 == .end }.count == ends + 1, "one dismiss ended the session")
+        #expect(fixture.hud.shown == ["Pasted"])
+        fixture.panel.dismiss()
+        #expect(fixture.hud.shown == ["Pasted"])
+        let calls = fixture.root.calls.count
+        fixture.panel.summon()
+        #expect(fixture.panel.isPanelVisible)
+        #expect(fixture.panel.top === fixture.panel.rootPage)
+        #expect(fixture.root.calls[calls...].first == .begin, "the next summon begins a new session")
+    }
 }

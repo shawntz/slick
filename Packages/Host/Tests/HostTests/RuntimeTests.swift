@@ -47,6 +47,24 @@ import Testing
         #expect(fixture.runtime.command(RuntimeFixture.command("extra")) != nil)
     }
 
+    /// Root follows a live subtitle's change signal. After the feature's declarations change, the
+    /// directory hands Root the same signal object again, so Root's runner keeps following it.
+    @Test func aLiveSubtitleKeepsItsSignalAcrossADeclarationChange() async throws {
+        let fixture = RuntimeFixture()
+        await fixture.start()
+        let id = RuntimeFixture.command("status")
+        let before = try #require(fixture.runtime.command(id)?.command.liveSubtitle?.changes)
+        #expect(before === fixture.workbench.statusChanges)
+        var changes = fixture.runtime.changes.stream().makeAsyncIterator()
+        fixture.workbench.showsExtra = true
+        fixture.workbench.declarations.send()
+        await changes.next()
+        let after = try #require(fixture.runtime.command(id)?.command.liveSubtitle?.changes)
+        #expect(after === before)
+        #expect(fixture.runtime.feature("workbench")?.commands.first { $0.id == id }?.command.liveSubtitle != nil)
+        #expect(before.listenerCount == 0, "the runtime itself does not listen; Root does")
+    }
+
     @Test func aFeatureSwitchActivatesDeactivatesAndCancelsHandlers() async throws {
         let fixture = RuntimeFixture()
         await fixture.start()
