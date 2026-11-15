@@ -65,12 +65,12 @@ extension AppsFeature {
         return [
             Action("Hide", id: "hide", icon: .symbol("eye.slash"), shortcut: Shortcut.hide, section: section) {
                 context in
-                try await self.forEachCopy(of: app, failure: "Could not hide \(app.name)") { await service.hide($0) }
+                try await self.forEachCopy(of: app, failure: "Could Not Hide \(app.name)") { await service.hide($0) }
                 return Self.finish(context, "Hid \(app.name)")
             },
             Action("Quit", id: "quit", icon: .symbol("xmark.circle"), shortcut: Shortcut.quit, section: section) {
                 context in
-                try await self.forEachCopy(of: app, failure: "Could not quit \(app.name)") { await service.quit($0) }
+                try await self.forEachCopy(of: app, failure: "Could Not Quit \(app.name)") { await service.quit($0) }
                 return Self.finish(context, "Quitting \(app.name)")
             },
             Action(
@@ -87,10 +87,10 @@ extension AppsFeature {
                     "Force quit \(app.name)?", message: "Changes you have not saved in \(app.name) will be lost.",
                     confirmTitle: "Force Quit", isDestructive: true)
             ) { context in
-                try await self.forEachCopy(of: app, failure: "Could not force quit \(app.name)") {
+                try await self.forEachCopy(of: app, failure: "Could Not Force Quit \(app.name)") {
                     await service.forceQuit($0)
                 }
-                return Self.finish(context, "Force quit \(app.name)")
+                return Self.finish(context, "Force Quit \(app.name)")
             },
         ]
     }
@@ -111,11 +111,11 @@ extension AppsFeature {
         context.dismiss()
         let copies = instances(of: app)
         for instance in copies {
-            guard await runningApps.quit(instance) else { throw ActionFailure("Could not quit \(app.name)") }
+            guard await runningApps.quit(instance) else { throw ActionFailure("Could Not Quit \(app.name)") }
         }
         for instance in copies {
             guard await runningApps.waitUntilQuit(instance, timeout: .seconds(10)) else {
-                throw ActionFailure("\(app.name) did not quit", message: "It may be waiting for you to save changes.")
+                throw ActionFailure("\(app.name) Did Not Quit", message: "It may be waiting for you to save changes.")
             }
         }
         try await Self.open(app, context: context)

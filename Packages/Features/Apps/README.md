@@ -29,3 +29,7 @@ The reference feature. It puts every installed app and every System Settings pan
 - No I/O on the main thread. The scans run in `@concurrent` service methods. `actions(for:)` reads only what the feature already holds.
 - Rows are plain values with `memory: .learnOnly`. The catalog offers every app on each read, so root needs no snapshot, and a hidden or deleted app leaves search at once.
 - Every side effect goes through Kit's workspace and pasteboard services or one of the two feature services. Tests and scenarios get the simulated running apps and a synthetic tree, so nothing they do can quit an app or read the user's folders.
+
+## Undocumented interfaces
+
+The System Settings rows depend on how macOS lays out its settings panes, which Apple does not document: each pane is an extension in `/System/Library/ExtensionKit/Extensions` with the extension point `com.apple.Settings.extension.ui`, its anchors are the keys of a localized `.searchTerms` property list, and a row opens with an `x-apple.systempreferences:<pane id>[?<anchor>]` link. When a release changes this, the scan finds fewer panes or none, and app rows are not affected. No private function or framework is used.

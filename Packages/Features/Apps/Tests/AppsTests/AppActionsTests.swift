@@ -97,7 +97,7 @@ struct AppActionsTests {
         #expect(try await apps.harness.performRoot("hide", on: plain).kind == .close(hud: "Hid Plain"))
         #expect(try await apps.harness.performRoot("quit", on: writer).kind == .close(hud: "Quitting Writer Pro"))
         #expect(
-            try await apps.harness.performRoot("force-quit", on: sheets).kind == .close(hud: "Force quit Suite Sheets"))
+            try await apps.harness.performRoot("force-quit", on: sheets).kind == .close(hud: "Force Quit Suite Sheets"))
         #expect(apps.running.requests == [.hide(pid: 10), .quit(pid: 11), .forceQuit(pid: 12)])
         #expect(apps.harness.confirmations.map(\.title) == ["Force quit Suite Sheets?"])
     }
@@ -122,7 +122,7 @@ struct AppActionsTests {
         apps.running.refuseToQuit(pid: 10)
         apps.harness.throwsActionErrors = false
         try await apps.harness.performRoot("restart", on: try await apps.appRow("Plain"))
-        #expect(apps.harness.huds == [.failure("Plain did not quit")], "the panel closed first, so a HUD")
+        #expect(apps.harness.huds == [.failure("Plain Did Not Quit")], "the panel closed first, so a HUD")
         #expect(apps.fakes.workspace.launched.isEmpty)
     }
 

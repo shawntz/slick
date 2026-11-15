@@ -15,7 +15,7 @@ import Testing
 /// folder is left out: the home folder it is given does not exist. The tests run one at a time, so
 /// they do not slow each other down.
 @Suite(
-    "Benchmark: scanning the real folders", .serialized,
+    "Benchmark: scanning the real folders", .serialized, .timeLimit(.minutes(5)),
     .enabled(if: ProcessInfo.processInfo.environment["APPS_BENCHMARK"] == "1"))
 @MainActor
 struct ScanBenchmark {

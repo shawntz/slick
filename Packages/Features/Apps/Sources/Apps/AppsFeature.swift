@@ -122,7 +122,7 @@ public final class AppsFeature: Feature {
                         info: "Apps are found again by themselves whenever an app folder changes."
                     ) { context in
                         await self.rescan().value
-                        context.showToast(.success("Found \(self.installed.count) applications"))
+                        context.showToast(.success("Found \(self.installed.count) Applications"))
                     },
                 ]),
             SettingsSection(
@@ -226,7 +226,7 @@ public final class AppsFeature: Feature {
             if await !runningApps.quit(app) { refused.append(app.name) }
         }
         if !refused.isEmpty {
-            return .close(hud: .failure("Could not quit " + refused.joined(separator: ", ")))
+            return .close(hud: .failure("Could Not Quit " + refused.joined(separator: ", ")))
         }
         return .close(
             hud: HUD(targets.count == 1 ? "Quitting 1 Application" : "Quitting \(targets.count) Applications"))

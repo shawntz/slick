@@ -4,7 +4,7 @@ import Testing
 
 @testable import Apps
 
-@Suite("Scanning applications")
+@Suite("Scanning applications", .timeLimit(.minutes(1)))
 struct ScannerTests {
     private func scan(_ tree: AppTree, languages: [String] = ["en"], extra: [URL] = []) async -> [InstalledApp] {
         let library = tree.library(languages: languages)

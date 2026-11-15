@@ -99,7 +99,7 @@ struct AppCatalogTests {
     @Test func theRescanButtonReportsTheCount() async throws {
         let apps = try await AppsHarness()
         try await apps.harness.pressSettingsButton("Rescan Applications")
-        #expect(apps.harness.toasts.map(\.title) == ["Found 15 applications"])
+        #expect(apps.harness.toasts.map(\.title) == ["Found 15 Applications"])
     }
 
     @Test func theSettingsPaneDeclaresItsKeys() {
