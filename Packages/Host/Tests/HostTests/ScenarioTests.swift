@@ -62,7 +62,7 @@ import Testing
         let scenario = Scenario(name: "slow", timeLimit: 0.2, steps: [.summon, .wait(5), .summon])
         let started = ContinuousClock.now
         let result = await runner.run(scenario)
-        #expect(ContinuousClock.now - started < .seconds(2))
+        #expect(ContinuousClock.now - started < .seconds(4), "well before the five-second wait would end")
         #expect(!result.passed)
         #expect(result.reason?.hasPrefix("time limit") == true)
     }

@@ -112,12 +112,14 @@ import Testing
     /// the first read of Automation or Contacts used to block the caller.
     @Test func aFirstReadOnTheMainThreadNeverWaitsForASlowCheck() async throws {
         let center = makeCenter()
-        system.setSlow(.contacts, delay: .milliseconds(300))
+        // The check takes two seconds and a read may take one, so a busy machine cannot blur them.
+        system.setSlow(.contacts, delay: .seconds(2))
         system.setCheck(.granted, for: .contacts)
         var changes = center.changes(of: .contacts).makeAsyncIterator()
         let started = ContinuousClock.now
+        // Not determined is itself the proof: a read that waited would have said granted.
         #expect(center.status(of: .contacts) == .notDetermined)
-        #expect(ContinuousClock.now - started < .milliseconds(100))
+        #expect(ContinuousClock.now - started < .seconds(1))
         #expect(await changes.next() == .granted)
         #expect(center.status(of: .contacts) == .granted)
 
@@ -125,7 +127,7 @@ import Testing
         let relaunched = makeCenter()
         let again = ContinuousClock.now
         #expect(relaunched.status(of: .contacts) == .granted)
-        #expect(ContinuousClock.now - again < .milliseconds(100))
+        #expect(ContinuousClock.now - again < .seconds(1))
         // A fast check is answered at once, even the first time.
         system.setCheck(.granted, for: .calendars)
         #expect(relaunched.status(of: .calendars) == .granted)

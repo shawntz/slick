@@ -66,14 +66,17 @@ import Testing
         #expect(result.exitCode == 0)
     }
 
-    /// The background `sleep` keeps the output pipe open after the shell exits; it ends by itself
-    /// within a second.
+    /// The background `sleep` keeps the output pipe open long after the shell exits. The run must
+    /// come back well before it ends. The margin is wide on purpose: on a loaded machine starting
+    /// the shell alone can take seconds, and a narrow one measured the machine, not the runner.
     @Test func aBackgroundChildDoesNotHoldTheStreamOpen() async throws {
         let started = ContinuousClock.now
-        let result = try await runner.run(Self.script("/bin/sleep 1 & echo done"))
-        #expect(result.output == "done\n")
+        let result = try await runner.run(Self.script("/bin/sleep 60 & echo $!"))
+        let child = pid_t(result.output.trimmingCharacters(in: .whitespacesAndNewlines))
+        defer { if let child, child > 1 { kill(child, SIGTERM) } }
+        #expect(child != nil, "the script prints the background child's process ID")
         #expect(result.exitCode == 0)
-        #expect(ContinuousClock.now - started < .milliseconds(900))
+        #expect(ContinuousClock.now - started < .seconds(30))
     }
 
     @Test func aProcessKilledByASignalReportsTheShellCode() async throws {

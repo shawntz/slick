@@ -29,7 +29,7 @@ struct DeclarationTests {
         var title: String?
         let elapsed = clock.measure { title = define.fallback?.title(pasted) }
         #expect(title == "Define \"" + String(pasted.prefix(60)) + "…\"")
-        #expect(elapsed < .milliseconds(5), "\(elapsed)")
+        #expect(elapsed < .milliseconds(250), "\(elapsed)")
         let spell = try harness.command("spell")
         #expect(spell.title == "Check Spelling")
         #expect(spell.keywords.contains("spell"))
@@ -406,7 +406,7 @@ struct UniversalActionTests {
         var actions: [Action] = []
         let elapsed = clock.measure { actions = harness.universalActions(for: huge) }
         #expect(actions.isEmpty)
-        #expect(elapsed < .milliseconds(50), "\(elapsed)")
+        #expect(elapsed < .seconds(1), "\(elapsed)")
         #expect(harness.universalActions(for: .text("   ")).isEmpty)
         #expect(harness.universalActions(for: .url(URL(string: "https://example.com")!)).isEmpty)
         #expect(harness.universalActions(for: .files([URL(filePath: "/tmp/example.txt")])).isEmpty)

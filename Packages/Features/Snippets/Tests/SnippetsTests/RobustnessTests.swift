@@ -155,7 +155,9 @@ struct RobustnessTests {
         for query in queries {
             let started = clock.now
             let answers = harness.instantAnswers(for: query)
-            #expect(clock.now - started < .milliseconds(5), "\(query.prefix(10)) is turned away quickly")
+            // Wide on purpose: this guards against work that grows with the input, not a few
+            // milliseconds on a busy machine.
+            #expect(clock.now - started < .milliseconds(250), "\(query.prefix(10)) is turned away quickly")
             #expect(answers.isEmpty, "\(query.prefix(10)) is not a keyword")
         }
         #expect(harness.instantAnswers(for: "hi").first?.rows.map(\.title) == ["Greeting"])

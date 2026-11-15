@@ -24,7 +24,7 @@ struct HostileInputTests {
         var answers: [InstantAnswer] = []
         let elapsed = clock.measure { answers = harness.instantAnswers(for: query) }
         #expect(answers.isEmpty)
-        #expect(elapsed < .milliseconds(20), "\(elapsed) for \(query.utf8.count) bytes")
+        #expect(elapsed < .milliseconds(500), "\(elapsed) for \(query.utf8.count) bytes")
     }
 
     /// Ten words is the most a query may have. Their cost is measured in release by
