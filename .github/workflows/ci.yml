@@ -1,0 +1,70 @@
+# Lint, test, build and selftest on every push to main and every pull request.
+#
+# Runner facts (GitHub runner images, November 2026): xcode-27 is macOS 27 on Apple silicon with
+# Xcode 27.0, 27.1 (default) and 27.2. macos-26 and macos-latest carry only Xcode 26, which lacks the
+# macOS 27 SDK this code needs.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    env:
+      # Zero warnings in Swift: CI turns them into errors.
+      SWIFT_FLAGS: -Xswiftc -warnings-as-errors
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode from .xcode-version
+        run: echo "DEVELOPER_DIR=/Applications/Xcode_$(cat .xcode-version).app/Contents/Developer" >> "$GITHUB_ENV"
+
+      - name: Install the pinned Rust toolchain
+        run: rustup toolchain install
+
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            core/target
+          key: cargo-${{ hashFiles('rust-toolchain.toml', 'core/Cargo.lock') }}-${{ hashFiles('core/**/*.rs') }}
+          restore-keys: cargo-${{ hashFiles('rust-toolchain.toml', 'core/Cargo.lock') }}-
+
+      - name: Cache SwiftPM build directories
+        uses: actions/cache@v6
+        with:
+          path: |
+            Packages/*/.build
+            Packages/Features/*/.build
+          key: spm-${{ hashFiles('.xcode-version', 'Packages/**/Package.swift') }}-${{ github.sha }}
+          restore-keys: spm-${{ hashFiles('.xcode-version', 'Packages/**/Package.swift') }}-
+
+      - name: Bootstrap
+        run: make bootstrap
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make -j4 test
+
+      - name: The generated C header is committed and current
+        run: git diff --exit-code -- core/crates/slick-ffi/include Packages/CoreBridge/Sources/SlickCoreC/include
+
+      - name: Build, bundle (ad hoc) and selftest
+        run: make selftest SIGN_IDENTITY=-
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-bundle
+          path: build/*.app
