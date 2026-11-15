@@ -24,7 +24,9 @@ install_atomically() { # <source> <destination>
 
 OUT_DIR=$PROFILE
 [ "$PROFILE" = dev ] && OUT_DIR=debug
-install_atomically "$ROOT/core/target/$OUT_DIR/libslick_ffi.a" \
+# Cargo writes to CARGO_TARGET_DIR when it is set, so install from the same place.
+TARGET_DIR=${CARGO_TARGET_DIR:-$ROOT/core/target}
+install_atomically "$TARGET_DIR/$OUT_DIR/libslick_ffi.a" \
     "$ROOT/Packages/CoreBridge/Artifacts/lib/libslick_ffi.a"
 install_atomically "$ROOT/core/crates/slick-ffi/include/slick_core.h" \
     "$ROOT/Packages/CoreBridge/Sources/SlickCoreC/include/slick_core.h"
