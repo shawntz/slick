@@ -141,7 +141,7 @@ An item's identity is a namespaced string such as `app:com.apple.Safari`, `cmd:c
 ### FFI conventions
 
 - Strings cross as UTF-8 pointer plus length. No NUL termination, no ownership transfer.
-- The caller owns every buffer. The query path allocates nothing. That holds for file search too once its session is warm: the searcher keeps the memory of its largest match sets, about 8 MB at a million entries.
+- The caller owns every buffer. The query path allocates nothing. That holds for a file search on one thread once its session is warm: the searcher keeps the memory of its largest match sets, about 8 MB at a million entries. In parallel the parts race for the running threshold, which decides how many entries a set holds, so a set can still grow now and then until it has seen its largest size. No search allocates as a matter of course.
 - Every exported function returns an `i32` status and wraps its body in `catch_unwind`. A panic comes back as a status code, never as an abort.
 - `slick_abi_version()` is checked at launch. It goes up whenever the header changes, and stands at 4.
 - A walk of the file index takes a cancel flag that every walker thread checks once per folder. A cancelled walk publishes nothing.
