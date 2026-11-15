@@ -61,10 +61,10 @@ struct ScannerTests {
         #expect(try app(apps, "Nameless").bundleID == nil)
         #expect(try app(apps, "Plain").keywords.isEmpty, "a bundle with no names of its own")
         #expect(try app(apps, "Pocket Game").bundleID == "com.example.pocket-game", "a wrapped iOS app")
-        for app in apps where !app.key.contains("@") {
-            let shown = FileManager.default.displayName(atPath: app.path)
-            #expect(app.name == AppScanner.fileName(of: shown), "the system's name for \(app.path)")
-        }
+        // The names come from the bundles' own files. Asking the system for a display name would
+        // register these made-up apps with LaunchServices.
+        #expect(try app(apps, "Writer Pro").name == "Writer Pro")
+        #expect(try app(apps, "Sample Editor").name == "Sample Editor")
     }
 
     @Test func picksTheUsersLanguageFromALoctableOrStringsFilesForKeywords() async throws {
