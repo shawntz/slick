@@ -81,6 +81,18 @@ enum SelfTest {
         for entry in registered where entry.isEnabled && !runtime.isActive(entry.id) {
             report.failures.append("feature \(entry.id) is on but not active")
         }
+        // Features that are off until the user turns them on are checked too: switch them on in
+        // this run's own folder.
+        let optional = registered.filter { !$0.manifest.isEnabledByDefault }.map(\.id)
+        for featureID in optional {
+            await runtime.preferences.setEnabled(true, feature: featureID)
+            if !runtime.isActive(featureID) { report.failures.append("feature \(featureID) did not turn on") }
+        }
+        if !optional.isEmpty {
+            // Let the switch reach root search and let it load what the features bring.
+            for _ in 0..<10 { await Task.yield() }
+            await root.settle()
+        }
         var known = 0
         for (featureID, found) in runtime.issues.sorted(by: { $0.key < $1.key }) {
             for issue in found {
@@ -118,16 +130,18 @@ enum SelfTest {
         root.end()
         if expected.isEmpty { report.failures.append("no command or catalog row to query") }
 
-        // The launcher hotkey is bound, to the inert hotkey system.
+        // The launcher hotkey is bound to the inert hotkey system, which holds no macOS shortcut,
+        // so even Command-Space binds without waiting.
         let wanted = assembly.general[HostSettings.launcherHotkey]
-        if assembly.hotkey.bound != wanted {
+        if assembly.hotkey.bound != wanted || assembly.hotkey.wait != nil {
             report.failures.append("launcher hotkey bound to \(String(describing: assembly.hotkey.bound))")
         }
         _ = assembly.settings.settingsController
 
         await assembly.shutdown()
         report.facts = [
-            "features=\(registered.count)", "commands=\(registered.reduce(0) { $0 + $1.commands.count })",
+            "features=\(registered.count)", "optional=\(optional.count)",
+            "commands=\(registered.reduce(0) { $0 + $1.commands.count })",
             "queries=\(found)/\(expected.count)", "suggested=\(empty.rows.count)", "known-issues=\(known)",
         ]
         return report
