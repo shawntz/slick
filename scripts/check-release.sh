@@ -35,6 +35,8 @@ set -euo pipefail
 . "$(dirname "$0")/lib/env.sh"
 # shellcheck source=lib/release.sh
 . "$(dirname "$0")/lib/release.sh"
+# shellcheck source=lib/launchservices.sh
+. "$(dirname "$0")/lib/launchservices.sh"
 LOG_TAG=check-release
 DIR=${1:?usage: check-release.sh <release dir>}
 DIR=$(cd "$DIR" && pwd) || fail "no release folder at $1"
@@ -52,7 +54,9 @@ RUBY=${RUBY:-ruby}
 command -v "$RUBY" > /dev/null || fail "Ruby not found, and the cask check needs it. Install it or set RUBY."
 
 TMP=$(temp_dir check-release)
-trap 'rm -rf "$TMP"' EXIT
+# The checks below can register the unpacked bundle with LaunchServices. It is unregistered before
+# its folder goes, so the system never keeps an entry for a bundle that no longer exists.
+trap 'unregister_unless_canonical "$TMP/app/$APP_BUNDLE"; rm -rf "$TMP"' EXIT
 checked() {
     say "ok: $*"
 }

@@ -54,6 +54,8 @@ set -euo pipefail
 . "$(dirname "$0")/lib/env.sh"
 # shellcheck source=lib/release.sh
 . "$(dirname "$0")/lib/release.sh"
+# shellcheck source=lib/launchservices.sh
+. "$(dirname "$0")/lib/launchservices.sh"
 LOG_TAG=release
 STARTED=$(date +%s)
 
@@ -89,8 +91,14 @@ step() {
 WORK=""
 TEMP_OUT=""
 OUT=""
+APP=""
+# Signing, the notary check and starting the executable can each register the bundle with
+# LaunchServices. A release's bundle is not the copy the system should know, so every place it sat
+# is unregistered: the stage before the bundle moves, and the output folder at the end.
 cleanup() {
     local status=$? outcome=failed
+    [ -z "$APP" ] || unregister_unless_canonical "$APP"
+    [ -z "$OUT" ] || unregister_unless_canonical "$OUT/$APP_BUNDLE"
     [ -z "$WORK" ] || rm -rf "$WORK"
     [ -z "$TEMP_OUT" ] || rm -rf "$TEMP_OUT"
     if [ "$status" -ne 0 ]; then
@@ -414,7 +422,9 @@ RELEASE_FEED=$FEED
 RELEASE_DOWNLOAD=$DOWNLOAD
 RELEASE_UPDATE_PUBLIC_KEY=$UPDATE_KEY
 EOF
+unregister_unless_canonical "$APP"
 mv "$APP" "$DSYM" "$OUT/" || fail "could not move the bundle and the dSYM into $OUT."
+APP=""
 rm -rf "$BUILD"
 
 # 8. Check what ships.
