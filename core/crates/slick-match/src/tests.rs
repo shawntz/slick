@@ -136,6 +136,204 @@ fn lift_reorders_inside_a_tier_and_never_across() {
     assert_eq!(hits[0].idx as usize, index_of("Code Snippets"));
 }
 
+fn run_whole(a: &Arena, q: &str, lift: Option<&[i32]>) -> Vec<Hit> {
+    let mut scratch = Scratch::default();
+    let mut out = Vec::new();
+    let query = Query::with_whole_words(q);
+    search(a, &query, &Opts::default(), None, lift, &mut scratch, &mut out);
+    out
+}
+
+fn tier_in(hits: &[Hit], title: &str) -> Option<u8> {
+    hits.iter().find(|h| h.idx as usize == index_of(title)).map(Hit::tier)
+}
+
+fn titles_of(hits: &[Hit]) -> Vec<&'static str> {
+    hits.iter().map(|h| TITLES[h.idx as usize]).collect()
+}
+
+#[test]
+fn a_whole_later_word_ranks_with_literal_prefixes() {
+    let a = arena();
+    // Off, as file search runs: "code" in Visual Studio Code is a word-prefix match.
+    assert_eq!(tier_in(&run(&a, "code", None), "Visual Studio Code"), Some(WORD_PREFIX));
+    // On, as root search runs: it joins the literal prefixes, which stay ahead on text alone
+    // because they are shorter or put the word first.
+    let hits = run_whole(&a, "code", None);
+    assert_eq!(tier_in(&hits, "Visual Studio Code"), Some(PREFIX));
+    assert_eq!(titles_of(&hits)[..3], ["Codex", "Code Snippets", "Visual Studio Code"]);
+    assert_eq!(
+        tier_in(&hits, "Xcode"),
+        Some(score::SUBSTRING),
+        "mid-word stays a substring"
+    );
+    // A prior inside the tier now decides, as the app prior does in the engine.
+    let mut lift = vec![0; a.len()];
+    lift[index_of("Visual Studio Code")] = 600;
+    assert_eq!(titles_of(&run_whole(&a, "code", Some(&lift)))[0], "Visual Studio Code");
+    let hits = run_whole(&a, "chrome", None);
+    assert_eq!((titles_of(&hits)[0], hits[0].tier()), ("Google Chrome", PREFIX));
+    // Earlier words and shorter titles rank higher inside the tier.
+    assert_eq!(
+        titles_of(&run_whole(&a, "google", None)),
+        ["Google Chat", "Google Chrome", "Search Google"]
+    );
+    assert_eq!(tier_in(&run_whole(&a, "google", None), "Search Google"), Some(PREFIX));
+}
+
+#[test]
+fn only_a_whole_word_of_a_one_token_query_is_promoted() {
+    let tier = |q: &str, title: &str| {
+        let query = Query::with_whole_words(q);
+        let (bytes, ws) = {
+            let (f, _) = fold::fold_str(title, 0);
+            (f.bytes, f.ws)
+        };
+        score::score::<u8, false>(&query.needle(), &bytes, ws, false, None)
+    };
+    let prefix = |q: &str, title: &str| tier(q, title).map(|t| t.tier);
+    assert_eq!(
+        tier("code", "Visual Studio Code"),
+        Some(TextScore::new(PREFIX, score::whole_word_quality(18, 4, 2)))
+    );
+    assert_eq!(prefix("cod", "Visual Studio Code"), Some(WORD_PREFIX), "part of a word");
+    assert_eq!(
+        prefix("studio code", "Visual Studio Code"),
+        Some(WORD_PREFIX),
+        "two tokens"
+    );
+    assert_eq!(prefix("c", "Visual Studio Code"), Some(WORD_PREFIX), "one char");
+    assert_eq!(prefix("codes", "Visual Studio Code"), None);
+    // A camelCase hump is a word, and a word may end at the next hump or a separator.
+    assert_eq!(prefix("time", "QuickTime Player"), Some(PREFIX));
+    assert_eq!(prefix("quick", "Open QuickTime"), Some(PREFIX));
+    assert_eq!(prefix("fi", "Toggle Wi-Fi"), Some(PREFIX));
+    // A word that only starts with the query is not whole.
+    assert_eq!(prefix("quic", "Open QuickTime"), Some(WORD_PREFIX));
+    // The first whole word counts, even when the segmentation finds a scattered path first.
+    assert_eq!(
+        tier("code", "Copy Old Data Encoder Code"),
+        Some(TextScore::new(PREFIX, score::whole_word_quality(26, 4, 4)))
+    );
+    // Ideographs each start a word, so a run of them is never one whole word.
+    let a = Arena::from_titles(["网易云音乐"]);
+    assert_eq!(run_whole(&a, "云音", None)[0].tier(), WORD_PREFIX);
+    // Non-ASCII letters with spaces between words are promoted on the char path.
+    let a = Arena::from_titles(["Ζ Δέλτα", "Δέλτα Ωμέγα Λάμδα"]);
+    let hits = run_whole(&a, "δέλτα", None);
+    assert_eq!(hits.iter().map(Hit::tier).collect::<Vec<_>>(), [PREFIX, PREFIX]);
+}
+
+/// The span mask the bound reads must hold every whole word the scorer promotes, or the bound
+/// would skip a title that ranks in the prefix tier.
+#[test]
+fn the_span_mask_holds_every_promoted_word() {
+    let spans = |s: &str| {
+        let (f, _) = fold::fold_str(s, 0);
+        arena::span_mask(&f.bytes, f.ws)
+    };
+    let bit = |w: &str| Query::new(w).span;
+    let github = spans("Search GitHub");
+    for w in ["search", "git", "hub", "github"] {
+        assert_ne!(github & bit(w), 0, "{w}");
+    }
+    // A query with a separator does not use the mask.
+    assert_eq!(bit("wi-fi"), 0);
+    assert_eq!(bit("x"), 0);
+    let corpus = corpus::titles(4_000, 17);
+    let mut titles: Vec<&str> = TITLES.to_vec();
+    titles.extend(corpus.iter().map(String::as_str));
+    let a = Arena::from_titles(titles.iter().copied());
+    let mut promoted = 0;
+    for (e, title) in titles.iter().enumerate() {
+        // Every word and every camelCase part of the title, typed whole.
+        let lower = title.to_lowercase();
+        let mut words: Vec<&str> = lower.split(|c: char| !c.is_ascii_alphanumeric()).collect();
+        words.extend(["code", "hub", "time", "settings"]);
+        for w in words.into_iter().filter(|w| w.len() >= 2) {
+            let on = Query::with_whole_words(w);
+            let off = Query::new(w);
+            let window = a.window(e);
+            let with = score::score::<u8, false>(&on.needle(), window, a.ws[e], false, None);
+            let without = score::score::<u8, false>(&off.needle(), window, a.ws[e], false, None);
+            if with != without {
+                promoted += 1;
+                assert_ne!(a.spans[e] & on.span, 0, "{w:?} in {title:?}");
+            }
+        }
+    }
+    assert!(promoted > 1_000, "{promoted}");
+}
+
+#[test]
+fn a_promoted_word_highlights_the_word() {
+    let titles = ["Visual Studio Code", "Copy Old Data Encoder Code", "Open QuickTime"];
+    let a = Arena::from_titles(titles);
+    let mut scratch = HighlightScratch::default();
+    let mut out = Vec::new();
+    for (e, q, want) in [(0, "code", (14, 4)), (1, "code", (22, 4)), (2, "time", (10, 4))] {
+        highlight::ranges(&a, e, &Query::with_whole_words(q), titles[e], &mut scratch, &mut out);
+        assert_eq!(out, [want], "{q} in {}", titles[e]);
+    }
+    // Off, the segmentation's own path is highlighted.
+    highlight::ranges(&a, 1, &Query::new("code"), titles[1], &mut scratch, &mut out);
+    assert_eq!(out, [(0, 1), (5, 1), (9, 1), (14, 1)]);
+}
+
+/// Once the threshold is in the unordered tier, a title none of whose words starts with the
+/// query's first char is skipped with one load. It must never be one that could rank, and it
+/// stays in the narrowing set.
+#[test]
+fn a_title_without_the_first_char_at_a_word_start_is_skipped_only_when_it_cannot_rank() {
+    let mut titles: Vec<String> = (0..60).map(|i| format!("Safe Mode {i}")).collect();
+    titles.extend(["Mesa", "Visa Tools", "Sa"].map(String::from));
+    let a = Arena::from_titles(titles.iter().map(String::as_str));
+    let mesa = 60;
+    // The highest lift there is, on the title whose s is mid-word.
+    let mut lift = vec![0; a.len()];
+    lift[mesa] = MAX_LIFT;
+    let best_substring = rank::rank(TextScore::new(score::SUBSTRING, 999), Field::Title, MAX_LIFT);
+    assert!(best_substring.is_some_and(|r| r < rank::TIER_GAP * score::UNORDERED as i32));
+    for (q, k) in [("sa", 50), ("sa", 70), ("s", 50), ("sm", 10), ("vt", 1), ("es", 50)] {
+        for whole in [false, true] {
+            let query = if whole {
+                Query::with_whole_words(q)
+            } else {
+                Query::new(q)
+            };
+            let opts = Opts { k, ..Opts::default() };
+            let unbounded = Opts { bound: false, ..opts };
+            let (mut s1, mut s2) = (Scratch::default(), Scratch::default());
+            let (mut bounded_hits, mut all_hits) = (Vec::new(), Vec::new());
+            search(&a, &query, &opts, None, Some(&lift), &mut s1, &mut bounded_hits);
+            search(&a, &query, &unbounded, None, Some(&lift), &mut s2, &mut all_hits);
+            assert_eq!(bounded_hits, all_hits, "{q} k {k} whole {whole}");
+            if s2.matched.contains(&(mesa as u32)) {
+                assert!(
+                    s1.matched.contains(&(mesa as u32)),
+                    "{q} k {k}: Mesa left the narrowing set"
+                );
+            }
+        }
+    }
+    // With room for every match, Mesa ranks after the exact title and the 60 prefix matches.
+    let mut hits = Vec::new();
+    let opts = Opts {
+        k: 100,
+        ..Opts::default()
+    };
+    search(
+        &a,
+        &Query::new("sa"),
+        &opts,
+        None,
+        Some(&lift),
+        &mut Scratch::default(),
+        &mut hits,
+    );
+    assert_eq!(hits.iter().position(|h| h.idx as usize == mesa), Some(61));
+}
+
 #[test]
 fn title_beats_alias_beats_keyword() {
     let mut a = Arena::new(false);
@@ -310,6 +508,16 @@ fn bit_path_matches_scalar_reference() {
         "aaa",
         "zz",
         "visual studio code",
+        "code",
+        "chrome",
+        "studio",
+        "half",
+        "hub",
+        "settings",
+        "rs",
+        "md",
+        "notes",
+        "in",
     ];
     let mut keyword_arena = Arena::new(false);
     for t in titles.iter().take(2_000) {
@@ -321,8 +529,12 @@ fn bit_path_matches_scalar_reference() {
         (keyword_arena, "keywords"),
     ] {
         let mut checked = 0;
-        for qs in queries {
-            let q = Query::new(qs);
+        for (qs, whole) in queries.iter().flat_map(|&qs| [(qs, false), (qs, true)]) {
+            let q = if whole {
+                Query::with_whole_words(qs)
+            } else {
+                Query::new(qs)
+            };
             let nd = q.needle();
             for e in 0..arena.entries() {
                 let st = arena.start[e] as usize + arena.win[e] as usize;
@@ -340,7 +552,7 @@ fn bit_path_matches_scalar_reference() {
                         (Some(t), Sc::Yes(g)) if t == g && (t.tier >= floor || t.tier == score::EXACT) => {}
                         (Some(t), Sc::Below) if t.tier < floor => {}
                         (r, _) => panic!(
-                            "{label} q={qs:?} floor={floor} item={:?} ref={r:?}",
+                            "{label} q={qs:?} whole={whole} floor={floor} item={:?} ref={r:?}",
                             String::from_utf8_lossy(w)
                         ),
                     }
@@ -365,7 +577,7 @@ fn bit_path_matches_scalar_reference() {
                         (Some(t), Sc::Yes(g)) if t == g => {}
                         (Some(_), Sc::Below) if true_rank.is_none_or(|r| r < thresh) => {}
                         (r, _) => panic!(
-                            "{label} q={qs:?} thresh={thresh} item={:?} ref={r:?}",
+                            "{label} q={qs:?} whole={whole} thresh={thresh} item={:?} ref={r:?}",
                             String::from_utf8_lossy(w)
                         ),
                     }

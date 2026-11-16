@@ -5,7 +5,7 @@
 //! | tier | name        | meaning                                                            |
 //! |------|-------------|--------------------------------------------------------------------|
 //! | 6    | exact       | folded text equals the folded query                                |
-//! | 5    | prefix      | text starts with the query, or the query covers every word in order ("vsc", "vs code", "ss") |
+//! | 5    | prefix      | text starts with the query, or the query covers every word in order ("vsc", "vs code", "ss"), or a one-token query equals a whole word when `Needle::whole_words` is on ("code" for Visual Studio Code) |
 //! | 4    | word-prefix | in-order prefixes of words, words may be skipped ("dark", "tdm"); the humps of a camelCase word count as one whole word ("gh" for GitHub) |
 //! | 3    | unordered   | every query token starts a distinct word, in any order ("mode dark") |
 //! | 2    | substring   | contiguous, mid-word ("fari" for Safari)                           |
@@ -93,6 +93,14 @@ pub fn prefix_quality(n: usize, fm: usize, ends_mid: bool, all_words: bool, acro
         + if all_words { 30 } else { 0 }
 }
 
+/// PREFIX-tier quality of a one-token query that equals word `word` of the text (see
+/// `Query::whole_words`): a literal prefix that ends on a word end, less 40 for each word before
+/// it, at most five ("code" for Visual Studio Code, "chrome" for Google Chrome).
+#[inline(always)]
+pub fn whole_word_quality(n: usize, fm: usize, word: usize) -> i32 {
+    prefix_quality(n, fm, false, false, false) - 40 * (word as i32).min(5)
+}
+
 /// WORD_PREFIX-tier quality, shared by the scalar and bit paths. For a given first word index
 /// `fw` it is at most `940 - 40*fw - 3*extra`, which the bit path uses as a bound.
 #[inline(always)]
@@ -138,6 +146,19 @@ pub struct Needle<'a, T: Unit> {
     pub ns: &'a [T],
     /// Token ranges into `full`.
     pub tokens: &'a [(u16, u16)],
+    /// A one-token query that equals a whole word of the text ranks in the prefix tier (see
+    /// `Query::whole_words`). A query with an ideograph never does: every ideograph starts a word,
+    /// so a run of them is not one word.
+    pub whole_words: bool,
+}
+
+impl<T: Unit> Needle<'_, T> {
+    /// True when the whole-word promotion applies to this needle: it is on, and the query is one
+    /// token of two units or more.
+    #[inline(always)]
+    pub fn promotes_whole_words(&self) -> bool {
+        self.whole_words && self.tokens.len() <= 1 && self.ns.len() >= 2
+    }
 }
 
 /// Word-start oracle over the haystack: the 64-bit window, then the separator rule beyond it.
@@ -383,6 +404,17 @@ fn segment<T: Unit>(q: &[T], s: &[T], ws: u64, words: &[u16], rec: Option<&mut V
     })
 }
 
+/// The first word of `s` that equals `q`, as (word index, start): `q` starts there and a word
+/// ends where `q` ends, at a separator, a word start or the end of `s`.
+fn whole_word<T: Unit>(q: &[T], s: &[T], ws: u64, words: &[u16]) -> Option<(usize, usize)> {
+    let m = q.len();
+    words.iter().enumerate().find_map(|(j, &w)| {
+        let (w, e) = (w as usize, w as usize + m);
+        let ends = e <= s.len() && (e == s.len() || s[e].is_sep() || is_ws(s, ws, e));
+        (ends && s[w..e] == *q).then_some((j, w))
+    })
+}
+
 /// Unordered tokens: every token must be a prefix of a distinct word. Returns the last word used.
 fn unordered<T: Unit>(nd: &Needle<'_, T>, s: &[T], words: &[u16], rec: Option<&mut Vec<u32>>) -> Option<i32> {
     let mut used = 0u64;
@@ -618,13 +650,33 @@ pub fn score<T: Unit, const REC: bool>(
     let nw = collect_words(s, ws, &mut words);
     let words = &words[..nw];
     let extra = (n as i32 - m as i32).max(0);
+    // ---- a one-token query equal to a whole later word ranks with literal prefixes ("code")
+    let whole = if nd.promotes_whole_words() {
+        whole_word(q, s, ws, words)
+    } else {
+        None
+    };
+    let whole_quality = whole.map(|(j, _)| whole_word_quality(n, fm, j));
+    let mark = rec.as_deref().map_or(0, Vec::len);
     // ---- in-order word-prefix segmentation ("vsc", "vs code", "dark", "gh")
     if let Some(sg) = segment(q, s, ws, words, if REC { rec.as_deref_mut() } else { None }) {
-        if sg.covers_all && m >= 2 {
-            return Some(TextScore::new(PREFIX, prefix_quality(n, fm, sg.ends_mid, true, true)));
+        let cover = (sg.covers_all && m >= 2).then(|| prefix_quality(n, fm, sg.ends_mid, true, true));
+        if let Some(c) = cover
+            && whole_quality.is_none_or(|w| c >= w)
+        {
+            return Some(TextScore::new(PREFIX, c));
         }
-        let qq = word_prefix_quality(sg.first_word, sg.skipped, sg.segments, extra, sg.adj);
-        return Some(TextScore::new(WORD_PREFIX, qq));
+        if whole.is_none() {
+            let qq = word_prefix_quality(sg.first_word, sg.skipped, sg.segments, extra, sg.adj);
+            return Some(TextScore::new(WORD_PREFIX, qq));
+        }
+    }
+    if let (Some((_, w)), Some(qq)) = (whole, whole_quality) {
+        if let Some(o) = rec.as_deref_mut() {
+            o.truncate(mark);
+            o.extend(w as u32..(w + m) as u32);
+        }
+        return Some(TextScore::new(PREFIX, qq));
     }
     // ---- unordered tokens ("mode dark")
     if nd.tokens.len() >= 2

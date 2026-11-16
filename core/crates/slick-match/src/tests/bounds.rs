@@ -9,7 +9,16 @@ use super::*;
 fn windows_at_the_end_of_the_buffer_match_the_scalar_path() {
     for len in 1..=64usize {
         // The last entry is the one whose block reaches furthest into the padding.
-        let last: String = (0..len).map(|i| (b'a' + (i % 26) as u8) as char).collect();
+        // A last word of two chars, so a whole-word query ends exactly at the padding.
+        let last: String = (0..len)
+            .map(|i| {
+                if i + 3 == len {
+                    ' '
+                } else {
+                    (b'a' + (i % 26) as u8) as char
+                }
+            })
+            .collect();
         let a = Arena::from_titles(["zz top", "y", last.as_str()]);
         let e = a.entries() - 1;
         let st = a.start[e] as usize;
@@ -18,17 +27,23 @@ fn windows_at_the_end_of_the_buffer_match_the_scalar_path() {
             len + PAD,
             "the last window is followed by the padding only"
         );
-        for q in [&last[..1], &last[..len.min(3)], &last[len - 1..], last.as_str()] {
-            let query = Query::new(q);
+        let tail = &last[len.saturating_sub(2)..];
+        let queries = [&last[..1], &last[..len.min(3)], &last[len - 1..], tail, last.as_str()];
+        for (q, whole) in queries.into_iter().flat_map(|q| [(q, false), (q, true)]) {
+            let query = if whole {
+                Query::with_whole_words(q)
+            } else {
+                Query::new(q)
+            };
             if !query.bn.ok {
                 continue; // longer than the bit path takes; the search scores it with the scalar path
             }
             let block: &[u8; 64] = a.text[st..st + 64].try_into().expect("padded arena");
             let reference = score::score::<u8, false>(&query.needle(), a.window(e), a.ws[e], false, None);
             match bits::score_bits(&query.needle(), &query.bn, block, len, a.ws[e], 0, Bound::NONE) {
-                Sc::Yes(t) => assert_eq!(Some(t), reference, "len {len} q {q:?}"),
-                Sc::No => assert_eq!(None, reference, "len {len} q {q:?}"),
-                Sc::Below => panic!("floor 0 never skips: len {len} q {q:?}"),
+                Sc::Yes(t) => assert_eq!(Some(t), reference, "len {len} q {q:?} whole {whole}"),
+                Sc::No => assert_eq!(None, reference, "len {len} q {q:?} whole {whole}"),
+                Sc::Below => panic!("floor 0 never skips: len {len} q {q:?} whole {whole}"),
             }
         }
     }

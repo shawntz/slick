@@ -49,6 +49,17 @@ pub struct Query {
     pub link_same: u8,
     /// How many of the arrays above are in use.
     pub links: u8,
+    /// A query of one token that equals a whole later word of a text ranks in the prefix tier,
+    /// as a literal prefix less 40 for each word before it ("code" for Visual Studio Code). Off by
+    /// default; root search turns it on, and file search keeps its own prefix pass. [`Query::set`]
+    /// keeps it. A query with an ideograph, kana or hangul syllable is never promoted: each of
+    /// those starts a word, so a run of them is not one word.
+    pub whole_words: bool,
+    /// True when the folded query holds an ideograph, kana or hangul syllable.
+    ideographic: bool,
+    /// The whole-word span bit of the query (see `arena::span_bit`) when it is ASCII letters and
+    /// digits only, of two to `arena::MAX_SPAN` bytes; otherwise 0, and the span mask is not used.
+    pub span: u64,
     full_c: Vec<char>,
     ns_c: Vec<char>,
     tokens_c: Vec<(u16, u16)>,
@@ -58,6 +69,16 @@ impl Query {
     /// Folds `raw` into a new query.
     pub fn new(raw: &str) -> Self {
         let mut q = Query::default();
+        q.set(raw);
+        q
+    }
+
+    /// Folds `raw` into a new query with [`Query::whole_words`] on, as root search ranks titles.
+    pub fn with_whole_words(raw: &str) -> Self {
+        let mut q = Query {
+            whole_words: true,
+            ..Query::default()
+        };
         q.set(raw);
         q
     }
@@ -91,6 +112,7 @@ impl Query {
         }
         self.mask = self.ns_c.iter().fold(0u64, |m, &c| m | mask_bit(c));
         self.ascii = self.full_c.iter().all(|c| c.is_ascii());
+        self.ideographic = !self.ascii && self.ns_c.iter().any(|&c| fold::class_of(c) == fold::Class::Ideo);
         self.full.clear();
         self.ns.clear();
         self.tokens.clear();
@@ -111,6 +133,12 @@ impl Query {
         let byte = |i: usize| self.full.get(i).copied();
         self.bit0 = byte(0).map_or(0, fold::mask_bit_byte);
         self.pairs = crate::arena::pair_mask(&self.full);
+        let m = self.full.len();
+        self.span = if (2..=crate::arena::MAX_SPAN).contains(&m) && self.full.iter().all(u8::is_ascii_alphanumeric) {
+            crate::arena::span_bit(self.full[0], self.full[m - 1], m)
+        } else {
+            0
+        };
         self.links = 0;
         self.link_same = 0;
         if self.bounded {
@@ -142,6 +170,9 @@ impl Query {
         self.link_pairs = other.link_pairs;
         self.link_same = other.link_same;
         self.links = other.links;
+        self.whole_words = other.whole_words;
+        self.ideographic = other.ideographic;
+        self.span = other.span;
     }
 
     /// True when the query has no searchable chars.
@@ -171,6 +202,7 @@ impl Query {
             full: &self.full,
             ns: &self.ns,
             tokens: &self.tokens,
+            whole_words: self.whole_words && !self.ideographic,
         }
     }
 
@@ -181,6 +213,7 @@ impl Query {
             full: &self.full_c,
             ns: &self.ns_c,
             tokens: &self.tokens_c,
+            whole_words: self.whole_words && !self.ideographic,
         }
     }
 }

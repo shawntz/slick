@@ -153,7 +153,8 @@ impl<'a> TopK<'a> {
 }
 
 /// Bounded evaluation of entry `e`. `thresh` is the rank of the current k-th best hit
-/// (`i32::MIN` while the buffer fills) and `lift` the item's within-tier lift.
+/// (`i32::MIN` while the buffer fills) and `lift` the item's within-tier lift. `reachable` says
+/// the caller already found, at this threshold, that the entry may reach it.
 #[inline(always)]
 #[expect(
     clippy::too_many_arguments,
@@ -168,6 +169,7 @@ fn eval_entry(
     lift: i32,
     bounds: &mut Bounds,
     chars: &mut Vec<char>,
+    reachable: bool,
 ) -> Eval {
     if opts.prefilter && q.mask & !a.mask[e] != 0 {
         if a.paths && opts.path_fallback && q.mask & !a.pmask[e] == 0 {
@@ -178,7 +180,13 @@ fn eval_entry(
     // An entry that cannot reach the running threshold is skipped before the bit path. Whether it
     // passes the gate is not known then, so it joins the narrowing set anyway: a superset of the
     // gated items narrows just as exactly, it only rescans a few more.
-    if opts.bound && thresh != i32::MIN && q.bounded && !a.paths && cannot_reach_out_of_line(a, e, q, lift, thresh) {
+    if !reachable
+        && opts.bound
+        && thresh != i32::MIN
+        && q.bounded
+        && !a.paths
+        && cannot_reach_out_of_line(a, e, q, lift, thresh)
+    {
         return Eval::Skipped;
     }
     let st = a.start[e] as usize;
@@ -214,6 +222,9 @@ fn eval_entry(
 /// - exact or a literal prefix: the window starts with the query;
 /// - prefix by a complete word cover: the first word starts with the query's first char and the
 ///   window has at most as many words as the query has chars;
+/// - prefix by a whole word, when the query asks for it: the query's first char starts a word,
+///   every adjacent pair of the query is in the window's pair mask and, for a query of letters
+///   and digits, its span bit is in the window's span mask;
 /// - word-prefix: the first char starts a word, and each later char either starts a word or
 ///   follows the char before it; a char equal to the first one that starts a word needs a second
 ///   word with that initial;
@@ -241,6 +252,26 @@ fn cannot_reach(a: &Arena, e: usize, q: &Query, lift: i32, thresh: i32) -> bool 
         let n = a.len[e] as usize - a.win[e] as usize;
         (n, (n as i32 - m as i32).clamp(0, 60))
     };
+    // A substring needs every adjacent pair of the query in the window; anything else is at most
+    // a scattered match.
+    let substring_or_less = |extra: i32| {
+        if score(SUBSTRING, 800) < need {
+            return true;
+        }
+        if m == 1 || a.pairs[e] & q.pairs == q.pairs {
+            return score(SUBSTRING, 800 - 3 * extra) < need;
+        }
+        if field == Field::Keyword {
+            return true;
+        }
+        let m = m.min(64) as i32;
+        score(SUBSEQUENCE, 500 + 25 * m + 15 * (m - 1) - 2 * extra) < need
+    };
+    // Every tier above substring needs the query's first char to start a word. For a letter or a
+    // digit, `initials` says whether it does. One char queries leave sooner below.
+    if m >= 2 && q0.is_ascii_alphanumeric() && a.initials[e] & q.bit0 == 0 {
+        return substring_or_less(window().1);
+    }
     let (head, lead) = (a.head[e] == q0, a.lead[e] == q0);
     if head || lead {
         let (n, extra) = window();
@@ -253,6 +284,23 @@ fn cannot_reach(a: &Arena, e: usize, q: &Query, lift: i32, thresh: i32) -> bool 
         if literal || (lead && ws.count_ones() as usize <= m) {
             return score(PREFIX, 990 - 6 * extra) < need;
         }
+    }
+    // A query equal to a whole word ranks in the prefix tier, less 40 for each word before that
+    // one (see `score::whole_word_quality`). It needs the first char to start a word, every
+    // adjacent pair of the query in the window and, for a query of letters and digits, its span
+    // bit in the window's span mask.
+    if q.whole_words
+        && m >= 2
+        && a.initials[e] & q.bit0 != 0
+        && a.pairs[e] & q.pairs == q.pairs
+        && (q.span == 0 || a.spans[e] & q.span != 0)
+    {
+        if score(PREFIX, 960) < need {
+            return true;
+        }
+        let (_, extra) = window();
+        let word = first_byte_at(a.heads[e], q0).min(5) as i32;
+        return score(PREFIX, 960 - 6 * extra - 40 * word) < need;
     }
     if score(WORD_PREFIX, 940) < need {
         return true;
@@ -268,18 +316,14 @@ fn cannot_reach(a: &Arena, e: usize, q: &Query, lift: i32, thresh: i32) -> bool 
     if a.initials[e] & q.bit0 != 0 && links_hold(a, e, q) {
         return score(WORD_PREFIX, first_word - 3 * extra) < need;
     }
-    if score(SUBSTRING, 800) < need {
-        return true;
-    }
-    if m == 1 || a.pairs[e] & q.pairs == q.pairs {
-        return score(SUBSTRING, 800 - 3 * extra) < need;
-    }
-    if field == Field::Keyword {
-        return true;
-    }
-    let m = m.min(64) as i32;
-    score(SUBSEQUENCE, 500 + 25 * m + 15 * (m - 1) - 2 * extra) < need
+    substring_or_less(extra)
 }
+
+/// From this threshold up, a title whose words do not start with a bounded query's first char
+/// cannot enter the top k. Every tier from word-prefix up needs that char at a word start, a
+/// one-token query never matches unordered, and the best substring rank of a title, with its
+/// field bonus, full quality and full lift, stays below this unordered-tier rank.
+const WORD_START_THRESH: i32 = rank::TIER_GAP * score::UNORDERED as i32;
 
 /// The index of the first byte of `x` that equals `b`, or 8 when none does.
 #[inline(always)]
@@ -472,6 +516,8 @@ enum ItemEval {
     Hit(i32, Field),
 }
 
+/// Evaluates every entry of item `i`. `reachable` says the caller already found, at this
+/// threshold, that the item's only entry may reach it.
 #[inline(always)]
 #[expect(
     clippy::too_many_arguments,
@@ -486,11 +532,12 @@ fn eval_item(
     thresh: i32,
     bounds: &mut Bounds,
     chars: &mut Vec<char>,
+    reachable: bool,
 ) -> ItemEval {
     let range = a.entry_range(i);
     if range.len() == 1 {
         let e = range.start;
-        return match eval_entry(a, e, q, opts, thresh, lift, bounds, chars) {
+        return match eval_entry(a, e, q, opts, thresh, lift, bounds, chars, reachable) {
             Eval::NoMatch => ItemEval::NoMatch,
             Eval::Skipped => ItemEval::Gated,
             Eval::Hit(t) => {
@@ -506,7 +553,7 @@ fn eval_item(
     let mut best_field = Field::Title;
     let mut gated = false;
     for e in a.entry_range(i) {
-        match eval_entry(a, e, q, opts, thresh, lift, bounds, chars) {
+        match eval_entry(a, e, q, opts, thresh, lift, bounds, chars, false) {
             Eval::NoMatch => {}
             Eval::Skipped => gated = true,
             Eval::Hit(t) => {
@@ -662,21 +709,32 @@ pub fn search_seeded(
     // The plain mask prefilter applies: no path fallback to a wider mask.
     let plain_mask = opts.prefilter && !(a.paths && opts.path_fallback);
     let mut gate = BoundGate::default();
+    // The query starts with a letter or digit, whose word starts `Arena::initials` records.
+    let first_alnum = bounded && q.full.first().is_some_and(u8::is_ascii_alphanumeric);
     // The caller passes the item's entries, having rejected a single entry that fails the mask.
     let mut visit = |i: usize, range: std::ops::Range<usize>, top: &mut TopK<'_>| {
         // Most of the remaining single-entry items cannot reach a high threshold: settle those
-        // here, before the general evaluation.
+        // here, before the general evaluation. A single entry is a title.
         let l = lift_of(lift, i);
         let thresh = if opts.bound { top.thresh } else { i32::MIN };
-        if bounded && thresh != i32::MIN && range.len() == 1 && gate.worth_it(thresh) {
-            let skip = cannot_reach(a, range.start, q, l, thresh);
-            gate.count(skip);
-            if skip {
+        let mut reachable = false;
+        if bounded && thresh != i32::MIN && range.len() == 1 {
+            // One load settles a title none of whose words starts with the query's first char.
+            if first_alnum && thresh >= WORD_START_THRESH && a.initials[range.start] & q.bit0 == 0 {
                 matched.push(i as u32);
                 return;
             }
+            if gate.worth_it(thresh) {
+                let skip = cannot_reach(a, range.start, q, l, thresh);
+                gate.count(skip);
+                if skip {
+                    matched.push(i as u32);
+                    return;
+                }
+                reachable = true;
+            }
         }
-        match eval_item(a, q, opts, i, l, thresh, &mut bounds, chars) {
+        match eval_item(a, q, opts, i, l, thresh, &mut bounds, chars, reachable) {
             ItemEval::NoMatch => {}
             ItemEval::Gated => matched.push(i as u32),
             ItemEval::Hit(r, field) => {
@@ -896,7 +954,7 @@ pub fn search_par(a: &Arena, q: &Query, opts: &Opts, chunk: usize, lift: Option<
             for i in c * chunk..((c + 1) * chunk).min(n) {
                 let thresh = if opts.bound { top.thresh } else { i32::MIN };
                 if let ItemEval::Hit(r, field) =
-                    eval_item(a, q, opts, i, lift_of(lift, i), thresh, &mut bounds, &mut chars)
+                    eval_item(a, q, opts, i, lift_of(lift, i), thresh, &mut bounds, &mut chars, false)
                 {
                     best = best.max(r);
                     top.push(key(r, i as u32, field));

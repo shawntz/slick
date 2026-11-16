@@ -137,11 +137,7 @@ const APP_LIFT: i32 = 600;
 
 const CODE: (&str, &str) = (
     "code -> Visual Studio Code",
-    "Codex, Code Snippets and Code Review Checklist are literal prefixes; only learning may lift a word-prefix match one tier",
-);
-const CHROME: (&str, &str) = (
-    "chrome -> Google Chrome",
-    "four Chrome: commands are literal prefixes; only learning may lift a word-prefix match one tier",
+    "a whole later word ranks with literal prefixes, where Codex, Code Snippets, Explain Code, Code Review Checklist and VS Code: Open Workspace are shorter or put the word earlier; the app prior decides",
 );
 const GH: (&str, &str) = (
     "gh -> Search GitHub",
@@ -156,7 +152,6 @@ const KC: (&str, &str) = (
 /// Misses on text alone, with why each is not a matcher defect.
 const KNOWN_TEXT_MISSES: &[(&str, &str)] = &[
     CODE,
-    CHROME,
     GH,
     FOTOS,
     (
@@ -170,7 +165,7 @@ const KNOWN_TEXT_MISSES: &[(&str, &str)] = &[
     KC,
 ];
 /// Misses with the app kind prior.
-const KNOWN_PRIOR_MISSES: &[(&str, &str)] = &[CODE, CHROME, GH, FOTOS, KC];
+const KNOWN_PRIOR_MISSES: &[(&str, &str)] = &[GH, FOTOS, KC];
 
 struct Run<'a> {
     corpus: &'a LauncherCorpus,
@@ -184,7 +179,7 @@ impl Run<'_> {
         let mut hits = Vec::new();
         search(
             &self.arena,
-            &Query::new(q),
+            &Query::with_whole_words(q),
             &Opts::default(),
             None,
             self.lift.as_deref(),

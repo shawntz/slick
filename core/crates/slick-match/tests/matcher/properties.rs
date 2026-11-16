@@ -123,13 +123,24 @@ fn random_lift(rng: &mut Rng, n: usize) -> Vec<i32> {
         .collect()
 }
 
-/// The typing target for one sequence: a word run from a title, an acronym, or random text.
+/// The typing target for one sequence: a word run from a title, an acronym, a later word of a
+/// title, or random text.
 fn target(rng: &mut Rng, c: &Corpus) -> String {
     let t = &c.titles[rng.below(c.titles.len())];
-    match rng.below(4) {
+    match rng.below(5) {
         0 => t.split_whitespace().filter_map(|w| w.chars().next()).collect(),
         1 => random_text(rng, 8),
+        2 => t.split_whitespace().last().unwrap_or("").to_lowercase(),
         _ => t.to_lowercase(),
+    }
+}
+
+/// A query as file search folds it (`whole` false) or as root search does (`whole` true).
+fn query(typed: &str, whole: bool) -> Query {
+    if whole {
+        Query::with_whole_words(typed)
+    } else {
+        Query::new(typed)
     }
 }
 
@@ -153,9 +164,11 @@ fn narrowing_equals_a_full_scan() {
         let mut session = Session::default();
         let mut narrowed = Vec::new();
         let mut q = Query::default();
-        for _ in 0..40 {
+        for round in 0..40 {
             let goal = target(&mut rng, &c);
             let mut typed = String::new();
+            // The session narrows the same way whether the promotion is on or not.
+            q.whole_words = round % 2 == 1;
             for ch in goal.chars().take(14) {
                 typed.push(ch);
                 if rng.below(6) == 0 {
@@ -167,7 +180,8 @@ fn narrowing_equals_a_full_scan() {
                 assert_eq!(
                     narrowed,
                     full_scan(&c.arena, &q, &opts, use_lift),
-                    "seed {seed} query {typed:?}"
+                    "seed {seed} query {typed:?} whole words {}",
+                    q.whole_words
                 );
             }
             if rng.below(3) == 0 {
@@ -231,11 +245,11 @@ fn top_k_equals_a_full_sort() {
         let c = random_corpus(seed, 2_000);
         let mut rng = Rng::new(seed);
         let lift = random_lift(&mut rng, c.arena.len());
-        for _ in 0..60 {
+        for round in 0..60 {
             let goal = target(&mut rng, &c);
             let len = 1 + rng.below(goal.chars().count().clamp(1, 12));
             let typed: String = goal.chars().take(len).collect();
-            let q = Query::new(&typed);
+            let q = query(&typed, round % 2 == 1);
             let opts = Opts {
                 k: 1 + rng.below(80),
                 ..Opts::default()
@@ -244,7 +258,8 @@ fn top_k_equals_a_full_sort() {
             assert_eq!(
                 got,
                 reference(&c.arena, &q, &opts, &lift),
-                "seed {seed} query {typed:?}"
+                "seed {seed} query {typed:?} whole words {}",
+                q.whole_words
             );
         }
     }
@@ -270,8 +285,8 @@ fn arbitrary_unicode_never_panics() {
         ] {
             let mut session = Session::default();
             let mut out = Vec::new();
-            for _ in 0..20 {
-                let q = Query::new(&random_text(&mut rng, 10));
+            for i in 0..20 {
+                let q = query(&random_text(&mut rng, 10), i % 2 == 1);
                 let opts = Opts {
                     path_fallback: round % 2 == 0,
                     ..Opts::default()
@@ -357,11 +372,12 @@ fn seeds_and_the_bound_never_change_a_result() {
         let lift = learned_lift(&mut rng, n);
         let mut seeds: Vec<u32> = (0..n as u32).filter(|&i| lift[i as usize] >= 1_000).collect();
         seeds.extend([0, 0, n as u32, u32::MAX]);
-        for _ in 0..80 {
+        for round in 0..80 {
             let goal = target(&mut rng, &c);
             let len = 1 + rng.below(goal.chars().count().clamp(1, 4));
             let typed: String = goal.chars().take(len).collect();
-            let q = Query::new(&typed);
+            let whole = round % 2 == 1;
+            let q = query(&typed, whole);
             let opts = Opts {
                 k: [1, 10, 50, 80][rng.below(4)],
                 ..Opts::default()
@@ -371,17 +387,17 @@ fn seeds_and_the_bound_never_change_a_result() {
             assert_eq!(
                 full_scan(&c.arena, &q, &unbounded, Some(&lift)),
                 want,
-                "seed {seed} {typed:?} no bound"
+                "seed {seed} {typed:?} whole {whole} no bound"
             );
             assert_eq!(
                 full_scan(&c.arena, &q, &opts, Some(&lift)),
                 want,
-                "seed {seed} {typed:?} bound"
+                "seed {seed} {typed:?} whole {whole} bound"
             );
             let mut scratch = Scratch::default();
             let mut out = Vec::new();
             search_seeded(&c.arena, &q, &opts, None, Some(&lift), &seeds, &mut scratch, &mut out);
-            assert_eq!(out, want, "seed {seed} {typed:?} seeded");
+            assert_eq!(out, want, "seed {seed} {typed:?} whole {whole} seeded");
             // Every item that passes the gate is in the narrowing set.
             let mut chars = Vec::new();
             for i in 0..n {
@@ -401,17 +417,18 @@ fn seeds_and_the_bound_never_change_a_result() {
         let mut session = Session::default();
         let mut narrowed = Vec::new();
         let opts = Opts::default();
-        for _ in 0..20 {
+        for round in 0..20 {
             let goal = target(&mut rng, &c);
             let mut typed = String::new();
             for ch in goal.chars().take(8) {
                 typed.push(ch);
-                let q = Query::new(&typed);
+                let q = query(&typed, round % 2 == 1);
                 session.search_seeded(&c.arena, &q, &opts, Some(&lift), &seeds, &mut narrowed);
                 assert_eq!(
                     narrowed,
                     reference(&c.arena, &q, &opts, &lift),
-                    "seed {seed} typed {typed:?}"
+                    "seed {seed} typed {typed:?} whole words {}",
+                    q.whole_words
                 );
             }
             session.reset();

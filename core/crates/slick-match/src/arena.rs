@@ -51,6 +51,9 @@ pub struct Arena {
     /// Per entry: a 64-bit Bloom mask of the adjacent byte pairs of the window (see [`pair_bit`]).
     /// A substring match needs every pair of the query in it.
     pub pairs: Vec<u64>,
+    /// Per entry: a 64-bit Bloom mask of the window's whole-word spans (see [`span_mask`]). A
+    /// query without separators that equals a whole word needs its [`span_bit`] in it.
+    pub spans: Vec<u64>,
     /// Per entry: bit 0 multibyte, bits 1..3 the field.
     pub flags: Vec<u8>,
     /// Per item: index of its first entry, plus one final element (entries of item `i` are
@@ -106,6 +109,7 @@ impl Arena {
         self.lead.shrink_to_fit();
         self.heads.shrink_to_fit();
         self.pairs.shrink_to_fit();
+        self.spans.shrink_to_fit();
         self.flags.shrink_to_fit();
         self.first.shrink_to_fit();
     }
@@ -198,6 +202,7 @@ impl Arena {
         self.lead.push(heads as u8);
         self.heads.push(heads);
         self.pairs.push(pair_mask(window));
+        self.spans.push(span_mask(window, f.ws));
         let multibyte = if f.one_to_one { 0 } else { FLAG_MULTIBYTE };
         self.flags.push(multibyte | ((field as u8) << FIELD_SHIFT));
         self.text.extend_from_slice(&[0u8; PAD]);
@@ -274,6 +279,7 @@ impl Arena {
             + self.lead.capacity()
             + self.heads.capacity() * 8
             + self.pairs.capacity() * 8
+            + self.spans.capacity() * 8
             + self.flags.capacity()
             + self.first.capacity() * 4
     }
@@ -292,6 +298,46 @@ pub fn pair_mask(s: &[u8]) -> u64 {
     s.windows(2)
         .filter(|p| p[0] != b' ' && p[1] != b' ')
         .fold(0, |m, p| m | pair_bit(p[0], p[1]))
+}
+
+/// The Bloom bit of a whole-word span: its first byte, its last byte and its length in bytes.
+#[inline(always)]
+pub fn span_bit(first: u8, last: u8, len: usize) -> u64 {
+    let h = (first as u32).wrapping_mul(0x9E37_79B1)
+        ^ (last as u32).wrapping_mul(0x85EB_CA77)
+        ^ (len.min(255) as u32).wrapping_mul(0xC2B2_AE3D);
+    1u64 << (h >> 26)
+}
+
+/// Longest span [`span_mask`] records, in bytes. A longer query does not use the mask.
+pub const MAX_SPAN: usize = 32;
+
+/// The Bloom mask of the whole-word spans of a window: every run of at most [`MAX_SPAN`] bytes
+/// without a separator that starts at a word start and ends at a word end, as the scorer sees them
+/// (see `score::whole_word`). A word ends at a separator, at the next word start, such as a
+/// camelCase hump, or at the end of the window. "GitHub" gives three spans: git, hub and github.
+pub fn span_mask(s: &[u8], ws: u64) -> u64 {
+    use crate::score::Unit;
+    let n = s.len();
+    let starts = |i: usize| {
+        i < n
+            && if i < 64 {
+                (ws >> i) & 1 == 1
+            } else {
+                s[i - 1].is_sep() && !s[i].is_sep()
+            }
+    };
+    let mut mask = 0u64;
+    for p in (0..n).filter(|&p| starts(p)) {
+        let mut e = p + 1;
+        while e <= n.min(p + MAX_SPAN) && !s[e - 1].is_sep() {
+            if e == n || s[e].is_sep() || starts(e) {
+                mask |= span_bit(s[p], s[e - 1], e - p);
+            }
+            e += 1;
+        }
+    }
+    mask
 }
 
 /// The first bytes of the first eight words of a window, word j in byte j, as the scorer sees

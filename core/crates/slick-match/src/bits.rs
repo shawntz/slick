@@ -97,62 +97,77 @@ pub enum Sc {
     Yes(TextScore),
 }
 
-/// One bit per byte of `v` that equals the matching byte of `cv`, for 16 bytes.
-///
-/// # Safety
-/// Needs NEON, which every aarch64 target has. It reads registers only, no memory.
-#[cfg(target_arch = "aarch64")]
-#[inline(always)]
-unsafe fn mask16(
-    v: std::arch::aarch64::uint8x16_t,
-    cv: std::arch::aarch64::uint8x16_t,
-    w: std::arch::aarch64::uint8x16_t,
-) -> u64 {
-    use std::arch::aarch64::*;
-    // SAFETY: NEON is part of the aarch64 baseline, and these intrinsics only touch registers.
-    unsafe {
-        let t = vandq_u8(vceqq_u8(v, cv), w);
-        (vaddv_u8(vget_low_u8(t)) as u64) | ((vaddv_u8(vget_high_u8(t)) as u64) << 8)
-    }
-}
-
 /// For each byte in `chars`, a bitmap of the positions in `block[..n]` that hold it. The loads
 /// read whole 16-byte lanes of `block`, past `n` when `n` is not a multiple of 16; the mask drops
 /// those bits.
+///
+/// Each compare gives 0xFF per equal byte; ANDed with the weights 1, 2, 4 ... 128, twice, a group
+/// of eight bytes sums to its 8-bit mask. Pairwise adds sum several vectors at once: three of them
+/// turn one to four vectors into the 16-bit to 64-bit masks of one to four chars, where a
+/// horizontal add would take two per vector.
 #[cfg(target_arch = "aarch64")]
 #[inline(always)]
 fn bitmaps(block: &[u8; 64], n: usize, chars: &[u8], out: &mut [u64; MAX_NEEDLE]) {
     use std::arch::aarch64::*;
     let p = block.as_ptr();
+    let d = chars.len();
+    // Past the needle's distinct chars a zero byte stands in; its mask is never stored.
+    let ch = |i: usize| chars.get(i).copied().unwrap_or(0);
     // SAFETY: `block` is 64 readable bytes, and the loads below read `p[0..16]`, `p[16..32]`,
-    // `p[32..48]` and `p[48..64]` at most. NEON is part of the aarch64 baseline.
+    // `p[32..48]` and `p[48..64]` at most. NEON is part of the aarch64 baseline, and the other
+    // intrinsics only touch registers.
     unsafe {
         const W: [u8; 16] = [1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128];
         let w = vld1q_u8(W.as_ptr());
         let lim = if n >= 64 { u64::MAX } else { (1u64 << n) - 1 };
+        // Weighted equal bytes of `v` and `c`.
+        let eq = |v: uint8x16_t, c: u8| vandq_u8(vceqq_u8(v, vdupq_n_u8(c)), w);
         // Straight-line code per width class: a variable-length vector array spills to memcpy.
         let v0 = vld1q_u8(p);
         if n <= 16 {
-            for (d, &c) in chars.iter().enumerate() {
-                out[d] = mask16(v0, vdupq_n_u8(c), w) & lim;
+            // Four chars per round, 16 bits each.
+            let mut k = 0;
+            while k < d {
+                let s = vpaddq_u8(
+                    vpaddq_u8(eq(v0, ch(k)), eq(v0, ch(k + 1))),
+                    vpaddq_u8(eq(v0, ch(k + 2)), eq(v0, ch(k + 3))),
+                );
+                let x = vgetq_lane_u64(vreinterpretq_u64_u8(vpaddq_u8(s, s)), 0);
+                for (j, slot) in out[k..d.min(k + 4)].iter_mut().enumerate() {
+                    *slot = (x >> (16 * j)) & 0xFFFF & lim;
+                }
+                k += 4;
             }
         } else if n <= 32 {
+            // Two chars per round, 32 bits each.
             let v1 = vld1q_u8(p.add(16));
-            for (d, &c) in chars.iter().enumerate() {
-                let cv = vdupq_n_u8(c);
-                out[d] = (mask16(v0, cv, w) | (mask16(v1, cv, w) << 16)) & lim;
+            let mut k = 0;
+            while k < d {
+                let s = vpaddq_u8(
+                    vpaddq_u8(eq(v0, ch(k)), eq(v1, ch(k))),
+                    vpaddq_u8(eq(v0, ch(k + 1)), eq(v1, ch(k + 1))),
+                );
+                let x = vgetq_lane_u64(vreinterpretq_u64_u8(vpaddq_u8(s, s)), 0);
+                out[k] = x & 0xFFFF_FFFF & lim;
+                if k + 1 < d {
+                    out[k + 1] = (x >> 32) & lim;
+                }
+                k += 2;
             }
         } else {
+            // Two chars per round, 64 bits each.
             let v1 = vld1q_u8(p.add(16));
             let v2 = vld1q_u8(p.add(32));
             let v3 = vld1q_u8(p.add(48));
-            for (d, &c) in chars.iter().enumerate() {
-                let cv = vdupq_n_u8(c);
-                out[d] = (mask16(v0, cv, w)
-                    | (mask16(v1, cv, w) << 16)
-                    | (mask16(v2, cv, w) << 32)
-                    | (mask16(v3, cv, w) << 48))
-                    & lim;
+            let quads = |c: u8| vpaddq_u8(vpaddq_u8(eq(v0, c), eq(v1, c)), vpaddq_u8(eq(v2, c), eq(v3, c)));
+            let mut k = 0;
+            while k < d {
+                let s = vreinterpretq_u64_u8(vpaddq_u8(quads(ch(k)), quads(ch(k + 1))));
+                out[k] = vgetq_lane_u64(s, 0) & lim;
+                if k + 1 < d {
+                    out[k + 1] = vgetq_lane_u64(s, 1) & lim;
+                }
+                k += 2;
             }
         }
     }
@@ -311,6 +326,32 @@ pub fn score_bits(
     let extra = (n as i32 - m as i32).max(0);
     let first_at_word = bm[bn.ns_slot[0] as usize] & ws != 0;
     let word_count = ws.count_ones() as usize;
+    // ---- a one-token query equal to a whole later word ranks with literal prefixes ("code")
+    let whole = if first_at_word && nd.promotes_whole_words() {
+        whole_word(&bm, bn, s, ws, n)
+    } else {
+        None
+    };
+    if let Some(word) = whole {
+        let quality = score::whole_word_quality(n, fm, word);
+        // A complete cover may score higher. It needs the first word to start with q[0] and at
+        // most m words.
+        let first_hit = (bm[bn.ns_slot[0] as usize] & ws).trailing_zeros();
+        let cover_possible = ws & below_bits(first_hit as usize) == 0 && word_count.min(32) <= m;
+        let cover = if !cover_possible {
+            None
+        } else if m == 2 {
+            segment2(bm[bn.ns_slot[0] as usize], bm[bn.ns_slot[1] as usize], s, ws)
+        } else {
+            let mut words = [0u16; 32];
+            let nw = word_starts(ws, &mut words);
+            score::segment_info(q, s, ws, &words[..nw])
+        }
+        .filter(|sg| sg.covers_all)
+        .map(|sg| score::prefix_quality(n, fm, sg.ends_mid, true, true));
+        let best = cover.map_or(quality, |c| c.max(quality));
+        return below(PREFIX, floor, TextScore::new(PREFIX, best));
+    }
     // ---- word-prefix segmentation
     if first_at_word && floor >= WORD_PREFIX && bound.thresh != i32::MIN {
         // Quality-aware bound: segmentation can only start at or after the first word whose
@@ -325,12 +366,7 @@ pub fn score_bits(
     let mut words = [0u16; 32];
     let mut nw = 0;
     if (first_at_word && !(m == 2 && nd.tokens.len() <= 1 && word_count <= 32)) || nd.tokens.len() >= 2 {
-        let mut b = ws;
-        while b != 0 && nw < 32 {
-            words[nw] = b.trailing_zeros() as u16;
-            nw += 1;
-            b &= b - 1;
-        }
+        nw = word_starts(ws, &mut words);
     }
     let words = &words[..nw];
     let seg = if !first_at_word {
@@ -434,6 +470,41 @@ fn subsequence_bits(bm: &[u64; MAX_NEEDLE], slots: &[u8], ws: u64, n: usize) -> 
     Some(500 + 25 * hits + 15 * consec - 4 * gaps.min(50) - 3 * (start as i32).min(30) - 2 * ((n - m) as i32).min(60))
 }
 
+/// The positions of the first 32 word starts in `ws`, lowest first. Returns how many.
+#[inline(always)]
+fn word_starts(ws: u64, out: &mut [u16; 32]) -> usize {
+    let mut b = ws;
+    let mut nw = 0;
+    while b != 0 && nw < 32 {
+        out[nw] = b.trailing_zeros() as u16;
+        nw += 1;
+        b &= b - 1;
+    }
+    nw
+}
+
+/// The first word of the window that equals the needle, as its word index: the needle occurs at
+/// a word start, and a word ends where it ends, at a separator, a word start or the window's end.
+/// Like the scalar scorer, it looks at the first 32 words only.
+#[inline(always)]
+fn whole_word(bm: &[u64; MAX_NEEDLE], bn: &BitNeedle, s: &[u8], ws: u64, n: usize) -> Option<usize> {
+    let m = bn.ns_slot.len();
+    let mut starts = occurrences(bm, &bn.ns_slot, n) & ws;
+    while starts != 0 {
+        let p = starts.trailing_zeros() as usize;
+        let word = (ws & below_bits(p)).count_ones() as usize;
+        if word >= 32 {
+            return None;
+        }
+        let e = p + m;
+        if e >= n || s[e].is_sep() || (ws >> e) & 1 == 1 {
+            return Some(word);
+        }
+        starts &= starts - 1;
+    }
+    None
+}
+
 /// Bits below position `p` (p may be 64).
 #[inline(always)]
 fn below_bits(p: usize) -> u64 {
@@ -500,4 +571,56 @@ fn first_at_word_all(bm: &[u64; MAX_NEEDLE], bn: &BitNeedle, nd: &Needle<'_, u8>
     nd.tokens
         .iter()
         .all(|&(a, _)| bm[bn.full_slot[a as usize] as usize] & ws != 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every window length from 0 to 64 and every count of distinct chars from 1 to 32, over
+    /// blocks whose bytes past the window are not zero, against a byte-by-byte reference.
+    #[test]
+    fn bitmaps_equal_a_scalar_reference() {
+        let mut x: u64 = 0x2545_F491_4F6C_DD1D;
+        let mut next = || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+        let alphabet = b"abcdefghijklmnopqrstuvwxyz0123456789 .-";
+        let mut checked = 0;
+        for n in 0..=64usize {
+            for d in 1..=MAX_NEEDLE {
+                let mut block = [0u8; 64];
+                for b in block.iter_mut() {
+                    *b = alphabet[(next() % alphabet.len() as u64) as usize];
+                }
+                // Half the draws come from the window, so most chars occur in it.
+                let mut chars: Vec<u8> = Vec::new();
+                while chars.len() < d {
+                    let r = next();
+                    let c = if r % 2 == 0 && n > 0 {
+                        block[(r / 2 % n as u64) as usize]
+                    } else {
+                        alphabet[(r / 2 % alphabet.len() as u64) as usize]
+                    };
+                    if !chars.contains(&c) {
+                        chars.push(c);
+                    }
+                }
+                let mut got = [0u64; MAX_NEEDLE];
+                bitmaps(&block, n, &chars, &mut got);
+                for (k, &c) in chars.iter().enumerate() {
+                    let want = block[..n]
+                        .iter()
+                        .enumerate()
+                        .fold(0u64, |m, (i, &b)| m | (((b == c) as u64) << i));
+                    assert_eq!(got[k], want, "n {n} chars {chars:?} char {k}");
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked > 30_000, "{checked}");
+    }
 }
