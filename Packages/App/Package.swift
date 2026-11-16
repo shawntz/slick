@@ -50,6 +50,11 @@ let package = Package(
         .package(path: "../Features/Bookmarks"),
         .package(path: "../Features/AI"),
         .package(path: "../Features/MenuItems"),
+        .package(path: "../Features/Shell"),
+        .package(path: "../Features/Notes"),
+        .package(path: "../Features/Colors"),
+        .package(path: "../Features/Translate"),
+        .package(path: "../Features/Music"),
     ],
     targets: [
         .target(
@@ -80,6 +85,11 @@ let package = Package(
                 .product(name: "Bookmarks", package: "Bookmarks"),
                 .product(name: "AI", package: "AI"),
                 .product(name: "MenuItems", package: "MenuItems"),
+                .product(name: "ShellCommands", package: "Shell"),
+                .product(name: "MarkdownNotes", package: "Notes"),
+                .product(name: "ColorTools", package: "Colors"),
+                .product(name: "TranslateCommands", package: "Translate"),
+                .product(name: "MusicControls", package: "Music"),
             ],
             swiftSettings: mainActorSettings
         ),
@@ -102,6 +112,11 @@ let package = Package(
                 .product(name: "SettingsUI", package: "SettingsUI"),
                 .product(name: "LauncherUI", package: "LauncherUI"),
                 .product(name: "Updates", package: "Updates"),
+                .product(name: "ShellCommands", package: "Shell"),
+                .product(name: "MarkdownNotes", package: "Notes"),
+                .product(name: "ColorTools", package: "Colors"),
+                .product(name: "TranslateCommands", package: "Translate"),
+                .product(name: "MusicControls", package: "Music"),
             ],
             swiftSettings: mainActorSettings
         ),

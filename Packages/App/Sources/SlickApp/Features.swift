@@ -3,18 +3,23 @@ import Apps
 import Bookmarks
 import Calc
 import Clipboard
+import ColorTools
 import Define
 import Emoji
 import FileSearch
 import Host
 import Kit
+import MarkdownNotes
 import MenuItems
+import MusicControls
 import People
 import Quicklinks
 import Schedule
 import Scripts
+import ShellCommands
 import Snippets
 import SystemCommands
+import TranslateCommands
 import Windows
 
 /// Every feature the app registers, in the order settings shows them. Add a feature with one line
@@ -37,6 +42,11 @@ enum Features {
         BookmarksFeature.self,
         AIFeature.self,
         MenuItemsFeature.self,
+        ShellFeature.self,
+        NotesFeature.self,
+        ColorsFeature.self,
+        TranslateFeature.self,
+        MediaControlsFeature.self,
     ]
 
     /// One registration per feature, made with the feature's own `init(context:)`.
