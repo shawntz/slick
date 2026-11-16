@@ -4,7 +4,8 @@
 # - the shared swiftSettings block, identical everywhere (a manifest cannot import shared code);
 # - default MainActor isolation exactly where the architecture asks for it;
 # - package dependencies only along the allowed edges;
-# - no feature manifest mentions KitHosting, the contracts between the app's own packages.
+# - no feature manifest mentions KitHosting, the contracts between the app's own packages;
+# - one remote dependency in the whole tree: Sparkle, pinned to one exact version, in Updates.
 #   scripts/check-manifests.sh
 set -euo pipefail
 . "$(dirname "$0")/lib/env.sh"
@@ -20,6 +21,7 @@ allowed_dependencies() { # <package name> <is feature: 0|1>
         Platform) echo "Kit" ;;
         SettingsUI | Host) echo "Kit LauncherUI" ;;
         Root) echo "Kit CoreBridge" ;;
+        Updates) echo "Kit" ;;
         App) echo "*" ;;
         *) echo "unknown" ;;
     esac
@@ -33,11 +35,16 @@ isolation_rule() { # <package name> <is feature: 0|1>
         return
     fi
     case $1 in
-        LauncherUI | Platform | Host | Root | SettingsUI | App) echo main ;;
+        LauncherUI | Platform | Host | Root | SettingsUI | Updates | App) echo main ;;
         CoreBridge) echo none ;;
         *) echo any ;;
     esac
 }
+
+# The one remote dependency, exactly as Updates declares it. Sparkle lives in Updates and nowhere
+# else, pinned to one version, so every build links the same framework and signs with the same tools.
+REMOTE_PACKAGE=Updates
+REMOTE_DEPENDENCY='.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6")'
 
 status=0
 problem() {
@@ -77,6 +84,13 @@ for manifest in "$ROOT"/Packages/*/Package.swift "$ROOT"/Packages/Features/*/Pac
 
     if [ $feature = 1 ] && grep -q 'KitHosting' "$manifest"; then
         problem "$where: a feature may not use KitHosting"
+    fi
+
+    remote=$(grep -o '\.package(url:[^)]*)' "$manifest" || true)
+    if [ $feature = 0 ] && [ "$name" = "$REMOTE_PACKAGE" ]; then
+        [ "$remote" = "$REMOTE_DEPENDENCY" ] || problem "$where: must declare exactly one remote dependency, $REMOTE_DEPENDENCY"
+    elif [ -n "$remote" ]; then
+        problem "$where: only $REMOTE_PACKAGE may declare a remote dependency, and this declares $remote"
     fi
 
     allowed=$(allowed_dependencies "$name" "$feature")
