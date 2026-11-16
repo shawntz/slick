@@ -24,16 +24,37 @@ nonisolated struct BundleReader: Sendable {
         let resources = path + "/Contents/Resources"
         let entries = Self.entries(of: resources)
         if entries.contains(table + ".loctable"),
-            let byLanguage = Self.plist(at: resources + "/" + table + ".loctable"),
-            let language = best(of: Array(byLanguage.keys), developmentRegion: developmentRegion),
-            let strings = byLanguage[language] as? [String: Any]
+            let loctable = Self.plist(at: resources + "/" + table + ".loctable")
         {
-            return strings
+            let byLanguage = Self.macTables(in: loctable)
+            if let language = best(of: byLanguage.keys.sorted(), developmentRegion: developmentRegion),
+                let strings = byLanguage[language]
+            {
+                return strings
+            }
         }
-        let languages = entries.filter { $0.hasSuffix(".lproj") }.map { String($0.dropLast(6)) }
+        let languages = entries.filter { $0.hasSuffix(".lproj") }.map { String($0.dropLast(6)) }.sorted()
         guard let language = best(of: languages, developmentRegion: developmentRegion) else { return [:] }
         return Self.plist(at: resources + "/" + language + ".lproj/" + table + "." + suffix) ?? [:]
     }
+
+    /// A loctable's strings by language, as a Mac reads them. A loctable can hold one table per
+    /// device beside the plain one: `en`, `en~mac`, `en~appletv`. The Mac's table wins over the plain
+    /// one string by string, and the tables of other devices are left out. System Settings is why:
+    /// its plain English table is missing, and its Apple TV table names the app "Sprocket".
+    static func macTables(in loctable: [String: Any]) -> [String: [String: Any]] {
+        var tables: [String: [String: Any]] = [:]
+        for (key, value) in loctable where !key.contains("~") && key != "LocProvenance" {
+            if let strings = value as? [String: Any] { tables[key] = strings }
+        }
+        for (key, value) in loctable where key.hasSuffix(Self.macSuffix) {
+            guard let strings = value as? [String: Any] else { continue }
+            tables[String(key.dropLast(Self.macSuffix.count)), default: [:]].merge(strings) { _, mac in mac }
+        }
+        return tables
+    }
+
+    private static let macSuffix = "~mac"
 
     /// The localization among `available` that suits the user best, else the development region.
     func best(of available: [String], developmentRegion: String?) -> String? {

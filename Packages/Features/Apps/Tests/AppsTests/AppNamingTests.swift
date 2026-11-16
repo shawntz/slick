@@ -68,6 +68,45 @@ struct AppNamingTests {
         #expect(apps.map(\.name) == ["Atlas Karten", "Code Studio", "Short"])
     }
 
+    /// Apple's own bundles can hold one table per device and no plain one. The Apple TV's table of
+    /// System Settings names the app "Sprocket", and the scan once showed that name on a Mac.
+    @Test func aLoctableWithDeviceTablesIsReadAsAMacReadsIt() async throws {
+        let folder = Folder()
+        try SyntheticApps.writeApp(
+            at: folder.url.appending(path: "Machine Settings.app"), bundleID: "com.example.machine-settings",
+            info: ["CFBundleName": "Machine Settings", "CFBundleDevelopmentRegion": "en"],
+            localized: [
+                "en~appletv": ["CFBundleDisplayName": "Sprocket", "CFBundleName": "Sprocket"],
+                "en~iphone": ["CFBundleDisplayName": "Settings", "CFBundleName": "Settings"],
+                "en~mac": ["CFBundleDisplayName": "Machine Settings", "CFBundleName": "Machine Settings"],
+                "de": ["CFBundleDisplayName": "Einstellungen", "CFBundleName": "Einstellungen"],
+                "de~mac": ["CFBundleDisplayName": "Maschineneinstellungen"],
+                "de~appletv": ["CFBundleDisplayName": "Zahnrad", "CFBundleName": "Zahnrad"],
+            ], asLoctable: true)
+        let english = await folder.scan()
+        #expect(english.map(\.name) == ["Machine Settings"])
+        #expect(english.first?.keywords == [], "no other device's name finds the app")
+        let german = await folder.scan(languages: ["de-DE", "en"])
+        #expect(german.map(\.name) == ["Maschineneinstellungen"])
+        #expect(german.first?.keywords.contains("Zahnrad") == false)
+    }
+
+    @Test func theMacsTableWinsStringByStringAndOtherDevicesAreLeftOut() {
+        let loctable: [String: Any] = [
+            "en": ["CFBundleName": "Plain", "NSHumanReadableCopyright": "Kept"],
+            "en~mac": ["CFBundleName": "Mac"],
+            "en~appletv": ["CFBundleName": "Television"],
+            "fr~mac": ["CFBundleName": "Mac en français"],
+            "ja~iphone": ["CFBundleName": "Phone"],
+            "LocProvenance": ["en~mac": 1, "fr~mac": 1],
+        ]
+        let tables = BundleReader.macTables(in: loctable)
+        #expect(tables.keys.sorted() == ["en", "fr"])
+        #expect(tables["en"]?["CFBundleName"] as? String == "Mac")
+        #expect(tables["en"]?["NSHumanReadableCopyright"] as? String == "Kept")
+        #expect(tables["fr"]?["CFBundleName"] as? String == "Mac en français")
+    }
+
     @Test func anAppRenamedOnDiskShowsItsNewFileName() async throws {
         let folder = try folder()
         let manager = FileManager.default
