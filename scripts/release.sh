@@ -29,7 +29,8 @@
 #   1 guards     the refusals above
 #   2 build      the Rust core and the app in release configuration, from nothing, in <out>/build
 #   3 bundle     scripts/bundle.sh with the version and build number, stripped with a dSYM beside
-#                it, and THIRD-PARTY-NOTICES.md in Resources once it is known to be current
+#                it, once THIRD-PARTY-NOTICES.md is known to be current. bundle.sh puts it in
+#                Resources, as it does for every bundle
 #   4 sign       each nested piece of code, deepest first, then the bundle with the entitlements
 #   5 notarize   zip with ditto, submit and wait. A dry run skips the submission.
 #   6 staple     staple the ticket, trying again while it is not yet published, then assess with
@@ -210,8 +211,8 @@ APP="$STAGE/$APP_BUNDLE"
 DSYM="$STAGE/$APP_BUNDLE.dSYM"
 [ -d "$APP" ] || fail "scripts/bundle.sh wrote no bundle at $APP."
 [ -d "$DSYM" ] || fail "scripts/bundle.sh wrote no dSYM at $DSYM. Release builds need STRIP=1."
-cp "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/THIRD-PARTY-NOTICES.md" \
-    || fail "could not copy THIRD-PARTY-NOTICES.md into the bundle."
+[ -f "$APP/Contents/Resources/THIRD-PARTY-NOTICES.md" ] \
+    || fail "scripts/bundle.sh put no THIRD-PARTY-NOTICES.md in the bundle."
 for pair in "CFBundleShortVersionString=$VERSION" "CFBundleVersion=$BUILD_NUMBER"; do
     actual=$(plutil -extract "${pair%%=*}" raw "$APP/Contents/Info.plist") \
         || fail "Info.plist has no ${pair%%=*}."

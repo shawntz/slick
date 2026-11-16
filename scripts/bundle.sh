@@ -1,5 +1,6 @@
 #!/bin/bash
-# Assembles and signs the app bundle around the executable that SwiftPM built.
+# Assembles and signs the app bundle around the executable that SwiftPM built: Info.plist, the
+# icon and THIRD-PARTY-NOTICES.md in Resources.
 #   scripts/bundle.sh <executable> <output dir> [debug|release]
 # Prints the path of the bundle on stdout and progress on stderr.
 #
@@ -40,6 +41,9 @@ if [ ! -f "$ICON_DIR/Assets.car" ]; then
         --output-partial-info-plist "$ICON_DIR/partial.plist" > /dev/null
 fi
 cp "$ICON_DIR/Assets.car" "$ICON_DIR/AppIcon.icns" "$APP/Contents/Resources/"
+
+# The licenses of the third-party code the app links travel with every bundle, before signing.
+cp "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/THIRD-PARTY-NOTICES.md"
 
 # Release builds move their symbols into a dSYM beside the bundle, which halves the executable.
 # Debug builds keep them in place. Instruments and crash reports find the dSYM by its UUID.

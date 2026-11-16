@@ -17,7 +17,8 @@ concurrency:
 jobs:
   build-test:
     runs-on: xcode-27
-    timeout-minutes: 30
+    # The release dry run builds the Rust core and the app again from nothing.
+    timeout-minutes: 45
     env:
       # Zero warnings in Swift: CI turns them into errors.
       SWIFT_FLAGS: -Xswiftc -warnings-as-errors
@@ -59,6 +60,12 @@ jobs:
       # Keep going after a failure, so one run shows every package that fails.
       - name: Test
         run: make -k -j2 test
+
+      # The release pipeline from a clean build, signed ad hoc and without the notary service, into
+      # a temporary folder, then every artifact checked: the bundle, its notices, the zips, the dSYM
+      # and the cask. It needs no secret and publishes nothing.
+      - name: Release dry run
+        run: make release-dry-run
 
       - name: The generated C header is committed and current
         run: git diff --exit-code -- core/crates/slick-ffi/include Packages/CoreBridge/Sources/SlickCoreC/include
