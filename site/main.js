@@ -1,8 +1,8 @@
 // Slick website. The page is complete without this file. With it, the page:
-// - adds the download button and its wording when data/release.json turns the download on,
+// - adds the download button and the version line when data/release.json turns the download on,
 // - redraws the feature list and the status chips from data/features.json,
 // - takes alt text from media/manifest.json and plays the recording behind each clip slot,
-// - switches the hero clip between dark and light, and copies the build commands.
+// - switches the hero clip between dark and light, and copies the install and build commands.
 // It makes no request outside this site.
 (() => {
   'use strict';
@@ -42,9 +42,9 @@
     return svg;
   }
 
-  // Download switch. The page as published says nothing about a download. Only when
-  // data/release.json has enabled: true and a URL does this add the button, change the
-  // pre-release line and replace the "Can I download it?" answer.
+  // Download switch. Only when data/release.json has enabled: true and a URL does this add the
+  // download button and set the version line. The answer to "Can I download it?" and the Try it
+  // section are plain HTML, edited by hand for each release.
 
   function applyRelease(release) {
     const download = release && release.download;
@@ -70,13 +70,6 @@
       pill.querySelector('.status-dot')?.classList.add('status-dot--on');
       const text = pill.querySelector('.status-pill-text');
       if (text) text.textContent = download.version ? `Version ${download.version} for macOS` : 'Available for macOS';
-    }
-
-    const faq = doc.getElementById('faq-download');
-    if (faq) {
-      faq.replaceChildren(
-        h('summary', null, 'Where do I download it?'),
-        h('p', null, 'Use the download button at the top of this page, or the releases page on GitHub. Slick needs macOS 26 or later on Apple silicon.'));
     }
   }
 
@@ -337,7 +330,7 @@
     group.hidden = false;
   }
 
-  // Copy the build commands, without prompts or comments.
+  // Copy the commands of a terminal block, without prompts or comments.
 
   function initCopy() {
     if (!navigator.clipboard || !window.isSecureContext) return;
@@ -357,7 +350,7 @@
           message = 'Copy failed';
         }
         button.textContent = message;
-        if (status) status.textContent = message === 'Copied' ? 'Build commands copied.' : 'Could not copy.';
+        if (status) status.textContent = message === 'Copied' ? 'Commands copied.' : 'Could not copy.';
         clearTimeout(timer);
         timer = setTimeout(() => { button.textContent = 'Copy'; }, 1800);
       });

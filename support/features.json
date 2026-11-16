@@ -13,7 +13,7 @@
         { "id": "hotkeys", "title": "Hotkeys, aliases and favorites", "summary": "Give any item a global hotkey or a short alias, and pin favorites to the top.", "status": "available" },
         { "id": "themes", "title": "Themes", "summary": "Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher. The editor and sharing are not tested in the app yet.", "status": "in-progress" },
         { "id": "actions", "title": "Action panel", "summary": "Every result has more actions behind Command-K, with their own shortcuts.", "status": "available" },
-        { "id": "updates", "title": "Updates", "summary": "Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. No release has shipped the updater yet, so it has not run on a Mac.", "status": "in-progress" }
+        { "id": "updates", "title": "Updates", "summary": "Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. Version 0.1.0 is the first release with the updater, so no update has reached anyone through it yet.", "status": "in-progress" }
       ]
     },
     {

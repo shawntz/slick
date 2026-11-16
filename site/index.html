@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>Slick, a native macOS launcher</title>
-<meta name="description" content="Slick is an open-source macOS launcher in the class of Raycast and Alfred. Press a hotkey, type, and open any app, file, setting or command. Pre-release, MIT licensed, written in Swift and Rust.">
+<meta name="description" content="Slick is an open-source macOS launcher in the class of Raycast and Alfred. Press a hotkey, type, and open any app, file, setting or command. An early release, MIT licensed, written in Swift and Rust.">
 <link rel="canonical" href="https://slick.computer/">
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0b0520" media="(prefers-color-scheme: dark)">
@@ -19,14 +19,14 @@
 <meta property="og:site_name" content="Slick">
 <meta property="og:url" content="https://slick.computer/">
 <meta property="og:title" content="Slick, a native macOS launcher">
-<meta property="og:description" content="Press a hotkey, type, and open any app, file, setting or command on your Mac. Open source, pre-release, written in Swift and Rust.">
+<meta property="og:description" content="Press a hotkey, type, and open any app, file, setting or command on your Mac. Open source, an early release, written in Swift and Rust.">
 <meta property="og:image" content="https://slick.computer/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Slick icon, a purple glass square with a lightning bolt, above the name Slick, the line A native macOS launcher, and the words Open source and slick.computer. On the right, part of Slick&#x27;s search panel from a recording of the app: the query no completes to notes, and Notes is selected above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Slick, a native macOS launcher">
-<meta name="twitter:description" content="Press a hotkey, type, and open any app, file, setting or command on your Mac. Open source, pre-release, written in Swift and Rust.">
+<meta name="twitter:description" content="Press a hotkey, type, and open any app, file, setting or command on your Mac. Open source, an early release, written in Swift and Rust.">
 <meta name="twitter:image" content="https://slick.computer/assets/og.png">
 <meta name="twitter:image:alt" content="The Slick icon, a purple glass square with a lightning bolt, above the name Slick, the line A native macOS launcher, and the words Open source and slick.computer. On the right, part of Slick&#x27;s search panel from a recording of the app: the query no completes to notes, and Notes is selected above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information.">
 </head>
@@ -61,7 +61,7 @@
   <div class="hero-glow" aria-hidden="true"></div>
   <div class="wrap hero-grid">
     <div class="hero-id">
-      <p class="status-pill"><span class="status-dot" aria-hidden="true"></span><span class="status-pill-text">Pre-release. No download yet.</span></p>
+      <p class="status-pill"><span class="status-dot status-dot--on" aria-hidden="true"></span><span class="status-pill-text">Version 0.1.0 for macOS</span></p>
       <div class="wordmark-row">
         <img class="hero-icon" src="assets/icon/icon-256.png" width="128" height="128" alt="">
         <h1 id="hero-title" class="wordmark">Slick</h1>
@@ -69,7 +69,7 @@
       <p class="hero-lede">A native macOS launcher. Press a hotkey, type a few letters, and open the app, file, setting or command you meant.</p>
       <div class="cta-row">
         <a class="button button--primary" id="cta-source" href="https://github.com/shawntz/slick"><svg class="icon" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.06-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg><span>Source on GitHub</span></a>
-        <a class="button button--quiet" href="#try"><span>Build and run it</span><svg class="icon icon--arrow" aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h9.5M8.5 4 12.5 8l-4 4"/></svg></a>
+        <a class="button button--quiet" href="#try"><span>Install or build it</span><svg class="icon icon--arrow" aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h9.5M8.5 4 12.5 8l-4 4"/></svg></a>
       </div>
     </div>
     <div class="hero-copy">
@@ -367,8 +367,8 @@
     <ol class="stages" aria-label="Where the project stands">
       <li class="stage" data-stage="done">
         <p class="stage-state"><span class="status-mark" aria-hidden="true"></span>Done</p>
-        <h3>One app with twenty-one features</h3>
-        <p>The engine, the glass panel, the settings window and twenty-one features run as one app. All 65 scripted scenarios pass headless, and so do 278 Rust tests and the tests of 30 Swift packages.</p>
+        <h3>Version 0.1.0 is out</h3>
+        <p>One app with twenty-one features, signed with a Developer ID and notarized by Apple. All 66 scripted scenarios pass headless, and so do 278 Rust tests and the tests of 30 Swift packages.</p>
       </li>
       <li class="stage" data-stage="now" aria-current="step">
         <p class="stage-state"><span class="status-mark" aria-hidden="true"></span>Now</p>
@@ -377,8 +377,8 @@
       </li>
       <li class="stage" data-stage="next">
         <p class="stage-state"><span class="status-mark" aria-hidden="true"></span>Not yet</p>
-        <h3>A download</h3>
-        <p>No download exists yet. You can <a href="#try">build the app from source</a> today.</p>
+        <h3>Every feature proven on a real Mac</h3>
+        <p>Features such as file search, snippets and window management are proven only against made-up data so far. The <a href="#features">feature list</a> says how far along each one is.</p>
       </li>
     </ol>
     <div id="features" data-source="data/features.json">
@@ -408,7 +408,7 @@
 <p class="feature-group-def">Code exists or is being written. Not usable in the app yet.</p>
 <ul class="feature-list">
 <li class="feature"><h4>Themes</h4><p>Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system&#x27;s clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher. The editor and sharing are not tested in the app yet.</p></li>
-<li class="feature"><h4>Updates</h4><p>Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. No release has shipped the updater yet, so it has not run on a Mac.</p></li>
+<li class="feature"><h4>Updates</h4><p>Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. Version 0.1.0 is the first release with the updater, so no update has reached anyone through it yet.</p></li>
 <li class="feature"><h4>File search</h4><p>Slick keeps its own index of file names, which answers in milliseconds, and lets you browse folders. Proven in the launcher over a sample index. Indexing your real folders has not run on a Mac yet.</p></li>
 <li class="feature"><h4>Snippets</h4><p>Saved text with placeholders that you find and paste from the launcher. Expanding a keyword as you type in other apps has not run on a Mac yet.</p></li>
 <li class="feature"><h4>Window management</h4><p>Halves, thirds, quarters, centering and moving windows between displays. Proven against simulated windows. Moving real windows has not run on a Mac yet.</p></li>
@@ -437,10 +437,23 @@
   <div class="wrap split-grid">
     <header class="section-head">
       <p class="kicker">Try it</p>
-      <h2 id="try-title">Build it and run it on your Mac</h2>
-      <p class="lede">There is no download yet. Four commands build the app and open it. Building needs macOS 27 with Xcode 27 and stable Rust.</p>
+      <h2 id="try-title">Install it, or build it yourself</h2>
+      <p class="lede">Version 0.1.0 is signed with a Developer ID and notarized by Apple. Install it with Homebrew, or download it from the <a href="https://github.com/shawntz/slick/releases/latest">releases page</a>. It needs macOS 26 or later on Apple silicon.</p>
     </header>
     <div class="section-body">
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="terminal-title">Homebrew</span>
+          <button type="button" class="copy-button" data-copy-target="brew-command" hidden>Copy</button>
+        </div>
+<code class="terminal-body" id="brew-command">
+          <span class="line"><span class="cmd">brew install --cask shawntz/<wbr>tap/<wbr>slick</span></span>
+        </code>
+        <p class="copy-status visually-hidden" role="status" aria-live="polite"></p>
+      </div>
+
+      <h3 class="subhead">Or build it from source</h3>
+      <p class="subhead-note">Four commands build the app and open it. Building needs macOS 27 with Xcode 27 and stable Rust.</p>
       <div class="terminal">
         <div class="terminal-bar">
           <span class="terminal-title">Four commands</span>
@@ -486,7 +499,7 @@
     <div class="section-body faq">
       <details id="faq-download">
         <summary>Can I download it?</summary>
-        <p>Not yet. Slick is pre-release, so you build it from source. <a href="#try">Four commands</a> build the app and open it.</p>
+        <p>Yes. Version 0.1.0 is on the <a href="https://github.com/shawntz/slick/releases/latest">releases page on GitHub</a>, and <code>brew install --cask shawntz/tap/slick</code> installs it with Homebrew. Slick needs macOS 26 or later on Apple silicon.</p>
       </details>
       <details>
         <summary>How fast is it?</summary>

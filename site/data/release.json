@@ -1,9 +1,9 @@
 {
-  "comment": "Turns the website's download button on or off. When a signed build exists, set enabled to true and url to the file or the release page. Nothing else on the site needs to change.",
+  "comment": "Turns the website's download button on or off and sets the version line. docs/WEBSITE.md lists the sentences in index.html and the README to edit by hand for each release.",
   "download": {
-    "enabled": false,
-    "url": "",
+    "enabled": true,
+    "url": "https://github.com/shawntz/slick/releases/latest",
     "label": "Download for Mac",
-    "version": ""
+    "version": "0.1.0"
   }
 }
