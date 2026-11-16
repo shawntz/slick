@@ -94,6 +94,16 @@ nonisolated enum HostStrings {
         "Allow \(permission) in System Settings"
     }
 
+    /// A run needs Automation for an app that is not open, which macOS asks about only while it is.
+    static func appNotOpen(_ app: String?) -> String {
+        "\(app ?? "The App") Is Not Open"
+    }
+
+    static func appNotOpenMessage(_ app: String?) -> String {
+        "macOS asks the first time you control \(app ?? "the app") while it is open. Open it, then run the "
+            + "command again."
+    }
+
     /// After a grant in System Settings the run does not go ahead by itself, so the title asks
     /// for it again.
     static func grantedRunAgain(_ permission: String, run title: String?) -> String {

@@ -364,6 +364,16 @@ import KitHosting
                 await runtime.permissionGranted(permission)
                 continue
             }
+            // Automation is asked only while its app runs, and nothing starts the app to ask. An
+            // answer still not given means the app is not open: System Settings does not list it
+            // yet, so say what to do instead of sending the user there.
+            if case .automation(let bundleID) = permission, before == .notDetermined, after == .notDetermined {
+                let name = runtime.services.workspace.application(bundleID: bundleID)?.name
+                showFailure(
+                    title: HostStrings.appNotOpen(name.map(DisplayText.oneLine)),
+                    message: HostStrings.appNotOpenMessage(name.map(DisplayText.oneLine)))
+                return .refused
+            }
             // Listen before opening System Settings, so a quick grant is not missed.
             let changes = service.changes(of: permission)
             // System Settings or the system's dialog takes key focus, and the panel would close with
