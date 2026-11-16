@@ -130,7 +130,7 @@ nonisolated enum CalcStrings {
         "Rounds numbers, percentages and units to at most this many places. Money keeps its currency's cents."
     static func decimalPlacesOption(_ choice: DecimalPlaces) -> String {
         guard let places = choice.places else { return "Automatic" }
-        return places == 1 ? "1 place" : "\(places) places"
+        return places == 1 ? "1 Place" : "\(places) Places"
     }
 
     static let grouping = "Digit grouping"
@@ -161,9 +161,9 @@ nonisolated enum CalcStrings {
     static func dateOrderOption(_ choice: DateOrderChoice) -> String {
         switch choice {
         case .system: "As in System Settings"
-        case .dayMonthYear: "Day, month, year"
-        case .monthDayYear: "Month, day, year"
-        case .yearMonthDay: "Year, month, day"
+        case .dayMonthYear: "Day, Month, Year"
+        case .monthDayYear: "Month, Day, Year"
+        case .yearMonthDay: "Year, Month, Day"
         }
     }
 
@@ -171,8 +171,8 @@ nonisolated enum CalcStrings {
     static func clockOption(_ choice: ClockChoice) -> String {
         switch choice {
         case .system: "As in System Settings"
-        case .twelveHour: "12-hour clock"
-        case .twentyFourHour: "24-hour clock"
+        case .twelveHour: "12-Hour Clock"
+        case .twentyFourHour: "24-Hour Clock"
         }
     }
 
@@ -188,12 +188,12 @@ nonisolated enum CalcStrings {
     static func dollarOption(_ choice: DollarChoice) -> String {
         switch choice {
         case .automatic: "Automatic"
-        case .usd: "US dollars"
-        case .cad: "Canadian dollars"
-        case .aud: "Australian dollars"
-        case .nzd: "New Zealand dollars"
-        case .sgd: "Singapore dollars"
-        case .hkd: "Hong Kong dollars"
+        case .usd: "US Dollars"
+        case .cad: "Canadian Dollars"
+        case .aud: "Australian Dollars"
+        case .nzd: "New Zealand Dollars"
+        case .sgd: "Singapore Dollars"
+        case .hkd: "Hong Kong Dollars"
         }
     }
 
@@ -206,7 +206,7 @@ nonisolated enum CalcStrings {
     static let keepsHistoryInfo = "Turning this off keeps what is saved until you clear it."
     static let historyLimit = "Keep at most"
     static let historyLimitInfo = "Lowering it deletes the oldest answers at once, after asking."
-    static func historyLimitOption(_ count: Int) -> String { "\(count) answers" }
+    static func historyLimitOption(_ count: Int) -> String { "\(count) Answers" }
     static func limitQuestion(_ count: Int) -> String { "Keep Only \(count) Answers?" }
     static func limitMessage(_ count: Int) -> String {
         "Answers older than the newest \(count) are deleted now. This cannot be undone."

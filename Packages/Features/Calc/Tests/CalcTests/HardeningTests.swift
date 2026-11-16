@@ -27,7 +27,7 @@ struct HardeningTests {
             try await copy("\(n) + 1", in: harness)
         }
         harness.confirmationAnswer = false
-        #expect(try harness.chooseSetting("Keep at most", option: "25 answers") == false)
+        #expect(try harness.chooseSetting("Keep at most", option: "25 Answers") == false)
         try await harness.settle()
         #expect(harness.confirmations.map(\.title) == ["Keep Only 25 Answers?"])
         #expect(harness.confirmations.first?.isDestructive == true)
@@ -35,11 +35,11 @@ struct HardeningTests {
         #expect(harness.context.settings[CalcSettings.historyLimit] == 100)
 
         harness.confirmationAnswer = true
-        #expect(try harness.chooseSetting("Keep at most", option: "25 answers"))
+        #expect(try harness.chooseSetting("Keep at most", option: "25 Answers"))
         try await harness.settle()
         #expect(harness.feature.history.entries.count == 25)
 
-        #expect(try harness.chooseSetting("Keep at most", option: "250 answers"))
+        #expect(try harness.chooseSetting("Keep at most", option: "250 Answers"))
         #expect(harness.confirmations.count == 2, "a larger size loses nothing and asks nothing")
     }
 
