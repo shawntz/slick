@@ -131,6 +131,8 @@ What happens:
 
 `stopRecording` takes `tail`, the seconds recorded after the last step, 0.8 by default, and `poster`, the second of the clip for the poster picture, the last frame by default. `webMaxBytes`, 3,000,000, `gifWidth`, 940, and `gifMaxBytes`, 6,000,000, set the budgets. It writes into `clips/` in the output folder:
 
+After publishing, `record.sh` runs `scenarios/media/check.py`, and `make lint` runs it too. It fails when a manifest entry names a missing file or has no alt text or caption, when a text has a dash or a parenthesis, when a clip is over its budget, and when a storyboard's clip or still is missing from the manifest.
+
 | File | What it is |
 |---|---|
 | `<name>-master.mp4` | Every frame as recorded, H.264 at 24 Mbit/s, at the display's pixel scale. |
