@@ -55,8 +55,10 @@ jobs:
       - name: Lint
         run: make lint
 
+      # Two at a time: the runner has three cores, and four suites at once starve each other.
+      # Keep going after a failure, so one run shows every package that fails.
       - name: Test
-        run: make -j4 test
+        run: make -k -j2 test
 
       - name: The generated C header is committed and current
         run: git diff --exit-code -- core/crates/slick-ffi/include Packages/CoreBridge/Sources/SlickCoreC/include
