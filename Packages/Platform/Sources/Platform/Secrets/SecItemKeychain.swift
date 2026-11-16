@@ -127,15 +127,25 @@ nonisolated public enum KeychainError: Error, Hashable, Sendable, LocalizedError
     /// The Keychain returned something other than the item's data.
     case unexpectedResult
 
+    /// A title, as a failure toast shows it.
     public var errorDescription: String? {
         switch self {
+        case .status(let status): "Keychain Error \(status)"
+        case .notText: "Stored Secret Is Not Text"
+        case .unexpectedResult: "Unexpected Keychain Result"
+        }
+    }
+
+    /// What happened, as a sentence under the title.
+    public var failureReason: String? {
+        switch self {
         case .status(let status):
-            let message = SecCopyErrorMessageString(status, nil) as String? ?? "unknown error"
-            return "Keychain error \(status): \(message)"
+            let message = SecCopyErrorMessageString(status, nil) as String? ?? "The Keychain gave no reason"
+            return message.hasSuffix(".") ? message : message + "."
         case .notText:
-            return "The stored secret is not text."
+            return "The Keychain holds something other than text for this item."
         case .unexpectedResult:
-            return "The Keychain returned an unexpected result."
+            return "The Keychain returned something other than the item's data."
         }
     }
 }

@@ -89,12 +89,21 @@ nonisolated public enum WorkspaceError: Error, Hashable, Sendable, LocalizedErro
     /// These items could not be moved to the Trash. The others moved to `moved`.
     case trashFailed([URL], moved: [URL])
 
+    /// A title, as a failure toast shows it.
     public var errorDescription: String? {
+        switch self {
+        case .applicationNotFound: "App Not Installed"
+        case .trashFailed: "Could Not Move to the Trash"
+        }
+    }
+
+    /// What happened, as a sentence under the title.
+    public var failureReason: String? {
         switch self {
         case .applicationNotFound(let bundleID): "No app with the identifier \(bundleID) is installed."
         case .trashFailed(let failed, _):
             failed.count == 1
-                ? "\(failed[0].lastPathComponent) could not be moved to the Trash."
+                ? "\(DisplayText.fileName(failed[0].lastPathComponent)) could not be moved to the Trash."
                 : "\(failed.count) items could not be moved to the Trash."
         }
     }
