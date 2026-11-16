@@ -18,8 +18,11 @@ reasons live here instead of in the `.entitlements` files.
   has no location text. A feature that needs it adds both, and `InfoPlistTests` fails until it does.
 - Every usage text in `Info.plist.in` matches a permission some feature lists in its manifest:
   folders, removable and network volumes and iCloud Drive for File Search, Contacts, Calendars and
-  Reminders, and Apple Events for System. `NSLocalNetworkUsageDescription` is for AI's local model
-  server. `InfoPlistTests` checks both directions.
+  Reminders, and Apple Events for System and Media Controls. `NSLocalNetworkUsageDescription` is for
+  AI's local model server. `InfoPlistTests` checks both directions.
+- macOS shows one text for a guarded folder, whatever reads it. So each folder text also names a
+  notes folder the user chose there and the shell commands and scripts the user runs, and the Apple
+  Events and local network texts name shell commands too. `InfoPlistTests` checks those words.
 - A keychain access group would let Platform's `SecItemKeychain` use the data protection keychain
   in every build. It needs a team ID and a provisioning profile, so it is not here. Builds fall
   back to the login keychain.

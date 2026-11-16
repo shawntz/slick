@@ -64,7 +64,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Open source under the MIT license.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>@BRAND_NAME@ sends Apple Events only when you run a command that needs one: to Finder to empty the Trash, to System Events to switch between light and dark appearance, and to the login window to log out, restart or shut down. Script commands you add may send their own.</string>
+	<string>@BRAND_NAME@ sends Apple Events only for something you do: to Finder to empty the Trash, to System Events to switch between light and dark appearance, to the login window to log out, restart or shut down, and to Music or Spotify while they run, to play, pause or skip and to show what is playing. Script commands and shell commands you run may send their own.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>@BRAND_NAME@ shows your upcoming events and their meeting links, suggests a meeting that is about to start, and adds the events you create from the launcher.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
@@ -72,23 +72,23 @@
 	<key>NSContactsUsageDescription</key>
 	<string>@BRAND_NAME@ reads your contacts on this Mac so you can find people and call, message or email them from the launcher.</string>
 	<key>NSDesktopFolderUsageDescription</key>
-	<string>@BRAND_NAME@ indexes the names of the files on your Desktop, once you include it in File Search, so you can find and open them from the launcher.</string>
+	<string>@BRAND_NAME@ reads your Desktop when you include it in File Search, which indexes the names of its files, or when you choose a folder there for your notes. A shell command or script you run from the launcher may read it too.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>@BRAND_NAME@ indexes the names of the files in Documents, once you include it in File Search, so you can find and open them from the launcher.</string>
+	<string>@BRAND_NAME@ reads Documents when you include it in File Search, which indexes the names of its files, or when you choose a folder there for your notes. A shell command or script you run from the launcher may read it too.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>@BRAND_NAME@ indexes the names of the files in Downloads, once you include it in File Search, so you can find and open them from the launcher.</string>
+	<string>@BRAND_NAME@ reads Downloads when you include it in File Search, which indexes the names of its files, or when you choose a folder there for your notes. A shell command or script you run from the launcher may read it too.</string>
 	<key>NSRemovableVolumesUsageDescription</key>
-	<string>@BRAND_NAME@ indexes the names of the files on removable drives, once you include them in File Search, so you can find and open them from the launcher.</string>
+	<string>@BRAND_NAME@ reads removable drives when you include them in File Search, which indexes the names of their files, or when you choose a folder on one for your notes. A shell command or script you run from the launcher may read them too.</string>
 	<key>NSNetworkVolumesUsageDescription</key>
-	<string>@BRAND_NAME@ indexes the names of the files on network volumes, once you include them in File Search, so you can find and open them from the launcher.</string>
+	<string>@BRAND_NAME@ reads network volumes when you include them in File Search, which indexes the names of their files, or when you choose a folder on one for your notes. A shell command or script you run from the launcher may read them too.</string>
 	<key>NSFileProviderDomainUsageDescription</key>
-	<string>@BRAND_NAME@ indexes the names of the files in iCloud Drive, once you include it in File Search, so you can find and open them from the launcher. It downloads nothing.</string>
+	<string>@BRAND_NAME@ reads iCloud Drive when you include it in File Search, which indexes the names of its files, or when you choose a folder there for your notes, and it downloads nothing for either. A shell command or script you run from the launcher may read it too.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>@BRAND_NAME@ connects to a model server on your local network only when you set one up in AI settings and ask a question.</string>
+	<string>@BRAND_NAME@ connects to a model server on your local network only when you set one up in AI settings and ask a question. A shell command you run from the launcher may reach devices on your network too.</string>
 </dict>
 </plist>

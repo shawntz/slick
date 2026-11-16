@@ -33,6 +33,47 @@ struct InfoPlistTests {
         let reason = try #require(plist["NSLocalNetworkUsageDescription"] as? String)
         #expect(reason.hasSuffix("."))
         #expect(reason.contains("AI settings"))
+        #expect(reason.contains("shell command"), "a shell command the user runs can reach the network too")
+    }
+
+    /// The keys of the folders macOS guards. Each one's text names every part of the app that reads
+    /// there: File Search, a notes folder the user chose, and shell commands and scripts.
+    static let folderKeys = [
+        "NSDesktopFolderUsageDescription", "NSDocumentsFolderUsageDescription", "NSDownloadsFolderUsageDescription",
+        "NSRemovableVolumesUsageDescription", "NSNetworkVolumesUsageDescription",
+        "NSFileProviderDomainUsageDescription",
+    ]
+
+    /// The sentences of a usage text.
+    static func sentenceCount(_ text: String) -> Int {
+        text.components(separatedBy: ". ").count
+    }
+
+    /// macOS shows one text for a folder, whatever reads it, so the text covers every reader in
+    /// one or two sentences.
+    @Test func theFolderTextsNameEveryReader() throws {
+        let plist = try Self.plist()
+        for key in Self.folderKeys {
+            let text = try #require(plist[key] as? String, "\(key) is missing")
+            #expect(text.contains("File Search"), "\(key)")
+            #expect(text.contains("for your notes"), "\(key)")
+            #expect(text.contains("shell command or script you run"), "\(key)")
+            #expect(Self.sentenceCount(text) <= 2, "\(key)")
+        }
+        let iCloud = try #require(plist["NSFileProviderDomainUsageDescription"] as? String)
+        #expect(iCloud.contains("downloads nothing"))
+    }
+
+    /// The Apple Events text names each app the launcher sends events to, Media Controls' players
+    /// among them, and says that commands the user runs may send their own.
+    @Test func theAppleEventsTextNamesEveryTarget() throws {
+        let text = try #require(try Self.plist()["NSAppleEventsUsageDescription"] as? String)
+        for name in [
+            "Finder", "System Events", "login window", "Music", "Spotify", "Script commands", "shell commands",
+        ] {
+            #expect(text.contains(name), "\(name)")
+        }
+        #expect(Self.sentenceCount(text) <= 2)
     }
 
     static var supportFolder: URL { template.deletingLastPathComponent() }
