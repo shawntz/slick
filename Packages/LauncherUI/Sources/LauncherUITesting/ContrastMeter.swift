@@ -15,6 +15,26 @@ nonisolated public enum ContrastMeter {
         return (high + 0.05) / (low + 0.05)
     }
 
+    /// A worst case for text over a backdrop that the glass does not even out, such as clear
+    /// glass over stripes: the glyph cores against the least favourable tenth of the background
+    /// in bands just above and below `rect`, where no glyph is drawn. Light text meets the
+    /// brightest background, dark text the darkest. 1 when the background reaches the text.
+    ///
+    /// `contrastRatio` pairs the text with the background most unlike it, which frosted glass
+    /// makes nearly flat. Behind clear glass that overstates what a reader sees.
+    public static func worstCaseRatio(_ image: CGImage, in rect: CGRect, lightText: Bool) -> Double {
+        let text = linearLuminance(image, in: rect).sorted()
+        let band = max(2, (rect.height * 0.35).rounded())
+        let around =
+            (linearLuminance(image, in: CGRect(x: rect.minX, y: rect.minY - band, width: rect.width, height: band))
+            + linearLuminance(image, in: CGRect(x: rect.minX, y: rect.maxY, width: rect.width, height: band))).sorted()
+        guard !text.isEmpty, !around.isEmpty else { return .nan }
+        let glyph = text[Int(Double(text.count - 1) * (lightText ? 0.97 : 0.03))]
+        let background = around[Int(Double(around.count - 1) * (lightText ? 0.9 : 0.1))]
+        let (light, dark) = lightText ? (glyph, background) : (background, glyph)
+        return max(1, (light + 0.05) / (dark + 0.05))
+    }
+
     /// The mean sRGB-weighted luminance of `rect`, from 0 to 1, without linearising.
     public static func meanLuminance(_ image: CGImage, in rect: CGRect) -> Double {
         guard let pixels = rgba(image, in: rect), !pixels.isEmpty else { return .nan }

@@ -29,6 +29,9 @@ enum ShowcaseMode {
         var theme: Theme = .standard
         /// Only in dark mode, written without the appearance suffix.
         var darkOnly = false
+        /// A synthetic backdrop instead of the wallpaper. Such shots are for comparing, not for
+        /// publishing.
+        var backdrop: BackdropKind?
         let setUp: @MainActor (ShowcaseStage) -> Void
         var afterSummon: (@MainActor (ShowcaseStage) -> Void)?
 
@@ -50,6 +53,15 @@ enum ShowcaseMode {
         Shot(name: "theme-ocean", theme: .ocean, darkOnly: true) { $0.showHero() },
         Shot(name: "theme-ember", theme: .ember, darkOnly: true) { $0.showHero() },
         Shot(name: "theme-violet", theme: .violet, darkOnly: true) { $0.showHero() },
+        // Beam and Clear change the glass itself, so both tones show.
+        Shot(name: "theme-beam", theme: .beam) { $0.showSuggestions() },
+        Shot(name: "theme-beam-typed", theme: .beam) { $0.showHero() },
+        Shot(name: "theme-clear", theme: .clear) { $0.showHero() },
+        // Beam at the reference's 520 pt over a light editor window, before anything is typed, to
+        // put beside the reference.
+        Shot(name: "beam-reference", theme: ShowcaseStage.beamAtReferenceWidth, darkOnly: true, backdrop: .document) {
+            $0.showCategories()
+        },
     ]
 
     static func run(_ options: DemoOptions) async -> Bool {
@@ -158,6 +170,12 @@ enum ShowcaseMode {
         defer { backdrop.close() }
         var images: [(Shot, CGImage)] = []
         for shot in batch {
+            let synthetic = shot.backdrop.map { BackdropWindow(kind: $0, frame: canvas) }
+            if let synthetic {
+                synthetic.orderFrontRegardless()
+                synthetic.order(.below, relativeTo: surface.panel.windowNumber)
+            }
+            defer { synthetic?.close() }
             stage.reset()
             surface.theme = shot.theme
             shot.setUp(stage)
@@ -306,6 +324,55 @@ final class ShowcaseStage {
         scene.list.apply(ShowcaseCatalog.suggestions())
         scene.list.select(0, animated: false)
         surface.actionBar.apply(ActionBarContent(viewTitle: "Search", primaryTitle: "Open Application"))
+    }
+
+    /// Beam at the reference's width; every other value is Beam's own.
+    static let beamAtReferenceWidth: Theme = {
+        var theme = Theme.beam
+        theme.panel.width = 520
+        return theme
+    }()
+
+    /// Four rows with white line glyphs and no selection, as the reference shows before anything
+    /// is typed. The titles are this app's own words.
+    func showCategories() {
+        let rows = [
+            ("square.grid.2x2", "Apps"), ("folder", "Files"), ("square.stack.3d.up", "Commands"),
+            ("doc.on.clipboard", "Clipboard History"),
+        ].enumerated().map { index, item in
+            ListRow(id: UInt64(index + 1), title: item.1, icon: Self.lineGlyph(item.0))
+        }
+        scene.list.apply(ListContent(sections: [ListSection(rows: rows)]))
+        scene.list.select(nil, animated: false)
+        surface.actionBar.apply(ActionBarContent(viewTitle: "Search", primaryTitle: "Open"))
+    }
+
+    /// A white SF Symbol in a 24 pt box at 2x, as the host draws a symbol icon in dark mode.
+    static func lineGlyph(_ name: String) -> CGImage? {
+        let pixels = 48
+        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil),
+            let space = CGColorSpace(name: CGColorSpace.sRGB),
+            let context = CGContext(
+                data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        // The host's recipe for a symbol icon: drawn at 0.7 of the box and fitted, up or down, into
+        // the box less 8% on each side.
+        let configuration = NSImage.SymbolConfiguration(pointSize: CGFloat(pixels) * 0.7, weight: .regular)
+            .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
+        guard let image = symbol.withSymbolConfiguration(configuration) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let size = image.size
+        let available = CGFloat(pixels) * 0.84
+        let scale = min(available / size.width, available / size.height)
+        let drawn = CGSize(width: size.width * scale, height: size.height * scale)
+        image.draw(
+            in: CGRect(
+                x: (CGFloat(pixels) - drawn.width) / 2, y: (CGFloat(pixels) - drawn.height) / 2, width: drawn.width,
+                height: drawn.height))
+        NSGraphicsContext.restoreGraphicsState()
+        return context.makeImage()
     }
 
     func showActions() {

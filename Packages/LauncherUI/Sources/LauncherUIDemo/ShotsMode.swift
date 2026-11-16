@@ -3,13 +3,15 @@ import AppKit
 import LauncherUITesting
 
 /// Writes the capture matrix: backdrops by two appearances, with and without a query, in both
-/// lens styles, plus a sheet of other states. Prints the contrast of every capture.
+/// lens styles, plus a sheet of other states per theme. Prints the contrast of every capture.
 ///
-///   shots [themes=standard,graphite] [backdrops=busy,white,dark,wallpaper-dark,wallpaper-light]
-///         [lenses=both|own] [appearances=light,dark] [extras=1] [idle=15]
+///   shots [themes=standard,beam,clear] [backdrops=busy,white,dark,document,wallpaper-dark,wallpaper-light]
+///         [lenses=auto|both|own] [appearances=light,dark] [extras=1] [idle=15]
 ///
-/// `themes` takes the built-in theme names. `lenses=own` keeps each theme's own lens instead of
-/// trying both styles. The wallpaper backdrops are the two generated product-shot wallpapers.
+/// `themes` takes the built-in theme names; Standard, Beam and Clear run by default. `lenses=auto`
+/// tries both lens styles on Standard and keeps every other theme's own lens; `both` and `own`
+/// apply to every theme. The default backdrops are the three of glass rule 5. `document` is a
+/// light editor window, and the wallpaper backdrops are the two generated product-shot wallpapers.
 ///
 /// Every capture holds key status for about a quarter of a second, and a backdrop is on screen
 /// for under two seconds per batch. Each batch waits until nobody has touched the keyboard or
@@ -28,12 +30,13 @@ enum ShotsMode {
     static let appearances: [(name: String, appearance: NSAppearance.Name)] = [("light", .aqua), ("dark", .darkAqua)]
     static let query = "co"
     static let syntheticBackdrops = BackdropKind.allCases.map(\.rawValue)
+    static let defaultThemes = "standard,beam,clear"
     static let wallpaperBackdrops = ["wallpaper-dark", "wallpaper-light"]
     private static var wallpapers: [String: CGImage?] = [:]
 
     static func run(_ options: DemoOptions) async -> Bool {
         let out = options.outputDirectory
-        let themeNames = options.string("themes", "standard").split(separator: ",").map { $0.lowercased() }
+        let themeNames = options.string("themes", defaultThemes).split(separator: ",").map { $0.lowercased() }
         let themes = themeNames.compactMap { name in
             ThemeStore.builtInThemes.first { $0.name.lowercased() == name }
         }
@@ -41,13 +44,13 @@ enum ShotsMode {
             say("shots: unknown theme in \(themeNames); built-in themes are \(ThemeStore.builtInThemes.map(\.name))")
             return false
         }
-        let backdrops = options.string("backdrops", syntheticBackdrops.joined(separator: ",")).split(separator: ",")
-            .map(String.init)
+        let backdrops = options.string("backdrops", BackdropKind.matrix.map(\.rawValue).joined(separator: ","))
+            .split(separator: ",").map(String.init)
         guard backdrops.allSatisfy({ syntheticBackdrops.contains($0) || wallpaperBackdrops.contains($0) }) else {
             say("shots: backdrops are \((syntheticBackdrops + wallpaperBackdrops).joined(separator: ", "))")
             return false
         }
-        let ownLens = options.string("lenses", "both") == "own"
+        let lensChoice = options.string("lenses", "auto")
         let appearanceNames = Set(options.string("appearances", "light,dark").split(separator: ",").map(String.init))
         let appearances = Self.appearances.filter { appearanceNames.contains($0.name) }
         let idle = options.double("idle", 15)
@@ -58,7 +61,8 @@ enum ShotsMode {
         var expected = 0
         for named in themes {
             scene.surface.theme = named.theme
-            let lenses = ownLens ? [named.theme.lens.style] : LensMetrics.Style.allCases
+            let bothLenses = lensChoice == "both" || (lensChoice == "auto" && named.name == ThemeStore.standardName)
+            let lenses = bothLenses ? LensMetrics.Style.allCases : [named.theme.lens.style]
             for (name, appearance) in appearances {
                 guard await IdleGate.wait(seconds: idle, until: deadline) else { return false }
                 await CaptureSupport.setAppearance(appearance, scene)
@@ -92,10 +96,15 @@ enum ShotsMode {
             }
             scene.surface.theme = named.theme
         }
+        var extras: [(String, [[SheetComposer.Cell]])] = []
+        if options.int("extras", 1) == 1 {
+            for named in themes {
+                guard await IdleGate.wait(seconds: idle, until: deadline) else { return false }
+                scene.surface.theme = named.theme
+                extras.append((named.name, await extraStates(scene)))
+            }
+        }
         scene.surface.theme = .standard
-        let extras =
-            options.int("extras", themes.count == 1 && themes[0].name == ThemeStore.standardName ? 1 : 0) == 1
-            ? await extraStates(scene) : []
 
         var table = TextTable(["theme", "appearance", "backdrop", "lens", "state"] + ContrastSample.headers)
         for capture in captures {
@@ -142,9 +151,11 @@ enum ShotsMode {
                 }
             }
         }
-        if !extras.isEmpty, let sheet = SheetComposer.compose(title: "Other states", rows: extras) {
-            try? SheetComposer.writePNG(sheet, to: out.appendingPathComponent("sheet-extras.png"))
-            written.append("sheet-extras.png")
+        for (name, rows) in extras {
+            guard let sheet = SheetComposer.compose(title: "\(name), other states", rows: rows) else { continue }
+            let file = name == ThemeStore.standardName ? "sheet-extras.png" : "sheet-extras-\(name.lowercased()).png"
+            try? SheetComposer.writePNG(sheet, to: out.appendingPathComponent(file))
+            written.append(file)
         }
         say("wrote \(written.joined(separator: ", ")) and \(captures.count) captures under raw/ in \(out.path)")
         return captures.count == expected && captures.allSatisfy(\.contrast.passes)

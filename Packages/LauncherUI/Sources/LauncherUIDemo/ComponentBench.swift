@@ -16,8 +16,8 @@ enum ComponentBench {
     static let gridQueries = ["amber", "harbor sage", "tide", "zephyr", "quartz moss", "lumen"]
 
     /// A scene showing `content` without key status in the corner, not yet summoned.
-    private static func makeScene(_ content: any LauncherContentView) -> DemoScene {
-        let scene = DemoScene()
+    private static func makeScene(_ content: any LauncherContentView, theme: Theme = .standard) -> DemoScene {
+        let scene = DemoScene(theme: theme)
         scene.summoner.prewarm()
         scene.summoner.takesKeyStatus = false
         scene.surface.setContent(content, animated: false)
@@ -144,9 +144,9 @@ enum ComponentBench {
 
     static var lastOpenSplit = OpenSplit()
 
-    static func actionCard() async -> (open: Result, filter: Result) {
+    static func actionCard(theme: Theme = .standard) async -> (open: Result, filter: Result) {
         let list = ResultListView()
-        let scene = makeScene(list)
+        let scene = makeScene(list, theme: theme)
         list.apply(SyntheticCatalog().rootContent())
         scene.surface.updateHeight(animated: false)
         scene.surface.accessibilityOverride = DisplayAccessibility(reduceMotion: true)

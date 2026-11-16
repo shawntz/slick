@@ -2,14 +2,116 @@ import AppKit
 import LauncherUI
 import LauncherUITesting
 
-/// Measures contrast over a sweep of glass tints, to find the least tint that meets glass rule 5
-/// over every backdrop in each appearance.
+/// Measures contrast over a sweep of one setting per theme, to find the least that meets glass
+/// rule 5 over every backdrop in each appearance:
+/// - Standard: the glass tint's alpha.
+/// - Beam: the results container's tint alpha.
+/// - Clear: the text halo's alpha, with the glass left untinted. Clear's verdicts are expected to
+///   fail over a busy backdrop; the numbers go into its description.
 ///
-/// Options: `light=` and `dark=` list the tint alphas to try; `lightSecondary=` and
-/// `darkSecondary=` replace the subtitle, accessory and header colour (a theme colour string);
-/// `halo=1` adds a soft opposite-luminance halo behind row text.
+/// Options: `themes=standard,beam,clear` picks the sweeps, all three by default. `light=` and
+/// `dark=` list the values to try for every sweep; `lightSecondary=` and `darkSecondary=` replace
+/// Standard's subtitle, accessory and header colour (a theme colour string); `halo=1` adds a soft
+/// opposite-luminance halo behind Standard's row text. Each backdrop batch waits for `idle`
+/// seconds without input first.
 enum LegibilityMode {
+    /// One setting of one theme, applied to a copy of the theme for an appearance.
+    struct Sweep {
+        let theme: String
+        let setting: String
+        let base: Theme
+        let values: [String: [Double]]
+        let apply: (inout Theme, _ dark: Bool, _ value: Double) -> Void
+    }
+
     static func run(_ options: DemoOptions) async -> Bool {
+        let names = options.string("themes", ShotsMode.defaultThemes).split(separator: ",").map { $0.lowercased() }
+        let sweeps = names.compactMap { sweep($0, options) }
+        guard sweeps.count == names.count else {
+            say("legibility: themes are standard, beam and clear")
+            return false
+        }
+        let idle = options.double("idle", 15)
+        let deadline = Date().addingTimeInterval(options.double("idleBudget", 1800))
+        let scene = DemoScene()
+        scene.summoner.prewarm()
+        var table = TextTable(["theme", "setting", "appearance", "backdrop", "value"] + ContrastSample.headers)
+        for sweep in sweeps {
+            scene.surface.theme = sweep.base
+            scene.showLegibilityContent()
+            var verdicts: [String: [Double: Bool]] = [:]
+            for (name, appearance) in ShotsMode.appearances {
+                guard await IdleGate.wait(seconds: idle, until: deadline) else { return false }
+                await CaptureSupport.setAppearance(appearance, scene)
+                let dark = name == "dark"
+                for backdrop in BackdropKind.matrix {
+                    guard await IdleGate.wait(seconds: idle, until: deadline) else { return false }
+                    let samples = await CaptureSupport.withBackdrop(backdrop, under: scene) {
+                        () async -> [(Double, ContrastSample)] in
+                        var samples: [(Double, ContrastSample)] = []
+                        for value in sweep.values[name] ?? [] {
+                            var theme = sweep.base
+                            sweep.apply(&theme, dark, value)
+                            scene.surface.theme = theme
+                            scene.showLegibilityContent()
+                            guard let image = await CaptureSupport.captureKey(scene) else { continue }
+                            samples.append((value, CaptureSupport.measure(image, scene: scene)))
+                            let file = "\(sweep.theme)-\(name)-\(backdrop.rawValue)-\(format(value)).png"
+                            try? SheetComposer.writePNG(image, to: options.outputDirectory.appendingPathComponent(file))
+                        }
+                        return samples
+                    }
+                    for (value, sample) in samples {
+                        table.add([sweep.theme, sweep.setting, name, backdrop.rawValue, format(value)] + sample.cells)
+                        verdicts[name, default: [:]][value] = (verdicts[name]?[value] ?? true) && sample.passes
+                    }
+                    await pause(ms: 700)
+                }
+            }
+            for name in ["light", "dark"] {
+                let least = (sweep.values[name] ?? []).sorted().first { verdicts[name]?[$0] == true }
+                say(
+                    "\(sweep.theme) \(name): least \(sweep.setting) passing over every backdrop: "
+                        + (least.map { format($0) } ?? "none in the sweep"))
+            }
+        }
+        scene.surface.theme = .standard
+        say(table.render())
+        try? table.render().write(
+            to: options.outputDirectory.appendingPathComponent("legibility.md"), atomically: true, encoding: .utf8)
+        return true
+    }
+
+    private static func sweep(_ name: String, _ options: DemoOptions) -> Sweep? {
+        func values(_ light: [Double], _ dark: [Double]) -> [String: [Double]] {
+            ["light": options.doubles("light", light), "dark": options.doubles("dark", dark)]
+        }
+        switch name {
+        case "standard":
+            return Sweep(
+                theme: name, setting: "glass tint", base: standardBase(options),
+                values: values([0, 0.15, 0.3, 0.45], [0.15, 0.3, 0.45, 0.6])
+            ) { theme, dark, value in
+                if dark { theme.dark.glassTint.alpha = value } else { theme.light.glassTint.alpha = value }
+            }
+        case "beam":
+            return Sweep(
+                theme: name, setting: "results tint", base: .beam, values: values([0.15, 0.3, 0.45], [0.3, 0.4, 0.5])
+            ) { theme, dark, value in
+                if dark { theme.dark.glassTint.alpha = value } else { theme.light.glassTint.alpha = value }
+            }
+        case "clear":
+            return Sweep(theme: name, setting: "halo", base: .clear, values: values([0, 0.6, 0.95], [0, 0.6, 0.95])) {
+                theme, dark, value in
+                if dark { theme.dark.textHalo?.alpha = value } else { theme.light.textHalo?.alpha = value }
+            }
+        default:
+            return nil
+        }
+    }
+
+    /// Standard with the colour options applied.
+    private static func standardBase(_ options: DemoOptions) -> Theme {
         var theme = Theme.standard
         if let color = ThemeColor(options.string("lightSecondary", "")) {
             (theme.light.subtitle, theme.light.accessory, theme.light.sectionHeader, theme.light.keycapText) = (
@@ -27,47 +129,6 @@ enum LegibilityMode {
             theme.light.textHalo = ThemeColor(.white, alpha: 0.7)
             theme.dark.textHalo = ThemeColor(.black, alpha: 0.7)
         }
-        let sweeps = [
-            "light": options.doubles("light", [0, 0.15, 0.3, 0.45]),
-            "dark": options.doubles("dark", [0.15, 0.3, 0.45, 0.6]),
-        ]
-        let scene = DemoScene(theme: theme)
-        scene.summoner.prewarm()
-        scene.showLegibilityContent()
-        var table = TextTable(["appearance", "backdrop", "tint"] + ContrastSample.headers)
-        var verdicts: [String: [Double: Bool]] = [:]
-        for (name, appearance) in ShotsMode.appearances {
-            await CaptureSupport.setAppearance(appearance, scene)
-            for backdrop in BackdropKind.allCases {
-                let samples = await CaptureSupport.withBackdrop(backdrop, under: scene) {
-                    () async -> [(Double, ContrastSample)] in
-                    var samples: [(Double, ContrastSample)] = []
-                    for tint in sweeps[name] ?? [] {
-                        if name == "light" {
-                            scene.surface.theme.light.glassTint.alpha = tint
-                        } else {
-                            scene.surface.theme.dark.glassTint.alpha = tint
-                        }
-                        scene.showLegibilityContent()
-                        guard let image = await CaptureSupport.captureKey(scene) else { continue }
-                        samples.append((tint, CaptureSupport.measure(image, scene: scene)))
-                        let file = "\(name)-\(backdrop.rawValue)-\(format(tint)).png"
-                        try? SheetComposer.writePNG(image, to: options.outputDirectory.appendingPathComponent(file))
-                    }
-                    return samples
-                }
-                for (tint, sample) in samples {
-                    table.add([name, backdrop.rawValue, format(tint)] + sample.cells)
-                    verdicts[name, default: [:]][tint] = (verdicts[name]?[tint] ?? true) && sample.passes
-                }
-                await pause(ms: 700)
-            }
-        }
-        say(table.render())
-        for name in ["light", "dark"] {
-            let least = (sweeps[name] ?? []).sorted().first { verdicts[name]?[$0] == true }
-            say("\(name): least tint passing over every backdrop: \(least.map { format($0) } ?? "none in the sweep")")
-        }
-        return true
+        return theme
     }
 }

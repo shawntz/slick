@@ -21,6 +21,7 @@ final class ComponentStage {
     let detailPage = DetailPane()
     let form = FormView()
     let empty = EmptyStateView()
+    let notice = NoticeStageView()
     let hud = HUDWindow()
     private(set) var actionCard: ActionCardView?
 
@@ -147,11 +148,96 @@ final class ComponentStage {
             stage.surface.isLoading = true
             stage.surface.actionBar.apply(ActionBarContent(viewTitle: "Search Files", actionsTitle: nil))
         },
+        State(name: "list-sections", caption: "two-line rows under section headers") { stage in
+            stage.scene.rowStyle = .twoLine
+            stage.scene.show(query: "a")
+            stage.scene.rowStyle = .oneLine
+            var content = stage.scene.list.content
+            if let rows = content.sections.first?.rows, rows.count > 4 {
+                content.sections = [
+                    ListSection(title: "Applications", rows: Array(rows.prefix(3))),
+                    ListSection(title: "Commands", rows: Array(rows.dropFirst(3).prefix(5)), count: rows.count - 3),
+                ]
+            }
+            stage.scene.list.apply(content)
+            stage.scene.list.select(1, animated: false)
+        },
+        State(name: "notice", caption: "notice banner over a list") { stage in
+            stage.surface.queryField.leading = QueryLeading(glyph: .back, breadcrumb: "Search Files")
+            stage.surface.queryField.placeholder = "Search files"
+            stage.surface.setContent(stage.notice, animated: false)
+            stage.notice.banner.apply(
+                NoticeContent(
+                    icon: .symbol("lock"), title: "Full Disk Access is off",
+                    message: "Some folders are left out.", buttonTitle: "Grant Access"))
+            stage.notice.list.apply(SyntheticComponents.historyRows())
+            stage.notice.list.select(0, animated: false)
+            stage.surface.actionBar.apply(ActionBarContent(viewTitle: "Search Files", primaryTitle: "Open"))
+        },
+        State(name: "permission-card", caption: "permission card") { stage in
+            stage.surface.present(
+                ConfirmCardView(
+                    content: ConfirmContent(
+                        title: "Allow Window Layout to Use Accessibility?",
+                        message: "It moves and resizes the windows you ask it to. Nothing else.",
+                        confirmTitle: "Grant Access")))
+        },
+        State(name: "toast-ghost", caption: "ghost completion and a toast with a button") { stage in
+            stage.scene.show(query: "cal")
+            if stage.surface.queryField.ghostText.isEmpty { stage.surface.queryField.ghostText = "endar" }
+            stage.surface.actionBar.show(
+                ActionBarToast(.success, "Copied to Clipboard", buttonTitle: "Undo", buttonKeys: ["⌘", "Z"]))
+        },
         State(name: "hud", caption: "HUD after closing", usesPanel: false) { stage in
             stage.hud.show(
                 HUDContent("Copied to Clipboard", symbolName: "checkmark.circle.fill"), on: stage.scene.windowFrame)
         },
     ]
+}
+
+/// A list under a notice banner, as a host lays them out: the banner on top, one list row tall,
+/// and the rows under it.
+final class NoticeStageView: NSView, LauncherContentView {
+    let banner = NoticeBanner()
+    let list = ResultListView()
+    private var bannerHeight: CGFloat = 0
+    var contentHeightDidChange: (() -> Void)?
+    var selectionLens: SelectionLens? {
+        get { list.selectionLens }
+        set { list.selectionLens = newValue }
+    }
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        addSubview(banner)
+        addSubview(list)
+        list.contentHeightDidChange = { [weak self] in self?.contentHeightDidChange?() }
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override var isFlipped: Bool { true }
+
+    func preferredContentHeight(limit: CGFloat) -> CGFloat {
+        min(limit, list.preferredContentHeight(limit: max(0, limit - bannerHeight)) + bannerHeight)
+    }
+
+    func apply(_ theme: ResolvedTheme) {
+        bannerHeight = NoticeBanner.preferredHeight(for: theme)
+        banner.apply(theme)
+        list.apply(theme)
+        layoutChildren()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        layoutChildren()
+    }
+
+    private func layoutChildren() {
+        banner.frame = CGRect(x: 0, y: 0, width: bounds.width, height: bannerHeight)
+        list.frame = CGRect(x: 0, y: bannerHeight, width: bounds.width, height: max(0, bounds.height - bannerHeight))
+    }
 }
 
 extension LauncherSurface {

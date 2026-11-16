@@ -97,7 +97,7 @@ enum VibrancyMode {
         var filters: [String] = []
         for (name, appearance) in ShotsMode.appearances {
             await CaptureSupport.setAppearance(appearance, scene)
-            for backdrop in BackdropKind.allCases {
+            for backdrop in BackdropKind.matrix {
                 let ratios = await CaptureSupport.withBackdrop(backdrop, under: scene) { () async -> [Double] in
                     scene.summoner.takesKeyStatus = true
                     scene.summoner.summon()

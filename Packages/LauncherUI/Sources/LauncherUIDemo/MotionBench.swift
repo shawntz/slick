@@ -42,9 +42,10 @@ enum MotionBench {
     }
 
     /// Alternates between nine rows with headers and three rows, timing the main thread while
-    /// the glass animates and counting display refreshes.
-    static func heightAnimation() async -> HeightResult {
-        let scene = DemoScene()
+    /// the glass animates and counting display refreshes. In the split layout every tick moves
+    /// both pieces, the corner radius, the shadow's path and the rim's mask.
+    static func heightAnimation(theme: Theme = .standard) async -> HeightResult {
+        let scene = DemoScene(theme: theme)
         scene.summoner.prewarm()
         scene.summoner.takesKeyStatus = false
         let counter = TickCounter(view: scene.surface.rootView)
@@ -75,6 +76,45 @@ enum MotionBench {
         result.cpuPerTick = Double(cpu) / 1e6 / Double(max(1, result.ticks))
         result.refresh = 1000 / Double(max(1, NSScreen.main?.maximumFramesPerSecond ?? 60))
         return result
+    }
+}
+
+extension MotionBench {
+    /// The keystroke that brings the first results after a summon in the compact look, when the
+    /// results container of the split layout or the content of one piece shows for the first
+    /// time, against the same keystroke on later summons. A fresh scene per round, so every round has a first time. Main-thread
+    /// CPU of the content change, the display and the commit, in ms.
+    static func firstResults(theme: Theme, rounds: Int = 6) async -> (first: [Double], later: [Double])? {
+        var first: [Double] = []
+        var later: [Double] = []
+        for _ in 0..<rounds {
+            let scene = DemoScene(theme: theme)
+            scene.surface.setContent(nil, animated: false)
+            scene.summoner.prewarm()
+            scene.summoner.takesKeyStatus = false
+            for show in 0..<3 {
+                guard await BenchMode.idle() else {
+                    scene.surface.panel.orderOut(nil)
+                    return nil
+                }
+                scene.summoner.summon()
+                await pause(ms: 60)
+                let start = LatencyClock.threadCPUNanoseconds()
+                scene.surface.setContent(scene.list, animated: false)
+                scene.show(query: "a")
+                scene.surface.panel.displayIfNeeded()
+                CATransaction.flush()
+                let cpu = Double(LatencyClock.threadCPUNanoseconds() - start) / 1e6
+                if show == 0 { first.append(cpu) } else { later.append(cpu) }
+                await pause(ms: 120)
+                scene.summoner.dismiss(returnFocus: false)
+                scene.surface.setContent(nil, animated: false)
+                await pause(ms: 200)
+            }
+            scene.surface.panel.orderOut(nil)
+            await pause(ms: 300)
+        }
+        return (first, later)
     }
 }
 

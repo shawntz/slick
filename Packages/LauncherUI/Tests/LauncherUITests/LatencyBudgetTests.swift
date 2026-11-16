@@ -27,8 +27,18 @@ struct LatencyBudgetTests {
         return LatencySummary(samples)
     }
 
-    @Test func nineChangedRowsFitTheRowUpdateBudget() {
+    /// A surface in a built-in theme, ordered in off screen.
+    func makeSurface(_ name: String) -> LauncherSurface {
         let surface = TestSupport.makeSurface()
+        if let theme = ThemeStore.builtInThemes.first(where: { $0.name == name })?.theme { surface.theme = theme }
+        return surface
+    }
+
+    nonisolated static let themes = ["Standard", "Beam", "Clear"]
+
+    @Test(arguments: themes)
+    func nineChangedRowsFitTheRowUpdateBudget(theme: String) {
+        let surface = makeSurface(theme)
         defer { surface.panel.close() }
         let list = ResultListView()
         surface.setContent(list, animated: false)
@@ -40,7 +50,7 @@ struct LatencyBudgetTests {
             surface.panel.displayIfNeeded()
             CATransaction.flush()
         }
-        print("row update, 9 changed rows, apply + draw + commit (ms): \(summary)")
+        print("row update, \(theme), 9 changed rows, apply + draw + commit (ms): \(summary)")
         #expect(LatencyBudget.rowUpdate.violation(summary, label: "row update", scale: scale) == nil)
     }
 
@@ -82,8 +92,9 @@ struct LatencyBudgetTests {
     /// Typing into a full list in the panel: apply, draw and commit, with rounds alternating
     /// between the list's line cache and none, so both see the same load. Each round types its
     /// queries into a fresh cache.
-    @Test func typingIntoTheListFitsTheRowUpdateBudget() async {
-        let surface = TestSupport.makeSurface()
+    @Test(arguments: themes)
+    func typingIntoTheListFitsTheRowUpdateBudget(theme: String) async {
+        let surface = makeSurface(theme)
         defer { surface.panel.close() }
         let list = ResultListView()
         surface.setContent(list, animated: false)
@@ -112,8 +123,12 @@ struct LatencyBudgetTests {
             }
             try? await Task.sleep(for: .milliseconds(8))
         }
-        print("typing into the list, apply + draw + commit, without the line cache (ms): \(LatencySummary(uncached))")
-        print("typing into the list, apply + draw + commit, with the line cache (ms): \(LatencySummary(cached))")
+        print(
+            "typing into the list, \(theme), apply + draw + commit, without the line cache (ms): "
+                + "\(LatencySummary(uncached))")
+        print(
+            "typing into the list, \(theme), apply + draw + commit, with the line cache (ms): \(LatencySummary(cached))"
+        )
         #expect(LatencyBudget.rowUpdate.violation(LatencySummary(cached), label: "typing", scale: scale) == nil)
     }
 
@@ -264,8 +279,31 @@ struct LatencyBudgetTests {
         return (LatencySummary(typesetTimes), LatencySummary(renderTimes))
     }
 
-    @Test func summonWithoutMakeKeyFitsTheSummonBudget() {
-        let surface = TestSupport.makeSurface()
+    /// The query field's own share of a keystroke when the theme draws a caret glow: the editor
+    /// takes the character, the glow follows the caret, and the panel draws and commits.
+    @Test(arguments: themes)
+    func theFieldEditorWithItsCaretGlowStaysSmall(theme: String) {
+        let surface = makeSurface(theme)
+        defer { surface.panel.close() }
+        surface.panel.orderFrontRegardless()
+        surface.queryField.installEditor()
+        let editor = surface.panel.queryFieldEditor
+        let text = "launch the quarterly forecast"
+        let summary = measure(300) { step in
+            if step.isMultiple(of: text.count) { surface.queryField.text = "" }
+            let index = text.index(text.startIndex, offsetBy: step % text.count)
+            editor.insertText(String(text[index]), replacementRange: NSRange(location: NSNotFound, length: 0))
+            surface.panel.displayIfNeeded()
+            CATransaction.flush()
+        }
+        print("field editor keystroke, \(theme), insert + draw + commit (ms): \(summary)")
+        #expect(surface.queryField.caretGlow.hasGlow == (theme == "Beam"))
+        #expect(LatencyBudget.rowUpdate.violation(summary, label: "field keystroke", scale: scale) == nil)
+    }
+
+    @Test(arguments: themes)
+    func summonWithoutMakeKeyFitsTheSummonBudget(theme: String) {
+        let surface = makeSurface(theme)
         defer { surface.panel.close() }
         let summoner = Summoner(surface: surface)
         summoner.followsPointerScreen = false
@@ -280,8 +318,8 @@ struct LatencyBudgetTests {
         }
         let path = LatencySummary(Array(steps.dropFirst(5)))
         print(
-            "summon path excluding makeKey (ms): \(path); summon + dismiss: \(summary); pointer screen check: \(pointer)"
-        )
+            "summon path excluding makeKey, \(theme) (ms): \(path); summon + dismiss: \(summary); "
+                + "pointer screen check: \(pointer)")
         // The budget covers the summon path plus the pointer-screen check that precedes it.
         #expect(path.p50 + pointer.p50 <= LatencyBudget.summon.p50 * scale)
         #expect(path.p99 + pointer.p99 <= LatencyBudget.summon.p99 * scale)

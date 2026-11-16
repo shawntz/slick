@@ -31,8 +31,8 @@ enum KeystrokeBench {
     ]
 
     /// `lineCache` off types without the list's line cache, for comparison.
-    static func run(passes count: Int, lineCache: Bool = true) async -> Split? {
-        let scene = DemoScene()
+    static func run(passes count: Int, lineCache: Bool = true, theme: Theme = .standard) async -> Split? {
+        let scene = DemoScene(theme: theme)
         scene.list.usesLineCache = lineCache
         // Full lists, as a catalog of thousands fills them, so the glass height never changes.
         scene.minimumRows = 9

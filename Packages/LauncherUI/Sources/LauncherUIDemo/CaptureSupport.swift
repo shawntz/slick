@@ -11,21 +11,34 @@ struct ContrastSample {
     var accessory = Double.nan
     var header = Double.nan
     var capsule = Double.nan
+    /// The typed text in the query field, held to the title target.
+    var field = Double.nan
+    /// The lowest title contrast by `ContrastMeter.worstCaseRatio`: against the least favourable
+    /// background beside the text. Reported, not judged: rule 5's verdict uses the columns before.
+    var worstTitle = Double.nan
+    /// The typed text in the query field by the worst-case meter. Reported, not judged.
+    var worstField = Double.nan
+    /// The query field's placeholder or ghost completion, whichever shows. The field is a vibrant
+    /// text field that rule 6 leaves to the system, so this is reported, not judged.
+    var fieldHint = Double.nan
 
-    /// Titles need 4.5:1; subtitles, accessories and headers 3:1 (glass rule 5).
+    /// Titles and the typed text need 4.5:1; subtitles, accessories and headers 3:1 (glass rule 5).
     var passes: Bool {
-        let titles = [title, dimmedTitle, selectedTitle].filter(\.isFinite)
+        let titles = [title, dimmedTitle, selectedTitle, field].filter(\.isFinite)
         let secondary = [subtitle, accessory, header, capsule].filter(\.isFinite)
         return titles.allSatisfy { $0 >= 4.5 } && secondary.allSatisfy { $0 >= 3 }
     }
 
     var cells: [String] {
-        [title, dimmedTitle, selectedTitle, subtitle, accessory, header, capsule].map { format($0, 1) } + [
-            passes ? "pass" : "FAIL"
+        [title, dimmedTitle, selectedTitle, subtitle, accessory, header, capsule, field].map { format($0, 1) } + [
+            passes ? "pass" : "FAIL", format(worstTitle, 1), format(worstField, 1), format(fieldHint, 1),
         ]
     }
 
-    static let headers = ["title", "dim title", "selected", "subtitle", "accessory", "header", "tag/keycap", "rule 5"]
+    static let headers = [
+        "title", "dim title", "selected", "subtitle", "accessory", "header", "tag/keycap", "field", "rule 5",
+        "title, worst case", "field, worst case", "placeholder or ghost",
+    ]
 }
 
 /// Puts a scene on screen over a backdrop, captures it with key status, and measures contrast.
@@ -80,6 +93,10 @@ enum CaptureSupport {
             .insetBy(dx: -1 * scale, dy: 0)
         }
         func ratio(_ rect: CGRect) -> Double { ContrastMeter.contrastRatio(image, in: pixels(rect, in: list)) }
+        let lightText = scene.surface.resolvedTheme.isDark
+        func worst(_ rect: CGRect) -> Double {
+            ContrastMeter.worstCaseRatio(image, in: pixels(rect, in: list), lightText: lightText)
+        }
         var sample = ContrastSample()
         let viewport = list.preferredContentHeight(limit: 10_000)
         for index in 0..<list.content.rowCount {
@@ -91,12 +108,42 @@ enum CaptureSupport {
                 continue
             }
             sample.title = min(sample.title, ratio(frames.title))
+            sample.worstTitle = min(sample.worstTitle, worst(frames.title))
+            // The run hint is secondary text, held to 3:1 like the row's own accessories.
+            if let hint = frames.runHint { sample.accessory = min(sample.accessory, ratio(hint)) }
             if let dimmed = frames.dimmedTitle { sample.dimmedTitle = min(sample.dimmedTitle, ratio(dimmed)) }
             if let subtitle = frames.subtitle { sample.subtitle = min(sample.subtitle, ratio(subtitle)) }
             for accessory in frames.accessories { sample.accessory = min(sample.accessory, ratio(accessory)) }
             for capsule in frames.capsules { sample.capsule = min(sample.capsule, ratio(capsule)) }
         }
         for header in list.headerTextFrames() { sample.header = min(sample.header, ratio(header)) }
+        let field = measureField(image, scene: scene)
+        sample.field = field.field
+        sample.worstField = field.worstField
+        sample.fieldHint = field.fieldHint
+        return sample
+    }
+
+    /// The contrast of the query field's typed text, by both meters, and of its placeholder or
+    /// ghost. The rest of the sample is NaN.
+    static func measureField(_ image: CGImage, scene: DemoScene) -> ContrastSample {
+        let field = scene.surface.queryField
+        let scale = CGFloat(image.width) / scene.windowFrame.width
+        func pixels(_ rect: CGRect) -> CGRect {
+            let window = field.convert(rect, to: nil)
+            return CGRect(
+                x: window.minX * scale, y: (scene.windowFrame.height - window.maxY) * scale,
+                width: window.width * scale, height: window.height * scale
+            )
+            .insetBy(dx: -1 * scale, dy: 0)
+        }
+        var sample = ContrastSample()
+        if let typed = field.typedTextFrame {
+            sample.field = ContrastMeter.contrastRatio(image, in: pixels(typed))
+            sample.worstField = ContrastMeter.worstCaseRatio(
+                image, in: pixels(typed), lightText: scene.surface.resolvedTheme.isDark)
+        }
+        if let hint = field.hintTextFrame { sample.fieldHint = ContrastMeter.contrastRatio(image, in: pixels(hint)) }
         return sample
     }
 }

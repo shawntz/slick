@@ -5,8 +5,8 @@ import LauncherUITesting
 /// The cost of showing nine rows that all changed: the keystroke path's list work.
 enum RowUpdateBench {
     /// A scene without key status, already showing nine rows, not yet summoned.
-    private static func makeScene(halo: Bool) -> (scene: DemoScene, contents: [ListContent]) {
-        var theme = Theme.standard
+    private static func makeScene(halo: Bool, theme base: Theme) -> (scene: DemoScene, contents: [ListContent]) {
+        var theme = base
         if halo {
             theme.light.textHalo = ThemeColor(.white, alpha: 0.7)
             theme.dark.textHalo = ThemeColor(.black, alpha: 0.7)
@@ -24,8 +24,9 @@ enum RowUpdateBench {
     /// batches that each wait for idle input. Returns the main thread's CPU time per update, the
     /// budget's measure, and the wall time, which also counts waiting for the render server to
     /// accept the commit.
-    static func deterministic(halo: Bool) async -> (cpu: LatencySummary, wall: LatencySummary) {
-        let (scene, contents) = makeScene(halo: halo)
+    static func deterministic(halo: Bool, theme: Theme = .standard) async -> (cpu: LatencySummary, wall: LatencySummary)
+    {
+        let (scene, contents) = makeScene(halo: halo, theme: theme)
         var cpu: [Double] = []
         var wall: [Double] = []
         var step = 0
@@ -56,7 +57,7 @@ enum RowUpdateBench {
 
     /// The same update left to AppKit's own display cycle, timed by the latency probe.
     static func throughDisplayCycle() async -> (cpu: [Double], commit: [Double], frame: [Double]) {
-        let (scene, contents) = makeScene(halo: false)
+        let (scene, contents) = makeScene(halo: false, theme: .standard)
         var records: [LatencyProbe.Record] = []
         let waiter = RecordWaiter()
         scene.summoner.probe.onRecord = {

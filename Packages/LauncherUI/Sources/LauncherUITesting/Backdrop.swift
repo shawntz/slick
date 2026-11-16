@@ -9,6 +9,13 @@ nonisolated public enum BackdropKind: String, Sendable, CaseIterable {
     case white
     /// A dark window with a lighter card.
     case dark
+    /// A light editor window: a white page with lines of dark "text" drawn as rounded bars, a
+    /// gutter and a few coloured marks. It stands in for a code or chat window behind the panel,
+    /// with shapes instead of words. Not part of the default capture matrix.
+    case document
+
+    /// The backdrops glass rule 5 is checked over.
+    public static let matrix: [BackdropKind] = [.busy, .white, .dark]
 }
 
 /// Draws a backdrop.
@@ -75,6 +82,8 @@ public final class BackdropView: NSView {
                 )
                 y += 22
             }
+        case .document:
+            drawDocument(in: bounds)
         case .dark:
             NSColor(white: 0.07, alpha: 1).setFill()
             bounds.fill()
@@ -84,6 +93,54 @@ public final class BackdropView: NSView {
                 at: NSPoint(x: 420, y: 200),
                 withAttributes: [.font: NSFont.systemFont(ofSize: 30), .foregroundColor: NSColor(white: 0.7, alpha: 1)]
             )
+        }
+    }
+}
+
+extension BackdropView {
+    /// Lines of bars in a monospaced rhythm, from a fixed seed so every run draws the same page.
+    fileprivate func drawDocument(in bounds: CGRect) {
+        NSColor.white.setFill()
+        bounds.fill()
+        NSColor(white: 0.93, alpha: 1).setFill()
+        CGRect(x: 0, y: 0, width: 96, height: bounds.height).fill()
+        NSColor(red: 0.2, green: 0.35, blue: 0.85, alpha: 1).setFill()
+        CGRect(x: 96, y: 0, width: 1, height: bounds.height).fill()
+        var seed: UInt64 = 0x5EED
+        func next() -> Double {
+            seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            return Double(seed >> 33) / Double(1 << 31)
+        }
+        let character: CGFloat = 8.4
+        var y: CGFloat = 14
+        while y < bounds.height {
+            // A third of the lines are blank, as in prose with paragraphs or code with gaps.
+            if next() > 0.3 {
+                var x: CGFloat = 112 + CGFloat(Int(next() * 4)) * character * 2
+                let end = min(bounds.width - 30, x + CGFloat(20 + Int(next() * 70)) * character)
+                while x < end {
+                    let word = CGFloat(2 + Int(next() * 8)) * character
+                    let mark = next()
+                    let color =
+                        mark > 0.92
+                        ? NSColor(red: 0.75, green: 0.2, blue: 0.2, alpha: 1)
+                        : mark > 0.85
+                            ? NSColor(red: 0.1, green: 0.5, blue: 0.25, alpha: 1) : NSColor(white: 0.12, alpha: 1)
+                    color.setFill()
+                    NSBezierPath(
+                        roundedRect: CGRect(x: x, y: y + 4, width: min(word, end - x), height: 9), xRadius: 2,
+                        yRadius: 2
+                    ).fill()
+                    x += word + character
+                }
+            }
+            if next() > 0.8 {
+                NSColor(white: 0.55, alpha: 1).setFill()
+                NSBezierPath(
+                    roundedRect: CGRect(x: 30, y: y + 5, width: 40, height: 7), xRadius: 2, yRadius: 2
+                ).fill()
+            }
+            y += 19
         }
     }
 }
