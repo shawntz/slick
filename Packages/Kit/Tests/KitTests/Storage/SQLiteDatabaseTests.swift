@@ -87,6 +87,36 @@ struct SQLiteDatabaseTests {
         #expect(throws: SQLiteError.self) { try db.run("SELECT 1") }
     }
 
+    /// A deleted row's text, long enough for overflow pages, is gone from the file and the log once
+    /// the log is checkpointed. Without secure delete the freed overflow pages keep it.
+    @Test func aDeletedRowCannotBeReadFromTheFile() throws {
+        let storage = FakeStorage()
+        let url = storage.dataDirectory(for: "demo").appending(path: "erase.sqlite")
+        let db = try SQLiteDatabase(url: url)
+        defer { db.close() }
+        #expect(try db.query("PRAGMA secure_delete") { $0.int(0) } == [1])
+        try db.migrate(["CREATE TABLE note (id INTEGER PRIMARY KEY, text TEXT NOT NULL)"])
+        let marker = "Erasuremarkerqpzv"
+        try db.run("INSERT INTO note (text) VALUES (?)", [.text("kept")])
+        try db.run("INSERT INTO note (text) VALUES (?)", [.text(String(repeating: "Wxyzw", count: 3_000) + marker)])
+        try db.run("DELETE FROM note WHERE id = 2")
+        try db.checkpointAndTruncateLog()
+        var bytes = try Data(contentsOf: url)
+        let log = URL(filePath: url.path + "-wal")
+        if FileManager.default.fileExists(atPath: log.path) { bytes += try Data(contentsOf: log) }
+        #expect(bytes.range(of: Data(marker.utf8)) == nil)
+        #expect(bytes.range(of: Data("WxyzwWxyzwWxyzw".utf8)) == nil)
+        #expect(try db.query("SELECT text FROM note") { $0.string(0) } == ["kept"])
+    }
+
+    @Test func secureDeleteCanBeTurnedOff() throws {
+        let storage = FakeStorage()
+        let url = storage.dataDirectory(for: "demo").appending(path: "plain.sqlite")
+        let db = try SQLiteDatabase(url: url, options: .init(secureDelete: false))
+        defer { db.close() }
+        #expect(try db.query("PRAGMA secure_delete") { $0.int(0) } != [1])
+    }
+
     @Test func optionalsBindAsNull() throws {
         let db = try database()
         let missing: Double? = nil

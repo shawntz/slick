@@ -28,11 +28,19 @@ public final class SQLiteDatabase {
         public var writeAheadLog: Bool
         /// How long a statement waits for a lock held by another connection.
         public var busyTimeout: Duration
+        /// Overwrites what a delete frees, overflow pages included, so a deleted row cannot be read
+        /// back from the file. On by default: every database here holds the user's data. The
+        /// system's SQLite otherwise clears only the row's own page.
+        public var secureDelete: Bool
 
-        public init(readOnly: Bool = false, writeAheadLog: Bool = true, busyTimeout: Duration = .seconds(2)) {
+        public init(
+            readOnly: Bool = false, writeAheadLog: Bool = true, busyTimeout: Duration = .seconds(2),
+            secureDelete: Bool = true
+        ) {
             self.readOnly = readOnly
             self.writeAheadLog = writeAheadLog
             self.busyTimeout = busyTimeout
+            self.secureDelete = secureDelete
         }
     }
 
@@ -76,7 +84,16 @@ public final class SQLiteDatabase {
         if options.writeAheadLog && !options.readOnly {
             try execute("PRAGMA journal_mode = WAL")
         }
+        if options.secureDelete && !options.readOnly {
+            try execute("PRAGMA secure_delete = ON")
+        }
         try execute("PRAGMA foreign_keys = ON")
+    }
+
+    /// Copies the write-ahead log into the database and empties the log file, so pages a delete
+    /// replaced are not kept in the log. Does nothing for a database without a log.
+    public func checkpointAndTruncateLog() throws {
+        try execute("PRAGMA wal_checkpoint(TRUNCATE)")
     }
 
     deinit {
