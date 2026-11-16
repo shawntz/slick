@@ -91,7 +91,13 @@ extension FeatureHarness {
                     return try await handler(context)
                 }
                 serialTail = Task { _ = try? await run.value }
-                return try await run.value
+                // A caller that is cancelled cancels the handler, as turning the feature off does in
+                // the host, so a test can play that through run(_:).
+                return try await withTaskCancellationHandler {
+                    try await run.value
+                } onCancel: {
+                    run.cancel()
+                }
             }
         } catch {
             if throwsActionErrors { throw error }

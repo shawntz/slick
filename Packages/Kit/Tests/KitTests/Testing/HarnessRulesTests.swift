@@ -96,6 +96,18 @@ struct HarnessRulesTests {
         #expect(harness.feature.presses == [0, 1], "the second run read after the first wrote")
     }
 
+    @Test func cancellingTheCallerCancelsASerialHandler() async {
+        let harness = FeatureHarness(Probe.self)
+        let clock = harness.fakes.clock
+        let caller = Task { try await harness.run("slow") }
+        await clock.waitForSleepers(1)
+        caller.cancel()
+        // Without the cancel reaching the handler, this lets it finish and record a press.
+        clock.advance(by: .seconds(1))
+        await #expect(throws: CancellationError.self) { try await caller.value }
+        #expect(harness.feature.presses.isEmpty)
+    }
+
     @Test func dropWhileRunningIgnoresASecondStart() async throws {
         let harness = FeatureHarness(Probe.self)
         async let first: ActionOutcome = harness.run("once")
