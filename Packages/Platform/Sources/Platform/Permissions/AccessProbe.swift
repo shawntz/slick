@@ -95,17 +95,30 @@ nonisolated enum ProtectedLocations {
     ///   holds iCloud Drive and every app's iCloud documents, and macOS guards all of it with the
     ///   iCloud Drive service. Full Disk Access does not count there, because whether it spares that
     ///   prompt is not known. Files kept only in iCloud would also download on a read.
-    /// - Other apps' data, cloud storage folders, Mail and Messages need Full Disk Access, which also
-    ///   grants Desktop, Documents, Downloads and the volumes.
+    /// - Other apps' data, cloud storage folders, Mail, Messages, the Contacts, Calendars and
+    ///   Reminders data, cookies, Home, Siri suggestions, call history, the privacy database and any
+    ///   Photos library need Full Disk Access, which also grants Desktop, Documents, Downloads and
+    ///   the volumes.
+    ///
+    /// A path on the data volume, `/System/Volumes/Data/...`, counts as the same path without that
+    /// part. The system joins the two through firmlinks, which are not symbolic links, so the walk
+    /// in ``mayRead(_:home:isGranted:linkDestination:)`` cannot see them.
     static func permissionsNeeded(toRead url: URL, home: URL) -> [Permission] {
         func normalized(_ url: URL) -> String {
-            let path = url.standardizedFileURL.path(percentEncoded: false).lowercased()
-            return path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path
+            var path = url.standardizedFileURL.path(percentEncoded: false).lowercased()
+            if path.count > 1, path.hasSuffix("/") { path.removeLast() }
+            if path == dataVolume { return "/" }
+            if path.hasPrefix(dataVolume + "/") { path.removeFirst(dataVolume.count) }
+            return path
         }
         let path = normalized(url)
         let home = normalized(home)
         func isInside(_ folder: String) -> Bool {
             path == folder || path.hasPrefix(folder + "/")
+        }
+        // Photos guards the library it uses, wherever it is kept.
+        if path.split(separator: "/").contains(where: { $0.hasSuffix(".photoslibrary") }) {
+            return [.fullDiskAccess]
         }
         let homeFolders: [(String, ProtectedFolder)] = [
             ("Desktop", .desktop), ("Documents", .documents), ("Downloads", .downloads),
@@ -119,12 +132,21 @@ nonisolated enum ProtectedLocations {
         if isInside(home + "/library/mobile documents") {
             return [.protectedFolder(.iCloudDrive)]
         }
-        let guardedLibraries = ["Containers", "Group Containers", "CloudStorage", "Mail", "Messages", "Safari"]
         if guardedLibraries.contains(where: { isInside(home + "/library/" + $0.lowercased()) }) {
             return [.fullDiskAccess]
         }
         return []
     }
+
+    /// Where the data volume is mounted. Its folders are the same as those without this part.
+    static let dataVolume = "/system/volumes/data"
+
+    /// Folders in the home folder's Library that only Full Disk Access opens to a background read.
+    static let guardedLibraries = [
+        "Containers", "Group Containers", "CloudStorage", "Mail", "Messages", "Safari", "Calendars", "Reminders",
+        "Cookies", "HomeKit", "Suggestions", "Application Support/AddressBook", "Application Support/CallHistoryDB",
+        "Application Support/com.apple.TCC",
+    ]
 
     /// Mounted volumes that are removable, or that are not local. Reads volume metadata only.
     static func mountedVolumes(network: Bool) -> [URL] {
