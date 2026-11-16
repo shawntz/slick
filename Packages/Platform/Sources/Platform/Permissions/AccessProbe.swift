@@ -23,6 +23,17 @@ nonisolated enum AccessProbe {
         return nil
     }
 
+    /// ``run(_:)`` on a new thread, so a read that waits for macOS, perhaps for good, holds neither
+    /// the caller's thread nor one of the few threads Swift's tasks share. The caller may stop
+    /// waiting; the thread ends whenever the read does.
+    static func runOnOwnThread(_ targets: [Target]) async -> PermissionStatus? {
+        await withCheckedContinuation { continuation in
+            Thread.detachNewThread {
+                continuation.resume(returning: run(targets))
+            }
+        }
+    }
+
     private static func probe(_ target: Target) -> PermissionStatus? {
         let path = target.url.path(percentEncoded: false)
         if target.isDirectory {

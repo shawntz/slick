@@ -427,7 +427,7 @@ import Testing
         #expect(live.check(.protectedFolder(.desktop)) == nil)
     }
 
-    @Test func probesReadOnlyWhereTheyAreTold() throws {
+    @Test func probesReadOnlyWhereTheyAreTold() async throws {
         let folder = TemporaryFolder()
         let file = folder.url.appending(path: "sample.txt")
         try Data("x".utf8).write(to: file)
@@ -438,6 +438,9 @@ import Testing
         #expect(AccessProbe.run([missing, AccessProbe.Target(url: file, isDirectory: false)]) == .granted)
         #expect(AccessProbe.status(forErrno: EPERM) == .denied)
         #expect(AccessProbe.status(forErrno: ENOENT) == nil)
+        // The live system runs its probes on a thread of their own, with the same answers.
+        #expect(await AccessProbe.runOnOwnThread([AccessProbe.Target(url: folder.url, isDirectory: true)]) == .granted)
+        #expect(await AccessProbe.runOnOwnThread([missing]) == nil)
 
         let home = URL(filePath: "/synthetic/home", directoryHint: .isDirectory)
         let desktop = ProtectedLocations.targets(for: .desktop, home: home, removableVolumes: [], networkVolumes: [])

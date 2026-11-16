@@ -142,10 +142,10 @@ nonisolated public final class MacPermissionSystem: PermissionSystem {
         }
     }
 
-    /// Runs the probes off the main thread: the first read of a protected folder waits for the
-    /// user to answer the system prompt.
-    @concurrent private static func probe(_ targets: [AccessProbe.Target]) async -> PermissionStatus? {
-        AccessProbe.run(targets)
+    /// Runs the probes on a thread of their own: the first read of a protected folder waits for the
+    /// user to answer the system prompt, and for as long as macOS takes when it shows none.
+    private static func probe(_ targets: [AccessProbe.Target]) async -> PermissionStatus? {
+        await AccessProbe.runOnOwnThread(targets)
     }
 
     static func status(_ status: EKAuthorizationStatus) -> PermissionStatus {

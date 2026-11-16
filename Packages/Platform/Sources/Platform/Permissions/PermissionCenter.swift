@@ -73,6 +73,11 @@ extension PermissionSystem {
 ///   pane, and every ``idlePollInterval`` otherwise. The app reports activity with
 ///   ``setAppActive(_:)``. A request or a refresh that changes the status tells open streams at
 ///   once.
+/// - A request always ends. The system's request runs on its own; when it has not answered within
+///   ``requestTimeLimit`` on the clock, as when macOS shows no prompt for a protected folder, the
+///   request ends with the status as it reads then. One request per permission runs at a time: a
+///   second one waits for the first, with the same limit. When the system answers later, the center
+///   keeps that answer and tells open streams.
 /// - Full Disk Access has no check. Within ``fastPollingWindow`` after the user asked for it, the
 ///   center finds out again with ``PermissionSystem/recheck(_:)`` whenever the user may have come
 ///   back from System Settings: ``userMayHaveReturned()``, at most every two seconds, until it
@@ -115,6 +120,8 @@ nonisolated public final class PermissionCenter: PermissionService {
     public let fastPollingWindow: Duration
     /// How long a check's answer is used before a read refreshes it in the background.
     public let cacheLifetime: Duration
+    /// How long a request waits for the system's answer before it ends without one.
+    public let requestTimeLimit: Duration
     private let system: any PermissionSystem
     private let settings: any SettingsService
     private let clock: any ClockService
@@ -122,6 +129,8 @@ nonisolated public final class PermissionCenter: PermissionService {
     private let cache = Mutex<[Permission: CachedCheck]>([:])
     private let refreshing = Mutex<Set<Permission>>([])
     private let polling = Mutex(Polling())
+    /// The system's request that runs now for each permission.
+    private let asking = Mutex<[Permission: Task<PermissionStatus?, Never>]>([:])
 
     /// The shared poller and what decides its pace.
     private struct Polling {
@@ -148,7 +157,8 @@ nonisolated public final class PermissionCenter: PermissionService {
     public init(
         system: any PermissionSystem, settings: any SettingsService, clock: any ClockService,
         pollInterval: Duration = .seconds(1), cacheLifetime: Duration = .seconds(2),
-        idlePollInterval: Duration = .seconds(10), fastPollingWindow: Duration = .seconds(120)
+        idlePollInterval: Duration = .seconds(10), fastPollingWindow: Duration = .seconds(120),
+        requestTimeLimit: Duration = .seconds(5)
     ) {
         self.system = system
         self.settings = settings
@@ -157,6 +167,7 @@ nonisolated public final class PermissionCenter: PermissionService {
         self.cacheLifetime = cacheLifetime
         self.idlePollInterval = idlePollInterval
         self.fastPollingWindow = fastPollingWindow
+        self.requestTimeLimit = requestTimeLimit
     }
 
     public func status(of permission: Permission) -> PermissionStatus {
@@ -179,10 +190,11 @@ nonisolated public final class PermissionCenter: PermissionService {
             return announceStatus(of: permission)
         }
         markAsked(permission)
-        if let answer = await system.request(permission), answer != .notDetermined {
-            remember(answer, for: permission)
+        guard case .answered = await systemAnswer(permission) else {
+            // No answer in time, as when macOS shows no prompt. The status reads as it is now, and a
+            // late answer is kept and announced when it comes.
+            return announceStatus(of: permission)
         }
-        await checkNow(permission)
         let status = announceStatus(of: permission)
         if status != .granted, Self.onlySettingsCanGrant(permission) {
             await openSettings(for: permission)
@@ -289,6 +301,93 @@ nonisolated public final class PermissionCenter: PermissionService {
         for permission in permissions {
             freshCheck(permission)
             announceStatus(of: permission)
+        }
+    }
+
+    // MARK: Requests
+
+    /// What waiting for the system's request came to.
+    private enum Outcome: Sendable {
+        case answered
+        case timedOut
+    }
+
+    /// Starts the system's request for the permission, or joins the one that runs, and waits for it
+    /// for ``requestTimeLimit`` at most. The request keeps its answer itself, whenever it comes.
+    private func systemAnswer(_ permission: Permission) async -> Outcome {
+        let request = asking.withLock { asking -> Task<PermissionStatus?, Never> in
+            if let running = asking[permission] { return running }
+            let started = Task.detached(priority: .userInitiated) { [self] () -> PermissionStatus? in
+                let answer = await system.request(permission)
+                keepAnswer(answer, for: permission)
+                return answer
+            }
+            asking[permission] = started
+            return started
+        }
+        let race = RequestRace()
+        let limit = requestTimeLimit
+        let clock = clock
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Outcome, Never>) in
+            race.start(continuation)
+            let timer = Task.detached {
+                try? await clock.sleep(for: limit)
+                race.finish(.timedOut)
+            }
+            race.setTimer(timer)
+            Task.detached {
+                _ = await request.value
+                race.finish(.answered)
+            }
+        }
+    }
+
+    /// Keeps what the system's request answered, checks again and tells open streams. Runs when the
+    /// request ends, also after the caller stopped waiting for it.
+    private func keepAnswer(_ answer: PermissionStatus?, for permission: Permission) {
+        asking.withLock { _ = $0.removeValue(forKey: permission) }
+        if let answer, answer != .notDetermined { remember(answer, for: permission) }
+        freshCheck(permission)
+        announceStatus(of: permission)
+    }
+
+    /// The first of an answer and the time limit, handed to one waiting request. The timer stops
+    /// when the answer comes first.
+    private final class RequestRace: Sendable {
+        private struct State {
+            var continuation: CheckedContinuation<Outcome, Never>?
+            var timer: Task<Void, Never>?
+            var outcome: Outcome?
+        }
+
+        private let state = Mutex(State())
+
+        func start(_ continuation: CheckedContinuation<Outcome, Never>) {
+            state.withLock { $0.continuation = continuation }
+        }
+
+        func setTimer(_ timer: Task<Void, Never>) {
+            let finished = state.withLock { state -> Bool in
+                guard state.outcome == nil else { return true }
+                state.timer = timer
+                return false
+            }
+            if finished { timer.cancel() }
+        }
+
+        func finish(_ outcome: Outcome) {
+            let (continuation, timer) = state.withLock {
+                state -> (CheckedContinuation<Outcome, Never>?, Task<Void, Never>?) in
+                guard state.outcome == nil else { return (nil, nil) }
+                state.outcome = outcome
+                defer {
+                    state.continuation = nil
+                    state.timer = nil
+                }
+                return (state.continuation, state.timer)
+            }
+            timer?.cancel()
+            continuation?.resume(returning: outcome)
         }
     }
 
