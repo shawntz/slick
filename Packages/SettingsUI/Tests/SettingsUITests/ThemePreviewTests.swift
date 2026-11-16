@@ -5,13 +5,15 @@ import Testing
 @testable import SettingsUI
 
 /// The theme preview shows the glass as the panel draws it: its style, and one piece or two.
-/// Windows are never ordered in.
+/// Windows are never ordered in. Every preview is drawn for fixed accessibility settings, so a Mac
+/// with Reduce Transparency on, as a CI runner has, sees what any other Mac sees.
 @Suite(.timeLimit(.minutes(1)))
 struct ThemePreviewTests {
     private func preview(_ theme: Theme) -> (ThemePreviewView, NSWindow) {
         _ = NSApplication.shared
         let size = ThemePreviewView.logicalSize(for: theme)
         let view = ThemePreviewView(frame: CGRect(origin: .zero, size: size))
+        view.accessibilityOverride = DisplayAccessibility()
         let window = NSWindow(
             contentRect: CGRect(origin: CGPoint(x: -20000, y: -20000), size: size), styleMask: [.borderless],
             backing: .buffered, defer: false)
@@ -50,5 +52,16 @@ struct ThemePreviewTests {
         #expect(view.glassPieces.count == 1 && view.glassPieces[0].style == .regular)
         #expect(view.list.isDescendant(of: view.glassPieces[0]))
         #expect(!view.actionBar.isHidden)
+    }
+
+    @Test func reduceTransparencyDrawsEveryThemeInRegularGlassWithNoTint() throws {
+        let (view, window) = preview(.clear)
+        defer { window.close() }
+        view.accessibilityOverride = DisplayAccessibility(reduceTransparency: true)
+        #expect(view.glassPieces[0].style == .regular && view.glassPieces[0].tintColor == nil)
+        view.apply(theme: .standard)
+        #expect(view.glassPieces[0].style == .regular && view.glassPieces[0].tintColor == nil)
+        view.accessibilityOverride = DisplayAccessibility()
+        #expect(view.glassPieces[0].style == .regular && view.glassPieces[0].tintColor != nil)
     }
 }

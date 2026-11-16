@@ -188,16 +188,19 @@ struct SplitPanelTests {
         #expect(field.textField.frame.minX > field.breadcrumb.frame.maxX)
     }
 
+    /// Every step sets the accessibility settings it tests. Left to the system, a Mac with Reduce
+    /// Transparency on, as a CI runner has, would see regular glass with no tint throughout.
     @Test func clearGlassHasNoTintAndTurnsRegularUnderReduceTransparency() {
         let surface = TestSupport.makeSurface()
         defer { surface.panel.close() }
+        surface.accessibilityOverride = DisplayAccessibility()
         surface.theme = .clear
         #expect(surface.layout == .single)
         #expect(surface.glass.style == .clear)
         #expect(surface.glass.tintColor == nil)
         surface.accessibilityOverride = DisplayAccessibility(reduceTransparency: true)
         #expect(surface.glass.style == .regular && surface.glass.tintColor == nil)
-        surface.accessibilityOverride = nil
+        surface.accessibilityOverride = DisplayAccessibility()
         surface.theme = .standard
         #expect(surface.glass.style == .regular && surface.glass.tintColor != nil)
     }

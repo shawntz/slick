@@ -28,6 +28,12 @@ final class ThemePreviewView: NSView {
     let actionBar = ActionBar()
     let lens = SelectionLens(style: Theme.standard.lens.style)
     private(set) var theme = Theme.standard
+    /// The display's accessibility settings the preview draws for. Nil follows the system, as the
+    /// panel does. A test sets it, so what it sees does not depend on the Mac that runs it: with
+    /// Reduce Transparency on, every theme resolves to regular glass with no tint.
+    var accessibilityOverride: DisplayAccessibility? {
+        didSet { if accessibilityOverride != oldValue { restyle() } }
+    }
     private var logicalSize = CGSize(width: 1, height: 1)
     private var isStyled = false
 
@@ -113,7 +119,8 @@ final class ThemePreviewView: NSView {
     }
 
     private func restyle() {
-        let resolved = ResolvedTheme(theme: theme, appearance: effectiveAppearance, accessibility: .current)
+        let resolved = ResolvedTheme(
+            theme: theme, appearance: effectiveAppearance, accessibility: accessibilityOverride ?? .current)
         let width = CGFloat(theme.panel.width)
         let queryHeight = CGFloat(theme.queryRow.height)
         let contentHeight = CGFloat(Self.previewContentHeight(theme))

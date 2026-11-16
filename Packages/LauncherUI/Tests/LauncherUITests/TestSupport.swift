@@ -31,11 +31,14 @@ enum TestSupport {
         return (list, window)
     }
 
-    /// A surface placed off every screen and shown without key status.
+    /// A surface placed off every screen and shown without key status. Its appearance and its
+    /// accessibility settings are fixed, so a test sees the same glass on every Mac: with Reduce
+    /// Transparency on, as a CI runner has, every theme resolves to regular glass with no tint.
     static func makeSurface() -> LauncherSurface {
         _ = NSApplication.shared
         let surface = LauncherSurface(visibleFrame: offscreen)
         surface.panel.appearance = NSAppearance(named: .aqua)
+        surface.accessibilityOverride = DisplayAccessibility()
         return surface
     }
 
