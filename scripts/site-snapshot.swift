@@ -12,6 +12,8 @@
 //
 // Serve the page from a local server, for example `python3 -m http.server -b 127.0.0.1 8765 -d site`.
 // Lazy images are switched to eager before capture, so a full-page shot has every picture in it.
+// An offscreen web view draws no video, so after the settle time each <video> is captured as its
+// poster: an <img> with the video's class and size takes its place.
 // For a picture that must not fall back to the system font, give the page an explicit font family.
 import AppKit
 import WebKit
@@ -75,6 +77,26 @@ let prepareScript = """
     return Math.ceil(document.documentElement.scrollHeight);
     """
 
+// Runs just before the capture: put each video's poster in its place, then wait for the posters.
+let posterScript = """
+    const posters = [];
+    for (const video of document.querySelectorAll('video')) {
+        const poster = video.getAttribute('poster');
+        if (!poster) continue;
+        const img = document.createElement('img');
+        for (const name of ['class', 'width', 'height', 'style']) {
+            if (video.hasAttribute(name)) img.setAttribute(name, video.getAttribute(name));
+        }
+        img.alt = '';
+        img.src = poster;
+        video.pause();
+        video.replaceWith(img);
+        posters.push(img);
+    }
+    await Promise.all(posters.map((img) => img.decode().catch(() => null)));
+    return posters.length;
+    """
+
 @MainActor
 final class Snapshotter: NSObject, WKNavigationDelegate {
     let options: Options
@@ -125,6 +147,12 @@ final class Snapshotter: NSObject, WKNavigationDelegate {
             webView.setFrameSize(CGSize(width: options.width, height: CGFloat(height)))
         }
         try? await Task.sleep(for: .seconds(options.settle))
+        let posters = try? await webView.callAsyncJavaScript(
+            posterScript, arguments: [:], in: nil, contentWorld: .page)
+        if let count = (posters as? NSNumber)?.intValue, count > 0 {
+            // Give the replaced posters a moment to reach the screen before the capture.
+            try? await Task.sleep(for: .seconds(0.4))
+        }
 
         let configuration = WKSnapshotConfiguration()
         configuration.rect = webView.bounds
