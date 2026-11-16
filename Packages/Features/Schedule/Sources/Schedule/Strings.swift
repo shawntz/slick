@@ -197,7 +197,7 @@ nonisolated enum Strings {
         static let starts = "Starts"
         static let length = "Length"
         static let calendar = "Calendar"
-        static let allDay = "All day"
+        static let allDay = "All Day"
         static let due = "Due"
         static let time = "Time"
         static let dateOnlyLabel = "Due on the day, with no set time"
@@ -216,11 +216,11 @@ nonisolated enum Strings {
 
         static func minutes(_ minutes: Int) -> String {
             switch minutes {
-            case 60: "1 hour"
-            case 90: "1.5 hours"
-            case let value where value % 60 == 0: "\(value / 60) hours"
+            case 60: "1 Hour"
+            case 90: "1.5 Hours"
+            case let value where value % 60 == 0: "\(value / 60) Hours"
             case let value where value > 60: "\(value / 60) h \(value % 60) min"
-            default: "\(minutes) minutes"
+            default: "\(minutes) Minutes"
             }
         }
 
