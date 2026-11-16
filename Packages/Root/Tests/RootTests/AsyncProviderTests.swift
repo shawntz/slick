@@ -10,7 +10,7 @@ import Testing
 
 /// Async providers through root search: debounce, cancellation, limits, takeover, titles, order,
 /// loading and failure.
-@Suite struct AsyncProviderTests {
+@Suite(.timeLimit(.minutes(1))) struct AsyncProviderTests {
     @Test func eachProviderWaitsForItsOwnDebounceAndOnlyTheLastQueryRuns() async throws {
         let fixture = await RootFixture.ready(signals: true)
         let signals = try fixture.signalsFeature()
@@ -166,6 +166,34 @@ import Testing
         #expect(!snapshot.sections.contains { $0.id == "async.web" })
         #expect(snapshot.sections.contains { $0.id == "async.mail" })
         #expect(!snapshot.isLoading)
+        root.end()
+        await fixture.shutdown()
+    }
+
+    /// A file search that finds an app's bundle stands for the same file as the app row above it, so
+    /// the app shows once and the section keeps only the other files.
+    @Test func aLateRowForAFileAnotherRowStandsForIsLeftOut() async throws {
+        let bundle = URL(filePath: "/Example Apps/Editor.app/")
+        let apps = ExampleApps()
+        apps.rows = apps.rows.map { row in
+            var row = row
+            if row.title == "Editor" { row.represents = .files([URL(filePath: "/Example Apps/Editor.app")]) }
+            return row
+        }
+        let fixture = await RootFixture.ready(apps: apps, signals: true)
+        let signals = try fixture.signalsFeature()
+        let root = fixture.root
+        signals.web.answers["editor"] = [
+            Row(id: ItemID("web", "bundle"), title: "Editor.app", represents: .files([bundle])),
+            Row(id: ItemID("web", "notes"), title: "Editor notes.txt", represents: .files([URL(filePath: "/n.txt")])),
+        ]
+        _ = root.begin()
+        let typed = root.update(query: "editor")
+        #expect(typed.rows.first?.id == apps.id("Editor"))
+        await fixture.passDebounce()
+        let late = try #require(root.snapshot.sections.first { $0.id == "async.web" })
+        #expect(late.rows.map(\.title) == ["Editor notes.txt"])
+        #expect(root.snapshot.rows.filter { $0.title.hasPrefix("Editor") }.count == 2)
         root.end()
         await fixture.shutdown()
     }

@@ -77,12 +77,19 @@ extension RootSearch {
         var next = snapshot
         next.sections.removeAll { $0.id == pending.sectionID }
         var shown: Set<ItemID> = []
+        var shownFiles: Set<String> = []
         for section in next.sections {
-            for row in section.rows { shown.insert(row.id) }
+            for row in section.rows {
+                shown.insert(row.id)
+                if let file = Self.representedFile(row) { shownFiles.insert(file) }
+            }
         }
         var kept: [Row] = []
         kept.reserveCapacity(min(rows.count, pending.maximumRows))
         for row in rows where kept.count < pending.maximumRows {
+            // A file another row already stands for, such as an app the Apps feature lists, shows
+            // once: the row above keeps it.
+            if let file = Self.representedFile(row), !shownFiles.insert(file).inserted { continue }
             if shown.insert(row.id).inserted { kept.append(row) }
         }
         if !kept.isEmpty {
@@ -106,6 +113,17 @@ extension RootSearch {
         changes.send()
         refreshLiveSubtitles()
         return true
+    }
+
+    /// The one file a row stands for, by its standardized path, or nil for a row that stands for no
+    /// file or for several.
+    nonisolated static func representedFile(_ row: Row) -> String? {
+        guard case .files(let urls) = row.represents, urls.count == 1, let url = urls.first, url.isFileURL else {
+            return nil
+        }
+        var path = url.standardizedFileURL.path(percentEncoded: false)
+        while path.count > 1, path.hasSuffix("/") { path.removeLast() }
+        return path
     }
 
     /// Drops the pending sections of providers that left the directory, such as when their feature
