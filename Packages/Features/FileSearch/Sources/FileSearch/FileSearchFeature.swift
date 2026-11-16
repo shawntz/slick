@@ -19,8 +19,11 @@ import os
 ///   A protected place joins only after the user asks for it, one at a time or all at once. Full
 ///   Disk Access only spares the prompt. A place whose folder cannot be read is left out until the
 ///   user asks again. See ``ScopePlan`` and ``PlaceChoices``.
-/// - Every disk access goes through two services of the feature's own, ``IndexMaker`` and
-///   ``FileSystem``, with a live implementation and an isolated one each.
+/// - Every disk access goes through services of the feature's own, ``IndexMaker``, ``FileSystem``
+///   and ``FileOperations``, with a live implementation and an isolated one each. The file actions
+///   change the disk only through ``FileOperations``.
+/// - While a kind of volume is searched, a volume mounted later joins at once: the feature listens
+///   for mounts only then.
 public final class FileSearchFeature: Feature {
     public static let manifest = FeatureManifest(
         id: "files", name: Strings.featureName, icon: .symbol("doc.text.magnifyingglass"), summary: Strings.summary,
@@ -41,6 +44,8 @@ public final class FileSearchFeature: Feature {
     let context: FeatureContext
     let controller: IndexController
     let fileSystem: any FileSystem
+    let operations: any FileOperations
+    let details: FileDetails
     let rootLane: SearchLane
     let pageLane: SearchLane
     let fileActions: FileActions
@@ -64,11 +69,14 @@ public final class FileSearchFeature: Feature {
     private var scopeTask: Task<Void, Never>?
     private var scopeIsStale = false
     private var accessWaits: [ProtectedPlace: Task<Void, Never>] = [:]
+    /// Listens for mounts while a kind of volume is searched, and only then.
+    private var volumeWatch: Task<Void, Never>?
 
     /// Does no I/O. The index opens in ``activate()``, off the main thread.
     public init(context: FeatureContext) {
         self.context = context
         fileSystem = context.service(FileSystemKey.self)
+        operations = context.service(FileOperationsKey.self)
         let permissions = context.permissions
         controller = IndexController(
             file: context.storage.dataFile(Self.indexFileName).path(percentEncoded: false),
@@ -81,7 +89,8 @@ public final class FileSearchFeature: Feature {
             label: "files.search.root", clock: context.clock, searchCapacity: 24, browseCapacity: 1_000)
         pageLane = SearchLane(
             label: "files.search.page", clock: context.clock, searchCapacity: 400, browseCapacity: 2_000)
-        fileActions = FileActions(controller: controller)
+        details = FileDetails(controller: controller, fileSystem: fileSystem)
+        fileActions = FileActions(controller: controller, operations: operations, details: details)
     }
 
     // MARK: - Declarations
@@ -247,6 +256,7 @@ public final class FileSearchFeature: Feature {
         guard isActive else { return }
         reconcile(outcome?.unreadable ?? [])
         syncAccessWaits()
+        syncVolumeWatch()
         declarations.send()
     }
 
@@ -264,6 +274,8 @@ public final class FileSearchFeature: Feature {
         scopeIsStale = false
         for task in accessWaits.values { task.cancel() }
         accessWaits = [:]
+        volumeWatch?.cancel()
+        volumeWatch = nil
     }
 
     /// Starts one watch over the roots, from `mark` when given. File events go straight to the
@@ -294,6 +306,12 @@ public final class FileSearchFeature: Feature {
         context.log.error("The file watcher stopped; changes are no longer followed")
         watchStopped = true
         declarations.send()
+    }
+
+    /// Kit's readiness wait for scenarios, the self-test and benchmarks: activation opens or builds
+    /// the index in the background, and root search's provider reads it.
+    public func waitUntilReady() async {
+        await waitUntilIdle()
     }
 
     /// Waits until the work started so far has finished: the first open, scope changes and
@@ -355,6 +373,7 @@ public final class FileSearchFeature: Feature {
         if plan.roots != watchedRoots || watchStopped { startWatching(plan.roots) }
         if let outcome = await controller.rescope(plan) { reconcile(outcome.unreadable) }
         syncAccessWaits()
+        syncVolumeWatch()
         declarations.send()
     }
 
@@ -421,6 +440,26 @@ public final class FileSearchFeature: Feature {
         }
     }
 
+    /// Listens for mounts while removable or network volumes are searched, and stops when neither
+    /// is. Each mount, unmount or rename plans the scope again with the volumes mounted now, which
+    /// walks only when that changes what the index holds.
+    private func syncVolumeWatch() {
+        let states = placeStates()
+        let wanted = states[.removableVolumes] == .searched || states[.networkVolumes] == .searched
+        if wanted, volumeWatch == nil {
+            let changes = fileSystem.volumeChanges()
+            volumeWatch = Task { [weak self] in
+                for await _ in changes { self?.requestScopeRefresh() }
+            }
+        } else if !wanted, let watch = volumeWatch {
+            watch.cancel()
+            volumeWatch = nil
+        }
+    }
+
+    /// True while the feature listens for mounts. For tests.
+    var listensForVolumes: Bool { volumeWatch != nil }
+
     /// The user granted a place's permission while the feature waited for it.
     private func accessGranted(_ place: ProtectedPlace) {
         accessWaits[place]?.cancel()
@@ -486,7 +525,9 @@ public final class FileSearchFeature: Feature {
     }
 
     /// The actions for one place on the Choose Folders to Search page. Searching a place declares
-    /// its permission, so the host explains and asks before the handler runs.
+    /// its permission, so the host's card explains and asks before the handler runs. That card is
+    /// the only question: for iCloud Drive its reason also says that files kept only in iCloud are
+    /// not downloaded.
     func placeActions(for place: ProtectedPlace) -> [Action] {
         if placeStates()[place] == .searched {
             return [
@@ -500,7 +541,6 @@ public final class FileSearchFeature: Feature {
         return [
             Action(
                 Strings.Places.search(place), id: "search", icon: .symbol("plus.circle"),
-                confirmation: place == .iCloudDrive ? Strings.Places.iCloudConfirmation : nil,
                 requires: place.permission.map { [$0] } ?? []
             ) { [self] context in
                 includePlaces([place])
@@ -574,6 +614,7 @@ public final class FileSearchFeature: Feature {
         }
         reconcile(outcome.unreadable)
         syncAccessWaits()
+        syncVolumeWatch()
         declarations.send()
         return outcome
     }

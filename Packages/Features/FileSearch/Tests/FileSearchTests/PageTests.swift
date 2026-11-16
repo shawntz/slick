@@ -45,6 +45,33 @@ struct PageTests {
         #expect(fixture.harness.issues.isEmpty)
     }
 
+    /// A file whose type cannot preview, and a folder, show their own icon through the host's icon
+    /// service instead of an empty preview. The type comes from the facts, never from the file.
+    @Test func anItemThatCannotPreviewShowsItsIcon() async throws {
+        let fixture = try Fixture()
+        try await fixture.start()
+        try await fixture.harness.run("search")
+        for (query, title) in [("old-photos", "old-photos.zip"), ("Archive", "Archive")] {
+            try await fixture.harness.setQuery(query)
+            try fixture.harness.select(title: title)
+            let detail = try #require(try await fixture.harness.loadDetail())
+            let path = try #require(fixture.harness.selectedRow?.id.key)
+            #expect(detail.body == nil, "\(title)")
+            #expect(detail.metadata.first == .label("Kind", value: "Test kind", icon: .file(path: path)), "\(title)")
+        }
+        #expect(FileDetails.canPreview(contentType: "public.plain-text", item: FileItem(isFolder: false)))
+        #expect(FileDetails.canPreview(contentType: "com.adobe.pdf", item: FileItem(isFolder: false)))
+        #expect(FileDetails.canPreview(contentType: "com.apple.quicktime-movie", item: FileItem(isFolder: false)))
+        for type in ["public.zip-archive", "com.apple.disk-image-udif", "public.mp3", "public.data", "no.such.type"] {
+            #expect(!FileDetails.canPreview(contentType: type, item: FileItem(isFolder: false)), "\(type)")
+        }
+        #expect(!FileDetails.canPreview(contentType: nil, item: FileItem(isFolder: false)))
+        #expect(!FileDetails.canPreview(contentType: "public.folder", item: FileItem(isFolder: true)))
+        #expect(
+            !FileDetails.canPreview(
+                contentType: "com.apple.application-bundle", item: FileItem(isFolder: true, isPackage: true)))
+    }
+
     @Test func noFactsAreReadOutsideTheScope() async throws {
         let fixture = try Fixture()
         try await fixture.start()

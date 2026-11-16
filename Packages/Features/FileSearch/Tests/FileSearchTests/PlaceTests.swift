@@ -201,6 +201,78 @@ struct PlaceTests {
         #expect(fixture.feature.status == nil)
     }
 
+    /// The card the host shows for the place's permission is the only question, and its reason says
+    /// both what macOS asks and what happens to files kept only in iCloud.
+    @Test func choosingICloudDriveAsksOneQuestionThatSaysBothThings() async throws {
+        let fixture = try Fixture()
+        try await fixture.start()
+        let reason = try #require(
+            FileSearchFeature.manifest.permissions.first { $0.permission == .protectedFolder(.iCloudDrive) }?.reason)
+        #expect(reason.contains("even with Full Disk Access") && reason.contains("not downloaded"), "\(reason)")
+        // The settings button asks nothing of its own: macOS's question is the only one, and the
+        // button's info says what it means.
+        let pane = try #require(fixture.feature.settingsPane)
+        let button = try #require(pane.sections.flatMap(\.items).first { $0.title == "Search iCloud Drive" })
+        guard case .button(_, let confirmation, _) = button.control else {
+            Issue.record("Search iCloud Drive is a button")
+            return
+        }
+        #expect(confirmation == nil)
+        #expect(button.info?.contains("not downloaded") == true)
+
+        try await fixture.harness.run("choose-folders")
+        try fixture.harness.select(title: "iCloud Drive")
+        #expect(fixture.harness.selectedRow?.subtitle?.contains("not downloaded") == true)
+        let search = try #require(fixture.harness.actions().first)
+        #expect(search.title == "Search iCloud Drive")
+        #expect(search.confirmation == nil)
+        #expect(search.requires == [.protectedFolder(.iCloudDrive)])
+        fixture.harness.grantsMissingPermissions = true
+        try await fixture.harness.performPrimary()
+        try await fixture.idle()
+        #expect(fixture.harness.confirmations.isEmpty, "no question of the feature's own")
+        #expect(fixture.fakes.permissions.requests == [.protectedFolder(.iCloudDrive)], "one ask, through the card")
+        #expect(try await fixture.rootPaths("cloudnote") == [cloudDocs + "/cloudnote.txt"])
+    }
+
+    /// A volume mounted after the scope was planned joins at once, without a rebuild, and only while
+    /// a kind of volume is searched does the feature listen for mounts.
+    @Test func aVolumeMountedLaterJoinsWithoutARebuild() async throws {
+        let fixture = try Fixture(granted: [.protectedFolder(.removableVolumes)])
+        try await fixture.start()
+        #expect(fixture.fileSystem.volumeSignals.listenerCount == 0, "nothing listens until a kind is chosen")
+        try await fixture.harness.run("choose-folders")
+        try fixture.harness.select(title: "Removable Volumes")
+        try await fixture.harness.performPrimary()
+        try await fixture.idle()
+        #expect(fixture.feature.listensForVolumes)
+        #expect(fixture.fileSystem.volumeSignals.listenerCount == 1)
+        #expect(fixture.feature.watchedRoots == [fixture.tree.home])
+
+        let stick = try TestTree(files: ["photo-on-stick.jpg"])
+        fixture.fileSystem.volumes = MountedVolumes(removable: [stick.home])
+        fixture.fileSystem.volumeSignals.send()
+        await fixture.fileSystem.volumeSignals.waitUntilHandled()
+        try await fixture.idle()
+        #expect(try await fixture.rootTitles("photo-on-stick") == ["photo-on-stick.jpg"])
+        #expect(fixture.feature.watchedRoots == [fixture.tree.home, stick.home])
+        #expect(fixture.maker.rebuilds == 0, "no rebuild was needed")
+
+        fixture.fileSystem.volumes = MountedVolumes()
+        fixture.fileSystem.volumeSignals.send()
+        await fixture.fileSystem.volumeSignals.waitUntilHandled()
+        try await fixture.idle()
+        #expect(try await fixture.rootTitles("photo-on-stick").isEmpty, "an unmounted volume leaves the index")
+        #expect(fixture.feature.watchedRoots == [fixture.tree.home])
+
+        fixture.feature.turnOff(.removableVolumes)
+        try await fixture.idle()
+        #expect(!fixture.feature.listensForVolumes)
+        #expect(fixture.fileSystem.volumeSignals.listenerCount == 0, "turned off, nothing listens")
+        await fixture.harness.deactivate()
+        #expect(fixture.fileSystem.volumeSignals.listenerCount == 0)
+    }
+
     @Test func aChosenVolumeKindListsVolumesAndWatchesThem() async throws {
         let fixture = try Fixture(granted: [.protectedFolder(.removableVolumes)])
         let stick = try TestTree(files: ["photo-on-stick.jpg"])

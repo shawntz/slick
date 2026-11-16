@@ -60,8 +60,13 @@ nonisolated protocol FileSystem: Sendable {
     @concurrent func listFolder(_ folder: String, scope: ScopePlan) async -> FolderListing?
 
     /// The kind and dates of one file or folder. Reads its metadata only, never its contents.
-    /// Called for the selected row of the Search Files page, and only for paths the scope allows.
+    /// Called for the selected row of the Search Files page and for Get Info, and only for paths the
+    /// scope allows.
     @concurrent func facts(of path: String) async -> FileFacts?
+
+    /// One value each time a volume is mounted, unmounted or renamed. The feature listens only
+    /// while it searches a kind of volume, so a volume mounted later joins without a rebuild.
+    func volumeChanges() -> AsyncStream<Void>
 }
 
 /// What the detail pane shows about one file, beyond what the index holds.
@@ -71,12 +76,19 @@ nonisolated struct FileFacts: Hashable, Sendable {
     var created: Date?
     var modified: Date?
     var size: Int64?
+    /// The uniform type identifier, such as "public.png", which decides whether a preview can
+    /// draw. Nil when unknown.
+    var contentType: String?
 
-    init(kind: String? = nil, created: Date? = nil, modified: Date? = nil, size: Int64? = nil) {
+    init(
+        kind: String? = nil, created: Date? = nil, modified: Date? = nil, size: Int64? = nil,
+        contentType: String? = nil
+    ) {
         self.kind = kind
         self.created = created
         self.modified = modified
         self.size = size
+        self.contentType = contentType
     }
 }
 
@@ -188,7 +200,8 @@ nonisolated struct SyntheticIndexMaker: IndexMaker {
 }
 
 /// Volumes, folders and file facts for scenarios, self-tests and benchmarks: no volumes, no folder
-/// outside the index, and a kind taken from the name alone. Reads nothing.
+/// outside the index, a kind taken from the name alone, and no type, so the detail pane shows each
+/// file's icon rather than a preview of a file that is not there. Reads nothing.
 nonisolated struct SimulatedFileSystem: FileSystem {
     @concurrent func mountedVolumes() async -> MountedVolumes { MountedVolumes() }
 
@@ -198,5 +211,10 @@ nonisolated struct SimulatedFileSystem: FileSystem {
         FileFacts(
             kind: FileKind.of(name: Paths.name(of: path), isFolder: false, isPackage: false).map(Strings.Kinds.singular)
         )
+    }
+
+    /// No volume is ever mounted here. The stream stays open until the feature lets it go.
+    func volumeChanges() -> AsyncStream<Void> {
+        AsyncStream { _ in }
     }
 }

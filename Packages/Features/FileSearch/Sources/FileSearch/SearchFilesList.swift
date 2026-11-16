@@ -4,8 +4,8 @@ import Kit
 
 /// The Search Files page: the files and folders the user ran most recently while the query is
 /// empty, name search and folder listings as they type, a dropdown that filters by kind, and a
-/// preview with the selected item's size, dates and kind. A folder outside the index is listed
-/// from disk when ``BrowseGuard`` allows it, without a preview.
+/// preview or the item's icon with the selected item's size, dates and kind. A folder outside the
+/// index is listed from disk when ``BrowseGuard`` allows it, without a preview.
 ///
 /// The source filters by itself, on the page's own search lane, because the index lives in the
 /// Rust core. Rows carry their highlights. The page reloads when the index's state changes, such
@@ -75,40 +75,14 @@ final class SearchFilesList: ListSource {
             emptyState: result.notIndexed ? Strings.Page.notIndexedState : Strings.Page.noMatchesState, notice: notice)
     }
 
-    /// A preview, and what the index and the item's own metadata say about it. Only the selected
-    /// row's facts are read, off the main thread, and only for a path the scope allows.
+    /// A preview, or the item's icon when its type cannot preview, and what the index and the
+    /// item's own metadata say about it. Only the selected row's facts are read, off the main
+    /// thread, and only for a path the scope allows. See ``FileDetails``.
     func detail(for row: Row) async throws -> Detail? {
-        guard row.id.namespace == FileRows.namespace else { return nil }
-        let controller = feature.controller
-        let path = row.id.key
-        guard let index = controller.index, let plan = controller.plan, plan.allows(path) else { return nil }
-        let entry = await Self.entry(at: path, in: index)
-        try Task.checkCancellation()
-        let facts = await feature.fileSystem.facts(of: path) ?? FileFacts()
-        try Task.checkCancellation()
-        let item = FileRows.item(of: row)
-        let name = Paths.name(of: path)
-        let flags = entry?.flags ?? []
-        var metadata: [MetadataItem] = []
-        let kind = facts.kind ?? FileKind.of(name: name, flags: flags).map(Strings.Kinds.singular)
-        if let kind { metadata.append(.label(Strings.Detail.kind, value: kind)) }
-        if !item.isFolder || item.isPackage, let size = facts.size ?? entry?.size.map(Int64.init) {
-            metadata.append(
-                .label(Strings.Detail.size, value: Strings.Detail.size(size, locale: feature.context.clock.locale)))
-        }
-        if let created = facts.created { metadata.append(.date(Strings.Detail.created, created)) }
-        let indexed = entry.map { Date(timeIntervalSince1970: TimeInterval($0.modified)) }
-        if let modified = facts.modified ?? indexed { metadata.append(.date(Strings.Detail.modified, modified)) }
-        metadata.append(.label(Strings.Detail.location, value: Paths.display(Paths.parent(of: path), home: plan.home)))
-        return Detail(.preview(FileRows.url(of: row)), metadata: metadata)
+        try await feature.details.detail(for: row, locale: feature.context.clock.locale)
     }
 
     func actions(for row: Row) -> [Action] {
         feature.fileActions.actions(for: row)
-    }
-
-    @concurrent private static func entry(at path: String, in index: FileIndex) async -> FileEntry? {
-        guard let snapshot = try? index.snapshot(), let id = snapshot.lookup(path: path) else { return nil }
-        return snapshot.entry(id)
     }
 }

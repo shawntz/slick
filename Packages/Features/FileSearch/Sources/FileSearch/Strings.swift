@@ -13,7 +13,11 @@ nonisolated enum Strings {
         static let desktop = "Search the files on your Desktop, once you choose to include it."
         static let documents = "Search the files in your Documents folder, once you choose to include it."
         static let downloads = "Search the files in your Downloads folder, once you choose to include it."
-        static let iCloudDrive = "Search the files in iCloud Drive, once you choose to include it."
+        /// The one question before iCloud Drive joins, on the permission card: what macOS asks and
+        /// what happens to files kept only in iCloud.
+        static let iCloudDrive =
+            "Search the files in iCloud Drive, once you choose to include it. macOS asks for it even with Full Disk "
+            + "Access, and files kept only in iCloud are listed by name, not downloaded."
         static let removableVolumes = "Search files on removable drives, once you choose to include them."
         static let networkVolumes = "Search files on network volumes, once you choose to include them."
         static let fullDiskAccess =
@@ -75,16 +79,127 @@ nonisolated enum Strings {
     }
 
     enum Actions {
+        static let copySection = "Copy"
+        static let manageSection = "Manage"
+
+        static let getInfo = "Get Info"
+        static let openInTerminal = "Open in Terminal"
         static let copyFile = "Copy File"
         static let copiedFile = "Copied File"
         static let copyName = "Copy Name"
         static let copiedName = "Copied Name"
+        static let rename = "Rename…"
+        static let duplicate = "Duplicate"
+        static let compress = "Compress"
+        static let moveTo = "Move To…"
+        static let copyTo = "Copy To…"
+        static let moveToTrash = "Move to Trash"
+        static let movedToTrash = "Moved to Trash"
         static let trashConfirm = "Move to Trash"
 
         /// Names the item, cut to a length a question can show.
         static func trashQuestion(_ name: String) -> String {
             let shown = name.count > 60 ? String(name.prefix(59)) + "…" : name
             return "Move “\(shown)” to the Trash?"
+        }
+    }
+
+    /// What the actions that change the disk say: the rename form, progress, results and failures.
+    /// Names go through ``DisplayText/fileName(_:limit:)`` and sit in curly quotes.
+    enum Operations {
+        static let nameField = "Name"
+        static let renameButton = "Rename"
+
+        static func renameTitle(_ name: String) -> String { "Rename \(quoted(name))" }
+        static func renamed(to name: String) -> String { "Renamed to \(quoted(name))" }
+        static func duplicating(_ name: String) -> String { "Duplicating \(quoted(name))" }
+        static func duplicated(_ name: String) -> String { "Duplicated \(quoted(name))" }
+        static func compressing(_ name: String) -> String { "Compressing \(quoted(name))" }
+        static func compressed(_ name: String) -> String { "Compressed \(quoted(name))" }
+        static func moving(_ name: String) -> String { "Moving \(quoted(name))" }
+        static func moved(to folder: String) -> String { "Moved to \(quoted(folder))" }
+        static func copying(_ name: String) -> String { "Copying \(quoted(name))" }
+        static func copied(to folder: String) -> String { "Copied to \(quoted(folder))" }
+
+        static func copyNamed(_ name: String) -> String { "The copy is named \(quoted(name))." }
+        static func archiveNamed(_ name: String) -> String { "The archive is named \(quoted(name))." }
+
+        /// The message of the dialog that picks a folder.
+        static func moveToPrompt(_ name: String) -> String { "Choose a folder to move \(quoted(name)) into." }
+        static func copyToPrompt(_ name: String) -> String { "Choose a folder to copy \(quoted(name)) into." }
+
+        static func failure(_ kind: FileOperationKind) -> String {
+            switch kind {
+            case .rename: "Could Not Rename"
+            case .duplicate: "Could Not Duplicate"
+            case .compress: "Could Not Compress"
+            case .move: "Could Not Move"
+            case .copy: "Could Not Copy"
+            case .trash: "Could Not Move to Trash"
+            }
+        }
+
+        static func nameTaken(_ name: String) -> String {
+            "Another item in this folder is named \(quoted(name)). Choose another name."
+        }
+
+        static func notSearched(_ name: String) -> String {
+            "\(quoted(name)) is in a protected place \(Strings.featureName) does not search now, so it was left as it is."
+        }
+
+        /// Why a name the user typed cannot be used.
+        static func problem(_ problem: FileNames.Problem) -> String {
+            switch problem {
+            case .empty: "Enter a name."
+            case .dots: "A name cannot be \u{201C}.\u{201D} or \u{201C}..\u{201D}."
+            case .slash: "A name cannot contain a slash."
+            case .colon: "A name cannot contain a colon."
+            case .control: "A name cannot contain line breaks or other control characters."
+            case .leadingDot: "A name that starts with a dot hides the item. Choose another name."
+            case .tooLong: "That name is too long. Choose a shorter one."
+            }
+        }
+
+        /// What went wrong, as a sentence that names the item and, for a move or a copy, the folder.
+        static func explain(_ error: FileOperationError, kind: FileOperationKind, item: String, folder: String?)
+            -> String
+        {
+            let place = folder.map(quoted) ?? "that folder"
+            switch error {
+            case .missing:
+                return "\(quoted(item)) is no longer where it was. It may have been moved or deleted."
+            case .nameTaken(let name):
+                switch kind {
+                case .rename: return nameTaken(name)
+                case .move: return "\(place) already holds an item named \(quoted(name)), so nothing was moved."
+                case .copy: return "\(place) already holds an item named \(quoted(name)), so nothing was copied."
+                case .duplicate, .compress, .trash: return "No free name was left beside \(quoted(item))."
+                }
+            case .invalidName(let problem):
+                return problem == .tooLong && kind != .rename
+                    ? "The name of \(quoted(item)) is too long to add to." : self.problem(problem)
+            case .notAFolder:
+                return "Choose a folder, not a file."
+            case .alreadyThere:
+                return "\(quoted(item)) is already in \(place)."
+            case .intoItself:
+                return kind == .copy
+                    ? "A folder cannot be copied into itself or into a folder inside it."
+                    : "A folder cannot be moved into itself or into a folder inside it."
+            case .notAllowed:
+                return "macOS did not allow the change. You may not have permission to change this folder, or it is "
+                    + "on a locked volume."
+            case .noSpace:
+                return "There is not enough space on the disk."
+            case .outsideTree:
+                return "This run changes files only inside its own folder."
+            case .failed(let code):
+                return "The change could not be made. The system reported error \(code)."
+            }
+        }
+
+        static func quoted(_ name: String) -> String {
+            "\u{201C}\(DisplayText.fileName(name))\u{201D}"
         }
     }
 
@@ -179,6 +294,11 @@ nonisolated enum Strings {
         static let modified = "Modified"
         static let location = "Where"
 
+        /// The kind of an item nothing names, such as a file without an extension.
+        static func unknownKind(_ item: FileItem) -> String {
+            item.isFolder && !item.isPackage ? Kinds.singular(.folders) : "File"
+        }
+
         static func size(_ bytes: Int64, locale: Locale) -> String {
             bytes.formatted(.byteCount(style: .file).locale(locale))
         }
@@ -194,14 +314,9 @@ nonisolated enum Strings {
 
         static let searchAllConfirmation = Confirmation(
             "Search All Protected Folders?",
-            message: "macOS asks once for each of Desktop, Documents, Downloads and iCloud Drive. "
-                + "You can stop searching any of them later.",
+            message: "macOS asks once for each of Desktop, Documents, Downloads and iCloud Drive. Files kept only "
+                + "in iCloud are listed by name, not downloaded. You can stop searching any of them later.",
             confirmTitle: "Search All")
-        static let iCloudConfirmation = Confirmation(
-            "Search iCloud Drive?",
-            message: "macOS asks whether \(Brand.name) can read iCloud Drive, even with Full Disk Access. Files "
-                + "kept only in iCloud are listed by name and are not downloaded.",
-            confirmTitle: "Search iCloud Drive")
 
         static func name(_ place: ProtectedPlace) -> String {
             switch place {
@@ -243,10 +358,13 @@ nonisolated enum Strings {
             switch state {
             case .searched:
                 return volumes
-                    ? "Searched. Volumes mounted later join at the next rebuild."
+                    ? "Searched. A volume joins when it is mounted."
                     : "Searched. Changes appear as they happen."
             case .notSearched:
-                if place == .iCloudDrive { return "Not searched. macOS asks once before \(Brand.name) reads it." }
+                if place == .iCloudDrive {
+                    return "Not searched. macOS asks once before \(Brand.name) reads it, even with Full Disk Access. "
+                        + "Files kept only in iCloud are listed by name, not downloaded."
+                }
                 return volumes
                     ? "Not searched. macOS asks once before \(Brand.name) reads them."
                     : "Not searched. macOS asks once before \(Brand.name) reads it."

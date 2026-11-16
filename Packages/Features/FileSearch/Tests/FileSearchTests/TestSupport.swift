@@ -218,7 +218,8 @@ nonisolated final class CountingMaker: IndexMaker {
 }
 
 /// A file system that records which paths had their facts read, lists the volumes it is given and
-/// lists the test's own folders through the feature's guard, with any device allowed.
+/// lists the test's own folders through the feature's guard, with any device allowed. Facts carry a
+/// type from the name's extension, and mounts are sent by hand through ``volumeSignals``.
 nonisolated final class RecordingFileSystem: FileSystem {
     private struct State {
         var volumes = MountedVolumes()
@@ -229,6 +230,8 @@ nonisolated final class RecordingFileSystem: FileSystem {
     }
 
     private let state = Mutex(State())
+    /// Mounts the test sends.
+    let volumeSignals = Signals()
 
     var volumes: MountedVolumes {
         get { state.withLock { $0.volumes } }
@@ -262,7 +265,163 @@ nonisolated final class RecordingFileSystem: FileSystem {
         state.withLock { $0.factsRead.append(path) }
         return FileFacts(
             kind: "Test kind", created: Date(timeIntervalSince1970: 1_790_000_000),
-            modified: Date(timeIntervalSince1970: 1_791_000_000), size: 8)
+            modified: Date(timeIntervalSince1970: 1_791_000_000), size: 8, contentType: Self.contentType(of: path))
+    }
+
+    func volumeChanges() -> AsyncStream<Void> {
+        volumeSignals.stream()
+    }
+
+    /// A type for the test tree's names, as the live service would read it.
+    static func contentType(of path: String) -> String? {
+        switch FileKind.fileExtension(of: Paths.name(of: path)) {
+        case "md", "txt", "swift": "public.plain-text"
+        case "pdf": "com.adobe.pdf"
+        case "jpg", "png": "public.jpeg"
+        case "zip": "public.zip-archive"
+        case "dmg": "com.apple.disk-image-udif"
+        case "mp3": "public.mp3"
+        case "app": "com.apple.application-bundle"
+        default: nil
+        }
+    }
+}
+
+/// Values a test sends by hand to one listener, which knows when each was handled: the listener is
+/// done with a value when it asks for the next one. A value sent while nobody listens is dropped,
+/// as a mount is that happens while the feature does not listen.
+nonisolated final class Signals: Sendable {
+    private struct State {
+        var listeners = 0
+        var pending = 0
+        var busy = false
+        var waiting: CheckedContinuation<Void?, Never>?
+        var idleWaiters: [CheckedContinuation<Void, Never>] = []
+
+        var isIdle: Bool { !busy && pending == 0 }
+
+        mutating func takeIdleWaiters() -> [CheckedContinuation<Void, Never>] {
+            guard isIdle else { return [] }
+            defer { idleWaiters = [] }
+            return idleWaiters
+        }
+    }
+
+    private let state = Mutex(State())
+
+    /// How many streams listen now.
+    var listenerCount: Int { state.withLock { $0.listeners } }
+
+    func stream() -> AsyncStream<Void> {
+        state.withLock { $0.listeners += 1 }
+        return AsyncStream(unfolding: { [self] in await next() }, onCancel: { [self] in end() })
+    }
+
+    /// Hands one value to the listener. Returns at once.
+    func send() {
+        let waiter = state.withLock { state -> CheckedContinuation<Void?, Never>? in
+            guard state.listeners > 0 else { return nil }
+            state.busy = true
+            if let waiting = state.waiting {
+                state.waiting = nil
+                return waiting
+            }
+            state.pending += 1
+            return nil
+        }
+        waiter?.resume(returning: ())
+    }
+
+    /// Returns once the listener has asked for a value after the last one it got, or has gone.
+    func waitUntilHandled() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let idle = state.withLock { state -> Bool in
+                if state.isIdle { return true }
+                state.idleWaiters.append(continuation)
+                return false
+            }
+            if idle { continuation.resume() }
+        }
+    }
+
+    private func next() async -> Void? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void?, Never>) in
+            let (deliver, idle) = state.withLock { state -> (Bool, [CheckedContinuation<Void, Never>]) in
+                state.busy = false
+                if state.pending > 0 {
+                    state.pending -= 1
+                    state.busy = true
+                    return (true, [])
+                }
+                state.waiting = continuation
+                return (false, state.takeIdleWaiters())
+            }
+            for waiter in idle { waiter.resume() }
+            if deliver { continuation.resume(returning: ()) }
+        }
+    }
+
+    private func end() {
+        let (waiting, idle) = state.withLock { state in
+            state.listeners -= 1
+            state.busy = false
+            state.pending = 0
+            defer { state.waiting = nil }
+            return (state.waiting, state.takeIdleWaiters())
+        }
+        waiting?.resume(returning: nil)
+        for waiter in idle { waiter.resume() }
+    }
+}
+
+/// The tree operations, counting each change asked of them, so a test can tell that nothing ran.
+nonisolated final class CountingOperations: FileOperations {
+    private let base: any FileOperations
+    private let calls = Mutex<[String]>([])
+
+    init(_ base: any FileOperations) {
+        self.base = base
+    }
+
+    /// Every change asked for, by name, in order.
+    var made: [String] { calls.withLock { $0 } }
+
+    private func note(_ name: String) {
+        calls.withLock { $0.append(name) }
+    }
+
+    @concurrent func rename(_ item: URL, to name: String) async throws -> URL {
+        note("rename")
+        return try await base.rename(item, to: name)
+    }
+
+    @concurrent func duplicate(_ item: URL) async throws -> URL {
+        note("duplicate")
+        return try await base.duplicate(item)
+    }
+
+    @concurrent func compress(_ item: URL) async throws -> URL {
+        note("compress")
+        return try await base.compress(item)
+    }
+
+    @concurrent func move(_ item: URL, into folder: URL) async throws -> URL {
+        note("move")
+        return try await base.move(item, into: folder)
+    }
+
+    @concurrent func copy(_ item: URL, into folder: URL) async throws -> URL {
+        note("copy")
+        return try await base.copy(item, into: folder)
+    }
+
+    @concurrent func trash(_ item: URL) async throws -> URL {
+        note("trash")
+        return try await base.trash(item)
+    }
+
+    @concurrent func isTaken(_ name: String, besides item: URL) async -> Bool {
+        await base.isTaken(name, besides: item)
     }
 }
 
@@ -273,6 +432,8 @@ struct Fixture {
     let tree: TestTree
     let maker = CountingMaker()
     let fileSystem = RecordingFileSystem()
+    /// Real changes, confined to the test tree's root.
+    let operations: CountingOperations
     let harness: FeatureHarness<FileSearchFeature>
 
     init(
@@ -285,6 +446,8 @@ struct Fixture {
         for permission in granted { fakes.permissions.set(permission, to: .granted) }
         fakes.override(IndexMakerKey.self, with: maker)
         fakes.override(FileSystemKey.self, with: fileSystem)
+        operations = CountingOperations(TreeFileOperations(root: tree.root.path(percentEncoded: false)))
+        fakes.override(FileOperationsKey.self, with: operations)
         settings(fakes.context(featureID: FileSearchFeature.manifest.id).settings)
         harness = FeatureHarness(FileSearchFeature.self, fakes: fakes)
     }
@@ -329,5 +492,16 @@ struct Fixture {
     /// A row for a path, as root search would rebuild it from a snapshot without a payload.
     func bareRow(_ relative: String) -> Row {
         Row(id: ItemID(FileRows.namespace, tree.path(relative)), title: Paths.name(of: tree.path(relative)))
+    }
+
+    /// The names in a folder of the tree, sorted. Reads only the test's own folder.
+    func names(in relative: String) throws -> [String] {
+        try FileManager.default.contentsOfDirectory(atPath: tree.path(relative)).sorted()
+    }
+
+    /// The bytes of a file in the tree.
+    func size(of relative: String) throws -> Int {
+        let attributes = try FileManager.default.attributesOfItem(atPath: tree.path(relative))
+        return (attributes[.size] as? NSNumber)?.intValue ?? -1
     }
 }

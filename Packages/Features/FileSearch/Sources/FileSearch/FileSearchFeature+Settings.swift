@@ -81,10 +81,8 @@ extension FileSearchFeature {
                 context.showToast(.success(Strings.Places.stopped(place)))
             }
         }
-        return .button(
-            Strings.Places.search(place), confirmation: place == .iCloudDrive ? Strings.Places.iCloudConfirmation : nil,
-            info: info
-        ) { [self] context in
+        // No question of its own: macOS asks for the place, and the info says what that means.
+        return .button(Strings.Places.search(place), info: info) { [self] context in
             await askForAccess([place], context: context)
             includePlaces([place])
             let granted = place.permission.map { self.context.permissions.isGranted($0) } ?? true

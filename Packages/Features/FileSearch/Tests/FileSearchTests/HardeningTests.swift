@@ -98,9 +98,17 @@ struct HardeningTests {
         #expect(trash.confirmation?.isDestructive == true)
     }
 
+    /// A link can run each command, after the panel's own question. None of them changes a file: every
+    /// change is a row action, which no link can reach.
     @Test func deepLinksOnlyOpenPagesOrWalkAgain() async throws {
         let fixture = try Fixture()
         try await fixture.start()
+        let before = try fixture.names(in: "")
+        let commands = fixture.feature.commands
+        #expect(commands.map(\.id) == ["search", "rebuild", "choose-folders"])
+        let changes = ["rename", "duplicate", "compress", "move-to", "copy-to", "move-to-trash"]
+        #expect(commands.allSatisfy { !changes.contains($0.id) && $0.rowActions == nil })
+        #expect(commands.allSatisfy { $0.showsInRoot && $0.arguments.isEmpty })
         for command in ["search", "choose-folders"] {
             let outcome = try await fixture.harness.run(command, launch: .deeplink)
             #expect(outcome.kind == .push, "\(command)")
@@ -111,13 +119,67 @@ struct HardeningTests {
         #expect(fixture.fakes.permissions.requests.isEmpty)
         #expect(fixture.fakes.workspace.trashed.isEmpty)
         #expect(fixture.feature.context.settings[FileSearchSettings.includedPlaces].isEmpty)
+        #expect(fixture.operations.made.isEmpty)
+        #expect(try fixture.names(in: "") == before)
         #expect(fixture.harness.pendingIssues.isEmpty)
         #expect(fixture.harness.issues.isEmpty)
     }
 
+    /// Rule 7: titles in title case without a full stop, everything else a sentence.
+    @Test func everyTitleToastAndFailureFollowsTheHouseStyle() {
+        let name = "notes.md"
+        let titles =
+            [
+                Strings.Actions.getInfo, Strings.Actions.openInTerminal, Strings.Actions.rename,
+                Strings.Actions.duplicate,
+                Strings.Actions.compress, Strings.Actions.moveTo, Strings.Actions.copyTo, Strings.Actions.moveToTrash,
+                Strings.Actions.movedToTrash, Strings.Actions.copySection, Strings.Actions.manageSection,
+                Strings.Operations.renameTitle(name), Strings.Operations.renameButton, Strings.Operations.nameField,
+                Strings.Operations.renamed(to: name), Strings.Operations.duplicating(name),
+                Strings.Operations.duplicated(name), Strings.Operations.compressing(name),
+                Strings.Operations.compressed(name), Strings.Operations.moving(name),
+                Strings.Operations.moved(to: "Archive"),
+                Strings.Operations.copying(name), Strings.Operations.copied(to: "Archive"),
+            ] + [FileOperationKind.rename, .duplicate, .compress, .move, .copy, .trash].map(Strings.Operations.failure)
+        for title in titles {
+            #expect(!title.hasSuffix("."), "\(title)")
+            #expect(title.first?.isUppercase == true, "\(title)")
+        }
+        let errors: [FileOperationError] =
+            [
+                .missing, .nameTaken(name), .notAFolder, .alreadyThere, .intoItself, .notAllowed, .noSpace,
+                .outsideTree,
+                .failed(5),
+            ]
+            + [.empty, .dots, .slash, .colon, .control, .leadingDot, .tooLong].map {
+                FileOperationError.invalidName($0)
+            }
+        var sentences = [
+            Strings.Operations.copyNamed(name), Strings.Operations.archiveNamed(name),
+            Strings.Operations.moveToPrompt(name), Strings.Operations.copyToPrompt(name),
+            Strings.Operations.notSearched(name), Strings.Places.searchAllConfirmation.message ?? "",
+            Strings.Permissions.iCloudDrive,
+        ]
+        for kind in [FileOperationKind.rename, .duplicate, .compress, .move, .copy, .trash] {
+            sentences += errors.map { Strings.Operations.explain($0, kind: kind, item: name, folder: "Archive") }
+        }
+        for state in [PlaceState.searched, .notSearched, .waitingForAccess, .accessDenied, .turnedOff] {
+            sentences += ProtectedPlace.allCases.map { Strings.Places.explanation($0, state) }
+        }
+        for sentence in sentences {
+            #expect(sentence.hasSuffix("."), "\(sentence)")
+            let opening =
+                sentence.first?.isUppercase == true || sentence.hasPrefix("\u{201C}") || sentence.hasPrefix("macOS")
+            #expect(opening, "\(sentence)")
+            #expect(!sentence.contains("\u{2014}") && !sentence.contains("  "), "\(sentence)")
+        }
+        // Names someone else chose are shown on one line, cut, and never obeyed.
+        #expect(Strings.Operations.renamed(to: "a\u{202E}fdp.app") == "Renamed to “a\u{FFFD}fdp.app”")
+        #expect(Strings.Operations.duplicated(String(repeating: "x", count: 80)).count == "Duplicated “”".count + 60)
+    }
+
     @Test func confirmationsUseTitleCase() {
         #expect(Strings.Places.searchAllConfirmation.title == "Search All Protected Folders?")
-        #expect(Strings.Places.iCloudConfirmation.title == "Search iCloud Drive?")
         #expect(
             Strings.Actions.trashQuestion(String(repeating: "a", count: 80)) == "Move “"
                 + String(repeating: "a", count: 59) + "…” to the Trash?")

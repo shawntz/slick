@@ -32,16 +32,38 @@ struct LifecycleTests {
         #expect(FeatureValidator.validate(manifest).isEmpty)
     }
 
+    /// Scenarios and the self-test wait for `waitUntilReady()` before they type, so the index must
+    /// answer once it returns.
+    @Test func waitUntilReadyReturnsOnceTheIndexIsBuilt() async throws {
+        let harness = FeatureHarness(FileSearchFeature.self, fakes: FakeServices(permissions: .notDetermined))
+        await harness.activate()
+        let feature: any Feature = harness.feature
+        await feature.waitUntilReady()
+        #expect(harness.feature.controller.summary.count >= SyntheticIndexMaker.scenarioEntries)
+    }
+
     @Test func outsideTheAppTheIndexIsSyntheticAndNothingIsRead() async throws {
         let fakes = FakeServices(permissions: .notDetermined)
         let harness = FeatureHarness(FileSearchFeature.self, fakes: fakes)
         #expect(harness.context.environment != .live)
         #expect(harness.feature.fileSystem is SimulatedFileSystem)
+        let operations = try #require(harness.feature.operations as? TreeFileOperations)
+        #expect(operations.root == fakes.storage.homeDirectory.path(percentEncoded: false))
         await harness.activate()
         await harness.feature.waitUntilIdle()
         #expect(harness.feature.controller.summary.count >= SyntheticIndexMaker.scenarioEntries)
         let rows = try await harness.asyncSections(for: "report").flatMap(\.rows)
         #expect(!rows.isEmpty)
+        // The synthetic files are not on disk, so the pane shows each one's icon, not an empty preview.
+        try await harness.run("search")
+        try await harness.setQuery("report")
+        let detail = try #require(try await harness.loadDetail())
+        #expect(detail.body == nil)
+        #expect(
+            detail.metadata.contains { item in
+                if case .label(_, _, .file?) = item { return true }
+                return false
+            })
         let home = fakes.storage.homeDirectory.path(percentEncoded: false)
         #expect(rows.allSatisfy { $0.id.key.hasPrefix(home.trimmingSuffix("/")) })
         #expect(!FileManager.default.fileExists(atPath: harness.feature.controller.file), "nothing is written")
