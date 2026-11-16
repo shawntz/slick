@@ -163,7 +163,7 @@ Kit is the vocabulary every feature is written in. It has no dependencies. Featu
 - **Services.** Everything with a side effect sits behind a protocol on `FeatureContext`: pasteboard, workspace, hotkeys, permissions (status and changes), process runner, HTTP, storage paths, settings, secrets, clock, usage tracking, fuzzy indexes, selection, file watching, file dialogs, text expansion. Async requirements that do work are `@concurrent`. A service only one feature uses is named by a `FeatureServiceKey`, which picks the live or isolated implementation per run environment and takes a test override. Each Kit service has a fake in `KitTesting`, which also holds `FeatureHarness`; `settle()` waits until a feature's background loops have handled what the fakes sent. Optional weight lives in separate targets: `KitStorage` (SQLite with cancellable queries, atomic JSON files) and `KitTemplates` (placeholders).
 - **Run environment.** `live`, `scenario`, `selftest`, `bench`. Outside `live`, side effects go to fakes and features get the isolated implementation of their own services.
 
-A page's source can learn that its page is shown again and that the panel closed, through `PageEvents`. A feature hears through `permissionGranted` when a permission it declares was granted in settings, onboarding or the panel's card, so it need not hold a permission stream. A feature that is off by default can ask to be suggested in onboarding, where its switch then starts on. `DisplayText.fileName` turns any file name into text that is safe to show. A command may stay out of deep links with `allowsDeepLinks: false`, which hidden commands that act at once use. A settings picker may ask before a choice that deletes data. `FeatureValidator.pendingIssues` lists rules that are not enforced yet.
+A page's source can learn that its page is shown again and that the panel closed, through `PageEvents`. A feature hears through `permissionGranted` when a permission it declares was granted in settings, onboarding or the panel's card, so it need not hold a permission stream. A feature that is off by default can ask to be suggested in onboarding, where its switch then starts on. `DisplayText.fileName` turns any file name into text that is safe to show. A command may stay out of deep links with `allowsDeepLinks: false`, which hidden commands that act at once use. A settings picker may ask before a choice that deletes data. The validator reports a hidden command that asks nothing and still allows deep links. A feature that loads an index or data after activation implements `waitUntilReady()`. Scenarios, the selftest and benchmarks wait for it. The live launcher never does: it shows what has loaded.
 
 Root search reserves the namespaces `cmd` and `app`. The Apps feature, and only it, may use `app`, because it owns those rows.
 
@@ -179,6 +179,7 @@ Exact signatures live in the code. `docs/FEATURES.md` walks through writing a fe
 - `SystemContextService`: the frontmost app, power, displays, audio route and Focus, with a stream of changes and one of session starts. Platform implements it. Root feeds the engine with it.
 - `LoginItemControl`: whether the app opens at login. Platform implements it. SettingsUI shows it.
 - `HostSettings`: the typed keys of the general settings that more than one package reads, stored under the `app.general` namespace.
+- `LinkAllowances`: the commands links may run without asking, each with its exact arguments and title, under `app.links`. App's router writes it. SettingsUI lists and removes it.
 
 `KitHostingTesting` holds a fake for each, and `FakeFeatureDirectory.register` and `FeatureEntry.make` build entries from real features over `FakeServices`, so Root and SettingsUI tests need no Host.
 
@@ -218,7 +219,7 @@ The panel half turns Kit views into LauncherUI views. It owns the navigation sta
 
 Panel sizing: by default the glass is as tall as the full list, so typing never resizes it. With fit-to-content sizing, a height change caused by typing snaps in the same frame. Only navigation and overlays animate the height.
 
-Pages do no work while the panel is hidden. A change signal that arrives then is remembered, and the page reloads once when it is next shown. A detail stream that is already running keeps filling its model and draws nothing.
+Closing the panel ends root search's session: sections still loading are cancelled and the page stops showing that it loads. Pages do no work while the panel is hidden. A change signal that arrives then is remembered, and the page reloads once when it is next shown. A detail stream that is already running keeps filling its model and draws nothing.
 
 Questions and feedback:
 
@@ -230,9 +231,10 @@ Questions and feedback:
 - A question for a run that started outside the panel, by a hotkey, a link or a typed keyword, opens the panel, and Cancel closes it again. When a grant has to happen in System Settings, the panel closes first and a HUD says what to allow.
 - A command run without a required argument opens a page that asks for it in the search field. A command row's actions get the values typed in its chips.
 - A link never runs a command that stays out of deep links.
+- A run a link started, or one that starts in a panel session a link opened, gets a pasteboard whose paste only copies, and a failure toast says Copied, Not Pasted.
 - A grid that hides titles names the selected cell in the action bar.
 
-Tab accepts, in order: the selected row's completion, the ghost completion, then the user's Tab command. Root search always selects the first row after a keystroke. A pushed list keeps its selection while that row is still visible. In the action panel a command row shows Run, then the command's own row actions, then the host's entries.
+Tab accepts, in order: the selected row's completion, the ghost completion, then the user's Tab command. Root search always selects the first row after a keystroke. Text a link typed selects none. A pushed list keeps its selection while that row is still visible. In the action panel a command row shows Run, then the command's own row actions, then the host's entries.
 
 Keyboard model:
 
@@ -258,14 +260,14 @@ Root search is a list like any other to the panel, with a special data source. R
 - Empty query: Suggested, then Favorites.
 - Typed query: instant answers that claim the top, then engine results, then one section per async provider, then fallbacks. Only the fallbacks that are on show, in the user's order. A fallback starts off unless its feature says otherwise, which the default web searches do.
 - An instant provider can say its answer changed. Root asks it again for the query on screen, and the new answer joins as that provider's own section without moving the rows above it.
-- Async results only append to their own sections. They never reorder what the user is already looking at.
+- Async results only append to their own sections. They never reorder what the user is already looking at. A late row that stands for a file a row above already stands for, such as an app's bundle found by file search, is left out.
 - A row you ran that no command or catalog source holds, such as a file from an async provider, is remembered with a display snapshot and joins the synchronous catalog. A file you open often behaves like an app. Rows a catalog source owns are never remembered, so an item its source removed does not come back.
 - Suggestion triggers are asked when the context changes, never on the summon path, and chosen by Thompson sampling. At most one trigger row is shown, or two when one is imminent.
 - Running an item records the query, the item, the context and how it was reached.
 
 ### SettingsUI
 
-A separate SwiftUI window with eight panes: general, appearance with a live theme editor, root search, features with per-command alias, hotkey and enable switch, permissions, learning inspector, advanced and about. Theme edits apply when saved. Onboarding has six steps: welcome, the hotkey, optional features, permissions, a theme, done. The hotkey step walks the user through turning off Spotlight's shortcut when Spotlight holds the launcher hotkey, with the system's own words for each control, and confirms the moment the combination is free. Optional features lists every feature that is off by default, which is how clipboard history gets switched on. The permissions step shows only what the enabled features need and asks macOS for nothing until the user presses Allow. App tells settings whether the launcher hotkey is bound or waiting through `LauncherHotkeyStatus`. Features contribute panes declaratively.
+A separate SwiftUI window with eight panes: general, appearance with a live theme editor, root search, features with per-command alias, hotkey and enable switch, permissions, learning inspector, advanced, with the commands links may run without asking, and about. Theme edits apply when saved. Onboarding has six steps: welcome, the hotkey, optional features, permissions, a theme, done. The hotkey step walks the user through turning off Spotlight's shortcut when Spotlight holds the launcher hotkey, with the system's own words for each control, and confirms the moment the combination is free. Optional features lists every feature that is off by default, which is how clipboard history gets switched on. The permissions step shows only what the enabled features need and asks macOS for nothing until the user presses Allow. App tells settings whether the launcher hotkey is bound or waiting through `LauncherHotkeyStatus`. Features contribute panes declaratively.
 
 ### Features
 
@@ -298,13 +300,13 @@ The executable. `Packages/App/Sources/Slick/main.swift` is one line; everything 
 | `<scheme>://commands/<feature id>/<command id>?<argument>=<value>` | runs a command, which may open its page |
 | `<scheme>://settings`, `<scheme>://settings/<pane>`, `<scheme>://settings/features/<feature id>` | opens settings |
 
-Any web page can fire such a URL. Every part is checked and anything unexpected is refused: other schemes, credentials, ports, fragments, broken escapes, control and direction-override characters, empty, `.` or `..` segments, unknown routes, features, commands, panes and arguments, duplicate items and text over 500 characters. A command never runs silently. Unless the user chose Always Allow for that command, the panel opens on a page that names it and its arguments and offers Run, Always Allow and Cancel. The allowed commands are stored under `app.links.allowedCommands`.
+Any web page can fire such a URL. Every part is checked and anything unexpected is refused: other schemes, credentials, ports, fragments, broken escapes, control and direction-override characters, empty, `.` or `..` segments, unknown routes, features, commands, panes and arguments, duplicate items and text over 500 characters. A command that sets `allowsDeepLinks` to false is refused before anything is asked, even after Always Allow. A link that opens the launcher types its text but selects no row until the user types, moves the selection or clicks one, so Return and Command-1 to 9 run nothing the link chose. A command never runs silently. Unless the user chose Always Allow for that command with exactly these arguments, and it still has the title it had then, the panel opens on a page that names it and its arguments and offers Run, Always Allow and Cancel, with Cancel selected. Run and Always Allow work once the page has been open for a second. The wait starts again when another link replaces the page or the panel opens on it again. Allowances are stored under `app.links.allowedCommands` through KitHosting's `LinkAllowances`. The router drops those whose command is gone or renamed, and the Advanced pane lists them with Remove. A panel session a link opened copies instead of pasting.
 
 **Entry points.** Only the launcher runs in `live`. Every other mode runs in its own environment, uses `--data-dir` or a fresh temporary folder that it deletes, and prints a verdict line last.
 
 - `--selftest`: checks the Rust ABI and the bundle ID, then builds the launcher in `selftest` with an in-memory engine, checks that every feature registered and activated with no validator issue outside a short known list, and queries the real `RootSource` for every command and three rows of every catalog source. Shows nothing.
-- `--bench [name]`: the real Root and features over synthetic catalogs of 3,000 and 10,000 items. Root's own lines first, then Host's `HostBench` on the real panel. The panel shows in a corner without key status. `name` is `root` or one of Host's benches.
-- `--scenario <file> [--output <folder>]`: Host's `ScenarioRunner` on the real panel, with the real Root and features against inert services and the Apps feature's synthetic tree. The workspace and HUDs record instead of acting, and settings records what it would open. Scenario files live in `scenarios/`. Besides Host's steps they take `{ "app": { ... } }` steps for what only the app can see or do: the launcher hotkey, deep links, what the workspace launched, what settings opened, aliases, favorites, the last HUD and the private pasteboard. `ScenarioRunTests` runs every file headless and off screen on each `make test-App`.
+- `--bench [name]`: the real Root and features over synthetic catalogs of 3,000 and 10,000 items. Root's own lines first, then Host's `HostBench` on the real panel. The panel shows in a corner without key status. `name` is `root` or one of Host's benches. `--bench summon-key` summons with key status and runs only when named, because it takes the keyboard for a moment.
+- `--scenario <file> [--output <folder>]`: Host's `ScenarioRunner` on the real panel, with the real Root and features against inert services and the Apps feature's synthetic tree. The workspace and HUDs record instead of acting, and settings records what it would open. Scenario files live in `scenarios/`. Besides Host's steps they take `{ "app": { ... } }` steps for what only the app can see or do: the launcher hotkey, deep links, what the workspace launched, what settings opened, aliases, favorites, the last HUD and the private pasteboard. `ScenarioRunTests` runs every file headless and off screen on each `make test-App`. A scenario waits for each feature's own loading before its first step unless the file sets `startsBeforeReady`. Its clock is in UTC and moves only by `setTime`. App steps set the app in front, start a session, select a row by title, wait for a row, set fallbacks, walk onboarding, and open, capture and close the settings window. The file key `systemApps` shows Apple's own apps from `/System/Applications` with their real icons, and nothing from the user's folders. A `still` step pictures the whole recorded area during a clip, such as the settings window over the wallpaper.
 - `--data-dir <folder>` or `SLICK_DATA_DIR` picks the data folder in any mode.
 
 ## Latency rules
@@ -322,7 +324,9 @@ Budgets are main-thread CPU time, measured inside the app bundle, where the main
 | One-shot interactions: open the action panel, push a page, show a form | 8 ms p99, which is one frame at 120 Hz |
 | Idle | no timers except the 4 Hz pasteboard poll, which runs off the main thread, and the two waits below |
 
-Where this stands in November 2026, measured in the joined app with eight features registered: a root search takes 22 µs p50 and 53 µs p99 over 3,113 items, and 34 µs and 104 µs over 10,113. A keystroke takes 1.3 ms p50 and 4.8 to 5.8 ms p99 from the field editor to the commit, so the p99 budget holds in some runs and not in others. Most of that tail is drawing the rows and the Core Animation commit, 3.7 ms at p99. A streamed detail append takes 0.98 to 1.21 ms p50. The summon path takes 0.02 ms without `makeKey`, opening the action panel 1.6 to 1.9 ms p50, and pushing a page 1.7 ms p50.
+Where this stands in November 2026, measured in the joined app with sixteen features registered, at a load of 6 to 8: a root search takes 26 µs p50 and 70 µs p99 over 3,146 items, and 41 µs and 134 µs over 10,146. A keystroke takes 1.3 to 1.4 ms p50 and 4.6 to 4.7 ms p99 from the field editor to the commit, of which drawing the rows and the Core Animation commit are 2.9 to 3.6 ms at p99. That passes the 5 ms budget with little room, and the same bench missed it in earlier runs. A streamed detail append takes 0.98 ms p50. Opening the action panel takes 1.4 to 1.8 ms p50, and pushing a page 1.7 ms. The summoner's own path takes 0.024 ms. With key status, `makeKey` takes 2.5 ms p50 and the glass's key look another 2.4 ms, and first pixels arrive at 26.5 ms p50 and 46.8 ms p99 as the finished look.
+
+The engine budget is for that measurement, inside the app. A stress bench that holds the thread at background priority reads between 120 and 370 µs at p99 over 3,000 items, depending on how fast the efficiency cores run at that moment, so it does not hold 300 µs there.
 
 Two waits may run a timer while the app is idle, and both end by themselves:
 
@@ -363,6 +367,7 @@ Rules that keep it that way:
 - Data lives in `~/Library/Application Support/Slick`. `SLICK_DATA_DIR` or `--data-dir` overrides it.
 - Settings live in `UserDefaults` behind typed keys.
 - Clipboard history uses SQLite in WAL mode. Small collections such as snippets and quicklinks are JSON files written atomically.
+- Every SQLite database overwrites what it deletes. A clipboard delete rewrites the full-text index and empties the write-ahead log, and the clipboard folder is left out of backups.
 - Slick makes no network request unless a feature the user invoked needs one: currency rates, a web search, an AI provider the user configured.
 - There is no telemetry. The learning inspector in settings shows what was learned and can delete a row, forget an item, pause learning or erase everything.
 - Concealed, transient and auto-generated pasteboard items are never stored.
@@ -414,10 +419,10 @@ make ui-legibility           # LauncherUI contrast over a sweep of glass tints
 make test-LauncherUI-budget  # LauncherUI budget tests in a release build
 make ui-showcase             # regenerate the site's product pictures
 make ui-record               # LauncherUI clip in motion, then MP4 and GIF copies
-make media                   # record every storyboard in scenarios/media and publish the clips to site/media
+make media                   # record every storyboard in scenarios/media over Apple's own apps and publish to site/media
 ```
 
-Release builds move their symbols into `build/Slick.app.dSYM` beside the bundle and strip the executable. Debug builds keep the symbols in place. `STRIP=0` or `STRIP=1` overrides either. In November 2026 that took the bundle from 18.5 MB to 10.8 MB. With the code added since, the bundle is 11.5 MB: the executable is 7.8 MB, about 0.6 MB of it the Rust core, and the compiled icon, `Assets.car`, is 3.9 MB.
+Release builds move their symbols into `build/Slick.app.dSYM` beside the bundle and strip the executable. Debug builds keep the symbols in place. `STRIP=0` or `STRIP=1` overrides either. With sixteen features the bundle is 16 MB: the executable is 12.4 MB, about 0.9 MB of it the Rust core, and the compiled icon, `Assets.car`, is 3.7 MB. The dSYM is 42 MB.
 
 `make selftest`, `make bench` and `make scenario` run the app through LaunchServices with `scripts/launch.sh`, which waits for the mode's verdict line, because LaunchServices does not hand back the exit status. Scenario results and captures go to `build/scenarios/<name>`.
 
