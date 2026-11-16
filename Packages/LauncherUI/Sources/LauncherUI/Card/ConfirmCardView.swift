@@ -12,10 +12,13 @@ nonisolated public struct ConfirmContent: Sendable, Equatable {
     /// The label of a checkbox beside the buttons, such as "Don't ask again". Nil shows none.
     /// Read `ConfirmCardView.isSuppressionChecked` in `onConfirm`.
     public var suppressionTitle: String?
+    /// Return presses Cancel, which draws as the default, until Tab moves the default to the
+    /// confirm button. For a question that a Return meant for something else must never answer yes.
+    public var startsOnCancel: Bool
 
     public init(
         title: String, message: String? = nil, confirmTitle: String, cancelTitle: String = "Cancel",
-        isDestructive: Bool = false, suppressionTitle: String? = nil
+        isDestructive: Bool = false, suppressionTitle: String? = nil, startsOnCancel: Bool = false
     ) {
         self.title = title
         self.message = message
@@ -23,11 +26,15 @@ nonisolated public struct ConfirmContent: Sendable, Equatable {
         self.cancelTitle = cancelTitle
         self.isDestructive = isDestructive
         self.suppressionTitle = suppressionTitle
+        self.startsOnCancel = startsOnCancel
     }
 }
 
 /// A question in the middle of the panel: a title, a message and two buttons. Return confirms and
 /// Escape cancels; either one removes the card. A destructive confirm is red.
+///
+/// With `startsOnCancel` Return cancels: Cancel draws as the default with the Return keycap. Tab
+/// moves the default to the confirm button and back. Escape always cancels.
 ///
 /// With a `suppressionTitle` the card also shows a checkbox, such as "Don't ask again", at the
 /// leading end of the button row. Space or a click toggles it.
@@ -38,6 +45,8 @@ public final class ConfirmCardView: CardSurface, PanelOverlay {
     public var isSuppressionChecked: Bool { suppression?.isOn ?? false }
     public var overlaySizeDidChange: (() -> Void)?
     public let content: ConfirmContent
+    /// True while Return presses Cancel rather than the confirm button.
+    public private(set) var returnCancels: Bool
 
     private let titleLabel = NSTextField(wrappingLabelWithString: "")
     private let messageLabel = NSTextField(wrappingLabelWithString: "")
@@ -48,9 +57,9 @@ public final class ConfirmCardView: CardSurface, PanelOverlay {
 
     public init(content: ConfirmContent) {
         self.content = content
-        cancelButton = CardButton(title: content.cancelTitle, key: "esc", role: .plain)
-        confirmButton = CardButton(
-            title: content.confirmTitle, key: "↩", role: content.isDestructive ? .destructive : .prominent)
+        returnCancels = content.startsOnCancel
+        cancelButton = CardButton(title: content.cancelTitle, key: "", role: .plain)
+        confirmButton = CardButton(title: content.confirmTitle, key: "", role: .plain)
         suppression = content.suppressionTitle.map { title in
             let box = CheckboxFormControl()
             box.update(.checkbox(label: title))
@@ -81,6 +90,15 @@ public final class ConfirmCardView: CardSurface, PanelOverlay {
         }
         setAccessibilityRole(.group)
         setAccessibilityLabel(content.title)
+        styleButtons()
+    }
+
+    /// Gives the Return keycap and the default's fill to whichever button Return presses.
+    private func styleButtons() {
+        cancelButton.key = returnCancels ? "↩" : "esc"
+        cancelButton.role = returnCancels ? .prominent : .plain
+        confirmButton.key = returnCancels ? "" : "↩"
+        confirmButton.role = content.isDestructive ? .destructive : (returnCancels ? .plain : .prominent)
     }
 
     @available(*, unavailable)
@@ -88,13 +106,18 @@ public final class ConfirmCardView: CardSurface, PanelOverlay {
 
     override public var acceptsFirstResponder: Bool { true }
 
-    /// Return confirms and Escape cancels. Other keys do nothing while the card asks.
+    /// Return presses the default button and Escape cancels. On a card that starts on Cancel, Tab
+    /// moves the default between the two buttons. Other keys do nothing while the card asks.
     override public func keyDown(with event: NSEvent) {
         guard let chord = KeyChord(event: event) else { return }
         switch chord.key {
-        case KeyChord.Key.returnKey: confirm()
+        case KeyChord.Key.returnKey: returnCancels ? cancel() : confirm()
         case KeyChord.Key.escape: cancel()
         case KeyChord.Key.space: suppression?.toggle()
+        case KeyChord.Key.tab where content.startsOnCancel:
+            returnCancels.toggle()
+            styleButtons()
+            needsLayout = true
         default: break
         }
     }

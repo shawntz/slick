@@ -38,6 +38,11 @@ public enum SyntheticEvents {
         event(characters: "\u{1B}", keyCode: 53, modifiers: modifiers, in: window)
     }
 
+    /// A key-down event for Tab.
+    public static func tab(modifiers: NSEvent.ModifierFlags = [], in window: NSWindow) -> NSEvent? {
+        event(characters: "\t", keyCode: 48, modifiers: modifiers, in: window)
+    }
+
     /// A key-down event for the down or up arrow.
     public static func arrow(down: Bool, modifiers: NSEvent.ModifierFlags = [], in window: NSWindow) -> NSEvent? {
         let scalar = UnicodeScalar(down ? NSDownArrowFunctionKey : NSUpArrowFunctionKey).map(String.init) ?? ""

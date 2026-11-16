@@ -18,7 +18,9 @@ final class CardButton: NSView {
         didSet { if role != oldValue { needsDisplay = true } }
     }
     /// The key hint drawn after the title, such as "esc" or "↩". Empty draws none.
-    var key: String
+    var key: String {
+        didSet { if key != oldValue { needsDisplay = true } }
+    }
     var onPress: (() -> Void)?
 
     private var theme: ResolvedTheme?

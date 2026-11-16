@@ -105,6 +105,49 @@ struct OverlayTests {
         #expect(surface.overlay == nil)
     }
 
+    /// A card that starts on Cancel gives Return to Cancel until Tab moves it to the confirm button.
+    @Test func aCardThatStartsOnCancelGivesReturnToCancelUntilTab() throws {
+        let surface = makeSurface()
+        defer { surface.panel.close() }
+        var answers: [String] = []
+        let ask = {
+            let card = ConfirmCardView(
+                content: ConfirmContent(
+                    title: "Delete?", confirmTitle: "Delete", isDestructive: true, startsOnCancel: true))
+            card.onConfirm = { answers.append("confirm") }
+            card.onCancel = { answers.append("cancel") }
+            surface.present(card)
+            return card
+        }
+        var card = ask()
+        #expect(card.returnCancels)
+        #expect(card.cancelButton.key == "↩" && card.cancelButton.role == .prominent)
+        #expect(card.confirmButton.key.isEmpty && card.confirmButton.role == .destructive)
+        card.keyDown(with: try #require(SyntheticEvents.returnKey(in: surface.panel)))
+        #expect(answers == ["cancel"], "Return pressed Cancel")
+
+        card = ask()
+        card.keyDown(with: try #require(SyntheticEvents.tab(in: surface.panel)))
+        #expect(!card.returnCancels)
+        #expect(card.cancelButton.key == "esc" && card.cancelButton.role == .plain)
+        #expect(card.confirmButton.key == "↩")
+        card.keyDown(with: try #require(SyntheticEvents.tab(in: surface.panel)))
+        #expect(card.returnCancels, "Tab moves the default back")
+        card.keyDown(with: try #require(SyntheticEvents.tab(in: surface.panel)))
+        card.keyDown(with: try #require(SyntheticEvents.returnKey(in: surface.panel)))
+        #expect(answers == ["cancel", "confirm"])
+
+        card = ask()
+        card.keyDown(with: try #require(SyntheticEvents.escape(in: surface.panel)))
+        #expect(answers == ["cancel", "confirm", "cancel"])
+
+        // Without the option Tab does nothing and Return confirms.
+        let plain = ConfirmCardView(content: ConfirmContent(title: "Delete?", confirmTitle: "Delete"))
+        surface.present(plain)
+        plain.keyDown(with: try #require(SyntheticEvents.tab(in: surface.panel)))
+        #expect(!plain.returnCancels && plain.confirmButton.key == "↩" && plain.confirmButton.role == .prominent)
+    }
+
     @Test func aMenuChoosesAndHandsFocusBack() throws {
         let surface = makeSurface()
         defer { surface.panel.close() }
