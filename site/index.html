@@ -274,7 +274,7 @@
     <header class="section-head section-head--wide">
       <p class="kicker">Themes</p>
       <h2 id="themes-title">Every color and size comes from a theme</h2>
-      <p class="lede">A theme is a JSON file. It sets the panel's tint, clarity, lens style, accent, text size and row height. Pick another theme, and the open panel changes at once.</p>
+      <p class="lede">A theme is a JSON file. It sets the panel's glass and its layout, the tint, clarity, lens style, accent, text size and row height. Pick another theme, and the open panel changes at once.</p>
     </header>
     <figure class="shot">
       <div class="frame" data-crop="panel-whole" data-clip="clip-themes-dark.mp4"><img data-media="clip-themes-dark-poster.png" src="media/clip-themes-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in dark mode with “ca” typed, in the Ocean theme: blue-tinted glass with the second row, Calculator, selected under a blue lens. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
@@ -282,6 +282,42 @@
         <p><span class="chip" data-feature="themes" data-status="in-progress"><span class="chip-dot" aria-hidden="true"></span>In progress</span> Switching themes restyles the open panel at once. <span class="figure-note">Standard, Graphite, Ocean, Ember and Violet, picked through the theme setting. The theme editor in settings has not been tested in the app yet.</span></p>
       </figcaption>
     </figure>
+    <div class="looks">
+      <p class="looks-lead">Beam and Clear are two of the seven built-in themes. Pick any of them in the Theme picker of the settings window's Appearance pane.</p>
+
+      <article class="look" aria-labelledby="beam-title">
+        <header class="look-head">
+          <h3 id="beam-title">Beam</h3>
+          <p>Beam is modeled on the search panel of macOS 27, so the query sits in a capsule of glass and the results sit in a separate container below it. The first nine rows of a list show the Command-digit shortcut that runs them.</p>
+        </header>
+        <figure class="shot">
+          <div class="frame" data-crop="beam" data-clip-dark="clip-beam-dark.mp4" data-clip-light="clip-beam-light.mp4"><img class="look-dark" data-media="clip-beam-dark-poster.png" src="media/clip-beam-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Beam theme, dark mode, with “cal” typed in the capsule and Calculator selected in the results container below it. Each row has a Command-digit shortcut at the right. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"><img class="look-light" data-media="clip-beam-light-poster.png" src="media/clip-beam-light-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Beam theme, light mode, with “cal” typed in the capsule and Calculator selected in the results container below it. Each row has a Command-digit shortcut at the right. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
+          <figcaption class="figure-bar"><p><span class="chip" data-feature="themes" data-status="in-progress"><span class="chip-dot" aria-hidden="true"></span>In progress</span> Beam: the query in a capsule of glass, the results in a separate container below it.</p></figcaption>
+        </figure>
+      </article>
+
+      <article class="look" aria-labelledby="clear-title">
+        <header class="look-head">
+          <h3 id="clear-title">Clear</h3>
+          <p>Clear is Standard's panel in the system's clear glass with no tint, the most translucent of the system's glass styles. Nothing frosts the window behind it, so the panel's text carries a soft halo instead.</p>
+          <p><strong>Text over a busy window is harder to read in Clear.</strong> The capture tests measure the lowest contrast of any title over six test backdrops: busy, white and dark, in light and in dark mode. Over five of them it falls to between 1.0 and 2.4 to 1. Only a dark backdrop in dark mode clears the 4.5 to 1 that the project asks of titles. Turn on Reduce Transparency, and Clear draws regular glass.</p>
+        </header>
+        <figure class="shot">
+          <div class="frame" data-crop="panel-whole" data-clip-dark="clip-clear-dark.mp4" data-clip-light="clip-clear-light.mp4"><img class="look-dark" data-media="clip-clear-dark-poster.png" src="media/clip-clear-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Clear theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick&#x27;s settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"><img class="look-light" data-media="clip-clear-light-poster.png" src="media/clip-clear-light-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Clear theme, light mode, with “cal” typed and Calculator selected, over the About page of Slick&#x27;s settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
+          <figcaption class="figure-bar"><p><span class="chip" data-feature="themes" data-status="in-progress"><span class="chip-dot" aria-hidden="true"></span>In progress</span> Clear: the most translucent glass. The window behind the panel stays sharp. <span class="figure-note">The panel sits over the settings window, open on its About page.</span></p></figcaption>
+        </figure>
+        <div class="pair">
+          <figure class="shot">
+            <div class="frame" data-crop="panel-whole"><img data-media="glass-standard-dark.png" src="media/glass-standard-dark.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Standard theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick&#x27;s settings window. The frosted, tinted glass blurs the app icon and the lines of text behind it into soft shapes. The picture beside it shows the same scene in the Clear theme. Captured from the assembled app running a scripted scenario, with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
+            <figcaption class="shot-caption">Standard: frosted glass blurs the window behind the panel.</figcaption>
+          </figure>
+          <figure class="shot">
+            <div class="frame" data-crop="panel-whole"><img data-media="glass-clear-dark.png" src="media/glass-clear-dark.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Clear theme, dark mode, with “cal” typed and Calculator selected, over the same About page. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it, and the panel&#x27;s text carries a soft dark halo. The picture beside it shows the same scene in the Standard theme. Captured from the assembled app running a scripted scenario, with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
+            <figcaption class="shot-caption">Clear: the same window stays sharp through the glass.</figcaption>
+          </figure>
+        </div>
+      </article>
+    </div>
     <div class="owner-notes">
       <p><strong>Every part is in this repository.</strong> The engine, the interface, the features and this website are MIT-licensed code in one repository.</p>
       <p><strong>One package per feature.</strong> Each feature is its own Swift package, written against a contract package called Kit. <a href="https://github.com/shawntz/slick/blob/main/docs/FEATURES.md">docs/FEATURES.md</a> walks through writing one.</p>
@@ -370,7 +406,7 @@
 <header class="feature-group-head"><h3 id="fs-in-progress"><span class="status-mark" aria-hidden="true"></span>In progress</h3><p>14 features</p></header>
 <p class="feature-group-def">Code exists or is being written. Not usable in the app yet.</p>
 <ul class="feature-list">
-<li class="feature"><h4>Themes</h4><p>Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher; the editor and sharing are not tested in the app yet.</p></li>
+<li class="feature"><h4>Themes</h4><p>Seven built-in themes, including Beam, modeled on the search panel of macOS 27, and Clear, the system&#x27;s clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher; the editor and sharing are not tested in the app yet.</p></li>
 <li class="feature"><h4>Updates</h4><p>Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. No release has shipped the updater yet, so it has not run on a Mac.</p></li>
 <li class="feature"><h4>File search</h4><p>An own index of file names that answers in milliseconds, with folder browsing. Proven in the launcher over a sample index; indexing your real folders has not run on a Mac yet.</p></li>
 <li class="feature"><h4>Snippets</h4><p>Saved text with placeholders that you find and paste from the launcher. Expanding a keyword as you type in other apps has not run on a Mac yet.</p></li>

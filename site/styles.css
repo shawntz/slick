@@ -385,10 +385,14 @@ kbd {
 /* The settings stills are 1880 by 1360 with the window at x 40 to 1840 and y 40 to 1320, its
    sidebar to x 440. On a narrow figure only the pane beside the sidebar shows. */
 [data-crop="settings"] { --cx: 0; --cy: 0; --cw: 1880; --ch: 1360; }
+/* Beam's two pieces of glass span x 260 to 1620 from y 438. The results container grows down to
+   y 1452 while the action panel is open, so this crop runs to the bottom of the clip. */
+[data-crop="beam"] { --cx: 114; --cy: 320; --cw: 1650; --ch: 1160; }
 @container (max-width: 599px) {
   [data-crop="panel"] { --cw: 960; --ch: 642; }
   [data-crop="panel-whole"] { --cx: 154; --cy: 223; --cw: 1570; --ch: 1010; }
   [data-crop="settings"] { --cx: 440; --cy: 40; --cw: 1400; --ch: 1280; }
+  [data-crop="beam"] { --cx: 200; --cy: 350; --cw: 1480; --ch: 1130; }
 }
 
 .look-light { display: none; }
@@ -582,7 +586,26 @@ kbd {
   .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Themes */
+/* Themes. Beam and Clear each get a heading and text beside their clip, and Clear's pair of stills
+   sits side by side under it. */
+
+.looks { display: grid; gap: clamp(56px, 7vw, 96px); margin-top: clamp(56px, 7vw, 96px); }
+.looks-lead { padding-top: 28px; border-top: 1px solid var(--line); color: var(--ink-2); }
+.look-head { margin-bottom: 28px; }
+.look-head h3 { font-size: clamp(1.625rem, 1.3rem + 1.1vw, 2.25rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.03em; }
+.look-head p { margin-top: 12px; max-width: 34rem; color: var(--ink-2); }
+.look-head p + p { margin-top: 16px; }
+.look-head strong { color: var(--ink-1); }
+.pair { display: grid; gap: 32px; margin-top: 40px; }
+@media (min-width: 640px) {
+  .pair { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
+}
+@media (min-width: 1024px) {
+  .look { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); align-items: start; }
+  .look-head { grid-column: 1 / span 4; margin-bottom: 0; padding-right: 8px; }
+  .look > .shot { grid-column: 5 / -1; }
+  .look > .pair { grid-column: 1 / -1; margin-top: 48px; }
+}
 
 .owner-notes { display: grid; gap: 0 32px; margin-top: clamp(48px, 6vw, 72px); }
 .owner-notes p { padding: 20px 0; border-top: 1px solid var(--line); color: var(--ink-2); }
