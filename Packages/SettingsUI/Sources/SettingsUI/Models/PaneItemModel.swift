@@ -340,6 +340,12 @@ import Observation
         return context.permissions.status(of: permission)
     }
 
+    /// What the row says in place of Allow while the permission waits for its app to run.
+    var permissionWaitingSentence: String? {
+        guard let permission else { return nil }
+        return context.waitingSentence(for: permission, status: permissionStatus)
+    }
+
     /// The reason the feature's manifest gives for the permission.
     var permissionReason: String? {
         guard let permission else { return nil }

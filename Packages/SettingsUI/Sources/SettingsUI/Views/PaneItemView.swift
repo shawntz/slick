@@ -85,7 +85,8 @@ struct PaneItemView: View {
         case .permission(let permission):
             PermissionRow(
                 permission: permission, status: item.permissionStatus, reason: item.info ?? item.permissionReason,
-                grant: { await item.grant() }, openSettings: { await item.openPermissionSettings() })
+                waitingSentence: item.permissionWaitingSentence, grant: { await item.grant() },
+                openSettings: { await item.openPermissionSettings() })
         case .note:
             Text(item.title).foregroundStyle(.secondary)
         }

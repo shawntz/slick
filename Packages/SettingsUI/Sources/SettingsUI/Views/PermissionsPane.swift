@@ -18,7 +18,7 @@ struct PermissionsPane: View {
             ForEach(model.entries) { entry in
                 Section {
                     PermissionRow(
-                        permission: entry.permission, status: entry.status,
+                        permission: entry.permission, status: entry.status, waitingSentence: entry.waitingSentence,
                         grant: { await model.grant(entry.permission) },
                         openSettings: { await model.openSettings(for: entry.permission) })
                     ForEach(entry.wants) { want in

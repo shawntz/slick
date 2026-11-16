@@ -22,13 +22,25 @@ final class SettingsContext {
         let grants = GrantAnnouncer(service: dependencies.services.permissions, directory: dependencies.features)
         self.grants = grants
         permissions = PermissionGrant(
-            service: dependencies.services.permissions, custom: dependencies.grantPermission, announcer: grants)
+            service: dependencies.services.permissions, custom: dependencies.grantPermission, announcer: grants,
+            waitsForApp: dependencies.permissionWaitsForApp)
         icons = IconResolver(provider: dependencies.icons)
     }
 
     var services: Services { dependencies.services }
     var directory: any FeatureDirectory { dependencies.features }
     var preferences: any ItemPreferences { dependencies.preferences }
+
+    /// The sentence a permission's row shows in place of its Allow button while the permission
+    /// waits for its app, naming the app when the workspace knows it. Nil when a button may ask.
+    func waitingSentence(for permission: Permission, status: PermissionStatus) -> String? {
+        guard permissions.waitsForApp(permission, status: status) else { return nil }
+        var name: String?
+        if case .automation(let bundleID) = permission {
+            name = services.workspace.application(bundleID: bundleID).map { DisplayText.oneLine($0.name) }
+        }
+        return PermissionGrant.waitingSentence(appName: name)
+    }
 
     /// How an item reads in settings: a command's title, a known row's title, or its raw ID.
     func title(for id: ItemID) -> String {

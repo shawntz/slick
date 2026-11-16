@@ -19,6 +19,8 @@ import Observation
         var permission: Permission
         var wants: [Want]
         var status: PermissionStatus
+        /// What the row says in place of Allow while the permission waits for its app to run.
+        var waitingSentence: String?
         var id: String { permission.settingsKey }
     }
 
@@ -46,9 +48,10 @@ import Observation
             }
         }
         return order.map { permission in
-            Entry(
-                permission: permission, wants: wants[permission] ?? [],
-                status: context.permissions.status(of: permission))
+            let status = context.permissions.status(of: permission)
+            return Entry(
+                permission: permission, wants: wants[permission] ?? [], status: status,
+                waitingSentence: context.waitingSentence(for: permission, status: status))
         }
     }
 

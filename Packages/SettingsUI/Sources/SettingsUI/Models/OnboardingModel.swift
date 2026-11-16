@@ -65,6 +65,8 @@ import Observation
         var reasons: [(feature: String, reason: String)]
         var status: PermissionStatus
         var isSkipped: Bool
+        /// What the row says in place of Allow and Skip while the permission waits for its app.
+        var waitingSentence: String?
         var id: String { permission.settingsKey }
     }
 
@@ -252,10 +254,11 @@ import Observation
             }
         }
         return order.map { permission in
-            PermissionItem(
-                permission: permission, reasons: reasons[permission] ?? [],
-                status: context.permissions.status(of: permission),
-                isSkipped: skipped.contains(permission.settingsKey))
+            let status = context.permissions.status(of: permission)
+            return PermissionItem(
+                permission: permission, reasons: reasons[permission] ?? [], status: status,
+                isSkipped: skipped.contains(permission.settingsKey),
+                waitingSentence: context.waitingSentence(for: permission, status: status))
         }
     }
 

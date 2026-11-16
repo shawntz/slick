@@ -26,6 +26,8 @@ import LauncherUI
 /// - `updates`: whether this build updates itself, for the General pane and onboarding. The Updates
 ///   package implements it for the live launcher of a release. Every other run passes, or defaults
 ///   to, `NoUpdates`.
+/// - `permissionWaitsForApp`: whether an Automation permission can be asked for now. App passes
+///   Platform's `PermissionCenter.waitsForApp(_:)`.
 public struct SettingsDependencies {
     public var services: Services
     public var features: any FeatureDirectory
@@ -53,6 +55,12 @@ public struct SettingsDependencies {
     /// Whether this build updates itself, and the person's choices about it.
     public var updates: any UpdateControl
 
+    /// True for an Automation permission whose app is not running and that a request would not
+    /// start. macOS asks for it only the first time the user controls that app while it is open,
+    /// so settings shows a sentence in its row and offers no button that would start the app. The
+    /// default, ``everyAutomationWaits(_:)``, says so for every Automation permission.
+    public var permissionWaitsForApp: @MainActor (Permission) -> Bool
+
     public init(
         services: Services,
         features: any FeatureDirectory,
@@ -67,7 +75,8 @@ public struct SettingsDependencies {
         grantPermission: (@MainActor (Permission) async -> PermissionStatus)? = nil,
         bundleIdentifier: @escaping @MainActor (URL) -> String? = { Bundle(url: $0)?.bundleIdentifier },
         launcherHotkey: (any LauncherHotkeyStatus)? = nil,
-        updates: any UpdateControl = NoUpdates()
+        updates: any UpdateControl = NoUpdates(),
+        permissionWaitsForApp: @escaping @MainActor (Permission) -> Bool = SettingsDependencies.everyAutomationWaits
     ) {
         self.services = services
         self.features = features
@@ -83,6 +92,14 @@ public struct SettingsDependencies {
         self.bundleIdentifier = bundleIdentifier
         self.launcherHotkey = launcherHotkey
         self.updates = updates
+        self.permissionWaitsForApp = permissionWaitsForApp
+    }
+
+    /// The safe default for ``permissionWaitsForApp``: every Automation permission waits for its
+    /// app, so no settings button can start one.
+    public static func everyAutomationWaits(_ permission: Permission) -> Bool {
+        if case .automation = permission { return true }
+        return false
     }
 }
 

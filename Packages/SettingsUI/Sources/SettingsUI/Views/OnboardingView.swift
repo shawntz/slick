@@ -231,6 +231,13 @@ private struct PermissionsStep: View {
                             Spacer()
                             if item.status.isGranted {
                                 Label("Allowed", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                            } else if let sentence = item.waitingSentence {
+                                Text(sentence)
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(maxWidth: 220, alignment: .trailing)
+                                    .fixedSize(horizontal: false, vertical: true)
                             } else if item.isSkipped {
                                 Text("Skipped").foregroundStyle(.secondary)
                                 Button("Allow…") { Task { await model.allow(item.permission) } }

@@ -126,6 +126,8 @@ struct PermissionRow: View {
     let permission: Permission
     let status: PermissionStatus
     var reason: String?
+    /// Shown in place of the Allow button while the permission waits for its app to run.
+    var waitingSentence: String?
     let grant: () async -> Void
     let openSettings: () async -> Void
 
@@ -143,9 +145,12 @@ struct PermissionRow: View {
                 Label(status.label, systemImage: status.isGranted ? "checkmark.circle.fill" : "circle")
                     .font(.callout)
                     .foregroundStyle(status.isGranted ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                if let waitingSentence {
+                    Text(waitingSentence).font(.callout).foregroundStyle(.secondary)
+                }
             }
             Spacer()
-            if !status.isGranted && status != .restricted {
+            if waitingSentence == nil && !status.isGranted && status != .restricted {
                 Button("Allow…") { Task { await grant() } }
                     .accessibilityLabel("Allow \(permission.displayName)")
             }
