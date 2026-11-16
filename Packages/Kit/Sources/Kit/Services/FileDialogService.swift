@@ -16,15 +16,18 @@ public struct OpenDialogRequest: Hashable, Sendable {
     public var allowedTypes: [String]
     public var allowsMultiple: Bool
     public var canChooseDirectories: Bool
+    /// False offers folders only, such as a folder to move a file into. True by default.
+    public var canChooseFiles: Bool
 
     public init(
         title: String? = nil, allowedTypes: [String] = [], allowsMultiple: Bool = false,
-        canChooseDirectories: Bool = false
+        canChooseDirectories: Bool = false, canChooseFiles: Bool = true
     ) {
         self.title = title
         self.allowedTypes = allowedTypes
         self.allowsMultiple = allowsMultiple
         self.canChooseDirectories = canChooseDirectories
+        self.canChooseFiles = canChooseFiles
     }
 }
 

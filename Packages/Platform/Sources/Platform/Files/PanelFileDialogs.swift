@@ -21,7 +21,7 @@ nonisolated public struct PanelFileDialogs: FileDialogService {
         if let title = request.title { panel.message = title }
         panel.allowsMultipleSelection = request.allowsMultiple
         panel.canChooseDirectories = request.canChooseDirectories
-        panel.canChooseFiles = true
+        panel.canChooseFiles = request.canChooseFiles
         let types = DialogTypes.contentTypes(for: request.allowedTypes)
         if !types.isEmpty { panel.allowedContentTypes = types }
         NSApplication.shared.activate()
