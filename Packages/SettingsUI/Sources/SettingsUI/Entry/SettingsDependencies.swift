@@ -32,7 +32,8 @@ public struct SettingsDependencies {
     public var loginItem: any LoginItemControl
     public var themes: ThemeStore
     public var dataDirectory: URL
-    /// Version, license and links for the about pane.
+    /// Version, license and links for the about pane. The pane opens each link through
+    /// `services.workspace`.
     public var about: AboutInfo
     /// The row for an item, for the titles of favorites and learned items that are not commands.
     /// App passes `RootSource.row(for:)`. The default knows no rows and shows commands by title.
@@ -107,12 +108,12 @@ public struct AboutInfo: Sendable, Equatable {
         self.links = links
     }
 
-    /// The version and build of the running app bundle. Outside a bundle the version reads
-    /// "Development".
-    public static func fromMainBundle() -> AboutInfo {
+    /// The version and build of the running app bundle, with `links`. Outside a bundle the
+    /// version reads "Development".
+    public static func fromMainBundle(links: [Link] = []) -> AboutInfo {
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String
         let build = info["CFBundleVersion"] as? String
-        return AboutInfo(version: version ?? "Development", build: version == nil ? nil : build)
+        return AboutInfo(version: version ?? "Development", build: version == nil ? nil : build, links: links)
     }
 }

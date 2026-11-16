@@ -66,7 +66,7 @@ public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
         permissions = PermissionsModel(context: context)
         learning = LearningModel(context: context)
         advanced = AdvancedModel(context: context)
-        about = AboutModel(info: dependencies.about)
+        about = AboutModel(info: dependencies.about, context: context)
     }
 
     var toasts: ToastCenter { context.toasts }

@@ -117,6 +117,7 @@ public final class OnboardingController {
     private let context: SettingsContext
     private let model: OnboardingModel
     private var window: NSWindow?
+    private var captureWindow: NSWindow?
     private var keyObserver: (any NSObjectProtocol)?
 
     /// - Parameter onFinish: Called after the user pressed Start and ``HostSettings/onboardingDone``
@@ -154,14 +155,72 @@ public final class OnboardingController {
         window.orderFrontRegardless()
     }
 
-    private func makeWindow() -> NSWindow {
+    /// The step the window shows, or would show when it opens.
+    public var shownStep: OnboardingStepID {
+        OnboardingStepID.allCases.first { OnboardingModel.Step($0) == model.step } ?? .welcome
+    }
+
+    /// True when the step has something to show. The optional features step needs a feature that
+    /// is off by default, and the permissions step a permission that a feature that is on needs.
+    public func canShow(_ step: OnboardingStepID) -> Bool {
+        model.hasContent(OnboardingModel.Step(step))
+    }
+
+    /// Shows the window on a step with its bottom-left corner at `origin`, for a scenario that
+    /// pictures it, as ``SettingsController/showForCapture(_:at:)`` does for the settings window.
+    /// The app does not come forward and the window does not take key status. The window keeps the
+    /// place it is given, even off every screen, and stays fully transparent unless it is exactly
+    /// there, so it never shows anywhere else. Going to the step applies no switch and marks
+    /// nothing done. As ``show()`` does, it has the launcher hotkey check whether a macOS shortcut
+    /// holds it, so the hotkey step pictures the wait at once. ``close()`` puts the window away.
+    /// Returns the frame to capture, or nil when the step has nothing to show or the window could
+    /// not be put at `origin`.
+    @discardableResult
+    public func showForCapture(_ step: OnboardingStepID, at origin: CGPoint) -> CGRect? {
+        guard model.show(OnboardingModel.Step(step)) else { return nil }
+        context.launcherHotkey?.checkNow()
+        let window = captureWindow ?? makeWindow(placed: true)
+        captureWindow = window
+        window.alphaValue = 0
+        window.setFrameOrigin(origin)
+        window.orderFrontRegardless()
+        guard window.frame.origin == origin else {
+            window.orderOut(nil)
+            return nil
+        }
+        window.alphaValue = 1
+        return window.frame
+    }
+
+    /// The frame of the window ``showForCapture(_:at:)`` opened, while it is on screen.
+    public var captureFrame: CGRect? {
+        guard let captureWindow, captureWindow.isVisible else { return nil }
+        return captureWindow.frame
+    }
+
+    /// Closes the window, and the one ``showForCapture(_:at:)`` opened, without finishing
+    /// onboarding.
+    public func close() {
+        window?.close()
+        captureWindow?.close()
+    }
+
+    /// The window. A placed one is for captures: it stays where it is put and never watches for
+    /// key status, which it never takes.
+    private func makeWindow(placed: Bool = false) -> NSWindow {
         let hosting = NSHostingController(rootView: OnboardingView(model: model, toasts: context.toasts))
-        let window = NSWindow(contentViewController: hosting)
+        let window = placed ? PlacedWindow(contentViewController: hosting) : NSWindow(contentViewController: hosting)
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.title = "Welcome to \(Brand.name)"
         window.isReleasedWhenClosed = false
+        guard !placed else {
+            // The window would take the view's size only after a layout pass, once it shows; a
+            // capture needs its frame before that.
+            window.setContentSize(hosting.view.fittingSize)
+            return window
+        }
         window.center()
         keyObserver = LauncherHotkeyCheck.observe(window, status: context.launcherHotkey)
         return window

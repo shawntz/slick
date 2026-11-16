@@ -118,6 +118,22 @@ import Observation
         hotkey.endRecording()
     }
 
+    /// True when the step has something to show: the optional features step lists a feature and
+    /// the permissions step a permission.
+    func hasContent(_ target: Step) -> Bool {
+        !isEmpty(target)
+    }
+
+    /// Goes straight to a step, for a scenario that pictures it. Switches the user set on the way
+    /// are not applied. Returns false, and stays, when the step has nothing to show.
+    @discardableResult
+    func show(_ target: Step) -> Bool {
+        guard hasContent(target) else { return false }
+        step = target
+        hotkey.endRecording()
+        return true
+    }
+
     /// The first step from `raw` in the direction `by` that has something to show.
     private func nearest(from raw: Int, by offset: Int) -> Step? {
         var candidate = Step(rawValue: raw)

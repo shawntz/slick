@@ -17,7 +17,11 @@ struct AboutPane: View {
             if !model.info.links.isEmpty {
                 HStack(spacing: 16) {
                     ForEach(model.info.links) { link in
-                        Link(link.title, destination: link.url)
+                        Button(link.title) {
+                            Task { await model.open(link) }
+                        }
+                        .buttonStyle(.link)
+                        .help(link.url.absoluteString)
                     }
                 }
             }

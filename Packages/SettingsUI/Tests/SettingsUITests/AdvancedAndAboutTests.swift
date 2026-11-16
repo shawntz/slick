@@ -94,20 +94,42 @@ import Testing
     }
 }
 
-@MainActor @Suite struct AboutModelTests {
+@MainActor @Suite(.timeLimit(.minutes(1))) struct AboutModelTests {
     @Test func everythingComesFromTheBrandAndTheBundle() {
-        let model = AboutModel(info: AboutInfo(version: "1.2", build: "34"))
+        let bed = TestBed()
+        let model = AboutModel(info: AboutInfo(version: "1.2", build: "34"), context: bed.context())
         #expect(model.name == Brand.name)
         #expect(model.versionText == "Version 1.2 (34)")
         #expect(model.licenseText == "\(Brand.name) is open source under the MIT License.")
         #expect(model.privacyText.hasPrefix(Brand.name))
-        #expect(AboutModel(info: AboutInfo(version: "1.2")).versionText == "Version 1.2")
+        #expect(AboutModel(info: AboutInfo(version: "1.2"), context: bed.context()).versionText == "Version 1.2")
     }
 
     @Test func outsideABundleTheVersionSaysDevelopment() {
         // The test runner is not an app bundle with a version.
         let info = AboutInfo.fromMainBundle()
         #expect(!info.version.isEmpty)
+        #expect(info.links.isEmpty)
+        let link = AboutInfo.Link(title: "Source", url: URL(string: "https://example.com/source")!)
+        #expect(AboutInfo.fromMainBundle(links: [link]).links == [link])
+    }
+
+    @Test func aLinkOpensThroughTheWorkspaceService() async throws {
+        let bed = TestBed()
+        let settings = SettingsModel(dependencies: bed.dependencies)
+        let link = try #require(settings.about.info.links.first)
+        await settings.about.open(link)
+        #expect(bed.fakes.workspace.opened == [link.url])
+        #expect(settings.toasts.current == nil)
+    }
+
+    @Test func aLinkThatCannotOpenSaysSo() async throws {
+        let bed = TestBed()
+        bed.fakes.workspace.failsToOpen = true
+        let context = bed.context()
+        let link = AboutInfo.Link(title: "Website", url: try #require(URL(string: "https://example.com")))
+        await AboutModel(info: AboutInfo(version: "1", links: [link]), context: context).open(link)
+        #expect(context.toasts.current?.toast.title == "Could Not Open Website")
     }
 }
 
