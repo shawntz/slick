@@ -6,34 +6,17 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 
 ## Unreleased
 
-### Added
-
-- Notes: quick notes kept as Markdown files that any editor opens. Save one from root search with
-  `note` and your text, search titles and text, append, pin, tag, rename and paste them.
-
-### Fixed
-
-- Settings panes weigh as much as commands in search, so a pane whose name starts with what you
-  typed comes before a command whose words it only covers, as Network does for `net`.
-- Tab after a query that ends in a space no longer adds the rest of a name after the space, as in
-  "note s". It completes only when the name has a space there too.
-- When a link opened the launcher, closing it clears the link's text and pages, so the next time
-  you open it, nothing the link typed is there to run.
-- A question that a feature asks goes away when you switch that feature off.
-
-Shell commands, the color picker, Translate and media controls are still in progress and are not
-listed here.
-
 ## 0.1.0
 
-The first release. It needs macOS 26 or later on Apple silicon.
+The first release. It needs macOS 26 or later on Apple silicon, and it has been tested only on
+macOS 27.
 
 ### Added
 
 - Liquid Glass panel: a real system glass panel, not a blur imitation, with a selection lens that
   glides between rows.
-- Built-in themes: seven looks for the panel, among them Beam, modeled on the search panel of
-  macOS 27, and Clear, the system's clear glass with no tint.
+- Built-in themes: seven looks for the panel, among them Spotlight, modeled on Spotlight in
+  macOS 27, and Glass, the system's clear glass with no tint.
 - Fuzzy search: an in-house matcher that understands prefixes, acronyms, camelCase, word order and
   typos.
 - Learns your habits: pick a result twice for a query and it becomes the top hit. Everything it
@@ -51,9 +34,14 @@ The first release. It needs macOS 26 or later on Apple silicon.
 - Quicklinks and web search: open sites and searches with a keyword, and fall back to the web when
   nothing local matches.
 - Emoji picker: search emoji and symbols by name and paste them.
+- Notes: quick notes kept as Markdown files that any editor opens. Save one from root search with
+  `note` and your text, search titles and text, append, pin, tag, rename and paste them.
+- Takes Command-Space from Spotlight: when Spotlight's shortcut uses the keys you chose, press
+  Continue on the Hotkey step, or Turn Off Spotlight's Shortcut in settings or the bolt menu, and
+  Slick turns that shortcut off for you. It changes no system setting at launch.
 - Updates: once you agree, Slick checks for a new version once a day and tells you when one is
   ready. It installs an update only when you choose to, and only after checking its signature.
 
-Features still in progress, such as file search, snippets and window management, are not listed
-here. Some of them already appear in the app and may not work fully yet. The feature list in the
-README says how far along each one is.
+Features still in progress are not listed here: file search, snippets, window management, shell
+commands, the color picker, Translate, media controls and others. They already appear in the app
+and may not work fully yet. The feature list in the README says how far along each one is.

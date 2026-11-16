@@ -19,7 +19,7 @@ Until the domain is attached, the site is at https://shawntz.github.io/slick/. I
 | `assets/og.png` | The 1200 by 630 picture that link previews show. `assets/og-card.html` is its source. |
 | `CNAME`, `robots.txt`, `sitemap.xml`, `.nojekyll` | Domain record, crawler rules, the one-page sitemap, and a marker that turns Jekyll off for branch publishing. |
 
-The page makes no request to any other server. A Content Security Policy in each page's `<meta>` tag enforces that: scripts, styles, images, media and fetches must come from the site itself. There are no web fonts, no analytics and no cookies. HTML, CSS and JavaScript together must stay under 120 KB. On 15 November 2026, after Beam and Clear were added, they were 110 KB.
+The page makes no request to any other server. A Content Security Policy in each page's `<meta>` tag enforces that: scripts, styles, images, media and fetches must come from the site itself. There are no web fonts, no analytics and no cookies. HTML, CSS and JavaScript together must stay under 120 KB. On 16 November 2026 they were 112,906 bytes.
 
 Recordings do not count toward that limit, but they are the heaviest part of the page. A visitor downloads only the posters of the clips they scroll near and only the recordings that play. The posters are 0.3 to 0.8 MB each and the recordings 0.7 to 2.9 MB.
 
@@ -148,9 +148,9 @@ A clip of one feature carries a status chip, so the clip never suggests more tha
 
     <span class="chip" data-feature="files" data-status="in-progress"><span class="chip-dot" aria-hidden="true"></span>In progress</span>
 
-The script rewrites every chip's `data-status` and label from the feature with that id, `--check` fails when one is stale, and `main.js` updates them from `data/features.json` too. Today the page has seven: the four clips in Built in, and the themes, Beam and Clear clips in Themes. All three in Themes name the `themes` feature.
+The script rewrites every chip's `data-status` and label from the feature with that id, `--check` fails when one is stale, and `main.js` updates them from `data/features.json` too. Today the page has seven. They are the four clips in Built in, and the themes, Spotlight and Glass clips in Themes. All three in Themes name the `themes` feature.
 
-Above the list, the three-step track headed Done, Now and Not yet is hand-written. It follows where the whole project stands, not the JSON file. Today it reads: done, one app with twenty-one features; now, first runs on a real Mac, because nobody has started the live launcher; not yet, a download. When a step is reached, move the `data-stage` values along: `done`, `now`, `next`. The step marked `now` also carries `aria-current="step"`. The Now step and the "You would be early" note in Try it both say that nobody has started the live launcher. Change them together once someone has.
+Above the list, the three-step track headed Done, Now and Not yet is hand-written. It follows where the whole project stands, not the JSON file. Today it reads: done, one app with twenty-one features; now, first runs on a real Mac, which began on 16 November 2026; not yet, a download. When a step is reached, move the `data-stage` values along: `done`, `now`, `next`. The step marked `now` also carries `aria-current="step"`. The Now step and the "You would be early" note in Try it both say when the live launcher first ran and that most features have not been tried on a real Mac. Change them together as that changes.
 
 ### Turning on the download button
 
@@ -183,6 +183,8 @@ To add a clip, record it with `make media`, which publishes the MP4, the GIF, th
 
 Use only captures of the assembled app: entries in the manifest with a `clip` or a `still` field. The older stills without either field come from the interface code drawing a made-up catalog, and their alt text says they are not the app.
 
+The two pictures of the General pane, `settings-general-dark.png` and `settings-general-light.png`, show the hotkey advice from before Slick could turn off Spotlight's shortcut. The page and the README leave them out until `make media` records them again.
+
 ### Crops
 
 Each recording is 1880 by 1480 pixels, and the launcher's panel covers about half of it, at x 178 to 1700 and y 247 to 1208. The page shows only the panel plus a margin. Each frame names a crop with `data-crop`, and `styles.css` holds the numbers under "Screenshot frames": `--cx` and `--cy` are the top-left corner, `--cw` and `--ch` the size, in the picture's pixels. A figure narrower than 600 px, as on a phone, switches to a closer crop.
@@ -190,23 +192,23 @@ Each recording is 1880 by 1480 pixels, and the launcher's panel covers about hal
 | Crop | Used by | Full crop | Narrow crop |
 |---|---|---|---|
 | `panel` | hero, speed, learning, calculator | 114, 195, 1650 by 1064 | 114, 195, 960 by 642 |
-| `panel-whole` | themes, Clear, the Standard and Clear stills, keys, clipboard, emoji, files | 114, 195, 1650 by 1064 | 154, 223, 1570 by 1010 |
-| `beam` | Beam | 114, 320, 1650 by 1160 | 200, 350, 1480 by 1130 |
-| `settings` | the two settings stills | 0, 0, 1880 by 1360 | 440, 40, 1400 by 1280 |
+| `panel-whole` | themes, Glass, the Standard and Glass stills, keys, clipboard, emoji, files | 114, 195, 1650 by 1064 | 154, 223, 1570 by 1010 |
+| `spotlight` | Spotlight | 114, 320, 1650 by 1160 | 200, 350, 1480 by 1130 |
+| `settings` | the Learning pane's still | 0, 0, 1880 by 1360 | 440, 40, 1400 by 1280 |
 
-`panel` on a phone shows the query field and the first four rows, which is where its clips happen. `panel-whole` keeps the whole panel, for clips whose action happens on the right or low in the panel. Beam's two pieces of glass sit lower than the other panels, at x 260 to 1620 from y 438, and its results container grows down to y 1452 while the action panel is open, so `beam` runs to the bottom of the clip. The settings stills are 1880 by 1360, with the window at x 40 to 1840 and y 40 to 1320 and its sidebar up to x 440. On a phone only the pane beside the sidebar shows. When a recording is made again, check that the panel still sits where these crops expect.
+`panel` on a phone shows the query field and the first four rows, which is where its clips happen. `panel-whole` keeps the whole panel, for clips whose action happens on the right or low in the panel. The Spotlight theme's two pieces of glass sit lower than the other panels, at x 260 to 1620 from y 438, and its results container grows down to y 1452 while the action panel is open, so `spotlight` runs to the bottom of the clip. The settings stills are 1880 by 1360, with the window at x 40 to 1840 and y 40 to 1320 and its sidebar up to x 440. On a phone only the pane beside the sidebar shows. When a recording is made again, check that the panel still sits where these crops expect.
 
 ### The clip picker
 
 The Built in section shows one frame at a time and a row of radio buttons, so it switches without JavaScript. Each frame and each caption carries `data-view`, and the CSS rules under "A figure that shows one of several clips" show the one whose radio button is checked. To add a clip, add its frame, its caption, its radio button and its line in each of the two `:has()` rules.
 
-### Beam and Clear
+### Spotlight and Glass
 
-Under the themes clip, the Themes section shows two built-in themes on their own. Each has a heading, its text and its clip, which follows the reader's appearance. Clear also has a pair of dark stills, `glass-standard-dark.png` and `glass-clear-dark.png`, side by side with the manifest caption under each.
+Under the themes clip, the Themes section shows two built-in themes on their own. Each has a heading, its text and its clip, which follows the reader's appearance. Glass also has a pair of dark stills, `compare-standard-dark.png` and `compare-glass-dark.png`, side by side with the manifest caption under each.
 
-- Beam's text is the only place on the page that says what Beam is modeled on. Say it once.
-- Clear's text says that text over a busy window is harder to read, with numbers. They come from `make ui-shots` with `UI_ARGS="themes=clear"` on 15 November 2026: the lowest contrast of any title over each of six test backdrops, by the worst-case meter. Five of them read 1.0 to 2.4 to 1, and only a dark backdrop in dark mode clears 4.5 to 1. `Theme.clearSummary` in LauncherUI, which the Appearance pane shows under the picker, quotes the same run as 1.0 to 3.7 to 1: every title reading under 4.5, not the lowest one per backdrop. When Clear changes, measure again and change both.
-- The recorder's wallpaper has no detail, so clear and frosted glass would look alike over it. Clear's clips and the pair show the panel over the settings window's About page instead, and the caption says so.
+- The Spotlight theme's text is the only place on the page that says what it is modeled on. Say it once, as "Spotlight is modeled on Spotlight in macOS 27." The footer says that Spotlight is a trademark of Apple Inc. and that Slick is not affiliated with Apple. Keep that line while a theme carries the name.
+- The Glass theme's text says that text over a busy window is harder to read, with numbers. They come from `make ui-shots` on 15 November 2026, under the theme's earlier name. Today's argument is `UI_ARGS="themes=glass"`. The numbers are the lowest contrast of any title over each of six test backdrops, by the worst-case meter. Five of them read 1.0 to 2.4 to 1, and only a dark backdrop in dark mode clears 4.5 to 1. The theme's summary in LauncherUI, which the Appearance pane shows under the picker, gives no numbers. It says that text is harder to read over a busy or bright window. When the theme changes, measure again and change the site's numbers.
+- The recorder's wallpaper has no detail, so clear and frosted glass would look alike over it. The Glass clips and the pair show the panel over the settings window's About page instead, and the caption says so.
 
 ### The social image
 
@@ -220,7 +222,7 @@ The card shows a crop of `media/hero-dark-poster.png`, the poster of the hero re
 
 Every claim on the site must be backed by `support/features.json` or by a measurement in the project's reports. The numbers on the page were measured on 15 November 2026 inside the release app bundle with sixteen features registered, on an Apple M5 with macOS 27.2 and a 120 Hz display, while other builds kept the load average at 6 to 8. `docs/ARCHITECTURE.md`, under "Latency rules", carries the same numbers. Quote them with those conditions. Do not say the app is faster than another launcher, because nobody has measured one on that machine, and do not call a feature available before the data does. Alt text and captions come from `media/manifest.json`. Change the manifest first, then copy the text into `index.html`.
 
-The writing rules: plain words, short sentences, active voice and sentence-case headings. No em dashes, no parenthetical asides, and no praise without a fact behind it. Say what the thing does and give the number.
+The owner's rules for words apply to every sentence on the page. Say what happens, in the order it happens, in the words a person would use out loud. Write short sentences with one idea each, in the active voice, and name who does it. Use no colon in the middle of a sentence, no semicolon, no dash as punctuation, no parentheses and no "and more". Praise nothing. Say what the thing does and give the number. Headings on the page use sentence case.
 
 ## Sources
 

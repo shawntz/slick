@@ -172,7 +172,7 @@ App adds steps of its own for what only the app can see or do, written `{ "app":
 - `openSettings`, `captureSettings` and `closeSettings`: open the real settings window on a pane at a fixed place without key status or a saved frame, capture it and close it.
 - `makeFiles` and `chooseFiles`: write made-up files in the run's own home folder, which shows as `~`, and hand them to the next open dialog, as for an import. `homeFiles` checks that files exist there, and `openDialogs` counts the open dialogs asked for.
 - `selectedSubtitle`, `detailMetadata` and `filter`: check the selected row's subtitle, the labels of a detail page's metadata, such as a shell command's Status, and the option a list's dropdown shows, such as Translate's language.
-- `openOnboarding`, `captureOnboarding` and `closeOnboarding`: the same for the onboarding window on a named step, such as `hotkey`. It applies no switch and marks onboarding not done. To picture the hotkey step with the Spotlight walkthrough, first make the hotkey wait: play `systemShortcuts` with `cmd+space`, then set `launcherHotkey` to another combination and back.
+- `openOnboarding`, `captureOnboarding` and `closeOnboarding`: the same for the onboarding window on a named step, such as `hotkey`. It applies no switch and marks onboarding not done. To picture the hotkey step while Spotlight's shortcut uses ⌘Space, first make the hotkey wait. Play `systemShortcuts` with `cmd+space`, then set `launcherHotkey` to another combination and back.
 
 ## Examples
 
