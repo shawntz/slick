@@ -109,16 +109,22 @@ nonisolated public struct CGEventKeystrokePoster: KeystrokePoster {
 
     /// Splits text into keyboard events: runs of whole characters of at most 20 UTF-16 units, and
     /// line breaks. A character is never split across two events.
+    ///
+    /// Control characters other than tab and line breaks are dropped. Typed into a terminal, an
+    /// escape or a control code can do what no text can, and the text may come from the clipboard
+    /// or the selection. A line break is a line feed, a carriage return, both together, or the
+    /// line or paragraph separator.
     static func pieces(of text: String, limit: Int = 20) -> [Piece] {
         var pieces: [Piece] = []
         var run: [UniChar] = []
         for character in text {
-            if character.isNewline {
+            if lineBreaks.contains(character) {
                 if !run.isEmpty { pieces.append(.characters(run)) }
                 run = []
                 pieces.append(.lineBreak)
                 continue
             }
+            if isDroppedControl(character) { continue }
             let units = Array(String(character).utf16)
             if !run.isEmpty, run.count + units.count > limit {
                 pieces.append(.characters(run))
@@ -128,6 +134,15 @@ nonisolated public struct CGEventKeystrokePoster: KeystrokePoster {
         }
         if !run.isEmpty { pieces.append(.characters(run)) }
         return pieces
+    }
+
+    /// The characters typed as Return.
+    static let lineBreaks: Set<Character> = ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"]
+
+    /// True for a control character other than tab: C0 and C1 controls and delete. Line breaks are
+    /// handled before this is asked.
+    static func isDroppedControl(_ character: Character) -> Bool {
+        character.unicodeScalars.contains { $0 != "\t" && $0.properties.generalCategory == .control }
     }
 }
 

@@ -32,6 +32,27 @@ import Testing
         #expect(Self.text(of: events[8]) == "c")
     }
 
+    /// Found in review: text from the clipboard or the selection was typed with its escape and
+    /// control characters, which a terminal acts on. Only tab and line breaks are kept.
+    @Test func controlCharactersOtherThanTabAndLineBreaksAreNeverTyped() throws {
+        let text = "a\u{1B}[31mb\u{07}c\td\u{00}e\u{7F}f\u{9B}g\u{0B}h\u{0C}i\u{85}j"
+        #expect(CGEventKeystrokePoster.pieces(of: text) == [.characters(Array("a[31mbc\tdefghij".utf16))])
+        #expect(
+            CGEventKeystrokePoster.pieces(of: "x\ry\r\nz\u{2028}w\u{2029}v") == [
+                .characters(Array("x".utf16)), .lineBreak, .characters(Array("y".utf16)), .lineBreak,
+                .characters(Array("z".utf16)), .lineBreak, .characters(Array("w".utf16)), .lineBreak,
+                .characters(Array("v".utf16)),
+            ])
+        #expect(CGEventKeystrokePoster.pieces(of: "\u{1B}\u{1B}").isEmpty)
+
+        let events = try CGEventKeystrokePoster.events(for: [.text(text + "\n")], pasteKey: 9, make: Self.make)
+        // The Return key's events carry a carriage return of their own. The text goes in a down
+        // event and its up event, so it shows twice.
+        let typed = events.filter { $0.getIntegerValueField(.keyboardEventKeycode) != Int64(Key.return.code) }
+            .map(Self.text(of:)).joined()
+        #expect(typed == "a[31mbc\tdefghij" + "a[31mbc\tdefghij")
+    }
+
     /// Found in review: an event macOS did not make was skipped, so an expansion could delete its
     /// keyword and then type nothing, and a paste reported success.
     @Test func anEventMacOSDidNotMakeStopsTheWholePostBeforeAnythingIsSent() {
