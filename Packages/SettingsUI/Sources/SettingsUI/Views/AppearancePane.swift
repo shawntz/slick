@@ -48,6 +48,11 @@ struct AppearancePane: View {
                     }
                     .fixedSize()
                 }
+                if !model.summary.isEmpty {
+                    Text(model.summary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 if model.isEdited {
                     Text(
                         model.isBuiltIn
@@ -67,6 +72,16 @@ struct AppearancePane: View {
                 }
             }
             Section("Glass") {
+                Picker("Style", selection: $model.glassStyle) {
+                    Text("Regular").tag(GlassStyle.regular)
+                    Text("Clear").tag(GlassStyle.clear)
+                }
+                .pickerStyle(.segmented)
+                Picker("Arrangement", selection: $model.layout) {
+                    Text("One Piece").tag(PanelLayout.single)
+                    Text("Search Field Apart").tag(PanelLayout.split)
+                }
+                .pickerStyle(.segmented)
                 tintRow("Light tint", dark: false)
                 tintRow("Dark tint", dark: true)
                 LabeledContent {

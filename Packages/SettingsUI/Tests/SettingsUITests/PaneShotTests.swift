@@ -146,34 +146,34 @@ import Testing
         if let gradient = CGGradient(colorsSpace: space, colors: colors as CFArray, locations: [0, 1]) {
             context.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width, y: size.height), options: [])
         }
-        // Glass stand-in: a frosted base with the theme's tint over it.
-        let margin = ThemePreviewView.margin
-        let glassRect = CGRect(
-            x: margin, y: margin, width: theme.panel.width, height: size.height - margin * 2)
-        let radius = CGFloat(theme.panel.cornerRadius)
-        context.addPath(
-            CGPath(roundedRect: flipped(glassRect), cornerWidth: radius, cornerHeight: radius, transform: nil))
-        context.setFillColor(CGColor(gray: dark ? 0.16 : 0.97, alpha: 0.85))
-        context.fillPath()
-        if let tint = resolved.glassTint {
-            context.addPath(
-                CGPath(roundedRect: flipped(glassRect), cornerWidth: radius, cornerHeight: radius, transform: nil))
-            context.setFillColor(tint.cgColor)
+        // Glass stand-in for each piece: a frosted base with the piece's tint over it. A theme
+        // that splits the glass shows two pieces.
+        func inView(_ part: NSView) -> CGRect { view.convert(part.bounds, from: part) }
+        for piece in view.glassPieces {
+            let rect = flipped(inView(piece))
+            let radius = min(piece.cornerRadius, rect.height / 2)
+            context.addPath(CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil))
+            context.setFillColor(CGColor(gray: dark ? 0.16 : 0.97, alpha: piece.style == .clear ? 0.35 : 0.85))
             context.fillPath()
+            if let tint = piece.tintColor {
+                context.addPath(CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil))
+                context.setFillColor(tint.cgColor)
+                context.fillPath()
+            }
         }
         // Lens.
-        let lensFrame = view.lens.view.frame.offsetBy(dx: margin, dy: margin)
+        let lensFrame = inView(view.lens.view)
         let lensRadius = CGFloat(theme.lens.cornerRadius)
         context.addPath(
             CGPath(roundedRect: flipped(lensFrame), cornerWidth: lensRadius, cornerHeight: lensRadius, transform: nil))
         context.setFillColor(theme.lens.style == .fill ? resolved.lensFill : resolved.lensGlassTint.cgColor)
         context.fillPath()
-        // LauncherUI's own drawing of each part.
-        for part in [view.queryField, view.hairline, view.list, view.actionBar] as [NSView] {
+        // LauncherUI's own drawing of each part that shows.
+        for part in [view.queryField, view.hairline, view.list, view.actionBar] as [NSView] where !part.isHidden {
             guard let rep = part.bitmapImageRepForCachingDisplay(in: part.bounds) else { continue }
             part.cacheDisplay(in: part.bounds, to: rep)
             guard let image = rep.cgImage else { continue }
-            context.draw(image, in: flipped(part.frame.offsetBy(dx: margin, dy: margin)))
+            context.draw(image, in: flipped(inView(part)))
         }
         return context.makeImage()
     }

@@ -84,6 +84,13 @@ import Observation
         return store.theme(named: store.selectedName)?.isBuiltIn ?? true
     }
 
+    /// What the selected theme is, in a sentence, such as where Clear's text falls short. Empty
+    /// for a theme of the user's own.
+    var summary: String {
+        revision.track()
+        return store.theme(named: store.selectedName)?.summary ?? ""
+    }
+
     /// True when the draft differs from the stored theme.
     var isEdited: Bool {
         revision.track()
@@ -210,6 +217,18 @@ import Observation
     var lensStyle: LensMetrics.Style {
         get { draft.lens.style }
         set { draft.lens.style = newValue }
+    }
+
+    /// Regular glass, which frosts what is behind it, or clear glass, the most translucent.
+    var glassStyle: GlassStyle {
+        get { draft.panel.glassStyle }
+        set { draft.panel.glassStyle = newValue }
+    }
+
+    /// One piece of glass, or the search field apart from the results.
+    var layout: PanelLayout {
+        get { draft.panel.layout }
+        set { draft.panel.layout = newValue }
     }
 
     func glassTint(dark: Bool) -> ThemeColor {

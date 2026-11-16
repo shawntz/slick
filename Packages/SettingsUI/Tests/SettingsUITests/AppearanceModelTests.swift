@@ -23,6 +23,23 @@ import Testing
         #expect(!model.isEdited)
     }
 
+    @Test func theEditorPicksTheGlassStyleAndTheArrangement() {
+        let bed = TestBed()
+        let model = AppearanceModel(context: bed.context())
+        #expect(model.glassStyle == .regular && model.layout == .single)
+        model.glassStyle = .clear
+        model.layout = .split
+        #expect(model.draft.panel.glassStyle == .clear && model.draft.panel.layout == .split)
+        #expect(model.isEdited && bed.themes.current == Theme.standard)
+        model.select("Beam")
+        #expect(model.layout == .split && model.glassStyle == .regular)
+        #expect(!model.summary.isEmpty)
+        model.select("Clear")
+        #expect(model.glassStyle == .clear && model.layout == .single)
+        // Clear's sentence says where its text falls short, so the user reads it before choosing.
+        #expect(model.summary.contains("4.5"))
+    }
+
     @Test func editsChangeTheDraftOnly() {
         let bed = TestBed()
         let model = AppearanceModel(context: bed.context())

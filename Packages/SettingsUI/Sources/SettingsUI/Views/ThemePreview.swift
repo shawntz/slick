@@ -7,14 +7,20 @@ import SwiftUI
 /// interactive.
 ///
 /// It lays the panel out at the theme's real size and scales it to fit, so what the user sees is
-/// what the panel draws.
+/// what the panel draws: the glass in the theme's style, one piece or the query row apart from a
+/// results container, with the theme's shade, rim and shadow.
 final class ThemePreviewView: NSView {
     static let margin: CGFloat = 28
     static let rowCount = 5
 
     private let backdrop = PreviewBackdrop()
+    private let glassShadow = GlassShadowView()
+    private let rim = GlassRimView()
+    private let shade = FieldShadeView()
     private let glass = NSGlassEffectView()
     private let glassContent = PreviewFlippedView()
+    private let resultsGlass = NSGlassEffectView()
+    private let resultsContent = PreviewFlippedView()
     // Internal for the shot tests, which compose these parts into a bitmap themselves.
     let queryField = QueryField()
     let hairline = NSView()
@@ -29,15 +35,16 @@ final class ThemePreviewView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer?.masksToBounds = true
-        addSubview(backdrop)
-        addSubview(glass)
-        glass.style = .regular
+        // Bottom to top, as the panel stacks them: the shadow, the results container, the query
+        // row's glass, then the rim over both edges.
+        for view in [backdrop, glassShadow, resultsGlass, glass, rim] as [NSView] { addSubview(view) }
         glass.contentView = glassContent
+        resultsGlass.contentView = resultsContent
         hairline.wantsLayer = true
-        for view in [lens.view, queryField, hairline, actionBar] { glassContent.addSubview(view) }
+        for view in [shade, lens.view, queryField, hairline, actionBar] { glassContent.addSubview(view) }
         glassContent.addSubview(list, positioned: .above, relativeTo: lens.view)
-        lens.onViewReplaced = { [weak self] old, new in
-            self?.glassContent.addSubview(new, positioned: .below, relativeTo: old)
+        lens.onViewReplaced = { old, new in
+            old.superview?.addSubview(new, positioned: .below, relativeTo: old)
             old.removeFromSuperview()
         }
         list.selectionLens = lens
@@ -72,9 +79,23 @@ final class ThemePreviewView: NSView {
     /// The size the preview lays out at before scaling, for a theme.
     static func logicalSize(for theme: Theme) -> CGSize {
         let content = previewContentHeight(theme)
+        let margins = margins(for: theme)
         return CGSize(
-            width: theme.panel.width + margin * 2, height: theme.glassHeight(contentHeight: content) + margin * 2)
+            width: theme.panel.width + margins.left + margins.right,
+            height: theme.glassHeight(contentHeight: content) + margins.top + margins.bottom)
     }
+
+    /// The room around the glass: the panel's own shadow insets for a theme that casts a shadow of
+    /// its own, so the preview does not cut it, and a fixed margin otherwise.
+    static func margins(for theme: Theme) -> ThemeInsets {
+        guard theme.panel.shadowRadius > 0 else {
+            return ThemeInsets(top: margin, left: margin, bottom: margin, right: margin)
+        }
+        return theme.panel.shadowInsets
+    }
+
+    /// The pieces of glass the preview shows now, the query row's first.
+    var glassPieces: [NSGlassEffectView] { resultsGlass.isHidden ? [glass] : [glass, resultsGlass] }
 
     private static func previewContentHeight(_ theme: Theme) -> Double {
         theme.list.verticalPadding * 2 + theme.list.sectionHeaderHeight + Double(rowCount) * theme.list.rowHeight
@@ -98,20 +119,61 @@ final class ThemePreviewView: NSView {
         let contentHeight = CGFloat(Self.previewContentHeight(theme))
         let glassHeight = CGFloat(theme.glassHeight(contentHeight: Double(contentHeight)))
         let barHeight = CGFloat(theme.actionBar.height)
+        let barRoom = CGFloat(theme.actionBarHeight(showsToast: false))
+        let split = theme.panel.layout == .split
+        let margins = Self.margins(for: theme)
+        let origin = CGPoint(x: margins.left, y: margins.top)
 
         backdrop.frame = CGRect(origin: .zero, size: logicalSize)
         backdrop.isDark = resolved.isDark
         backdrop.update()
-        glass.frame = CGRect(x: Self.margin, y: Self.margin, width: width, height: glassHeight)
-        glass.cornerRadius = CGFloat(theme.panel.cornerRadius)
-        glass.tintColor = resolved.glassTint
-        glassContent.frame = CGRect(x: 0, y: 0, width: width, height: glassHeight)
+        for piece in [glass, resultsGlass] where piece.style != resolved.glassStyle {
+            piece.style = resolved.glassStyle
+        }
+        // The content side lives in the results container when the theme splits the glass.
+        let host = split ? resultsContent : glassContent
+        if list.superview !== host {
+            host.addSubview(lens.view)
+            host.addSubview(list, positioned: .above, relativeTo: lens.view)
+            host.addSubview(actionBar)
+        }
+        let resultsTop = queryHeight + (split ? CGFloat(theme.panel.fieldGap) : 0)
+        resultsGlass.isHidden = !split
+        if split {
+            glass.frame = CGRect(origin: origin, size: CGSize(width: width, height: queryHeight))
+            glass.cornerRadius = CGFloat(theme.fieldCornerRadius)
+            glass.tintColor = resolved.fieldTint
+            resultsGlass.frame = CGRect(
+                x: origin.x, y: origin.y + resultsTop, width: width, height: glassHeight - resultsTop)
+            resultsGlass.cornerRadius = CGFloat(theme.panel.cornerRadius)
+            resultsGlass.tintColor = resolved.glassTint
+            resultsContent.frame = CGRect(origin: .zero, size: resultsGlass.frame.size)
+        } else {
+            glass.frame = CGRect(origin: origin, size: CGSize(width: width, height: glassHeight))
+            glass.cornerRadius = CGFloat(theme.panel.cornerRadius)
+            glass.tintColor = resolved.glassTint
+        }
+        glassContent.frame = CGRect(origin: .zero, size: glass.frame.size)
+        shade.frame = CGRect(x: 0, y: 0, width: width, height: queryHeight)
+        shade.apply(color: split ? resolved.fieldShade : nil, cornerRadius: CGFloat(theme.fieldCornerRadius))
         queryField.frame = CGRect(x: 0, y: 0, width: width, height: queryHeight)
         let hairlineHeight = CGFloat(theme.panel.hairlinePixels) / max(window?.backingScaleFactor ?? 2, 1)
         hairline.frame = CGRect(x: 0, y: queryHeight - hairlineHeight, width: width, height: hairlineHeight)
         hairline.layer?.backgroundColor = resolved.hairline
-        list.frame = CGRect(x: 0, y: queryHeight, width: width, height: contentHeight)
-        actionBar.frame = CGRect(x: 0, y: glassHeight - barHeight, width: width, height: barHeight)
+        hairline.isHidden = split
+        let contentTop = split ? 0 : queryHeight
+        list.frame = CGRect(x: 0, y: contentTop, width: width, height: contentHeight)
+        let hostHeight = split ? resultsGlass.frame.height : glassHeight
+        actionBar.frame = CGRect(x: 0, y: hostHeight - barRoom, width: width, height: barHeight)
+        actionBar.isHidden = barRoom == 0
+        for decor in [glassShadow, rim] as [NSView] { decor.frame = CGRect(origin: .zero, size: logicalSize) }
+        glassShadow.apply(
+            color: resolved.shadow, radius: CGFloat(theme.panel.shadowRadius), offset: CGFloat(theme.panel.shadowOffset)
+        )
+        rim.apply(color: resolved.rim, width: CGFloat(theme.panel.rimWidth))
+        let shapes = glassPieces.map { GlassShape(frame: $0.frame, cornerRadius: $0.cornerRadius) }
+        glassShadow.update(shapes)
+        rim.update(shapes)
 
         queryField.apply(resolved)
         actionBar.apply(resolved)
