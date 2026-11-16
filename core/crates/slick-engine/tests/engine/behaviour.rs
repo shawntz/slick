@@ -276,3 +276,18 @@ fn kinds_reorder_within_a_tier() {
     // Both are prefix matches for "ma"; the app kind prior outweighs the shorter title.
     assert_eq!(titles(&e, &mut s, "ma", &items)[0], "Mail Assistant");
 }
+
+#[test]
+fn a_settings_pane_the_query_starts_beats_a_command_it_covers_across_words() {
+    let network = Item {
+        key: key("setting:network"),
+        kind: kind::SETTING,
+        ..command("Network")
+    };
+    let items = vec![command("Next Track"), network];
+    let e = engine(items.clone());
+    let mut s = Session::new();
+    // "net" starts Network and covers "Next Track" as "ne" and "t". Both are prefix matches, and
+    // Return on the first row must open the pane, not skip a song.
+    assert_eq!(titles(&e, &mut s, "net", &items)[0], "Network");
+}

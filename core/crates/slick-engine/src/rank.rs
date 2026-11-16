@@ -75,7 +75,9 @@ impl Default for RankParams {
             affinity: 6_000,
             kappa: 1.0,
             completion_margin: 3_000,
-            kind_priors: [0.0, 0.6, 0.2, 0.0, 0.1, 0.0, 0.0, 0.0],
+            // A settings pane weighs as much as a command, so a pane the query starts, such as
+            // Network for "net", beats a command the query only covers across words.
+            kind_priors: [0.0, 0.6, 0.2, 0.0, 0.2, 0.0, 0.0, 0.0],
         }
     }
 }
