@@ -80,6 +80,12 @@ public final class ScriptsFeature: Feature {
         }
     }
 
+    /// Scripts become commands only once activation has scanned the folders, so scenarios and the
+    /// self-test wait for that before they type.
+    public func waitUntilReady() async {
+        await scanned()
+    }
+
     public func deactivate() async {
         for task in listening { task.cancel() }
         listening = []
@@ -221,7 +227,9 @@ public final class ScriptsFeature: Feature {
 
     public var status: FeatureStatus? {
         if let missing = catalog.folders.first(where: { !$0.exists && !$0.folder.isDefault }) {
-            return FeatureStatus(.warning, Strings.missingFolderStatus(displayPath(missing.folder.path)))
+            return FeatureStatus(
+                .warning, Strings.missingFolderStatus,
+                message: Strings.missingFolderMessage(displayPath(missing.folder.path)))
         }
         let problems = catalog.entries.filter(\.hasErrors).count
         if problems > 0 {

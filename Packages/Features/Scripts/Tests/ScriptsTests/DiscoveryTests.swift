@@ -191,7 +191,8 @@ struct DiscoveryTests {
         bench.harness.context.settings[ScriptsSettings.folders] = [missing.path, "relative/path"]
         try await bench.harness.settle()
         #expect(bench.feature.status?.level == .warning)
-        #expect(bench.feature.status?.title == Strings.missingFolderStatus(ScriptPath.key(missing)))
+        #expect(bench.feature.status?.title == "Script Folder Not Found")
+        #expect(bench.feature.status?.message == Strings.missingFolderMessage(ScriptPath.key(missing)))
         #expect(bench.feature.catalog.folders.count == 2, "a relative path is ignored")
     }
 
