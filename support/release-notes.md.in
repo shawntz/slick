@@ -1,0 +1,8 @@
+# template: The notes of a GitHub release. scripts/release.sh replaces @BRAND_NAME@ and @VERSION@,
+# template: puts the version's section of CHANGELOG.md where @NOTES@ stands, and drops these lines.
+# template: GitHub shows the result on the release page. Releases are not marked as pre-releases,
+# template: because the update feed is the latest release and GitHub's latest skips pre-releases, so
+# template: the first line says that the software is early instead.
+@BRAND_NAME@ @VERSION@ is early software, so expect rough edges, and please report what you find.
+
+@NOTES@

@@ -1,23 +1,28 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
 # Builds a release into dist/: the app signed with Developer ID and the hardened runtime, notarized
-# and stapled, zipped, its dSYM zipped beside it, and the checksums of both. It publishes nothing.
-# make release-publish does that once you have looked at dist/. docs/RELEASING.md is the guide.
+# and stapled, zipped, its dSYM zipped beside it, the checksums of both, and appcast.xml, the update
+# feed, with the zip's EdDSA signature. It publishes nothing. make release-publish does that once
+# you have looked at dist/. docs/RELEASING.md is the guide.
 #   scripts/release.sh <version>                     a release, such as 0.1.0
 #   RELEASE_DRY_RUN=1 scripts/release.sh <version>   a dry run, described below
 #
 # A release refuses to start on a tree with changes, on a shallow clone, off the main branch, when
 # HEAD is not origin/main as last fetched, on a version that is not higher than the last vX.Y.Z
-# tag, on a CHANGELOG.md without a "## <version>" section, and without:
+# tag, when HEAD's build number is not higher than that tag's, when brand.env's update key differs
+# from that tag's without UPDATE_KEY_ROTATION=1, on a CHANGELOG.md without a "## <version>"
+# section, without BRAND_UPDATE_PUBLIC_KEY in support/brand.env, when the origin remote is not the
+# repository brand.env names, and without:
 #   NOTARYTOOL_PROFILE        the notarytool keychain profile, stored once with
 #                             xcrun notarytool store-credentials
 #   DEVELOPER_ID_APPLICATION  the Developer ID Application identity, by SHA-1 hash or by name. It may
 #                             stay unset when the keychain holds exactly one such identity.
 #
-# A dry run is the same code with three steps switched off. It signs ad hoc without a secure
-# timestamp instead of with Developer ID, and it skips notarization and stapling with the Gatekeeper
-# check that follows. So it needs neither name above and never touches the Developer ID key or the
-# notary service. The checks that stop a release only warn in a dry run. It writes to RELEASE_OUT
+# A dry run is the same code with four steps switched off. It signs ad hoc without a secure
+# timestamp instead of with Developer ID, it skips notarization and stapling with the Gatekeeper
+# check that follows, and it signs the update with a throwaway key made in memory instead of the
+# update key in the keychain. So it needs neither name above and never touches the keychain, the
+# Developer ID key or the notary service. The checks that stop a release only warn in a dry run. It writes to RELEASE_OUT
 # when that is set, and otherwise to a temporary folder that it removes at the end. RELEASE_OUT must
 # be new, empty, or the output of an earlier dry run, finished or not.
 #
@@ -31,11 +36,14 @@
 #   3 bundle     scripts/bundle.sh with the version and build number, stripped with a dSYM beside
 #                it, once THIRD-PARTY-NOTICES.md is known to be current. bundle.sh puts it in
 #                Resources, as it does for every bundle
-#   4 sign       each nested piece of code, deepest first, then the bundle with the entitlements
+#   4 sign       each nested piece of code, deepest first, Sparkle's framework and its helpers among
+#                them, then the bundle with the entitlements
 #   5 notarize   zip with ditto, submit and wait. A dry run skips the submission.
 #   6 staple     staple the ticket, trying again while it is not yet published, then assess with
 #                spctl. A dry run skips both.
-#   7 package    zip the bundle and the dSYM with ditto, write SHA256SUMS.txt and release.env
+#   7 package    zip the bundle and the dSYM with ditto, write SHA256SUMS.txt, sign the zip for
+#                Sparkle, check that signature against the public key, write appcast.xml and
+#                release.env
 #   8 check      scripts/check-release.sh on the result
 #
 # The build number is the number of commits in HEAD's history, so each release has a higher one.
@@ -101,7 +109,7 @@ WORK=$(temp_dir release-work) || fail "could not make a temporary folder under $
 step "1/8 guards for $MODE $VERSION"
 # The last step checks the cask with Ruby and the entitlements with Python, so look for every tool
 # now rather than after a long build.
-for tool in git swift codesign ditto shasum plutil lipo dwarfdump python3 "${RUBY:-ruby}"; do
+for tool in git swift swiftc codesign ditto shasum plutil lipo dwarfdump otool install_name_tool base64 python3 "${RUBY:-ruby}"; do
     command -v "$tool" > /dev/null || fail "$tool not found. The release needs it."
 done
 git rev-parse --git-dir > /dev/null 2>&1 || fail "$ROOT is not a git checkout. Release from a clone."
@@ -126,6 +134,13 @@ LAST=$(last_released_version) || fail "could not list the tags."
 if [ -n "$LAST" ] && ! version_gt "$VERSION" "$LAST"; then
     refuse "version $VERSION is not higher than the last release tag, v$LAST."
 fi
+# The copies the last release installed must take this one: a higher build number, the same key.
+if [ -n "$LAST" ]; then
+    PROBLEMS=$(follows_release_problems "$LAST" "${BRAND_UPDATE_PUBLIC_KEY:-}") || fail "could not compare HEAD with v$LAST."
+    while IFS= read -r problem; do
+        [ -z "$problem" ] || refuse "$problem"
+    done <<< "$PROBLEMS"
+fi
 NOTES=""
 if [ -f "$ROOT/CHANGELOG.md" ]; then
     NOTES=$(changelog_section "$VERSION")
@@ -139,6 +154,27 @@ ENTITLEMENTS="$ROOT/support/release.entitlements"
 if grep -q 'com.apple.security.get-task-allow' "$ENTITLEMENTS"; then
     fail "support/release.entitlements asks for get-task-allow, which notarization rejects."
 fi
+if grep -q 'com.apple.security.cs.disable-library-validation' "$ENTITLEMENTS"; then
+    fail "support/release.entitlements turns off library validation. Only an ad hoc build may, and bundle.sh adds it there."
+fi
+# The update key. Every copy a release installs checks each later update against this public key,
+# so a release without it could never be updated.
+if [ -z "${BRAND_UPDATE_PUBLIC_KEY:-}" ]; then
+    refuse "support/brand.env has no BRAND_UPDATE_PUBLIC_KEY, so the copies this release installs could never update. Make the update key once with: make update-key. It prints the public key. Put it in support/brand.env as BRAND_UPDATE_PUBLIC_KEY, commit and push. docs/RELEASING.md says more under Updates."
+elif ! is_update_key "$BRAND_UPDATE_PUBLIC_KEY"; then
+    fail "BRAND_UPDATE_PUBLIC_KEY in support/brand.env is not base64 of 32 bytes. Copy the public key make update-key prints, and nothing else."
+fi
+# The release goes to the repository the update feed names, or the feed would point elsewhere.
+REPO=$(github_repo)
+FEED=$(update_feed_url)
+if [ "https://github.com/$REPO" != "${BRAND_REPOSITORY%/}" ]; then
+    refuse "origin is https://github.com/$REPO, but support/brand.env names $BRAND_REPOSITORY, where the update feed lives. Release from a clone of $BRAND_REPOSITORY."
+fi
+# The tool that checks the update signature, and in a dry run makes the throwaway one. It needs no
+# keychain.
+SIGNATURE_TOOL="$WORK/update-signature"
+xcrun swiftc -O "$ROOT/scripts/update-signature.swift" -o "$SIGNATURE_TOOL" 2> "$WORK/swiftc.log" \
+    || { cat "$WORK/swiftc.log" >&2; fail "could not compile scripts/update-signature.swift."; }
 if [ "$DRY_RUN" = 1 ]; then
     IDENTITY=-
     PROFILE=""
@@ -199,13 +235,17 @@ swift_build --product "$EXECUTABLE" || fail "swift build failed. Its errors are 
 BIN_DIR=$(swift_build --show-bin-path) || fail "swift build could not name its output folder."
 BIN="$BIN_DIR/$EXECUTABLE"
 [ -x "$BIN" ] || fail "swift build left no executable at $BIN."
+# Sparkle's artifact from this build: the framework the bundle carries and the tool that signs.
+SPARKLE=$(sparkle_artifacts "$BIN")
+SIGN_UPDATE="$SPARKLE/bin/sign_update"
+[ -x "$SIGN_UPDATE" ] || fail "Sparkle's sign_update is missing from $SPARKLE/bin."
 
 # 3. The bundle, with the version, the build number and the third-party notices.
 step "3/8 bundle"
-if ! "$ROOT/scripts/third-party-notices.sh" --check; then
-    refuse "THIRD-PARTY-NOTICES.md does not match the crates this build links. Run make notices and commit it."
+if ! SPARKLE_ARTIFACTS="$SPARKLE" "$ROOT/scripts/third-party-notices.sh" --check; then
+    refuse "THIRD-PARTY-NOTICES.md does not match the crates this build links or the pinned Sparkle. Run make notices and commit it."
 fi
-VERSION="$VERSION" BUILD_NUMBER="$BUILD_NUMBER" SIGN_IDENTITY=- STRIP=1 \
+VERSION="$VERSION" BUILD_NUMBER="$BUILD_NUMBER" SIGN_IDENTITY=- STRIP=1 UPDATE_FEED=1 SPARKLE_ARTIFACTS="$SPARKLE" \
     "$ROOT/scripts/bundle.sh" "$BIN" "$STAGE" release > /dev/null
 APP="$STAGE/$APP_BUNDLE"
 DSYM="$STAGE/$APP_BUNDLE.dSYM"
@@ -213,7 +253,8 @@ DSYM="$STAGE/$APP_BUNDLE.dSYM"
 [ -d "$DSYM" ] || fail "scripts/bundle.sh wrote no dSYM at $DSYM. Release builds need STRIP=1."
 [ -f "$APP/Contents/Resources/THIRD-PARTY-NOTICES.md" ] \
     || fail "scripts/bundle.sh put no THIRD-PARTY-NOTICES.md in the bundle."
-for pair in "CFBundleShortVersionString=$VERSION" "CFBundleVersion=$BUILD_NUMBER"; do
+[ -d "$APP/Contents/Frameworks/Sparkle.framework" ] || fail "scripts/bundle.sh put no Sparkle.framework in the bundle."
+for pair in "CFBundleShortVersionString=$VERSION" "CFBundleVersion=$BUILD_NUMBER" "SUFeedURL=$FEED"; do
     actual=$(plutil -extract "${pair%%=*}" raw "$APP/Contents/Info.plist") \
         || fail "Info.plist has no ${pair%%=*}."
     [ "$actual" = "${pair#*=}" ] || fail "Info.plist has ${pair%%=*} = $actual, expected ${pair#*=}."
@@ -230,13 +271,16 @@ else
     SIGN_ARGS+=(--timestamp)
 fi
 NESTED=$(nested_code "$APP") || fail "could not list the code nested in $APP_BUNDLE."
+# An ad hoc dry run adds the library validation exception that lets the app load the ad hoc
+# framework. A release signs everything with one Developer ID and needs none.
+SIGNING_ENTITLEMENTS=$(signing_entitlements "$IDENTITY" "$ENTITLEMENTS" "$WORK/app.entitlements")
 while IFS= read -r path; do
     [ -n "$path" ] || continue
     codesign "${SIGN_ARGS[@]}" "$path" || fail "could not sign ${path#"$APP"/}."
     say "signed ${path#"$APP"/}"
 done <<< "$NESTED"
 # Under Developer ID, codesign may ask once for access to the key. Choose Always Allow.
-codesign "${SIGN_ARGS[@]}" --entitlements "$ENTITLEMENTS" "$APP" || fail "could not sign $APP_BUNDLE."
+codesign "${SIGN_ARGS[@]}" --entitlements "$SIGNING_ENTITLEMENTS" "$APP" || fail "could not sign $APP_BUNDLE."
 codesign --verify --strict --deep --verbose=2 "$APP" || fail "the signed bundle fails strict verification."
 say "signed $APP_BUNDLE: $(codesign --display --verbose=2 "$APP" 2>&1 | grep -E '^(Authority|Signature)=' | head -1)"
 
@@ -311,7 +355,45 @@ ditto -c -k --sequesterRsrc --keepParent "$APP" "$OUT/$ZIP" || fail "could not z
 ditto -c -k --sequesterRsrc --keepParent "$DSYM" "$OUT/$DSYM_ZIP" || fail "could not zip the dSYM into $DSYM_ZIP."
 (cd "$OUT" && shasum -a 256 "$ZIP" "$DSYM_ZIP" > SHA256SUMS.txt) || fail "could not write SHA256SUMS.txt."
 SHA256=$(shasum -a 256 "$OUT/$ZIP" | awk '{print $1}') || fail "could not hash $ZIP."
-printf '%s\n' "$NOTES" > "$OUT/release-notes.md"
+# The release page's notes: support/release-notes.md.in around the changelog section.
+while IFS= read -r line || [ -n "$line" ]; do
+    case $line in
+        '# template:'*) ;;
+        @NOTES@) printf '%s\n' "$NOTES" ;;
+        *)
+            line=${line//@BRAND_NAME@/$BRAND_NAME}
+            printf '%s\n' "${line//@VERSION@/$VERSION}"
+            ;;
+    esac
+done < "$ROOT/support/release-notes.md.in" > "$OUT/release-notes.md"
+
+# The update: Sparkle's EdDSA signature of the zip, checked against the public key, and the feed.
+if [ "$DRY_RUN" = 1 ]; then
+    SIGNED=$("$SIGNATURE_TOOL" sign-throwaway "$OUT/$ZIP") || fail "could not sign $ZIP with a throwaway key."
+    UPDATE_KEY=$(sed -n 's/^public //p' <<< "$SIGNED")
+    UPDATE_SIGNATURE=$(sed -n 's/^signature //p' <<< "$SIGNED")
+    say "dry run: signed $ZIP with a throwaway key made in memory, not with the update key"
+else
+    UPDATE_KEY=$BRAND_UPDATE_PUBLIC_KEY
+    # sign_update reads the private key from the login keychain under the bundle ID's account. It
+    # prints the signature on stdout, and its errors there too, so a failure prints what it said.
+    say "signing the update with sign_update. macOS may ask whether sign_update may use the update key. Choose Always Allow."
+    UPDATE_SIGNATURE=$("$SIGN_UPDATE" --account "$BRAND_BUNDLE_ID" -p "$OUT/$ZIP") || {
+        printf '%s\n' "$UPDATE_SIGNATURE" >&2
+        fail "sign_update could not sign $ZIP with the update key of account $BRAND_BUNDLE_ID, for the reason above. If the key is not in this Mac's login keychain, docs/RELEASING.md says how to import it, under Updates."
+    }
+fi
+"$SIGNATURE_TOOL" verify "$UPDATE_KEY" "$OUT/$ZIP" "$UPDATE_SIGNATURE" > /dev/null \
+    || fail "the update signature of $ZIP does not match the public key in support/brand.env. The keychain holds another key under account $BRAND_BUNDLE_ID, or brand.env has the wrong public key. Run make update-key to print the keychain's public key, and compare."
+say "update signature of $ZIP verified against the public key"
+DOWNLOAD="https://github.com/$REPO/releases/download/v$VERSION/$ZIP"
+HARDWARE=()
+[ "$ARCHS" != arm64 ] || HARDWARE=(hardware=arm64)
+printf '%s\n' "$NOTES" > "$WORK/notes.md"
+python3 -I "$ROOT/scripts/appcast.py" write output="$OUT/appcast.xml" name="$BRAND_NAME" version="$VERSION" \
+    build="$BUILD_NUMBER" minimum="$MACOSX_DEPLOYMENT_TARGET" url="$DOWNLOAD" \
+    length="$(stat -f %z "$OUT/$ZIP")" signature="$UPDATE_SIGNATURE" notes="$WORK/notes.md" \
+    ${HARDWARE[@]+"${HARDWARE[@]}"} || fail "could not write appcast.xml."
 TREE_CLEAN=1
 [ -z "$STATUS_BEFORE" ] || TREE_CLEAN=0
 cat > "$OUT/release.env" << EOF
@@ -327,6 +409,10 @@ RELEASE_DSYM_ZIP=$DSYM_ZIP
 RELEASE_SHA256=$SHA256
 RELEASE_ARCHS=$ARCHS
 RELEASE_MIN_MACOS=$MACOSX_DEPLOYMENT_TARGET
+RELEASE_APPCAST=appcast.xml
+RELEASE_FEED=$FEED
+RELEASE_DOWNLOAD=$DOWNLOAD
+RELEASE_UPDATE_PUBLIC_KEY=$UPDATE_KEY
 EOF
 mv "$APP" "$DSYM" "$OUT/" || fail "could not move the bundle and the dSYM into $OUT."
 rm -rf "$BUILD"
@@ -342,7 +428,7 @@ printf 'RELEASE_COMPLETE=1\n' >> "$OUT/release.env"
 
 ELAPSED=$(($(date +%s) - STARTED))
 if [ "$DRY_RUN" = 1 ]; then
-    say "dry run of $VERSION passed in $ELAPSED s. Nothing was signed with Developer ID, notarized or published."
+    say "dry run of $VERSION passed in $ELAPSED s. Nothing was signed with Developer ID or the update key, notarized or published."
     if [ -n "$TEMP_OUT" ]; then
         say "the temporary output folder is removed now. Set RELEASE_OUT to keep it."
     else
@@ -357,6 +443,7 @@ cat >&2 << EOF
   dist/$ZIP          $(du -h "$OUT/$ZIP" | awk '{print $1}'), SHA-256 $SHA256
   dist/$DSYM_ZIP     the symbols, for crash reports
   dist/SHA256SUMS.txt       both checksums
+  dist/appcast.xml          the update feed, with the zip's update signature
   dist/release-notes.md     the release notes, from CHANGELOG.md
   dist/$APP_BUNDLE          the stapled bundle the zip holds
 
