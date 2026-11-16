@@ -53,22 +53,31 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Open source under the MIT license.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>@BRAND_NAME@ sends Apple Events to run your scripts and to control apps you ask it to, for example to open a URL in your browser or empty the Trash.</string>
+	<string>@BRAND_NAME@ sends Apple Events only when you run a command that needs one: to Finder to empty the Trash, to System Events to switch between light and dark appearance, and to the login window to log out, restart or shut down. Script commands you add may send their own.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>@BRAND_NAME@ reads your upcoming events to suggest meetings to join and to rank results by what is happening now.</string>
+	<string>@BRAND_NAME@ shows your upcoming events and their meeting links, suggests a meeting that is about to start, and adds the events you create from the launcher.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>@BRAND_NAME@ can search and create reminders from the launcher.</string>
-	<key>NSLocationUsageDescription</key>
-	<string>@BRAND_NAME@ uses your location for answers that depend on where you are, such as local time and weather, only when you ask for one.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>@BRAND_NAME@ uses your location for answers that depend on where you are, such as local time and weather, only when you ask for one.</string>
+	<string>@BRAND_NAME@ shows your reminders, completes or deletes the ones you choose, and adds the ones you create from the launcher.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>@BRAND_NAME@ can search your contacts from the launcher.</string>
+	<string>@BRAND_NAME@ reads your contacts on this Mac so you can find people and call, message or email them from the launcher.</string>
 	<key>NSDesktopFolderUsageDescription</key>
-	<string>@BRAND_NAME@ indexes files on your Desktop so you can find and open them quickly.</string>
+	<string>@BRAND_NAME@ indexes the names of the files on your Desktop, once you include it in File Search, so you can find and open them from the launcher.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>@BRAND_NAME@ indexes files in Documents so you can find and open them quickly.</string>
+	<string>@BRAND_NAME@ indexes the names of the files in Documents, once you include it in File Search, so you can find and open them from the launcher.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>@BRAND_NAME@ indexes files in Downloads so you can find and open them quickly.</string>
+	<string>@BRAND_NAME@ indexes the names of the files in Downloads, once you include it in File Search, so you can find and open them from the launcher.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>@BRAND_NAME@ indexes the names of the files on removable drives, once you include them in File Search, so you can find and open them from the launcher.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>@BRAND_NAME@ indexes the names of the files on network volumes, once you include them in File Search, so you can find and open them from the launcher.</string>
+	<key>NSFileProviderDomainUsageDescription</key>
+	<string>@BRAND_NAME@ indexes the names of the files in iCloud Drive, once you include it in File Search, so you can find and open them from the launcher. It downloads nothing.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>@BRAND_NAME@ connects to a model server on your local network only when you set one up in AI settings and ask a question.</string>
 </dict>
 </plist>
