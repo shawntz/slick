@@ -19,8 +19,10 @@ import LauncherUI
 ///
 /// Pages do no work while the panel is hidden. ``panelDidHide()`` tells the page on top that the
 /// panel closed: it stops listening and drawing, and remembers a change signal that arrives then.
-/// ``panelDidShow()`` comes soon after the panel opens again, off the summon path: the page
-/// reloads once if anything changed.
+/// ``panelDidClose()`` then tells every page in the stack, top first. ``panelDidShow()`` comes soon
+/// after the panel opens again, off the summon path: the page reloads once if anything changed. A
+/// page that returns to the top by a pop while the panel is hidden hears ``panelDidHide()`` before
+/// ``pageDidAppear(in:)``, so it does nothing until the panel shows.
 @MainActor public protocol PageController: AnyObject {
     /// The page's name for the breadcrumb and the action bar. Nil for root search.
     var title: String? { get }
@@ -71,12 +73,18 @@ import LauncherUI
     /// What the action bar names in place of the page's title, such as the selected cell of a
     /// grid that hides titles. Default nil, for the page's title.
     var selectionTitle: String? { get }
+    /// False while Return must not run the primary entry, as on a detail page that takes follow-ups
+    /// while its answer streams. The action bar then names no primary entry. Default true.
+    var returnRunsPrimary: Bool { get }
     /// The panel closed with this page on top. Stop listening, refreshing and drawing; remember a
     /// change that arrives from now on. Default nothing.
     func panelDidHide()
     /// The panel opened again with this page on top. Reload once if a change arrived while it was
     /// hidden. Runs on the turn after the summon, never on the summon path. Default nothing.
     func panelDidShow()
+    /// The panel closed while this page was anywhere in the stack, top page first. Pass it on to a
+    /// source that adopts Kit's `PageEvents`. Default nothing.
+    func panelDidClose()
 }
 
 extension PageController {
@@ -92,8 +100,10 @@ extension PageController {
     public func appearanceDidChange() {}
     public var isBusy: Bool { false }
     public var selectionTitle: String? { nil }
+    public var returnRunsPrimary: Bool { true }
     public func panelDidHide() {}
     public func panelDidShow() {}
+    public func panelDidClose() {}
 }
 
 /// A selection move the keyboard asks for.

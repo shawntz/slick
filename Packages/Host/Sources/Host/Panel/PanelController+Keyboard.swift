@@ -63,6 +63,7 @@ extension PanelController: QueryFieldDelegate {
         guard let target = top.target else { return }
         let entry: ActionEntry?
         if modifiers.isEmpty {
+            guard top.returnRunsPrimary else { return }
             entry = target.primary
         } else if let match = target.entries.first(where: {
             $0.shortcut == KeyCombo(.return, Self.keyModifiers(modifiers))
@@ -143,8 +144,10 @@ extension PanelController: QueryFieldDelegate {
         return true
     }
 
-    /// Command-1 to 9: runs the Nth row's primary entry.
+    /// Command-1 to 9: runs the Nth row's primary entry. While a link's text waits with no row
+    /// selected, it runs nothing.
     func runRow(at index: Int) {
+        if top === rootPage, rootPage.holdsSelection { return }
         guard let target = top.target(at: index), let entry = target.primary else { return }
         run(entry, target: target)
     }

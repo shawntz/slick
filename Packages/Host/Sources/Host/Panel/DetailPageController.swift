@@ -72,7 +72,11 @@ import LauncherUI
         self.host = host
         presenter.rowMapper = host.rowMapper
         watchActions()
-        guard !hasStarted else { return }
+        guard !hasStarted else {
+            // Back from a page above. While the panel is hidden, panelDidShow() tells the source.
+            if !isPanelHidden { pageEvents?.pageWillShowAgain(.returned) }
+            return
+        }
         hasStarted = true
         askForActions()
         start(page.source.start())
@@ -93,6 +97,7 @@ import LauncherUI
     public func panelDidShow() {
         guard isPanelHidden else { return }
         isPanelHidden = false
+        if hasStarted { pageEvents?.pageWillShowAgain(.panelOpened) }
         if reloadWhenShown {
             reloadWhenShown = false
             actionsStale = false
@@ -105,6 +110,14 @@ import LauncherUI
             askForActions()
         }
     }
+
+    /// Tells a source that adopts ``PageEvents``. A running stream keeps running: the panel closing
+    /// is not a stop.
+    public func panelDidClose() {
+        pageEvents?.panelDidClose()
+    }
+
+    private var pageEvents: (any PageEvents)? { page.source as? any PageEvents }
 
     public func pageWillClose() {
         streamTask?.cancel()
@@ -124,15 +137,22 @@ import LauncherUI
 
     public func moveSelection(_ move: SelectionMove) -> Bool { false }
 
+    /// Return with follow-up text sends it. Return in an empty follow-up field runs the primary
+    /// action once nothing streams, and does nothing while an answer streams, so a second Return
+    /// after a follow-up never stops the answer.
     public func handle(_ command: QueryCommand) -> Bool {
         guard case .submit(let modifiers) = command, modifiers.isEmpty, page.source.followUp != nil else {
             return false
         }
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return false }
+        guard !text.isEmpty else { return isStreaming }
         followUp(text)
         return true
     }
+
+    /// False while an answer that takes follow-ups streams: Return then belongs to the follow-up
+    /// field, and the action bar names no primary action.
+    public var returnRunsPrimary: Bool { page.source.followUp == nil || !isStreaming }
 
     /// Sends follow-up text: cancels a running stream, clears the field and applies the answer on
     /// top of what is shown.
@@ -177,6 +197,7 @@ import LauncherUI
         streamsStarted += 1
         let current = streamGeneration
         host?.page(self, isLoading: true)
+        defer { host?.pageSelectionDidChange(self) }
         streamTask = Task { [weak self] in
             do {
                 for try await update in stream {

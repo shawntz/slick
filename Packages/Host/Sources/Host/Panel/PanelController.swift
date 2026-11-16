@@ -45,6 +45,9 @@ import LauncherUI
     public var makePreviewView: @MainActor (URL) -> NSView = { QuickLookPageController.quickLookView(for: $0) }
     /// Changes every time the panel opens.
     public private(set) var sessionID = 0
+    /// The last panel session a link opened or reached. Runs that start in it copy instead of
+    /// pasting: see ``RunOrigin/startedByLink``.
+    public private(set) var linkSession: Int?
 
     /// The entries the action panel shows now, in order.
     public internal(set) var actionEntries: [ActionEntry] = []
@@ -169,6 +172,40 @@ import LauncherUI
         if summoner.isShown { dismiss() } else { summon(eventTimestamp: eventTimestamp) }
     }
 
+    // MARK: Links
+
+    /// Marks the session showing now as one a link opened or reached. Runs that start in it copy
+    /// instead of pasting until the panel opens again some other way.
+    public func noteLinkSession() {
+        linkSession = sessionID
+    }
+
+    public func isLinkSession(_ session: Int) -> Bool {
+        linkSession == session
+    }
+
+    /// Opens root search for a link, with the link's text typed. No row is selected until the
+    /// user types, moves the selection or clicks a row, so Return and Command-1 to 9 run nothing
+    /// the link chose. The session counts as a link session.
+    public func showRootForLink(query: String) {
+        popToRoot()
+        summon()
+        noteLinkSession()
+        surface.queryField.text = query
+        probe.begin(.keystroke)
+        rootPage.showLinkQuery(query)
+        probe.markApplied()
+    }
+
+    /// Opens the panel on a page a link asked for, over root search, such as the page that asks
+    /// before a link runs a command. The session counts as a link session.
+    public func pushForLink(_ page: any PageController) {
+        popToRoot()
+        summon()
+        noteLinkSession()
+        push(page)
+    }
+
     /// Runs the action of the toast showing, as its button in the action bar does.
     public func runToastAction() {
         guard let visible = toasts.visible, let action = visible.toast.action, let origin = visible.origin else {
@@ -187,6 +224,7 @@ import LauncherUI
         showTask?.cancel()
         showTask = nil
         top.panelDidHide()
+        for page in stack.reversed() where page !== rootPage { page.panelDidClose() }
         if summoner.strategy != Self.strategy(general) { replaceSummoner() }
         guard let delay = HostSettings.resetToRootDelay(general[HostSettings.resetToRootAfter]) else { return }
         if delay == .zero {
@@ -272,11 +310,13 @@ import LauncherUI
         revealTop()
     }
 
+    /// Shows the page below a popped one. While the panel is hidden the page hears that first, so
+    /// it neither loads nor tells its source it shows again until the panel opens.
     private func revealTop() {
         showTop(animated: true)
+        if !summoner.isShown { top.panelDidHide() }
         top.pageDidAppear(in: self)
         if top === rootPage, summoner.isShown { rootPage.beginSession() }
-        if !summoner.isShown { top.panelDidHide() }
         updateChrome()
     }
 
@@ -400,7 +440,8 @@ import LauncherUI
     }
 
     /// Replaces the summoner with one for the strategy the setting asks for, while the panel is
-    /// hidden. It keeps the latency probe, the placement and key settings and the dismiss hook.
+    /// hidden. It keeps the latency probe, the placement, the key settings with the summon order and
+    /// the dismiss hook.
     /// After the prewarm the hidden panel's window follows the new strategy: ordered out for
     /// `orderFront`, ordered in at zero opacity for `layerOpacity`.
     private func replaceSummoner() {
@@ -409,6 +450,7 @@ import LauncherUI
         let next = Summoner(surface: surface, strategy: Self.strategy(general), probe: old.probe)
         next.followsPointerScreen = old.followsPointerScreen
         next.takesKeyStatus = old.takesKeyStatus
+        next.makesKeyBeforeShowing = old.makesKeyBeforeShowing
         next.prepareNext = old.prepareNext
         old.prepareNext = nil
         summoner = next
@@ -439,7 +481,7 @@ import LauncherUI
             hasTarget = rootPage.selectedRow != nil
         } else {
             let target = page.target
-            primaryTitle = target?.primary?.title
+            primaryTitle = page.returnRunsPrimary ? target?.primary?.title : nil
             hasTarget = target != nil
         }
         let content = ActionBarContent(

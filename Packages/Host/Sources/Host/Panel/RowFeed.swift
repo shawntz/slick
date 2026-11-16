@@ -109,9 +109,12 @@ import Kit
     // MARK: Lifecycle
 
     /// The page reached the top: listens for changes, and loads when it never did or when its data
-    /// changed while it was covered. While the panel is hidden it waits for ``panelDidShow()``.
+    /// changed while it was covered. While the panel is hidden it waits for ``panelDidShow()``. A
+    /// source that adopts ``PageEvents`` hears ``PageEvents/pageWillShowAgain(_:)`` first, except
+    /// on the first push, so a signal it sends there costs one load.
     func appear() {
         guard !isPanelHidden else { return }
+        if hasLoaded { pageEvents?.pageWillShowAgain(.returned) }
         startWatching()
         if !hasLoaded && loadTask == nil {
             load(.open)
@@ -142,6 +145,8 @@ import Kit
     func panelDidShow() {
         guard isPanelHidden else { return }
         isPanelHidden = false
+        // Before listening, so a signal the source sends here is seen once, as a stale load.
+        if hasLoaded { pageEvents?.pageWillShowAgain(.panelOpened) }
         startWatching()
         let wantsReload = reloadWhenShown
         reloadWhenShown = false
@@ -161,6 +166,14 @@ import Kit
             }
         }
     }
+
+    /// The panel closed while the page was anywhere in the stack: tells a source that adopts
+    /// ``PageEvents``.
+    func panelDidClose() {
+        pageEvents?.panelDidClose()
+    }
+
+    private var pageEvents: (any PageEvents)? { source as? any PageEvents }
 
     /// The page was popped: cancels everything.
     func close() {

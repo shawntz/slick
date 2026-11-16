@@ -69,7 +69,9 @@ import Testing
         let source = Streamer()
         let page = try #require(openDetail(fixture, source))
         #expect(source.askedFor == [Detail()])
-        #expect(fixture.panel.surface.actionBar.content.primaryTitle == "Copy Answer")
+        #expect(
+            fixture.panel.surface.actionBar.content.primaryTitle == nil,
+            "while an answer that takes follow-ups streams, Return runs nothing")
         source.current?.yield(.append("Hello"))
         source.actionsChanged?.send()
         #expect(await waitUntil { source.askedFor.count == 2 })
@@ -77,6 +79,7 @@ import Testing
         #expect(await waitUntil { source.askedFor.count == 3 })
         #expect(source.askedFor.last == .markdown("Hello"))
         #expect(!page.isStreaming)
+        #expect(fixture.panel.surface.actionBar.content.primaryTitle == "Copy Answer")
     }
 
     @Test func appendsAreDrawnOncePerFrame() async throws {

@@ -42,6 +42,10 @@ import LauncherUI
     public var loadReasons: [LoadReason] { feed.loadReasons }
     /// Details the pane loaded, for tests.
     public private(set) var detailLoads = 0
+    /// The row selected when the rows show and the user has selected nothing that still shows,
+    /// such as Cancel on the page that asks before a link runs a command. Nil, or a row that does
+    /// not show, selects the first row.
+    public var preferredSelection: ItemID?
 
     private weak var host: (any PageHost)?
     private var selected: (section: String, id: ItemID)?
@@ -127,6 +131,10 @@ import LauncherUI
 
     public func panelDidShow() {
         feed.panelDidShow()
+    }
+
+    public func panelDidClose() {
+        feed.panelDidClose()
     }
 
     public func pageWillClose() {
@@ -279,7 +287,11 @@ import LauncherUI
             renderBanner(host.resolvedTheme)
         }
         var index = 0
-        if keepSelection, let selected, let found = flatIndex(of: selected) { index = found }
+        if keepSelection, let selected, let found = flatIndex(of: selected) {
+            index = found
+        } else if let preferred = preferredSelection, let found = flatIndex(of: ("", preferred)) {
+            index = found
+        }
         meter.measure { list.select(count > 0 ? index : nil, animated: false) }
         noteSelection()
     }

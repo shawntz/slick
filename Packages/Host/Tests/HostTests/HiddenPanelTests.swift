@@ -105,6 +105,23 @@ import Testing
         #expect(fixture.panel.isPanelVisible)
     }
 
+    /// LauncherUI makes the panel key before it shows, which removed a flash of flat glass. A
+    /// strategy switch keeps whichever order the panel had.
+    @Test(arguments: [true, false])
+    func aStrategySwitchKeepsTheSummonOrder(keyFirst: Bool) async {
+        let fixture = await PanelFixture.make(summon: false)
+        defer { fixture.close() }
+        let general = HostSettings.settings(fixture.runtime.fakes.settings)
+        #expect(fixture.panel.summoner.makesKeyBeforeShowing, "key first is LauncherUI's default")
+        fixture.panel.summoner.makesKeyBeforeShowing = keyFirst
+        general[HostSettings.summonStrategy] = .orderFront
+        #expect(await waitUntil { fixture.panel.summoner.strategy == .orderFront })
+        #expect(fixture.panel.summoner.makesKeyBeforeShowing == keyFirst)
+        general[HostSettings.summonStrategy] = .layerOpacity
+        #expect(await waitUntil { fixture.panel.summoner.strategy == .layerOpacity })
+        #expect(fixture.panel.summoner.makesKeyBeforeShowing == keyFirst)
+    }
+
     @Test func tabRunsOnlyTheCommandRootPutInTheSnapshot() async {
         let receive = ItemID.command(feature: "relay", command: "receive")
         let fixture = await PanelFixture.make(settings: ["tabCommand": .string(receive.rawValue)])

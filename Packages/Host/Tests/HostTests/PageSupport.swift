@@ -142,8 +142,9 @@ extension PanelFixture {
     }
 }
 
-/// A detail source whose streams the test drives.
-@MainActor final class Streamer: DetailSource {
+/// A detail source whose streams the test drives. It hears page events, as an answer that keeps
+/// streaming while the panel is closed does.
+@MainActor final class Streamer: DetailSource, PageEvents {
     typealias Stream = AsyncThrowingStream<DetailUpdate, any Error>
 
     let actionsChanged: ChangeSignal? = ChangeSignal()
@@ -152,6 +153,16 @@ extension PanelFixture {
     private(set) var followUps: [String] = []
     private(set) var askedFor: [Detail] = []
     private(set) var cancelledStreams = 0
+    /// The page events heard, in order: "closed", "opened" or "returned".
+    private(set) var events: [String] = []
+
+    func pageWillShowAgain(_ reason: PageShowReason) {
+        events.append(reason == .panelOpened ? "opened" : "returned")
+    }
+
+    func panelDidClose() {
+        events.append("closed")
+    }
 
     func start() -> Stream {
         makeStream()
