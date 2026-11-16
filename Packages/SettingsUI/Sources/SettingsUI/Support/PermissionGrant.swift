@@ -37,6 +37,15 @@ struct PermissionGrant {
         "macOS asks the first time you control \(appName ?? "this app") while it is open."
     }
 
+    /// What a row says after a request ended with no answer from macOS, as when macOS shows no
+    /// prompt: where to allow the permission by hand.
+    static func unansweredSentence(_ permission: Permission) -> String {
+        guard let place = permission.settingsPlace else {
+            return "macOS has not answered yet. You can allow it in System Settings, under Privacy & Security."
+        }
+        return "macOS has not answered yet. You can allow it in System Settings, under Privacy & Security, \(place)."
+    }
+
     /// The current status. Never prompts.
     func status(of permission: Permission) -> PermissionStatus {
         service.status(of: permission)

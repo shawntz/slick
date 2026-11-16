@@ -42,6 +42,24 @@ final class SettingsContext {
         return PermissionGrant.waitingSentence(appName: name)
     }
 
+    /// How a permission's row is titled: an Automation permission by its app, such as "Music
+    /// Automation", so the rows of several apps differ. The name comes from the workspace, or for
+    /// Apple's helpers outside the app folders, which the workspace does not list, from
+    /// ``systemAppNames``.
+    func title(for permission: Permission) -> String {
+        guard case .automation(let bundleID) = permission,
+            let name = services.workspace.application(bundleID: bundleID)?.name ?? Self.systemAppNames[bundleID]
+        else { return permission.displayName }
+        return "\(DisplayText.oneLine(name)) \(permission.displayName)"
+    }
+
+    /// The names of Apple's own apps that features control and that live in
+    /// /System/Library/CoreServices, outside the folders the app catalog reads.
+    static let systemAppNames = [
+        "com.apple.finder": "Finder", "com.apple.systemevents": "System Events",
+        "com.apple.loginwindow": "Login Window",
+    ]
+
     /// How an item reads in settings: a command's title, a known row's title, or its raw ID.
     func title(for id: ItemID) -> String {
         if let command = directory.command(id) { return command.command.title }

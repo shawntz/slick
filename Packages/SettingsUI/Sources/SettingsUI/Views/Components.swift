@@ -95,7 +95,7 @@ struct StatusBanner: View {
                 HStack {
                     Text(need.reason).font(.callout).foregroundStyle(.secondary)
                     Spacer()
-                    Button("Grant \(need.permission.displayName)…") {
+                    Button("Allow \(need.permission.displayName)…") {
                         Task { await grant(need.permission) }
                     }
                 }
@@ -124,6 +124,8 @@ struct StatusBanner: View {
 /// A permission's name and live status, with Allow and System Settings buttons.
 struct PermissionRow: View {
     let permission: Permission
+    /// The row's title. Nil uses the permission's name.
+    var title: String?
     let status: PermissionStatus
     var reason: String?
     /// Shown in place of the Allow button while the permission waits for its app to run.
@@ -138,7 +140,7 @@ struct PermissionRow: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(permission.displayName)
+                Text(title ?? permission.displayName)
                 if let reason {
                     Text(reason).font(.callout).foregroundStyle(.secondary)
                 }
@@ -152,11 +154,11 @@ struct PermissionRow: View {
             Spacer()
             if waitingSentence == nil && !status.isGranted && status != .restricted {
                 Button("Allow…") { Task { await grant() } }
-                    .accessibilityLabel("Allow \(permission.displayName)")
+                    .accessibilityLabel("Allow \(title ?? permission.displayName)")
             }
             Button("Open System Settings") { Task { await openSettings() } }
                 .buttonStyle(.link)
-                .accessibilityLabel("Open \(permission.displayName) in System Settings")
+                .accessibilityLabel("Open \(title ?? permission.displayName) in System Settings")
         }
         .accessibilityElement(children: .contain)
     }

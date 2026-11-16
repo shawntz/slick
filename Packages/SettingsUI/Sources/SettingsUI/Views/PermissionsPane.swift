@@ -15,19 +15,31 @@ struct PermissionsPane: View {
                     Text("No feature needs a permission.").foregroundStyle(.secondary)
                 }
             }
-            ForEach(model.entries) { entry in
-                Section {
-                    PermissionRow(
-                        permission: entry.permission, status: entry.status, waitingSentence: entry.waitingSentence,
-                        grant: { await model.grant(entry.permission) },
-                        openSettings: { await model.openSettings(for: entry.permission) })
-                    ForEach(entry.wants) { want in
-                        LabeledContent {
-                            Text(want.isFeatureEnabled ? "On" : "Off").foregroundStyle(.secondary)
-                        } label: {
-                            Text(want.featureName)
-                            Text(want.reason)
+            ForEach(model.groups, id: \.group) { section in
+                let permissions = section.entries.map(\.permission)
+                ForEach(Array(section.entries.enumerated()), id: \.element.id) { index, entry in
+                    Section {
+                        PermissionRow(
+                            permission: entry.permission, title: entry.title, status: entry.status,
+                            reason: entry.permission == .fullDiskAccess
+                                && PermissionGroup.listsFolderFullDiskAccessAllows(permissions)
+                                ? PermissionGroup.fullDiskAccessCoversFolders : nil,
+                            waitingSentence: entry.waitingSentence,
+                            grant: { await model.grant(entry.permission) },
+                            openSettings: { await model.openSettings(for: entry.permission) })
+                        ForEach(entry.wants) { want in
+                            LabeledContent {
+                                Text(want.isFeatureEnabled ? "On" : "Off").foregroundStyle(.secondary)
+                            } label: {
+                                Text(want.featureName)
+                                Text(want.reason)
+                            }
+                            // Under the permission's name, so the row reads as one of its reasons.
+                            .padding(.leading, 30)
                         }
+                    } header: {
+                        // The group's heading, once, above its first permission.
+                        if index == 0 { Text(section.group.title) }
                     }
                 }
             }

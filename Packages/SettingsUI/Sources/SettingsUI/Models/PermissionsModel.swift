@@ -17,6 +17,8 @@ import Observation
     /// One permission and who wants it.
     struct Entry: Identifiable {
         var permission: Permission
+        /// The row's title, which names an Automation permission's app.
+        var title: String
         var wants: [Want]
         var status: PermissionStatus
         /// What the row says in place of Allow while the permission waits for its app to run.
@@ -33,7 +35,7 @@ import Observation
         tasks.follow(context.directory.changes, bumping: revision)
     }
 
-    /// Every permission in the order features first name it.
+    /// Every permission in its group's order, see ``PermissionGroup``.
     var entries: [Entry] {
         revision.track()
         var order: [Permission] = []
@@ -47,12 +49,19 @@ import Observation
                         isFeatureEnabled: feature.isEnabled))
             }
         }
-        return order.map { permission in
+        let entries = order.map { permission in
             let status = context.permissions.status(of: permission)
             return Entry(
-                permission: permission, wants: wants[permission] ?? [], status: status,
+                permission: permission, title: context.title(for: permission), wants: wants[permission] ?? [],
+                status: status,
                 waitingSentence: context.waitingSentence(for: permission, status: status))
         }
+        return PermissionGroup.sorted(entries, by: \.permission)
+    }
+
+    /// The permissions in their groups. A group with none is left out.
+    var groups: [(group: PermissionGroup, entries: [Entry])] {
+        PermissionGroup.grouped(entries, by: \.permission).map { ($0.group, $0.items) }
     }
 
     /// Runs the grant flow for a permission. Only a button the user pressed calls this.
