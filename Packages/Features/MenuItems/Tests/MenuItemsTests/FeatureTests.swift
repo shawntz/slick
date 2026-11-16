@@ -15,6 +15,7 @@ struct FeatureTests {
         let menu = MenuHarness()
         let harness = menu.harness
         #expect(harness.issues.isEmpty)
+        #expect(harness.pendingIssues.isEmpty)
         #expect(MenuItemsFeature.manifest.id == "menu-items")
         #expect(MenuItemsFeature.manifest.isEnabledByDefault)
         let need = try #require(MenuItemsFeature.manifest.permissions.first)
@@ -34,7 +35,6 @@ struct FeatureTests {
         await menu.harness.activate()
         try await menu.harness.settle()
         #expect(menu.menus.walks == 0)
-        #expect(menu.menus.closingListenerCount == 0)
         #expect(menu.harness.fakes.permissions.requests.isEmpty)
         #expect(menu.harness.fakes.permissions.openStreamCount == 0)
         #expect(menu.harness.fakes.http.requests.isEmpty)
@@ -241,6 +241,7 @@ struct FeatureTests {
         #expect(harness.huds.last == .failure("Could Not Run “Save”"))
         let gone = try #require(harness.actionErrors.last as? ActionFailure)
         #expect(gone.message?.hasPrefix("Example Editor no longer shows this menu item") == true)
+        try await harness.openPanel()
         try await menu.settled()
         #expect(!harness.rows.contains { $0.title == "Save" }, "the next showing read the menus again")
 
@@ -252,6 +253,7 @@ struct FeatureTests {
         #expect((harness.actionErrors.last as? ActionFailure)?.message == "Example Editor is no longer open.")
 
         // The list now says the app is not open.
+        try await harness.openPanel()
         try await menu.settled()
         #expect(harness.rows.isEmpty)
         #expect(harness.page?.emptyState?.title == "Example Editor Is Not Open")
@@ -357,10 +359,10 @@ struct FeatureTests {
         try await menu.open()
         #expect(harness.rows.contains { $0.title == "Save" })
 
-        // The launcher closes; the next summon comes from the browser and shows the same page.
+        // The panel closes; the next summon comes from the browser and shows the same page.
+        harness.closePanel()
         harness.fakes.workspace.frontmost = MenuHarness.browser
-        menu.menus.simulateLauncherClosing()
-        try await harness.waitForChange()
+        try await harness.openPanel()
         #expect(menu.list?.target == .app(MenuApp(bundleID: "com.example.browser", name: "Example Browser")))
         if harness.rows.isEmpty { try await harness.waitForChange() }
         #expect(harness.rows.map(\.title) == ["Show All History"])
@@ -467,19 +469,20 @@ struct FeatureTests {
         #expect(list.changes?.generation == generation)
     }
 
-    @Test func theLauncherClosingStopsTheReadAndTheNextShowingReadsAgain() async throws {
+    @Test func thePanelClosingStopsTheReadAndTheNextShowingReadsAgain() async throws {
         let menu = MenuHarness(menuBar: Trees.wide(menus: 5, items: 40))
         let harness = menu.harness
-        menu.menus.closesLauncherAfterReads = 30
+        menu.menus.holdsAfterReads = 30
         try await harness.run("search")
         let list = try #require(menu.list)
+        await menu.menus.waitUntilHeld()
+        harness.closePanel()
         await list.readFinished()
-        await menu.waitForClosings(1)
-        #expect(menu.menus.reads == 30, "the read stopped when the launcher closed")
+        #expect(menu.menus.reads == 30, "the read stopped when the panel closed")
         #expect(menu.menus.walks == 1, "the closing itself starts no read")
 
         // The load the host makes when the page shows again shows what was read, and reads afresh.
-        try await harness.settle()
+        try await harness.openPanel()
         let partial = harness.rows.count
         #expect(partial > 0 && partial < 30)
         #expect(harness.page?.notice == nil)
@@ -495,16 +498,44 @@ struct FeatureTests {
         try await menu.open()
         let list = try #require(menu.list)
         #expect(menu.menus.walks == 1)
-        menu.menus.simulateLauncherClosing()
-        try await harness.waitForChange()
+        harness.closePanel()
+        #expect(menu.menus.walks == 1, "nothing is read while the panel is closed")
+        #expect(!list.isReading)
+        try await harness.openPanel()
         #expect(list.isReading)
         #expect(!harness.rows.isEmpty, "the cached rows show while the fresh read runs")
 
         // A closing during a read stops it and starts nothing itself.
-        list.launcherClosed()
-        list.launcherClosed()
+        list.panelDidClose()
+        list.panelDidClose()
         await list.readFinished()
         #expect(menu.menus.walks == 2)
+        #expect(!list.isReading)
+    }
+
+    @Test func goingBackToThePageAfterAClosingReadsAgain() async throws {
+        let menu = MenuHarness()
+        let harness = menu.harness
+        try await menu.open()
+        let list = try #require(menu.list)
+        // A page above it, then the panel closes and opens on that page.
+        try await harness.open(.detail(DetailPage(title: "Above", detail: Detail(.text("A page above")))))
+        harness.closePanel()
+        try await harness.openPanel()
+        #expect(menu.menus.walks == 1, "the page below reads nothing while it is covered")
+        try await harness.goBack()
+        #expect(list.isReading)
+        try await menu.settled()
+        #expect(menu.menus.walks == 2)
+    }
+
+    @Test func openingThePanelWithNoClosingReadsNothing() async throws {
+        let menu = MenuHarness()
+        try await menu.open()
+        let list = try #require(menu.list)
+        list.pageWillShowAgain(.returned)
+        try await menu.harness.settle()
+        #expect(menu.menus.walks == 1)
         #expect(!list.isReading)
     }
 
@@ -552,7 +583,6 @@ struct FeatureTests {
         try await menu.open()
         weak let list = menu.list
         #expect(list != nil)
-        #expect(menu.menus.closingListenerCount == 1)
         menu.harness.pop()
         await menu.harness.deactivate()
         #expect(list == nil, "nothing keeps the page's source alive")

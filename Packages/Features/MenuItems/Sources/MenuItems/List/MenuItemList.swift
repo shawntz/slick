@@ -29,14 +29,15 @@ nonisolated enum MenuTarget: Hashable, Sendable {
 /// - The page never waits for a read. A load returns at once: the cached menus when there are any,
 ///   or a "Reading Menus" state. A read runs in a task of its own and sends ``changes`` when it ends,
 ///   so the host loads again.
-/// - Each time the page opens or shows again after the launcher closed, it reads the menus afresh
-///   in the background, so the cache shown at once does not go stale.
+/// - Each time the page opens or shows again after the panel closed, it reads the menus afresh in
+///   the background, so the cache shown at once does not go stale. It learns of both through
+///   ``PageEvents``.
 /// - It follows the app in front: a page left open from an earlier summon switches to the app that
 ///   was in front this time.
 /// - Filtering is the source's own: the search and the rows run off the main thread, a page of
 ///   ``MenuRows/pageSize`` at a time.
-/// - A read stops when the launcher closes, when its time limit passes and when the page goes away.
-final class MenuItemList: ListSource {
+/// - A read stops when the panel closes, when its time limit passes and when the page goes away.
+final class MenuItemList: ListSource, PageEvents {
     let filtering = ListFiltering.custom(debounce: .milliseconds(20))
     let changes: ChangeSignal? = ChangeSignal()
     var reloadsOnSettings: [AnySettingKey] { MenuItemsSettings.listKeys }
@@ -65,14 +66,6 @@ final class MenuItemList: ListSource {
         self.reader = reader
         self.cache = cache
         self.limits = limits
-        let closings = reader.launcherClosings()
-        tasks.add(
-            Task { [weak self] in
-                for await _ in closings {
-                    self?.launcherClosed()
-                    self?.closingsHandled += 1
-                }
-            })
     }
 
     deinit {
@@ -81,8 +74,6 @@ final class MenuItemList: ListSource {
 
     /// True while a read runs.
     var isReading: Bool { read != nil }
-    /// How many times the launcher closed while the page was open.
-    private(set) var closingsHandled = 0
 
     /// Returns once the read running now, if any, has ended and its result is in the cache.
     func readFinished() async {
@@ -170,7 +161,7 @@ final class MenuItemList: ListSource {
             context.log.debug(
                 "Read \(snapshot.items.count) menu items in \(Int(elapsed * 1000)) ms, ending \(String(describing: snapshot.ending), privacy: .public)"
             )
-            // A read the launcher's closing stopped is read again the next time the page shows,
+            // A read the panel's closing stopped is read again the next time the page shows,
             // which the signal makes the host load.
             let stopped = snapshot.ending == .stopped
             if stopped { needsFreshRead = true }
@@ -194,19 +185,19 @@ final class MenuItemList: ListSource {
         changes?.send()
     }
 
-    /// The launcher closed: stop reading, and read afresh the next time the page shows. The signal
-    /// makes the host load the page again then, which also follows the app in front. One signal per
-    /// closing: a running read signals when it ends, and a page already due for a fresh read has
-    /// signalled.
-    func launcherClosed() {
-        if let read {
-            needsFreshRead = true
-            read.cancel()
-            return
-        }
-        guard !needsFreshRead else { return }
+    // MARK: - Page events
+
+    /// The panel closed: stop reading, and read afresh the next time the page shows. A running read
+    /// signals when it ends.
+    func panelDidClose() {
         needsFreshRead = true
-        changes?.send()
+        read?.cancel()
+    }
+
+    /// The page shows again, after the panel opened or the user came back to it. The signal makes
+    /// the host load it once, which follows the app in front and starts the fresh read.
+    func pageWillShowAgain(_ reason: PageShowReason) {
+        if needsFreshRead { changes?.send() }
     }
 
     /// Stops everything, as when the feature turns off.
@@ -287,7 +278,7 @@ final class MenuItemList: ListSource {
                 return .keepOpen
             }
             context.dismiss()
-            self?.launcherClosed()
+            self?.panelDidClose()
             do {
                 try await reader.press(item)
             } catch let error as MenuReadError {

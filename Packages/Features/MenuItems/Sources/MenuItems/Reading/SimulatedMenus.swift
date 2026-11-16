@@ -55,7 +55,9 @@ nonisolated final class SimulatedMenus: MenuReader {
         var costPerRead = Duration.zero
         var quitsAfterReads: Int?
         var revokesAccessAfterReads: Int?
-        var closesLauncherAfterReads: Int?
+        var holdsAfterReads: Int?
+        var isHolding = false
+        var holdWaiter: CheckedContinuation<Void, Never>?
         var failingTitles: Set<String> = []
         var walks = 0
         var reads = 0
@@ -66,8 +68,6 @@ nonisolated final class SimulatedMenus: MenuReader {
     }
 
     private let state: Mutex<State>
-    private let listeners = Mutex<[Int: AsyncStream<Void>.Continuation]>([:])
-    private let nextListener = Atomic<Int>(0)
 
     init(apps: [App], fallback: App? = nil) {
         state = Mutex(
@@ -101,11 +101,38 @@ nonisolated final class SimulatedMenus: MenuReader {
         set { state.withLock { $0.revokesAccessAfterReads = newValue } }
     }
 
-    /// The launcher closes after this many reads in the next walk. It closes once, as a person
-    /// closes it once, so the setting clears when a walk takes it.
-    var closesLauncherAfterReads: Int? {
-        get { state.withLock { $0.closesLauncherAfterReads } }
-        set { state.withLock { $0.closesLauncherAfterReads = newValue } }
+    /// The next walk waits after this many reads until its task is cancelled, as when the panel
+    /// closes during a read, then stops. The setting clears when a walk takes it.
+    /// ``waitUntilHeld()`` returns once the walk waits.
+    var holdsAfterReads: Int? {
+        get { state.withLock { $0.holdsAfterReads } }
+        set { state.withLock { $0.holdsAfterReads = newValue } }
+    }
+
+    /// Returns once a walk waits after ``holdsAfterReads``.
+    @concurrent func waitUntilHeld() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let holding = state.withLock { state -> Bool in
+                if state.isHolding { return true }
+                state.holdWaiter = continuation
+                return false
+            }
+            if holding { continuation.resume() }
+        }
+    }
+
+    /// Waits until the walking task is cancelled. Runs inside a walk.
+    fileprivate func hold() {
+        let waiter = state.withLock { state -> CheckedContinuation<Void, Never>? in
+            state.isHolding = true
+            defer { state.holdWaiter = nil }
+            return state.holdWaiter
+        }
+        waiter?.resume()
+        while !Task.isCancelled {
+            usleep(200)
+        }
+        state.withLock { $0.isHolding = false }
     }
 
     /// Elements with these titles fail to read, as an element that vanishes mid-walk does.
@@ -128,11 +155,6 @@ nonisolated final class SimulatedMenus: MenuReader {
         state.withLock { _ = $0.apps.removeValue(forKey: bundleID) }
     }
 
-    /// Tells every listener that the launcher closed.
-    func simulateLauncherClosing() {
-        for listener in listeners.withLock({ Array($0.values) }) { listener.yield() }
-    }
-
     // MARK: - What happened
 
     /// Walks started, including those that failed.
@@ -145,15 +167,13 @@ nonisolated final class SimulatedMenus: MenuReader {
     var activations: [String] { state.withLock { $0.activations } }
     /// The app in front, after the last press.
     var frontmost: String? { state.withLock { $0.frontmost } }
-    /// Streams listening for the launcher to close.
-    var closingListenerCount: Int { listeners.withLock { $0.count } }
 
     // MARK: - MenuReader
 
     @concurrent func readMenus(of app: MenuApp, limits: WalkLimits) async throws -> MenuSnapshot {
         let setup = state.withLock { state -> (App?, State) in
             state.walks += 1
-            defer { state.closesLauncherAfterReads = nil }
+            defer { state.holdsAfterReads = nil }
             return (state.apps[app.bundleID] ?? state.fallback, state)
         }
         guard setup.1.accessGranted else { throw MenuReadError.accessMissing }
@@ -162,10 +182,10 @@ nonisolated final class SimulatedMenus: MenuReader {
         let run = Run(
             owner: self, bundleID: app.bundleID, app: running, cost: setup.1.costPerRead,
             quitsAfter: setup.1.quitsAfterReads, revokesAfter: setup.1.revokesAccessAfterReads,
-            closesAfter: setup.1.closesLauncherAfterReads, failing: setup.1.failingTitles)
+            holdsAfter: setup.1.holdsAfterReads, failing: setup.1.failingTitles)
         return try MenuWalker.walk(
             run, app: app, processID: running.processID, limits: limits, elapsed: { run.elapsed },
-            shouldStop: { Task.isCancelled || run.launcherClosed })
+            shouldStop: { Task.isCancelled })
     }
 
     @concurrent func press(_ item: MenuItemRef) async throws {
@@ -187,16 +207,6 @@ nonisolated final class SimulatedMenus: MenuReader {
         state.withLock { $0.presses.append(item) }
     }
 
-    func launcherClosings() -> AsyncStream<Void> {
-        let (stream, continuation) = AsyncStream.makeStream(of: Void.self, bufferingPolicy: .bufferingNewest(1))
-        let id = nextListener.add(1, ordering: .relaxed).newValue
-        listeners.withLock { $0[id] = continuation }
-        continuation.onTermination = { [weak self] _ in
-            _ = self?.listeners.withLock { $0.removeValue(forKey: id) }
-        }
-        return stream
-    }
-
     // MARK: - One walk
 
     /// The tree access for one walk or one press, counting reads and playing the configured events.
@@ -207,15 +217,14 @@ nonisolated final class SimulatedMenus: MenuReader {
         let cost: Duration
         let quitsAfter: Int?
         let revokesAfter: Int?
-        let closesAfter: Int?
+        let holdsAfter: Int?
         let failing: Set<String>
         private(set) var elapsed = Duration.zero
-        private(set) var launcherClosed = false
         private var count = 0
 
         init(
             owner: SimulatedMenus, bundleID: String, app: App, cost: Duration = .zero, quitsAfter: Int? = nil,
-            revokesAfter: Int? = nil, closesAfter: Int? = nil, failing: Set<String> = []
+            revokesAfter: Int? = nil, holdsAfter: Int? = nil, failing: Set<String> = []
         ) {
             self.owner = owner
             self.bundleID = bundleID
@@ -223,7 +232,7 @@ nonisolated final class SimulatedMenus: MenuReader {
             self.cost = cost
             self.quitsAfter = quitsAfter
             self.revokesAfter = revokesAfter
-            self.closesAfter = closesAfter
+            self.holdsAfter = holdsAfter
             self.failing = failing
         }
 
@@ -245,10 +254,7 @@ nonisolated final class SimulatedMenus: MenuReader {
                 throw MenuReadError.accessMissing
             }
             if failing.contains(element.title) { throw MenuReadError.elementFailed }
-            if let closesAfter, count >= closesAfter, !launcherClosed {
-                launcherClosed = true
-                owner.simulateLauncherClosing()
-            }
+            if count == holdsAfter { owner.hold() }
             return MenuElementInfo(
                 title: element.title, isEnabled: element.isEnabled, shortcut: element.shortcut, mark: element.mark,
                 children: element.children)

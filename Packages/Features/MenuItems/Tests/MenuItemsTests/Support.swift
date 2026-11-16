@@ -57,13 +57,6 @@ struct MenuHarness {
         } while list.isReading
     }
 
-    /// Waits until the open list has handled this many closings of the launcher. The reader sends
-    /// them from its own thread; the list handles them on the main actor.
-    func waitForClosings(_ count: Int) async {
-        guard let list else { return }
-        while list.closingsHandled < count { await Task.yield() }
-    }
-
     /// Every row, loading every page.
     func allRows() async throws -> [Row] {
         while try await harness.loadNextPage() {}

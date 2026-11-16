@@ -9,15 +9,12 @@ import Kit
 /// serves menu trees held in memory and touches nothing.
 nonisolated protocol MenuReader: Sendable {
     /// Walks the app's menu bar within the limits and returns every item found. A walk that hits a
-    /// limit, is cancelled or sees the launcher close returns what it read so far, with an ending
+    /// limit or is cancelled, as when the panel closes, returns what it read so far, with an ending
     /// that says why.
     @concurrent func readMenus(of app: MenuApp, limits: WalkLimits) async throws -> MenuSnapshot
 
     /// Lets the app come back to the front, finds the item again and presses it.
     @concurrent func press(_ item: MenuItemRef) async throws
-
-    /// Yields each time the launcher closes. The stream ends when the consuming task is cancelled.
-    func launcherClosings() -> AsyncStream<Void>
 }
 
 /// Why the menus could not be read or an item could not be pressed.

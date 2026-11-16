@@ -33,9 +33,8 @@ nonisolated final class AccessibilityMenus: MenuReader {
         }
         let process = running.processIdentifier
         guard process != ProcessInfo.processInfo.processIdentifier else { throw MenuReadError.noMenuBar }
+        // The page cancels the read when the panel closes, which sets the flag the walk checks.
         let stop = StopFlag()
-        let watch = LauncherWatch { stop.set() }
-        defer { watch.end() }
         return try await withTaskCancellationHandler {
             try await onQueue {
                 let access = AXMenuAccess(process: process, timeout: limits.messagingTimeout)
@@ -113,15 +112,6 @@ nonisolated final class AccessibilityMenus: MenuReader {
         try await Task.sleep(for: settleWait)
     }
 
-    // MARK: - The launcher closing
-
-    func launcherClosings() -> AsyncStream<Void> {
-        let (stream, continuation) = AsyncStream.makeStream(of: Void.self, bufferingPolicy: .bufferingNewest(1))
-        let watch = LauncherWatch { continuation.yield() }
-        continuation.onTermination = { _ in watch.end() }
-        return stream
-    }
-
     // MARK: - Pieces
 
     /// Runs Accessibility work on the reader's queue and hands back its result.
@@ -146,34 +136,6 @@ nonisolated final class AccessibilityMenus: MenuReader {
     static func isRunning(_ process: pid_t) -> Bool {
         guard let app = NSRunningApplication(processIdentifier: process) else { return false }
         return !app.isTerminated
-    }
-}
-
-/// Watches for the launcher's panel to give up key status, which it does when it closes. The panel
-/// is a non-activating panel and is key the whole time it shows, so another window of this app
-/// giving up key status, such as the settings window, does not count.
-///
-/// The token never changes after `init`, and the notification center may be used from any thread.
-nonisolated final class LauncherWatch: @unchecked Sendable {
-    private let token: any NSObjectProtocol
-
-    /// Starts watching. `closed` runs on the main thread each time the launcher closes.
-    init(_ closed: @escaping @Sendable () -> Void) {
-        token = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification, object: nil, queue: .main
-        ) { notification in
-            // The main queue runs this block on the main thread, where the window may be read.
-            let window = notification.object as? NSPanel
-            let isLauncher = MainActor.assumeIsolated {
-                window?.styleMask.contains(.nonactivatingPanel) == true
-            }
-            if isLauncher { closed() }
-        }
-    }
-
-    /// Stops watching.
-    func end() {
-        NotificationCenter.default.removeObserver(token)
     }
 }
 

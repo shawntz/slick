@@ -209,10 +209,13 @@ struct WalkerTests {
         #expect(snapshot.items.contains { $0.title == "Paste" })
     }
 
-    @Test func theLauncherClosingStopsTheWalk() async throws {
+    @Test func aWalkCancelledMidwayStops() async throws {
         let reader = reader(Trees.wide(menus: 5, items: 50))
-        reader.closesLauncherAfterReads = 12
-        let snapshot = try await read(reader)
+        reader.holdsAfterReads = 12
+        let task = Task { try await reader.readMenus(of: Self.app, limits: .standard) }
+        await reader.waitUntilHeld()
+        task.cancel()
+        let snapshot = try await task.value
         #expect(snapshot.ending == .stopped)
         #expect(reader.reads == 12)
         #expect(snapshot.items.count < 12)

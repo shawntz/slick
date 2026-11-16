@@ -133,7 +133,6 @@ struct HardeningTests {
         }
         try await harness.settle()
         #expect(menu.menus.walks == walks)
-        #expect(menu.menus.closingListenerCount == 0, "the open page let go of its watch")
         #expect(harness.fakes.permissions.openStreamCount == 0)
         try await menu.open()
         #expect(menu.menus.walks == walks + 1, "the cache went with the feature, so the menus are read again")
