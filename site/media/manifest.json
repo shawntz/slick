@@ -1,5 +1,5 @@
 {
-  "about": "Product pictures and clips of Slick for the website and the README. The stills without a clip or still field were captured from the launcher's own interface code drawing a made-up sample catalog over a wallpaper generated in code, at 2x on a Retina display, by scripts/ui-showcase.sh. The clips, the entries with a clip field, are recordings of the assembled app running the storyboard that field names, by make media: real search, ranking, learning, features and glass, over the same wallpaper. They list Apple's own apps from /System/Applications with their real names and icons, and nothing from /Applications or the home folder. Opening an app is recorded instead of done. Copied text, files and other data in them are made up for the clip. The entries with a still field are pictures that a storyboard's still steps took during its clip: the real settings window, and the panel in the Beam and Clear themes. The Clear clips and the pair of Standard and Clear stills show the panel over the About page of the settings window, so clear glass has something to show through. Each clip has an MP4 for the website, a GIF for the README and a poster PNG.",
+  "about": "Product pictures and clips of Slick for the website and the README. The stills without a clip or still field were captured from the launcher's own interface code drawing a made-up sample catalog over a wallpaper generated in code, at 2x on a Retina display, by scripts/ui-showcase.sh. The clips, the entries with a clip field, are recordings of the assembled app running the storyboard that field names, by make media: real search, ranking, learning, features and glass, over the same wallpaper. They list Apple's own apps from /System/Applications with their real names and icons, and nothing from /Applications or the home folder. Opening an app is recorded instead of done. Copied text, files and other data in them are made up for the clip. The entries with a still field are pictures that a storyboard's still steps took during its clip: the real settings window, and the panel in the Spotlight and Glass themes. The Glass clips and the pair of Standard and Glass stills show the panel over the About page of the settings window, so clear glass has something to show through. Each clip has an MP4 for the website, a GIF for the README and a poster PNG.",
   "files": [
     {
       "file": "hero-dark.png",
@@ -138,67 +138,40 @@
       "alt": "The search results for “ca” in the Violet theme, dark mode. The glass is tinted a deep ink purple, the first row sits under a glass lens tinted magenta, and the text cursor takes the electric violet accent from the app icon. The apps, files and names are made-up sample data. The picture comes from Slick's interface code running on its own, not from the finished app."
     },
     {
-      "file": "beam-dark.png",
+      "file": "compare-glass-dark.png",
       "width": 1880,
       "height": 1480,
       "appearance": "dark",
-      "caption": "Beam in dark mode: the query in its capsule, the results in their own glass below.",
-      "still": "scenarios/media/beam-dark.json",
-      "alt": "Slick's search panel in the Beam theme, dark mode, over a purple gradient wallpaper. A tall capsule of glass holds the query “cal”, completed to “calendar” in grey. Below it, apart from it, a rounded container lists Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks, with Calculator selected. Apps show their own icons and commands show line glyphs. Command-1 to Command-5 sit at the right of the rows. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+      "caption": "In the Glass theme, the same window stays sharp through the panel.",
+      "still": "scenarios/media/compare-dark.json",
+      "alt": "Slick's search panel in the Glass theme, dark mode, with “cal” typed and Calculator selected, over the same About page. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it, and the panel's text carries a soft dark halo. The picture beside it shows the same scene in the Standard theme. Captured from the assembled app running a scripted scenario, with Apple's own apps."
     },
     {
-      "file": "beam-empty-dark.png",
+      "file": "compare-standard-dark.png",
       "width": 1880,
       "height": 1480,
       "appearance": "dark",
-      "caption": "Beam before anything is typed: a capsule with a glowing caret above four suggestions.",
-      "still": "scenarios/media/beam-dark.json",
-      "alt": "Slick's search panel in the Beam theme, dark mode, over a purple gradient wallpaper, before anything is typed. A tall capsule of dark glass holds a glowing caret and the placeholder “Search for apps and commands”. Below it, apart from it, a rounded container lists Music, Notes, Mail and Calendar under Suggested, each with its Command-digit shortcut at the right. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+      "caption": "In the Standard theme, frosted glass blurs the window behind the panel.",
+      "still": "scenarios/media/compare-dark.json",
+      "alt": "Slick's search panel in the Standard theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The frosted, tinted glass blurs the app icon and the lines of text behind it into soft shapes. The picture beside it shows the same scene in the Glass theme. Captured from the assembled app running a scripted scenario, with Apple's own apps."
     },
     {
-      "file": "beam-light.png",
+      "file": "glass-dark.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "dark",
+      "caption": "The Glass theme in dark mode. Nothing frosts the window behind the panel.",
+      "still": "scenarios/media/glass-dark.json",
+      "alt": "Slick's search panel in the Glass theme, dark mode, over the About page of Slick's settings window and a purple gradient wallpaper. The query “cal” lists Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink, with Calculator selected. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it. The panel's text carries a soft dark halo. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+    },
+    {
+      "file": "glass-light.png",
       "width": 1880,
       "height": 1480,
       "appearance": "light",
-      "caption": "Beam in light mode: the query in its capsule, the results in their own glass below.",
-      "still": "scenarios/media/beam-light.json",
-      "alt": "Slick's search panel in the Beam theme, light mode, over a pale lavender wallpaper. A tall capsule of glass holds the query “cal”, completed to “calendar” in grey. Below it, apart from it, a rounded container lists Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks, with Calculator selected. Apps show their own icons and commands show line glyphs. Command-1 to Command-5 sit at the right of the rows. Captured from the assembled app running a scripted scenario, with Apple's own apps."
-    },
-    {
-      "file": "clear-dark.png",
-      "width": 1880,
-      "height": 1480,
-      "appearance": "dark",
-      "caption": "Clear in dark mode: nothing frosts the window behind the panel.",
-      "still": "scenarios/media/clear-dark.json",
-      "alt": "Slick's search panel in the Clear theme, dark mode, over the About page of Slick's settings window and a purple gradient wallpaper. The query “cal” lists Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink, with Calculator selected. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it. The panel's text carries a soft dark halo. Captured from the assembled app running a scripted scenario, with Apple's own apps."
-    },
-    {
-      "file": "clear-light.png",
-      "width": 1880,
-      "height": 1480,
-      "appearance": "light",
-      "caption": "Clear in light mode: nothing frosts the window behind the panel.",
-      "still": "scenarios/media/clear-light.json",
-      "alt": "Slick's search panel in the Clear theme, light mode, over the About page of Slick's settings window and a pale lavender wallpaper. The query “cal” lists Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink, with Calculator selected. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it. The panel's text carries a soft light halo. Captured from the assembled app running a scripted scenario, with Apple's own apps."
-    },
-    {
-      "file": "glass-clear-dark.png",
-      "width": 1880,
-      "height": 1480,
-      "appearance": "dark",
-      "caption": "Clear: the same window stays sharp through the glass.",
-      "still": "scenarios/media/glass-dark.json",
-      "alt": "Slick's search panel in the Clear theme, dark mode, with “cal” typed and Calculator selected, over the same About page. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it, and the panel's text carries a soft dark halo. The picture beside it shows the same scene in the Standard theme. Captured from the assembled app running a scripted scenario, with Apple's own apps."
-    },
-    {
-      "file": "glass-standard-dark.png",
-      "width": 1880,
-      "height": 1480,
-      "appearance": "dark",
-      "caption": "Standard: frosted glass blurs the window behind the panel.",
-      "still": "scenarios/media/glass-dark.json",
-      "alt": "Slick's search panel in the Standard theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The frosted, tinted glass blurs the app icon and the lines of text behind it into soft shapes. The picture beside it shows the same scene in the Clear theme. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+      "caption": "The Glass theme in light mode. Nothing frosts the window behind the panel.",
+      "still": "scenarios/media/glass-light.json",
+      "alt": "Slick's search panel in the Glass theme, light mode, over the About page of Slick's settings window and a pale lavender wallpaper. The query “cal” lists Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink, with Calculator selected. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it. The panel's text carries a soft light halo. Captured from the assembled app running a scripted scenario, with Apple's own apps."
     },
     {
       "file": "settings-appearance-dark.png",
@@ -232,7 +205,7 @@
       "width": 1880,
       "height": 1360,
       "appearance": "dark",
-      "caption": "Learning: what the launcher learned from your picks, kept on this Mac, with a way to forget it.",
+      "caption": "The Learning pane shows what the launcher learned from your picks on this Mac, and it can forget an item.",
       "still": "scenarios/media/settings-dark.json",
       "alt": "Slick's settings window in dark mode over a purple gradient wallpaper, on the Learning pane. A note says everything learned stays on this Mac. It reports 7 runs of 5 items and 11 queries, its size on disk in bytes and the day learning started, then a Pause learning switch. Most used lists Font Book and Calendar with 2 runs each and TextEdit, Maps and Notes with 1 run, each with its real icon and a delete button. The picks were made by the scenario. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
     },
@@ -268,9 +241,36 @@
       "width": 1880,
       "height": 1360,
       "appearance": "light",
-      "caption": "Learning: what the launcher learned from your picks, kept on this Mac, with a way to forget it.",
+      "caption": "The Learning pane shows what the launcher learned from your picks on this Mac, and it can forget an item.",
       "still": "scenarios/media/settings-light.json",
       "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the Learning pane. A note says everything learned stays on this Mac. It reports 7 runs of 5 items and 11 queries, its size on disk in bytes and the day learning started, then a Pause learning switch. Most used lists Font Book and Calendar with 2 runs each and TextEdit, Maps and Notes with 1 run, each with its real icon and a delete button. The picks were made by the scenario. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+    },
+    {
+      "file": "spotlight-dark.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "dark",
+      "caption": "The Spotlight theme in dark mode, with the query in its capsule and the results in their own glass below.",
+      "still": "scenarios/media/spotlight-dark.json",
+      "alt": "Slick's search panel in the Spotlight theme, dark mode, over a purple gradient wallpaper. A tall capsule of glass holds the query “cal”, completed to “calendar” in grey. Below it, apart from it, a rounded container lists Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks, with Calculator selected. Apps show their own icons and commands show line glyphs. Command-1 to Command-5 sit at the right of the rows. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+    },
+    {
+      "file": "spotlight-empty-dark.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "dark",
+      "caption": "Before you type, the Spotlight theme shows a capsule with a glowing caret above four suggestions.",
+      "still": "scenarios/media/spotlight-dark.json",
+      "alt": "Slick's search panel in the Spotlight theme, dark mode, over a purple gradient wallpaper, before anything is typed. A tall capsule of dark glass holds a glowing caret and the placeholder “Search for apps and commands”. Below it, apart from it, a rounded container lists Music, Notes, Mail and Calendar under Suggested, each with its Command-digit shortcut at the right. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+    },
+    {
+      "file": "spotlight-light.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "light",
+      "caption": "The Spotlight theme in light mode, with the query in its capsule and the results in their own glass below.",
+      "still": "scenarios/media/spotlight-light.json",
+      "alt": "Slick's search panel in the Spotlight theme, light mode, over a pale lavender wallpaper. A tall capsule of glass holds the query “cal”, completed to “calendar” in grey. Below it, apart from it, a rounded container lists Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks, with Calculator selected. Apps show their own icons and commands show line glyphs. Command-1 to Command-5 sit at the right of the rows. Captured from the assembled app running a scripted scenario, with Apple's own apps."
     },
     {
       "file": "actions-dark-poster.png",
@@ -333,66 +333,6 @@
       "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. The panel suggests Calendar, Music and Mail. Typing “cal” selects Calendar and completes the field to “calendar”. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path, each with a keyboard shortcut, then Add to Favorites and Set Alias. The selection moves down two entries. Typing “f” narrows the list to three entries and “fav” to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
-      "file": "clip-beam-dark-poster.png",
-      "width": 1880,
-      "height": 1480,
-      "appearance": "dark",
-      "caption": "Beam: the query in a capsule of glass, the results in a separate container below it.",
-      "clip": "scenarios/media/beam-dark.json",
-      "alt": "Slick's search panel in the Beam theme, dark mode, with “cal” typed in the capsule and Calculator selected in the results container below it. Each row has a Command-digit shortcut at the right. A frame from a recording of the assembled app with Apple's own apps."
-    },
-    {
-      "file": "clip-beam-dark.gif",
-      "width": 940,
-      "height": 740,
-      "seconds": 8.79,
-      "appearance": "dark",
-      "caption": "Beam: the query in a capsule of glass, the results in a separate container below it.",
-      "clip": "scenarios/media/beam-dark.json",
-      "alt": "A recording of Slick's search panel in the Beam theme, dark mode, over a purple gradient wallpaper. Beam draws two pieces of glass: a tall capsule that holds the search field and a glowing caret, and below it, apart from it, a rounded container of results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
-    },
-    {
-      "file": "clip-beam-dark.mp4",
-      "poster": "clip-beam-dark-poster.png",
-      "width": 1880,
-      "height": 1480,
-      "seconds": 8.79,
-      "appearance": "dark",
-      "caption": "Beam: the query in a capsule of glass, the results in a separate container below it.",
-      "clip": "scenarios/media/beam-dark.json",
-      "alt": "A recording of Slick's search panel in the Beam theme, dark mode, over a purple gradient wallpaper. Beam draws two pieces of glass: a tall capsule that holds the search field and a glowing caret, and below it, apart from it, a rounded container of results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
-    },
-    {
-      "file": "clip-beam-light-poster.png",
-      "width": 1880,
-      "height": 1480,
-      "appearance": "light",
-      "caption": "Beam: the query in a capsule of glass, the results in a separate container below it.",
-      "clip": "scenarios/media/beam-light.json",
-      "alt": "Slick's search panel in the Beam theme, light mode, with “cal” typed in the capsule and Calculator selected in the results container below it. Each row has a Command-digit shortcut at the right. A frame from a recording of the assembled app with Apple's own apps."
-    },
-    {
-      "file": "clip-beam-light.gif",
-      "width": 940,
-      "height": 740,
-      "seconds": 8.68,
-      "appearance": "light",
-      "caption": "Beam: the query in a capsule of glass, the results in a separate container below it.",
-      "clip": "scenarios/media/beam-light.json",
-      "alt": "A recording of Slick's search panel in the Beam theme, light mode, over a pale lavender wallpaper. Beam draws two pieces of glass: a tall capsule that holds the search field and a glowing caret, and below it, apart from it, a rounded container of results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
-    },
-    {
-      "file": "clip-beam-light.mp4",
-      "poster": "clip-beam-light-poster.png",
-      "width": 1880,
-      "height": 1480,
-      "seconds": 8.68,
-      "appearance": "light",
-      "caption": "Beam: the query in a capsule of glass, the results in a separate container below it.",
-      "clip": "scenarios/media/beam-light.json",
-      "alt": "A recording of Slick's search panel in the Beam theme, light mode, over a pale lavender wallpaper. Beam draws two pieces of glass: a tall capsule that holds the search field and a glowing caret, and below it, apart from it, a rounded container of results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
-    },
-    {
       "file": "clip-calc-dark-poster.png",
       "width": 1880,
       "height": 1480,
@@ -421,66 +361,6 @@
       "caption": "The calculator answers as you type, and Return copies the answer.",
       "clip": "scenarios/media/calc-dark.json",
       "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “1250 * 1.08” shows only web searches until the expression is complete, then the answer 1,350 at the top. Escape clears the field. Typing “5 km in mi” shows “5 km” on the way, then the answer 3.10686 mi. Return copies the answer and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
-    },
-    {
-      "file": "clip-clear-dark-poster.png",
-      "width": 1880,
-      "height": 1480,
-      "appearance": "dark",
-      "caption": "Clear: the most translucent glass. The window behind the panel stays sharp.",
-      "clip": "scenarios/media/clear-dark.json",
-      "alt": "Slick's search panel in the Clear theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple's own apps."
-    },
-    {
-      "file": "clip-clear-dark.gif",
-      "width": 940,
-      "height": 740,
-      "seconds": 8.65,
-      "appearance": "dark",
-      "caption": "Clear: the most translucent glass. The window behind the panel stays sharp.",
-      "clip": "scenarios/media/clear-dark.json",
-      "alt": "A recording of Slick's search panel in the Clear theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. Clear's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
-    },
-    {
-      "file": "clip-clear-dark.mp4",
-      "poster": "clip-clear-dark-poster.png",
-      "width": 1880,
-      "height": 1480,
-      "seconds": 8.65,
-      "appearance": "dark",
-      "caption": "Clear: the most translucent glass. The window behind the panel stays sharp.",
-      "clip": "scenarios/media/clear-dark.json",
-      "alt": "A recording of Slick's search panel in the Clear theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. Clear's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
-    },
-    {
-      "file": "clip-clear-light-poster.png",
-      "width": 1880,
-      "height": 1480,
-      "appearance": "light",
-      "caption": "Clear: the most translucent glass. The window behind the panel stays sharp.",
-      "clip": "scenarios/media/clear-light.json",
-      "alt": "Slick's search panel in the Clear theme, light mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple's own apps."
-    },
-    {
-      "file": "clip-clear-light.gif",
-      "width": 940,
-      "height": 740,
-      "seconds": 8.65,
-      "appearance": "light",
-      "caption": "Clear: the most translucent glass. The window behind the panel stays sharp.",
-      "clip": "scenarios/media/clear-light.json",
-      "alt": "A recording of Slick's search panel in the Clear theme, light mode. Slick's settings window, open on its About page, sits over a pale lavender wallpaper behind the panel. Clear's glass has no tint and no frost. Over the white page it is almost invisible, and only its edge shows where it crosses the grey sidebar. The app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft light halo. The panel opens with Calendar, Music, Notes and Mail suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
-    },
-    {
-      "file": "clip-clear-light.mp4",
-      "poster": "clip-clear-light-poster.png",
-      "width": 1880,
-      "height": 1480,
-      "seconds": 8.65,
-      "appearance": "light",
-      "caption": "Clear: the most translucent glass. The window behind the panel stays sharp.",
-      "clip": "scenarios/media/clear-light.json",
-      "alt": "A recording of Slick's search panel in the Clear theme, light mode. Slick's settings window, open on its About page, sits over a pale lavender wallpaper behind the panel. Clear's glass has no tint and no frost. Over the white page it is almost invisible, and only its edge shows where it crosses the grey sidebar. The app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft light halo. The panel opens with Calendar, Music, Notes and Mail suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "clip-clipboard-light-poster.png",
@@ -519,7 +399,7 @@
       "appearance": "dark",
       "caption": "Clipboard History opens as a list with a detail pane beside it.",
       "clip": "scenarios/media/detail-dark.json",
-      "alt": "Slick's Clipboard History in dark mode: four copied items on the left, and the selected note's text, type, character and word count, size and copy time on the right. A frame from a recording of the assembled app with made-up copied items."
+      "alt": "Slick's Clipboard History in dark mode. Four copied items are on the left, and the selected note's text, type, character and word count, size and copy time are on the right. A frame from a recording of the assembled app with made-up copied items."
     },
     {
       "file": "clip-detail-dark.gif",
@@ -549,7 +429,7 @@
       "appearance": "light",
       "caption": "Search Emoji and Symbols opens a grid that filters as you type.",
       "clip": "scenarios/media/emoji-light.json",
-      "alt": "Slick's emoji grid in light mode with “heart” typed: four rows of hearts and heart-themed emoji, with one selected and its name in the bar at the bottom. A frame from a recording of the assembled app."
+      "alt": "Slick's emoji grid in light mode with “heart” typed. It shows four rows of hearts and heart-themed emoji, with one selected and its name in the bar at the bottom. A frame from a recording of the assembled app."
     },
     {
       "file": "clip-emoji-light.gif",
@@ -579,7 +459,7 @@
       "appearance": "light",
       "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
       "clip": "scenarios/media/files-light.json",
-      "alt": "Slick's Search Files page in light mode with “budget” typed: matching files on the left and the selected file's kind, size, date and folder on the right. A frame from a recording of the assembled app over a made-up file index."
+      "alt": "Slick's Search Files page in light mode with “budget” typed. Matching files are on the left, and the selected file's kind, size, date and folder are on the right. A frame from a recording of the assembled app over a made-up file index."
     },
     {
       "file": "clip-files-light.gif",
@@ -589,7 +469,7 @@
       "appearance": "light",
       "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
       "clip": "scenarios/media/files-light.json",
-      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress: it is proven over a sample index, and indexing real folders has not run on a Mac yet."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress. It is proven over a sample index, and indexing real folders has not run on a Mac yet."
     },
     {
       "file": "clip-files-light.mp4",
@@ -600,7 +480,67 @@
       "appearance": "light",
       "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
       "clip": "scenarios/media/files-light.json",
-      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress: it is proven over a sample index, and indexing real folders has not run on a Mac yet."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress. It is proven over a sample index, and indexing real folders has not run on a Mac yet."
+    },
+    {
+      "file": "clip-glass-dark-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "dark",
+      "caption": "The Glass theme uses the system's most translucent glass. The window behind the panel stays sharp.",
+      "clip": "scenarios/media/glass-dark.json",
+      "alt": "Slick's search panel in the Glass theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple's own apps."
+    },
+    {
+      "file": "clip-glass-dark.gif",
+      "width": 940,
+      "height": 740,
+      "seconds": 8.65,
+      "appearance": "dark",
+      "caption": "The Glass theme uses the system's most translucent glass. The window behind the panel stays sharp.",
+      "clip": "scenarios/media/glass-dark.json",
+      "alt": "A recording of Slick's search panel in the Glass theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. The theme's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-glass-dark.mp4",
+      "poster": "clip-glass-dark-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "seconds": 8.65,
+      "appearance": "dark",
+      "caption": "The Glass theme uses the system's most translucent glass. The window behind the panel stays sharp.",
+      "clip": "scenarios/media/glass-dark.json",
+      "alt": "A recording of Slick's search panel in the Glass theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. The theme's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-glass-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "light",
+      "caption": "The Glass theme uses the system's most translucent glass. The window behind the panel stays sharp.",
+      "clip": "scenarios/media/glass-light.json",
+      "alt": "Slick's search panel in the Glass theme, light mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple's own apps."
+    },
+    {
+      "file": "clip-glass-light.gif",
+      "width": 940,
+      "height": 740,
+      "seconds": 8.65,
+      "appearance": "light",
+      "caption": "The Glass theme uses the system's most translucent glass. The window behind the panel stays sharp.",
+      "clip": "scenarios/media/glass-light.json",
+      "alt": "A recording of Slick's search panel in the Glass theme, light mode. Slick's settings window, open on its About page, sits over a pale lavender wallpaper behind the panel. The theme's glass has no tint and no frost. Over the white page it is almost invisible, and only its edge shows where it crosses the grey sidebar. The app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft light halo. The panel opens with Calendar, Music, Notes and Mail suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-glass-light.mp4",
+      "poster": "clip-glass-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "seconds": 8.65,
+      "appearance": "light",
+      "caption": "The Glass theme uses the system's most translucent glass. The window behind the panel stays sharp.",
+      "clip": "scenarios/media/glass-light.json",
+      "alt": "A recording of Slick's search panel in the Glass theme, light mode. Slick's settings window, open on its About page, sits over a pale lavender wallpaper behind the panel. The theme's glass has no tint and no frost. Over the white page it is almost invisible, and only its edge shows where it crosses the grey sidebar. The app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft light halo. The panel opens with Calendar, Music, Notes and Mail suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "hero-dark-poster.png",
@@ -753,13 +693,73 @@
       "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “c” lists seven apps, from Calendar to ColorSync Utility, and completes the field to “calendar”. Typing “a” narrows the list to Calendar, Calculator, Calculator History, Image Capture, Photo Booth, a crates.io search and Quit All Applications. The selection glides down three rows to Image Capture and back up one. Typing “lc” leaves Calculator at the top, above Calculator History and three web searches for “calc”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
+      "file": "clip-spotlight-dark-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "dark",
+      "caption": "The Spotlight theme puts the query in a capsule of glass and the results in a separate container below it.",
+      "clip": "scenarios/media/spotlight-dark.json",
+      "alt": "Slick's search panel in the Spotlight theme, dark mode, with “cal” typed in the capsule and Calculator selected in the results container below it. Each row has a Command-digit shortcut at the right. A frame from a recording of the assembled app with Apple's own apps."
+    },
+    {
+      "file": "clip-spotlight-dark.gif",
+      "width": 940,
+      "height": 740,
+      "seconds": 8.79,
+      "appearance": "dark",
+      "caption": "The Spotlight theme puts the query in a capsule of glass and the results in a separate container below it.",
+      "clip": "scenarios/media/spotlight-dark.json",
+      "alt": "A recording of Slick's search panel in the Spotlight theme, dark mode, over a purple gradient wallpaper. The theme draws two pieces of glass. A tall capsule holds the search field and a glowing caret. Below it, apart from it, a rounded container holds the results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-spotlight-dark.mp4",
+      "poster": "clip-spotlight-dark-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "seconds": 8.79,
+      "appearance": "dark",
+      "caption": "The Spotlight theme puts the query in a capsule of glass and the results in a separate container below it.",
+      "clip": "scenarios/media/spotlight-dark.json",
+      "alt": "A recording of Slick's search panel in the Spotlight theme, dark mode, over a purple gradient wallpaper. The theme draws two pieces of glass. A tall capsule holds the search field and a glowing caret. Below it, apart from it, a rounded container holds the results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-spotlight-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "light",
+      "caption": "The Spotlight theme puts the query in a capsule of glass and the results in a separate container below it.",
+      "clip": "scenarios/media/spotlight-light.json",
+      "alt": "Slick's search panel in the Spotlight theme, light mode, with “cal” typed in the capsule and Calculator selected in the results container below it. Each row has a Command-digit shortcut at the right. A frame from a recording of the assembled app with Apple's own apps."
+    },
+    {
+      "file": "clip-spotlight-light.gif",
+      "width": 940,
+      "height": 740,
+      "seconds": 8.68,
+      "appearance": "light",
+      "caption": "The Spotlight theme puts the query in a capsule of glass and the results in a separate container below it.",
+      "clip": "scenarios/media/spotlight-light.json",
+      "alt": "A recording of Slick's search panel in the Spotlight theme, light mode, over a pale lavender wallpaper. The theme draws two pieces of glass. A tall capsule holds the search field and a glowing caret. Below it, apart from it, a rounded container holds the results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-spotlight-light.mp4",
+      "poster": "clip-spotlight-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "seconds": 8.68,
+      "appearance": "light",
+      "caption": "The Spotlight theme puts the query in a capsule of glass and the results in a separate container below it.",
+      "clip": "scenarios/media/spotlight-light.json",
+      "alt": "A recording of Slick's search panel in the Spotlight theme, light mode, over a pale lavender wallpaper. The theme draws two pieces of glass. A tall capsule holds the search field and a glowing caret. Below it, apart from it, a rounded container holds the results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
       "file": "clip-themes-dark-poster.png",
       "width": 1880,
       "height": 1480,
       "appearance": "dark",
       "caption": "Switching themes restyles the open panel at once.",
       "clip": "scenarios/media/themes-dark.json",
-      "alt": "Slick's search panel in dark mode with “ca” typed, in the Ocean theme: blue-tinted glass with the second row, Calculator, selected under a blue lens. A frame from a recording of the assembled app with Apple's own apps."
+      "alt": "Slick's search panel in dark mode with “ca” typed, in the Ocean theme. The glass is tinted blue, and the second row, Calculator, is selected under a blue lens. A frame from a recording of the assembled app with Apple's own apps."
     },
     {
       "file": "clip-themes-dark.gif",
