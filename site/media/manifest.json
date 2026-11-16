@@ -1,5 +1,5 @@
 {
-  "about": "Product pictures and clips of Slick for the website and the README. The stills, the entries without a clip field, were captured from the launcher's own interface code drawing a made-up sample catalog over a wallpaper generated in code, at 2x on a Retina display, by scripts/ui-showcase.sh. The clips, the entries with a clip field, are recordings of the assembled app running the storyboard that field names, by make media: real search, ranking, learning, features and glass, over the same wallpaper and the same made-up app names, with opening an app recorded instead of done. Outside the live launcher app icons are plain colored squares, so the clips show those. Each clip has an MP4 for the website, a GIF for the README and a poster PNG. None shows anyone's real apps or data.",
+  "about": "Product pictures and clips of Slick for the website and the README. The stills without a clip or still field were captured from the launcher's own interface code drawing a made-up sample catalog over a wallpaper generated in code, at 2x on a Retina display, by scripts/ui-showcase.sh. The clips, the entries with a clip field, are recordings of the assembled app running the storyboard that field names, by make media: real search, ranking, learning, features and glass, over the same wallpaper. They list Apple's own apps from /System/Applications with their real names and icons, and nothing from /Applications or the home folder. Opening an app is recorded instead of done. Copied text, files and other data in them are made up for the clip. The entries with a still field are pictures of the real settings window that a storyboard's still steps took during its clip. Each clip has an MP4 for the website, a GIF for the README and a poster PNG.",
   "files": [
     {
       "file": "hero-dark.png",
@@ -55,7 +55,7 @@
       "height": 1480,
       "appearance": "dark",
       "caption": "File results beside a preview of the selected note and its details.",
-      "alt": "Slick's search panel in dark mode, inside a Search Files view with “plan” typed and a Kind filter set to All Kinds. On the left, six files and a folder match. On the right, the selected file, Atlas launch plan.md, is shown as formatted Markdown with headings, a numbered list, bullet points and a code block. Under it, a table lists its kind, size, folder, tags and dates. The apps, files and names are made-up sample data. The picture comes from Slick's interface code running on its own, not from the finished app."
+      "alt": "Slick's search panel in dark mode, inside a Search Files view with “plan” typed and a Kind filter set to All Kinds. On the left, six files and a folder match. On the right, the selected file, Sourdough plan.md, is shown as formatted Markdown with headings, a numbered list, bullet points and a code block. Under it, a table lists its kind, size, folder, tags and dates. The apps, files and names are made-up sample data. The picture comes from Slick's interface code running on its own, not from the finished app."
     },
     {
       "file": "detail-light.png",
@@ -87,7 +87,7 @@
       "height": 1480,
       "appearance": "dark",
       "caption": "A command asks for input in a form drawn inside the panel.",
-      "alt": "Slick's search panel in dark mode showing a Create Note form for the sample app Aurora Notes. It has a title field with the cursor in it, a folder menu, tags, a multi-line note, a file path with a Choose button, a Pin checkbox and a hotkey set to Option-Command-N. The bar at the bottom shows Create Note on Command-Return. The apps, files and names are made-up sample data. The picture comes from Slick's interface code running on its own, not from the finished app."
+      "alt": "Slick's search panel in dark mode showing a Create Note form for the sample app Aurora Notes. The title field reads “Sourdough plan” with the cursor after it. The folder menu is set to Recipes, the tags are baking and weekend, and the note reads “Feed the starter on Friday night. Mix and fold on Saturday morning, then bake the loaf in the hot pot.” An attachment field holds ~/Desktop/loaf.jpg with a Choose button, Pin to the top of the list is checked, and the hotkey is Option-Command-N. The bar at the bottom shows Create Note on Command-Return. The apps, files and names are made-up sample data. The picture comes from Slick's interface code running on its own, not from the finished app."
     },
     {
       "file": "form-light.png",
@@ -95,7 +95,7 @@
       "height": 1480,
       "appearance": "light",
       "caption": "A command asks for input in a form drawn inside the panel.",
-      "alt": "Slick's search panel in light mode showing a Create Note form with a title, a folder menu, tags, a note, a file path, a checkbox and a hotkey field. The apps, files and names are made-up sample data. The picture comes from Slick's interface code running on its own, not from the finished app."
+      "alt": "Slick's search panel in light mode showing the same Create Note form: the title “Sourdough plan”, the Recipes folder, the tags baking and weekend, a note about feeding the starter and baking the loaf, an attachment, a checked Pin box and a hotkey field. The apps, files and names are made-up sample data. The picture comes from Slick's interface code running on its own, not from the finished app."
     },
     {
       "file": "theme-standard.png",
@@ -138,34 +138,106 @@
       "alt": "The search results for “ca” in the Violet theme, dark mode. The glass is tinted a deep ink purple, the first row sits under a glass lens tinted magenta, and the text cursor takes the electric violet accent from the app icon. The apps, files and names are made-up sample data. The picture comes from Slick's interface code running on its own, not from the finished app."
     },
     {
+      "file": "settings-appearance-dark.png",
+      "width": 1880,
+      "height": 1360,
+      "appearance": "dark",
+      "caption": "Appearance: a live preview of the panel above the theme and its settings. The theme editor is still in progress.",
+      "still": "scenarios/media/settings-dark.json",
+      "alt": "Slick's settings window in dark mode over a purple gradient wallpaper, on the Appearance pane. At the top, a preview draws the search panel with “cal” typed and five sample rows over colored shapes, with Match System, Light and Dark buttons under it. Below are the Theme section, set to Standard, with Save as New Theme, Revert and More, and the start of the Glass section. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+    },
+    {
+      "file": "settings-features-dark.png",
+      "width": 1880,
+      "height": 1360,
+      "appearance": "dark",
+      "caption": "Features: every built-in feature, each with a switch and its own page.",
+      "still": "scenarios/media/settings-dark.json",
+      "alt": "Slick's settings window in dark mode over a purple gradient wallpaper, on the Features pane. It lists Applications, Clipboard History, Snippets, Quicklinks, Emoji and Symbols, Window Management, System, Script Commands, Calculator and File Search, each with a one-line summary and a switch. Clipboard History, Snippets, Script Commands and File Search are off. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+    },
+    {
+      "file": "settings-general-dark.png",
+      "width": 1880,
+      "height": 1360,
+      "appearance": "dark",
+      "caption": "General: while Spotlight holds ⌘Space, the pane says so and opens Keyboard settings.",
+      "still": "scenarios/media/settings-dark.json",
+      "alt": "Slick's settings window in dark mode over a purple gradient wallpaper, on the General pane. The hotkey is ⌘Space. Under it a note reads “Spotlight holds ⌘Space, so it does not open Slick yet. Turn off Spotlight's shortcut in System Settings, and it will.” with an Open Keyboard Settings button. Below are Open at login, off, Show in the menu bar, on, and the Panel settings. The scenario played Spotlight holding the shortcut. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+    },
+    {
+      "file": "settings-learning-dark.png",
+      "width": 1880,
+      "height": 1360,
+      "appearance": "dark",
+      "caption": "Learning: what the launcher learned from your picks, kept on this Mac, with a way to forget it.",
+      "still": "scenarios/media/settings-dark.json",
+      "alt": "Slick's settings window in dark mode over a purple gradient wallpaper, on the Learning pane. A note says everything learned stays on this Mac. It reports 7 runs of 5 items and 11 queries, its size on disk in bytes and the day learning started, then a Pause learning switch. Most used lists Font Book and Calendar with 2 runs each and TextEdit, Maps and Notes with 1 run, each with its real icon and a delete button. The picks were made by the scenario. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+    },
+    {
+      "file": "settings-appearance-light.png",
+      "width": 1880,
+      "height": 1360,
+      "appearance": "light",
+      "caption": "Appearance: a live preview of the panel above the theme and its settings. The theme editor is still in progress.",
+      "still": "scenarios/media/settings-light.json",
+      "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the Appearance pane. At the top, a preview draws the search panel with “cal” typed and five sample rows over colored shapes, with Match System, Light and Dark buttons under it. Below are the Theme section, set to Standard, with Save as New Theme, Revert and More, and the start of the Glass section. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+    },
+    {
+      "file": "settings-features-light.png",
+      "width": 1880,
+      "height": 1360,
+      "appearance": "light",
+      "caption": "Features: every built-in feature, each with a switch and its own page.",
+      "still": "scenarios/media/settings-light.json",
+      "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the Features pane. It lists Applications, Clipboard History, Snippets, Quicklinks, Emoji and Symbols, Window Management, System, Script Commands, Calculator and File Search, each with a one-line summary and a switch. Clipboard History, Snippets, Script Commands and File Search are off. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+    },
+    {
+      "file": "settings-general-light.png",
+      "width": 1880,
+      "height": 1360,
+      "appearance": "light",
+      "caption": "General: while Spotlight holds ⌘Space, the pane says so and opens Keyboard settings.",
+      "still": "scenarios/media/settings-light.json",
+      "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the General pane. The hotkey is ⌘Space. Under it a note reads “Spotlight holds ⌘Space, so it does not open Slick yet. Turn off Spotlight's shortcut in System Settings, and it will.” with an Open Keyboard Settings button. Below are Open at login, off, Show in the menu bar, on, and the Panel settings. The scenario played Spotlight holding the shortcut. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+    },
+    {
+      "file": "settings-learning-light.png",
+      "width": 1880,
+      "height": 1360,
+      "appearance": "light",
+      "caption": "Learning: what the launcher learned from your picks, kept on this Mac, with a way to forget it.",
+      "still": "scenarios/media/settings-light.json",
+      "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the Learning pane. A note says everything learned stays on this Mac. It reports 7 runs of 5 items and 11 queries, its size on disk in bytes and the day learning started, then a Pause learning switch. Most used lists Font Book and Calendar with 2 runs each and TextEdit, Maps and Notes with 1 run, each with its real icon and a delete button. The picks were made by the scenario. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+    },
+    {
       "file": "actions-dark-poster.png",
       "width": 1880,
       "height": 1480,
       "appearance": "dark",
       "caption": "Command-K opens the action panel for the selected result, and typing filters it.",
       "clip": "scenarios/media/actions-dark.json",
-      "alt": "Slick's search panel in dark mode with “cad” typed and the action panel open beside the results, listing actions for Cadence Calendar with their keyboard shortcuts. A frame from a recording of the assembled app over made-up sample apps."
+      "alt": "Slick's search panel in dark mode with “cal” typed and the action panel open beside the results, listing actions for Calendar with their keyboard shortcuts. A frame from a recording of the assembled app with Apple's own apps."
     },
     {
       "file": "actions-dark.gif",
       "width": 940,
       "height": 740,
-      "seconds": 7.41,
+      "seconds": 7.43,
       "appearance": "dark",
       "caption": "Command-K opens the action panel for the selected result, and typing filters it.",
       "clip": "scenarios/media/actions-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “cad” selects Cadence Calendar, with the rest of its name in grey. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier, Copy Path, Move to Trash in red and Add to Favorites, most with a keyboard shortcut. The selection moves down two entries, then typing “fav” filters the list to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel suggests Calendar, Music and Mail. Typing “cal” selects Calendar and completes the field to “calendar”. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path, each with a keyboard shortcut, then Add to Favorites and Set Alias. The selection moves down two entries. Typing “f” narrows the list to three entries and “fav” to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "actions-dark.mp4",
       "poster": "actions-dark-poster.png",
       "width": 1880,
       "height": 1480,
-      "seconds": 7.41,
+      "seconds": 7.43,
       "appearance": "dark",
       "caption": "Command-K opens the action panel for the selected result, and typing filters it.",
       "clip": "scenarios/media/actions-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “cad” selects Cadence Calendar, with the rest of its name in grey. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier, Copy Path, Move to Trash in red and Add to Favorites, most with a keyboard shortcut. The selection moves down two entries, then typing “fav” filters the list to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel suggests Calendar, Music and Mail. Typing “cal” selects Calendar and completes the field to “calendar”. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path, each with a keyboard shortcut, then Add to Favorites and Set Alias. The selection moves down two entries. Typing “f” narrows the list to three entries and “fav” to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "actions-light-poster.png",
@@ -174,7 +246,7 @@
       "appearance": "light",
       "caption": "Command-K opens the action panel for the selected result, and typing filters it.",
       "clip": "scenarios/media/actions-light.json",
-      "alt": "Slick's search panel in light mode with “cad” typed and the action panel open beside the results, listing actions for Cadence Calendar with their keyboard shortcuts. A frame from a recording of the assembled app over made-up sample apps."
+      "alt": "Slick's search panel in light mode with “cal” typed and the action panel open beside the results, listing actions for Calendar with their keyboard shortcuts. A frame from a recording of the assembled app with Apple's own apps."
     },
     {
       "file": "actions-light.gif",
@@ -184,7 +256,7 @@
       "appearance": "light",
       "caption": "Command-K opens the action panel for the selected result, and typing filters it.",
       "clip": "scenarios/media/actions-light.json",
-      "alt": "A recording of Slick's search panel in light mode over a lavender gradient wallpaper. Typing “cad” selects Cadence Calendar, with the rest of its name in grey. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier, Copy Path, Move to Trash in red and Add to Favorites, most with a keyboard shortcut. The selection moves down two entries, then typing “fav” filters the list to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. The panel suggests Calendar, Music and Mail. Typing “cal” selects Calendar and completes the field to “calendar”. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path, each with a keyboard shortcut, then Add to Favorites and Set Alias. The selection moves down two entries. Typing “f” narrows the list to three entries and “fav” to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "actions-light.mp4",
@@ -195,7 +267,67 @@
       "appearance": "light",
       "caption": "Command-K opens the action panel for the selected result, and typing filters it.",
       "clip": "scenarios/media/actions-light.json",
-      "alt": "A recording of Slick's search panel in light mode over a lavender gradient wallpaper. Typing “cad” selects Cadence Calendar, with the rest of its name in grey. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier, Copy Path, Move to Trash in red and Add to Favorites, most with a keyboard shortcut. The selection moves down two entries, then typing “fav” filters the list to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. The panel suggests Calendar, Music and Mail. Typing “cal” selects Calendar and completes the field to “calendar”. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path, each with a keyboard shortcut, then Add to Favorites and Set Alias. The selection moves down two entries. Typing “f” narrows the list to three entries and “fav” to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-calc-dark-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "dark",
+      "caption": "The calculator answers as you type, and Return copies the answer.",
+      "clip": "scenarios/media/calc-dark.json",
+      "alt": "Slick's search panel in dark mode with “1250 * 1.08” typed and the answer 1,350 selected at the top, above searches on Google and Wikipedia. A frame from a recording of the assembled app."
+    },
+    {
+      "file": "clip-calc-dark.gif",
+      "width": 940,
+      "height": 740,
+      "seconds": 8.75,
+      "appearance": "dark",
+      "caption": "The calculator answers as you type, and Return copies the answer.",
+      "clip": "scenarios/media/calc-dark.json",
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “1250 * 1.08” shows only web searches until the expression is complete, then the answer 1,350 at the top. Escape clears the field. Typing “5 km in mi” shows “5 km” on the way, then the answer 3.10686 mi. Return copies the answer and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-calc-dark.mp4",
+      "poster": "clip-calc-dark-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "seconds": 8.75,
+      "appearance": "dark",
+      "caption": "The calculator answers as you type, and Return copies the answer.",
+      "clip": "scenarios/media/calc-dark.json",
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “1250 * 1.08” shows only web searches until the expression is complete, then the answer 1,350 at the top. Escape clears the field. Typing “5 km in mi” shows “5 km” on the way, then the answer 3.10686 mi. Return copies the answer and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-clipboard-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "light",
+      "caption": "Clipboard history keeps what you copy, shows each item, and pastes it back.",
+      "clip": "scenarios/media/clipboard-light.json",
+      "alt": "Slick's Clipboard History in light mode with the action panel open over a purple color swatch, listing Paste, Copy to Clipboard, Pin, Delete and more. A frame from a recording of the assembled app with made-up copied items."
+    },
+    {
+      "file": "clip-clipboard-light.gif",
+      "width": 940,
+      "height": 740,
+      "seconds": 8.99,
+      "appearance": "light",
+      "caption": "Clipboard history keeps what you copy, shows each item, and pastes it back.",
+      "clip": "scenarios/media/clipboard-light.json",
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane: a note with its character and word count, a link, a color and a line of code. Moving down shows the link, then the color as a purple swatch with its hex value. Command-K opens the item's actions: Paste, Copy to Clipboard, Pin, Delete, Delete All, Search the Web, Search With and Define Word. Escape closes them, and Return pastes the color and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip."
+    },
+    {
+      "file": "clip-clipboard-light.mp4",
+      "poster": "clip-clipboard-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "seconds": 8.99,
+      "appearance": "light",
+      "caption": "Clipboard history keeps what you copy, shows each item, and pastes it back.",
+      "clip": "scenarios/media/clipboard-light.json",
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane: a note with its character and word count, a link, a color and a line of code. Moving down shows the link, then the color as a purple swatch with its hex value. Command-K opens the item's actions: Paste, Copy to Clipboard, Pin, Delete, Delete All, Search the Web, Search With and Define Word. Escape closes them, and Return pastes the color and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip."
     },
     {
       "file": "clip-detail-dark-poster.png",
@@ -204,118 +336,208 @@
       "appearance": "dark",
       "caption": "Clipboard History opens as a list with a detail pane beside it.",
       "clip": "scenarios/media/detail-dark.json",
-      "alt": "Slick's Clipboard History in dark mode: four copied items on the left and the selected note's text, type, word count and size on the right. A frame from a recording of the assembled app over made-up sample data."
+      "alt": "Slick's Clipboard History in dark mode: four copied items on the left, and the selected note's text, type, character and word count, size and copy time on the right. A frame from a recording of the assembled app with made-up copied items."
     },
     {
       "file": "clip-detail-dark.gif",
       "width": 940,
       "height": 740,
-      "seconds": 9.1,
+      "seconds": 9.11,
       "appearance": "dark",
       "caption": "Clipboard History opens as a list with a detail pane beside it.",
       "clip": "scenarios/media/detail-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode. Typing “clip” selects Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, over made-up sample apps and copied text."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its character and word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip."
     },
     {
       "file": "clip-detail-dark.mp4",
       "poster": "clip-detail-dark-poster.png",
       "width": 1880,
       "height": 1480,
-      "seconds": 9.1,
+      "seconds": 9.11,
       "appearance": "dark",
       "caption": "Clipboard History opens as a list with a detail pane beside it.",
       "clip": "scenarios/media/detail-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode. Typing “clip” selects Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, over made-up sample apps and copied text."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its character and word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip."
+    },
+    {
+      "file": "clip-emoji-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "light",
+      "caption": "Search Emoji and Symbols opens a grid that filters as you type.",
+      "clip": "scenarios/media/emoji-light.json",
+      "alt": "Slick's emoji grid in light mode with “heart” typed: four rows of hearts and heart-themed emoji, with one selected and its name in the bar at the bottom. A frame from a recording of the assembled app."
+    },
+    {
+      "file": "clip-emoji-light.gif",
+      "width": 940,
+      "height": 740,
+      "seconds": 8.05,
+      "appearance": "light",
+      "caption": "Search Emoji and Symbols opens a grid that filters as you type.",
+      "clip": "scenarios/media/emoji-light.json",
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “emoji” selects Search Emoji and Symbols, and Return opens a grid of smileys. Typing “heart” fills the grid with hearts and heart-themed emoji, four rows of eight. The selection moves right two cells and down one, and the bar at the bottom names the selected emoji, Two Hearts, with Paste on Return. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-emoji-light.mp4",
+      "poster": "clip-emoji-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "seconds": 8.05,
+      "appearance": "light",
+      "caption": "Search Emoji and Symbols opens a grid that filters as you type.",
+      "clip": "scenarios/media/emoji-light.json",
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “emoji” selects Search Emoji and Symbols, and Return opens a grid of smileys. Typing “heart” fills the grid with hearts and heart-themed emoji, four rows of eight. The selection moves right two cells and down one, and the bar at the bottom names the selected emoji, Two Hearts, with Paste on Return. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-files-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "light",
+      "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
+      "clip": "scenarios/media/files-light.json",
+      "alt": "Slick's Search Files page in light mode with “budget” typed: matching files on the left and the selected file's kind, size, date and folder on the right. A frame from a recording of the assembled app over a made-up file index."
+    },
+    {
+      "file": "clip-files-light.gif",
+      "width": 940,
+      "height": 740,
+      "seconds": 8.4,
+      "appearance": "light",
+      "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
+      "clip": "scenarios/media/files-light.json",
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress: it is proven over a sample index, and indexing real folders has not run on a Mac yet."
+    },
+    {
+      "file": "clip-files-light.mp4",
+      "poster": "clip-files-light-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "seconds": 8.4,
+      "appearance": "light",
+      "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
+      "clip": "scenarios/media/files-light.json",
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress: it is proven over a sample index, and indexing real folders has not run on a Mac yet."
     },
     {
       "file": "hero-dark-poster.png",
       "width": 1880,
       "height": 1480,
       "appearance": "dark",
-      "caption": "Two typed letters find the app, the field completes its name, and Return opens it.",
+      "caption": "The panel opens, two typed letters find the app, the field completes its name, and Return opens it.",
       "clip": "scenarios/media/hero-dark.json",
-      "alt": "Slick's search panel in dark mode with “dr” typed and the rest of “Drift Browser” in grey after the cursor. Drift Browser is selected above six more results. A frame from a recording of the assembled app over made-up sample apps."
+      "alt": "Slick's search panel in dark mode with “no” typed and the rest of “notes” in grey after the cursor. Notes is selected above six more apps. A frame from a recording of the assembled app with Apple's own apps."
     },
     {
       "file": "hero-dark.gif",
       "width": 940,
       "height": 740,
-      "seconds": 5.1,
+      "seconds": 5.43,
       "appearance": "dark",
-      "caption": "Two typed letters find the app, the field completes its name, and Return opens it.",
+      "caption": "The panel opens, two typed letters find the app, the field completes its name, and Return opens it.",
       "clip": "scenarios/media/hero-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel shows three suggested apps. Typing “d” lists results and completes the field to “drift Browser”, with the rest of the name in grey. Typing “r” narrows the list to Drift Browser, Search Docs.rs, Eject All Disks, Cadence Calendar and three commands. Return opens Drift Browser and the panel closes. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens and suggests Mail, Calendar and Music. Typing “n” lists News, Notes, a window command, two web searches, TextEdit and Sleep. Typing “o” selects Notes and completes the field to “notes”, with the rest of the name in grey, above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information. Return picks Notes and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "hero-dark.mp4",
       "poster": "hero-dark-poster.png",
       "width": 1880,
       "height": 1480,
-      "seconds": 5.1,
+      "seconds": 5.43,
       "appearance": "dark",
-      "caption": "Two typed letters find the app, the field completes its name, and Return opens it.",
+      "caption": "The panel opens, two typed letters find the app, the field completes its name, and Return opens it.",
       "clip": "scenarios/media/hero-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel shows three suggested apps. Typing “d” lists results and completes the field to “drift Browser”, with the rest of the name in grey. Typing “r” narrows the list to Drift Browser, Search Docs.rs, Eject All Disks, Cadence Calendar and three commands. Return opens Drift Browser and the panel closes. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens and suggests Mail, Calendar and Music. Typing “n” lists News, Notes, a window command, two web searches, TextEdit and Sleep. Typing “o” selects Notes and completes the field to “notes”, with the rest of the name in grey, above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information. Return picks Notes and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "hero-light-poster.png",
       "width": 1880,
       "height": 1480,
       "appearance": "light",
-      "caption": "Two typed letters find the app, the field completes its name, and Return opens it.",
+      "caption": "The panel opens, two typed letters find the app, the field completes its name, and Return opens it.",
       "clip": "scenarios/media/hero-light.json",
-      "alt": "Slick's search panel in light mode with “dr” typed and the rest of “Drift Browser” in grey after the cursor. Drift Browser is selected above six more results. A frame from a recording of the assembled app over made-up sample apps."
+      "alt": "Slick's search panel in light mode with “no” typed and the rest of “notes” in grey after the cursor. Notes is selected above six more apps. A frame from a recording of the assembled app with Apple's own apps."
     },
     {
       "file": "hero-light.gif",
       "width": 940,
       "height": 740,
-      "seconds": 5.1,
+      "seconds": 5.43,
       "appearance": "light",
-      "caption": "Two typed letters find the app, the field completes its name, and Return opens it.",
+      "caption": "The panel opens, two typed letters find the app, the field completes its name, and Return opens it.",
       "clip": "scenarios/media/hero-light.json",
-      "alt": "A recording of Slick's search panel in light mode over a lavender gradient wallpaper. The panel shows three suggested apps. Typing “d” lists results and completes the field to “drift Browser”, with the rest of the name in grey. Typing “r” narrows the list to Drift Browser, Search Docs.rs, Eject All Disks, Cadence Calendar and three commands. Return opens Drift Browser and the panel closes. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. The panel opens and suggests Mail, Calendar and Music. Typing “n” lists News, Notes, a window command, two web searches, TextEdit and Sleep. Typing “o” selects Notes and completes the field to “notes”, with the rest of the name in grey, above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information. Return picks Notes and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "hero-light.mp4",
       "poster": "hero-light-poster.png",
       "width": 1880,
       "height": 1480,
-      "seconds": 5.1,
+      "seconds": 5.43,
       "appearance": "light",
-      "caption": "Two typed letters find the app, the field completes its name, and Return opens it.",
+      "caption": "The panel opens, two typed letters find the app, the field completes its name, and Return opens it.",
       "clip": "scenarios/media/hero-light.json",
-      "alt": "A recording of Slick's search panel in light mode over a lavender gradient wallpaper. The panel shows three suggested apps. Typing “d” lists results and completes the field to “drift Browser”, with the rest of the name in grey. Typing “r” narrows the list to Drift Browser, Search Docs.rs, Eject All Disks, Cadence Calendar and three commands. Return opens Drift Browser and the panel closes. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. The panel opens and suggests Mail, Calendar and Music. Typing “n” lists News, Notes, a window command, two web searches, TextEdit and Sleep. Typing “o” selects Notes and completes the field to “notes”, with the rest of the name in grey, above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information. Return picks Notes and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-learn-dark-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "appearance": "dark",
+      "caption": "Pick a lower result twice for the same query, and it becomes the first.",
+      "clip": "scenarios/media/learn-dark.json",
+      "alt": "Slick's search panel in dark mode with “bo” typed. Font Book is the first result and Books the second. A frame from a recording of the assembled app with Apple's own apps."
+    },
+    {
+      "file": "clip-learn-dark.gif",
+      "width": 940,
+      "height": 740,
+      "seconds": 8.32,
+      "appearance": "dark",
+      "caption": "Pick a lower result twice for the same query, and it becomes the first.",
+      "clip": "scenarios/media/learn-dark.json",
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
+    },
+    {
+      "file": "clip-learn-dark.mp4",
+      "poster": "clip-learn-dark-poster.png",
+      "width": 1880,
+      "height": 1480,
+      "seconds": 8.32,
+      "appearance": "dark",
+      "caption": "Pick a lower result twice for the same query, and it becomes the first.",
+      "clip": "scenarios/media/learn-dark.json",
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "clip-learn-light-poster.png",
       "width": 1880,
       "height": 1480,
       "appearance": "light",
-      "caption": "Pick the second result twice, and it becomes the first.",
+      "caption": "Pick a lower result twice for the same query, and it becomes the first.",
       "clip": "scenarios/media/learn-light.json",
-      "alt": "Slick's search panel in light mode with “cad” typed. Cascade Mail is the first result and Cadence Calendar the second. A frame from a recording of the assembled app over made-up sample apps."
+      "alt": "Slick's search panel in light mode with “bo” typed. Font Book is the first result and Books the second. A frame from a recording of the assembled app with Apple's own apps."
     },
     {
       "file": "clip-learn-light.gif",
       "width": 940,
       "height": 740,
-      "seconds": 7.28,
+      "seconds": 8.3,
       "appearance": "light",
-      "caption": "Pick the second result twice, and it becomes the first.",
+      "caption": "Pick a lower result twice for the same query, and it becomes the first.",
       "clip": "scenarios/media/learn-light.json",
-      "alt": "A recording of Slick's search panel in light mode. Typing “cad” lists Cadence Calendar first and Cascade Mail second. Cascade Mail is picked with the down arrow and Return, and the panel closes. When the panel opens again it suggests Cascade Mail, and “cad” still lists Cadence Calendar first, so Cascade Mail is picked a second time. On the third search for “cad”, Cascade Mail is first. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "clip-learn-light.mp4",
       "poster": "clip-learn-light-poster.png",
       "width": 1880,
       "height": 1480,
-      "seconds": 7.28,
+      "seconds": 8.3,
       "appearance": "light",
-      "caption": "Pick the second result twice, and it becomes the first.",
+      "caption": "Pick a lower result twice for the same query, and it becomes the first.",
       "clip": "scenarios/media/learn-light.json",
-      "alt": "A recording of Slick's search panel in light mode. Typing “cad” lists Cadence Calendar first and Cascade Mail second. Cascade Mail is picked with the down arrow and Return, and the panel closes. When the panel opens again it suggests Cascade Mail, and “cad” still lists Cadence Calendar first, so Cascade Mail is picked a second time. On the third search for “cad”, Cascade Mail is first. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "clip-narrow-dark-poster.png",
@@ -324,28 +546,28 @@
       "appearance": "dark",
       "caption": "The list narrows as the query grows, and the selection glides between rows.",
       "clip": "scenarios/media/narrow-dark.json",
-      "alt": "Slick's search panel in dark mode with “ca” typed and the fourth result, Canvas Sketch, selected. A frame from a recording of the assembled app over made-up sample apps."
+      "alt": "Slick's search panel in dark mode with “ca” typed and the fourth result, Image Capture, selected. A frame from a recording of the assembled app with Apple's own apps."
     },
     {
       "file": "clip-narrow-dark.gif",
       "width": 940,
       "height": 740,
-      "seconds": 6.74,
+      "seconds": 6.75,
       "appearance": "dark",
       "caption": "The list narrows as the query grows, and the selection glides between rows.",
       "clip": "scenarios/media/narrow-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode. Typing “c” lists seven apps and “ca” narrows the list. The selection glides down three rows and back up one. Typing “me” leaves Cameo Photos at the top, with the rest of its name in grey, above a documentation search and three fallback searches for “came”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “c” lists seven apps, from Calendar to ColorSync Utility, and completes the field to “calendar”. Typing “a” narrows the list to Calendar, Calculator, Calculator History, Image Capture, Photo Booth, a crates.io search and Quit All Applications. The selection glides down three rows to Image Capture and back up one. Typing “lc” leaves Calculator at the top, above Calculator History and three web searches for “calc”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "clip-narrow-dark.mp4",
       "poster": "clip-narrow-dark-poster.png",
       "width": 1880,
       "height": 1480,
-      "seconds": 6.74,
+      "seconds": 6.75,
       "appearance": "dark",
       "caption": "The list narrows as the query grows, and the selection glides between rows.",
       "clip": "scenarios/media/narrow-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode. Typing “c” lists seven apps and “ca” narrows the list. The selection glides down three rows and back up one. Typing “me” leaves Cameo Photos at the top, with the rest of its name in grey, above a documentation search and three fallback searches for “came”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “c” lists seven apps, from Calendar to ColorSync Utility, and completes the field to “calendar”. Typing “a” narrows the list to Calendar, Calculator, Calculator History, Image Capture, Photo Booth, a crates.io search and Quit All Applications. The selection glides down three rows to Image Capture and back up one. Typing “lc” leaves Calculator at the top, above Calculator History and three web searches for “calc”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "clip-themes-dark-poster.png",
@@ -354,28 +576,28 @@
       "appearance": "dark",
       "caption": "Switching themes restyles the open panel at once.",
       "clip": "scenarios/media/themes-dark.json",
-      "alt": "Slick's search panel in dark mode with “ca” typed, in the Ocean theme: blue-tinted glass with the second row selected under a blue lens. A frame from a recording of the assembled app over made-up sample apps."
+      "alt": "Slick's search panel in dark mode with “ca” typed, in the Ocean theme: blue-tinted glass with the second row, Calculator, selected under a blue lens. A frame from a recording of the assembled app with Apple's own apps."
     },
     {
       "file": "clip-themes-dark.gif",
       "width": 940,
       "height": 740,
-      "seconds": 9.1,
+      "seconds": 9.08,
       "appearance": "dark",
       "caption": "Switching themes restyles the open panel at once.",
       "clip": "scenarios/media/themes-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm with a red fill and Violet uses a purple lens. The themes were switched through the theme setting. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper, with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm red and Violet uses a purple lens. The themes were switched through the theme setting, not the settings window. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "clip-themes-dark.mp4",
       "poster": "clip-themes-dark-poster.png",
       "width": 1880,
       "height": 1480,
-      "seconds": 9.1,
+      "seconds": 9.08,
       "appearance": "dark",
       "caption": "Switching themes restyles the open panel at once.",
       "clip": "scenarios/media/themes-dark.json",
-      "alt": "A recording of Slick's search panel in dark mode with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm with a red fill and Violet uses a purple lens. The themes were switched through the theme setting. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+      "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper, with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm red and Violet uses a purple lens. The themes were switched through the theme setting, not the settings window. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     }
   ]
 }
