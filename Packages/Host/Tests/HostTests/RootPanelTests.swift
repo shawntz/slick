@@ -53,6 +53,37 @@ import Testing
         #expect(fixture.panel.rootPage.selectedRow?.row.id == selected)
     }
 
+    /// Root replaces an answer in place when it changes, as a calculation does when its rates
+    /// arrive. The row keeps its ID, so the selection stays on it, and the bar names its new action.
+    @Test(arguments: [0, 2])
+    func aRowReplacedInPlaceKeepsTheSelection(selectedIndex: Int) async throws {
+        _ = NSApplication.shared
+        let runtime = RuntimeFixture()
+        await runtime.start()
+        let root = AnswerRoot()
+        let surface = LauncherSurface(visibleFrame: PanelFixture.offscreen)
+        let panel = PanelController(
+            runtime: runtime.runtime, rootSource: root, icons: FakeIconProvider(), surface: surface,
+            hud: RecordingHUD())
+        panel.summoner.takesKeyStatus = false
+        panel.summoner.followsPointerScreen = false
+        defer { surface.panel.close() }
+        panel.prewarm()
+        panel.summon()
+        surface.queryField.text = "10 usd"
+        panel.queryField(surface.queryField, didChangeText: "10 usd")
+        for _ in 0..<selectedIndex { _ = panel.queryField(surface.queryField, perform: .moveDown) }
+        let selected = try #require(panel.rootPage.selectedRow?.row)
+        #expect(panel.surface.actionBar.content.primaryTitle == "Copy " + selected.title)
+
+        root.answer("9.21 EUR")
+        #expect(await waitUntil { panel.rootPage.list.content.sections.first?.rows.first?.title == "9.21 EUR" })
+        #expect(panel.rootPage.list.selectedRow == selectedIndex)
+        #expect(panel.rootPage.selectedRow?.row.id == selected.id)
+        let now = try #require(panel.rootPage.selectedRow?.row)
+        #expect(panel.surface.actionBar.content.primaryTitle == "Copy " + now.title)
+    }
+
     @Test func returnRunsTheRowWithItsSectionsLaunchAndReportsItFirst() async {
         let fixture = await PanelFixture.make()
         defer { fixture.close() }
@@ -209,6 +240,25 @@ import Testing
         #expect(!fixture.panel.isPanelVisible)
     }
 
+    /// A Return while a late section still loads closes the panel. Ending the session cancels that
+    /// section, so the hidden page is no longer busy and the loading bar is off; the next summon
+    /// with the query still typed starts the section again.
+    @Test func dismissWhileASectionLoadsLeavesThePageIdle() async {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        fixture.root.marksQueriesLoading = true
+        fixture.type("e")
+        #expect(fixture.panel.rootPage.isBusy)
+        #expect(fixture.panel.surface.isLoading)
+        fixture.panel.dismiss()
+        #expect(fixture.root.calls.last == .end)
+        #expect(!fixture.panel.rootPage.isBusy)
+        #expect(!fixture.panel.surface.isLoading)
+        fixture.panel.summon()
+        #expect(fixture.root.calls.last == .update("e"))
+        #expect(fixture.panel.rootPage.isBusy)
+    }
+
     @Test func zeroResetsToRootAtOnce() async {
         let fixture = await PanelFixture.make(settings: ["resetToRootAfter": .int(0)])
         defer { fixture.close() }
@@ -267,4 +317,55 @@ import Testing
         fixture.runtime.fakes.settings.set(.string("Ember"), for: "app.general.themeName")
         #expect(await waitUntil { fixture.panel.surface.theme.lens == Theme.ember.lens })
     }
+}
+
+/// Root search with a currency answer on top that fills in later under the same ID, and two
+/// results below it.
+@MainActor final class AnswerRoot: RootSource {
+    let changes = ChangeSignal()
+    private(set) var snapshot = RootSnapshot()
+    private var revision = 0
+    private var answerTitle = "Converting…"
+
+    private func make(_ query: String) -> RootSnapshot {
+        revision += 1
+        guard !query.isEmpty else { return RootSnapshot(revision: revision) }
+        let answer = Row(id: ItemID("calc", "answer"), title: answerTitle, icon: .symbol("equal"))
+        let results = [
+            Row(id: ItemID("demo", "one"), title: "Currency Rates", icon: .symbol("1.circle")),
+            Row(id: ItemID("demo", "two"), title: "Units", icon: .symbol("2.circle")),
+        ]
+        return RootSnapshot(
+            query: query,
+            sections: [
+                RootSection(id: "answers", title: "Answer", rows: [answer], kind: .answers),
+                RootSection(id: "results", title: "Results", rows: results, kind: .results),
+            ],
+            revision: revision)
+    }
+
+    func begin() -> RootSnapshot {
+        snapshot = make("")
+        return snapshot
+    }
+
+    func update(query: String) -> RootSnapshot {
+        snapshot = make(query)
+        return snapshot
+    }
+
+    /// The answer arrived: the same row, with its value.
+    func answer(_ title: String) {
+        answerTitle = title
+        snapshot = make(snapshot.query)
+        changes.send()
+    }
+
+    func end() {}
+    func titleHighlights(for row: Row) -> [Range<Int>] { [] }
+    func featureID(for row: Row) -> String? { nil }
+    func row(for id: ItemID) -> Row? { snapshot.rows.first { $0.id == id } }
+    func didRun(_ row: Row, launch: LaunchSource) {}
+    func forget(_ id: ItemID) {}
+    func actions(for row: Row) -> [Action] { [Action("Copy " + row.title, id: "copy") { _ in .keepOpen }] }
 }

@@ -19,6 +19,8 @@ import os
     public private(set) var aliases: [ItemID: String] = [:]
     public private(set) var hotkeys: [ItemID: KeyCombo] = [:]
     public private(set) var favorites: [ItemID] = []
+    /// The user's fallback switches and order. Empty until the user changes a fallback.
+    public private(set) var fallbackChoices = FallbackChoices()
 
     /// The file the preferences live in.
     public nonisolated let fileURL: URL
@@ -267,6 +269,16 @@ import os
     /// When each missing command with an alias or a hotkey was first found missing.
     public var missingCommands: [ItemID: Date] { missingSince }
 
+    // MARK: Fallbacks
+
+    /// Replaces the fallback choices, stores them and sends ``changes``. The same choices again do
+    /// nothing.
+    public func setFallbackChoices(_ choices: FallbackChoices) {
+        guard choices != fallbackChoices else { return }
+        fallbackChoices = choices
+        didChange()
+    }
+
     // MARK: Storage
 
     private func didChange() {
@@ -298,6 +310,7 @@ import os
         file.missingSince = Dictionary(uniqueKeysWithValues: missingSince.map { ($0.key.rawValue, $0.value) })
         file.suppressedConfirmations = suppressed.sorted()
         file.filterSelections = filterSelections
+        file.fallbackChoices = fallbackChoices.isEmpty ? nil : fallbackChoices
         return file
     }
 
@@ -317,5 +330,6 @@ import os
         missingSince = ids(file.missingSince)
         suppressed = Set(file.suppressedConfirmations)
         filterSelections = file.filterSelections
+        fallbackChoices = file.fallbackChoices ?? FallbackChoices()
     }
 }

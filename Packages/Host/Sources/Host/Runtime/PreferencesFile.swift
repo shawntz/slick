@@ -1,5 +1,6 @@
 import Foundation
 import Kit
+import KitHosting
 
 /// What `preferences.json` holds: every preference by raw item ID.
 ///
@@ -18,12 +19,15 @@ nonisolated struct PreferencesFile: Codable, Sendable, Equatable {
     var suppressedConfirmations: [String] = []
     /// The option the user last picked in a remembered filter dropdown, by page.
     var filterSelections: [String: String] = [:]
+    /// The user's fallback switches and order. Nil until the user changed a fallback, and in a file
+    /// an older version wrote.
+    var fallbackChoices: FallbackChoices?
 
     init() {}
 
     private enum CodingKeys: String, CodingKey {
         case aliases, hotkeys, favorites, features, disabledCommands, missingSince, suppressedConfirmations
-        case filterSelections
+        case filterSelections, fallbackChoices
     }
 
     init(from decoder: any Decoder) throws {
@@ -38,6 +42,7 @@ nonisolated struct PreferencesFile: Codable, Sendable, Equatable {
         suppressedConfirmations =
             (try? container.decodeIfPresent([String].self, forKey: .suppressedConfirmations)) ?? []
         filterSelections = (try? container.decodeIfPresent([String: String].self, forKey: .filterSelections)) ?? [:]
+        fallbackChoices = try? container.decodeIfPresent(FallbackChoices.self, forKey: .fallbackChoices)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -50,5 +55,6 @@ nonisolated struct PreferencesFile: Codable, Sendable, Equatable {
         try container.encode(missingSince, forKey: .missingSince)
         try container.encode(suppressedConfirmations, forKey: .suppressedConfirmations)
         try container.encode(filterSelections, forKey: .filterSelections)
+        try container.encodeIfPresent(fallbackChoices, forKey: .fallbackChoices)
     }
 }
