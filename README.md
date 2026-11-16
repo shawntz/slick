@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="site/assets/icon/icon-256.png" width="128" height="128" alt="Slick's icon: a purple glass rounded square with a lightning bolt made of two translucent blades.">
+<img src="site/assets/icon/icon-256.png" width="128" height="128" alt="Slick's icon, a purple glass rounded square with a lightning bolt made of two translucent blades.">
 
 <h1>Slick</h1>
 
-<p><strong>An open-source macOS launcher in the class of Raycast and Alfred that draws in real Liquid Glass and learns which result you pick.</strong></p>
+<p><strong>An open-source macOS launcher in the class of Raycast and Alfred. Press a hotkey, type a few letters, and open the app, file, setting or command you meant. Slick draws its panel in the system's own Liquid Glass and learns which result you pick.</strong></p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="site/media/hero-dark.gif">
@@ -14,7 +14,7 @@
 
 <sub>Two typed letters find Notes, and the field completes its name. Recorded from the assembled app with Apple's own apps.</sub>
 
-<p><strong>Pre-release, with no download yet.</strong> The assembled app passes all 44 of its end-to-end scenarios against made-up data, and nobody has run the live launcher on a real Mac yet.</p>
+<p><strong>Pre-release, with no download yet.</strong> The assembled app passes all of its end-to-end scenarios against made-up data. The live launcher first ran on a real Mac on 16 November 2026, and most of its features have not been tried there yet.</p>
 
 <p>
   <a href="#speed-measured-inside-the-app">Speed</a> ·
@@ -80,39 +80,39 @@ Slick draws the panel in `NSGlassEffectView`, the system's own Liquid Glass, not
 
 Two more built-in themes change the shape and the clarity of the glass. Pick one in Settings, under Appearance.
 
-Beam is modeled on the search panel of macOS 27, with the query in a capsule of glass and the results in a separate container below it.
+Spotlight is modeled on Spotlight in macOS 27. The query sits in a capsule of glass, and the results sit in a separate container below it.
 
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="site/media/clip-beam-dark.gif">
-  <source media="(prefers-color-scheme: light)" srcset="site/media/clip-beam-light.gif">
-  <img src="site/media/clip-beam-light.gif" width="720" alt="A recording of Slick's search panel in the Beam theme, in the dark or light mode of your GitHub theme, over a matching gradient wallpaper. Beam draws two pieces of glass: a tall capsule that holds the search field and a glowing caret, and below it, apart from it, a rounded container of results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.">
+  <source media="(prefers-color-scheme: dark)" srcset="site/media/clip-spotlight-dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="site/media/clip-spotlight-light.gif">
+  <img src="site/media/clip-spotlight-light.gif" width="720" alt="A recording of Slick's search panel in the Spotlight theme, in the dark or light mode of your GitHub theme, over a matching gradient wallpaper. The theme draws two pieces of glass. A tall capsule holds the search field and a glowing caret. Below it, apart from it, a rounded container holds the results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.">
 </picture>
 
 <sub>Typing "cal" narrows the results, and Command-K opens the action panel inside the results container. Each row shows the Command-digit shortcut that runs it.</sub>
 
 </div>
 
-Clear draws Standard's panel in the system's clear glass, its most translucent style, with no tint. Nothing frosts the window behind it, so the panel's text carries a soft halo instead. Over a busy or bright window, that text can be hard to read.
+Glass draws Standard's panel in the system's clear glass, its most translucent style, with no tint. Nothing frosts the window behind it, so the panel's text carries a soft halo instead. Over a busy or bright window, that text can be hard to read.
 
 <div align="center">
 
-<img src="site/media/clip-clear-dark.gif" width="720" alt="A recording of Slick's search panel in the Clear theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. Clear's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.">
+<img src="site/media/clip-glass-dark.gif" width="720" alt="A recording of Slick's search panel in the Glass theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. The theme's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.">
 
-<sub>The About page of Slick's settings window stays sharp behind Clear's glass.</sub>
+<sub>The About page of Slick's settings window stays sharp behind the panel in the Glass theme.</sub>
 
 </div>
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="site/media/glass-standard-dark.png" width="380" alt="Slick's search panel in the Standard theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The frosted, tinted glass blurs the app icon and the lines of text behind it into soft shapes. The picture beside it shows the same scene in the Clear theme. Captured from the assembled app running a scripted scenario, with Apple's own apps.">
-      <br><sub>Standard: frosted glass blurs the window behind the panel.</sub>
+      <img src="site/media/compare-standard-dark.png" width="380" alt="Slick's search panel in the Standard theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The frosted, tinted glass blurs the app icon and the lines of text behind it into soft shapes. The picture beside it shows the same scene in the Glass theme. Captured from the assembled app running a scripted scenario, with Apple's own apps.">
+      <br><sub>In the Standard theme, frosted glass blurs the window behind the panel.</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="site/media/glass-clear-dark.png" width="380" alt="Slick's search panel in the Clear theme, dark mode, with “cal” typed and Calculator selected, over the same About page. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it, and the panel's text carries a soft dark halo. The picture beside it shows the same scene in the Standard theme. Captured from the assembled app running a scripted scenario, with Apple's own apps.">
-      <br><sub>Clear: the same window stays sharp through the glass.</sub>
+      <img src="site/media/compare-glass-dark.png" width="380" alt="Slick's search panel in the Glass theme, dark mode, with “cal” typed and Calculator selected, over the same About page. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it, and the panel's text carries a soft dark halo. The picture beside it shows the same scene in the Standard theme. Captured from the assembled app running a scripted scenario, with Apple's own apps.">
+      <br><sub>In the Glass theme, the same window stays sharp through the panel.</sub>
     </td>
   </tr>
 </table>
@@ -154,7 +154,7 @@ The app registers twenty-one feature packages. These clips show four of them in 
       <br><sub>Search Emoji and Symbols opens a grid that filters as you type.</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="site/media/clip-files-light.gif" width="380" alt="A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress: it is proven over a sample index, and indexing real folders has not run on a Mac yet.">
+      <img src="site/media/clip-files-light.gif" width="380" alt="A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress. It is proven over a sample index, and indexing real folders has not run on a Mac yet.">
       <br><sub>Search Files shows each match's kind, size, date and folder. It is proven over a sample index, and indexing real folders has not run on a Mac yet.</sub>
     </td>
   </tr>
@@ -167,7 +167,7 @@ The app registers twenty-one feature packages. These clips show four of them in 
 <!-- features:start -->
 <!-- Generated by scripts/sync-features.py from support/features.json. Edit the JSON, then run the script. -->
 
-As of 2026-11-15, 12 of 30 features are available and 18 are in progress.
+As of 2026-11-16, 12 of 30 features are available and 18 are in progress.
 
 #### Core
 
@@ -185,7 +185,7 @@ As of 2026-11-15, 12 of 30 features are available and 18 are in progress.
 
 | In progress | What it does |
 |---|---|
-| Themes | Seven built-in themes, including Beam, modeled on the search panel of macOS 27, and Clear, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher; the editor and sharing are not tested in the app yet. |
+| Themes | Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher. The editor and sharing are not tested in the app yet. |
 | Updates | Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. No release has shipped the updater yet, so it has not run on a Mac. |
 
 #### Built-in tools
@@ -198,26 +198,26 @@ As of 2026-11-15, 12 of 30 features are available and 18 are in progress.
 | Clipboard history | Search text, links, images and files you copied, and paste them back. |
 | Quicklinks and web search | Open sites and searches with a keyword, and fall back to the web when nothing local matches. |
 | Emoji picker | Search emoji and symbols by name and paste them. |
-| Notes | Quick notes kept as Markdown files that any editor opens: save one from root search, search titles and text, append, pin, tag, rename and paste them. Proven in the launcher on real files in its own folder; a notes folder you choose in Documents or another folder macOS guards has not been read on a Mac yet, and a floating note window is not part of it. |
+| Notes | Quick notes kept as Markdown files that any editor opens. Save one from root search, search titles and text, append, pin, tag, rename and paste them. Proven in the launcher on real files in its own folder. A notes folder you choose in Documents or another folder macOS guards has not been read on a Mac yet. A floating note window is not part of it. |
 
 | In progress | What it does |
 |---|---|
-| File search | An own index of file names that answers in milliseconds, with folder browsing. Proven in the launcher over a sample index; indexing your real folders has not run on a Mac yet. |
+| File search | Slick keeps its own index of file names, which answers in milliseconds, and lets you browse folders. Proven in the launcher over a sample index. Indexing your real folders has not run on a Mac yet. |
 | Snippets | Saved text with placeholders that you find and paste from the launcher. Expanding a keyword as you type in other apps has not run on a Mac yet. |
-| Window management | Halves, thirds, quarters, centering and moving windows between displays. Proven against simulated windows; moving real windows has not run on a Mac yet. |
-| System commands | Sleep, lock, empty the Trash, toggle dark mode, eject disks and more. Proven against simulated services; the real system calls have not run on a Mac yet. |
-| Script commands | Run your own scripts from the launcher, with arguments and live output. The commands and their arguments are proven in the launcher; running a real script has not been tested in the app. |
-| Universal actions | Act on the text or files selected in any app. The actions show for results in the launcher; reading the selection in another app has not run on a Mac yet. |
-| Dictionary | Look up a word with define, check its spelling, and copy or paste the definition. Proven in the launcher with sample entries; the Mac's own dictionaries have not been read in the app yet. |
-| Calendar and reminders | Your day's events, a meeting to join when it is about to start, and new events and reminders from the launcher. Proven with a sample day; reading your real calendars has not run on a Mac yet. |
-| Contacts | Find a person and call, message, email or FaceTime them. Proven with sample contacts; reading your real contacts has not run on a Mac yet. |
-| Browser bookmarks | Search the bookmarks of Safari, Chrome, Firefox and other browsers and open them. Proven with sample bookmarks; reading a real browser's files has not run on a Mac yet. |
-| Menu items | Search and run any menu command of the app in front. Proven with a sample app's menus; reading a real app's menus has not run on a Mac yet. |
-| AI, with your own key | Ask questions with Apple's on-device model or a provider you configure. Nothing is sent unless you ask. Proven in the launcher with a simulated model; a real model has not answered yet. |
-| Shell commands | Type > and a command to run it in your login shell and see its output, with a history of past commands. Proven in the launcher against a simulated shell; running a real command has not been tested in the app. |
-| Color picker | Pick a color on screen, keep the colors you use, and convert hex, RGB, HSL, HWB and OKLCH as you type, with WCAG contrast. Conversions, contrast and the history work in the launcher; picking from the screen has not run on a Mac yet. |
-| Translate | Translate typed or selected text with the languages installed on the Mac, on a page or with tr in root search. Translate sends nothing over the network itself. Proven in the launcher with a simulated engine; Apple's Translation framework has not run in the app yet. |
-| Media controls | Play, pause and skip tracks in Music and Spotify, and see what is playing. Proven in the launcher against a simulated player; controlling the real apps has not run on a Mac yet. |
+| Window management | Halves, thirds, quarters, centering and moving windows between displays. Proven against simulated windows. Moving real windows has not run on a Mac yet. |
+| System commands | Sleep, lock, restart or shut down the Mac, empty the Trash, eject disks, toggle dark mode, set the volume and quit processes. Proven against simulated services. The real system calls have not run on a Mac yet. |
+| Script commands | Run your own scripts from the launcher, with arguments and live output. The commands and their arguments are proven in the launcher. Running a real script has not been tested in the app. |
+| Universal actions | Act on the text or files selected in any app. The actions show for results in the launcher. Reading the selection in another app has not run on a Mac yet. |
+| Dictionary | Look up a word with define, check its spelling, and copy or paste the definition. Proven in the launcher with sample entries. The Mac's own dictionaries have not been read in the app yet. |
+| Calendar and reminders | Your day's events, a meeting to join when it is about to start, and new events and reminders from the launcher. Proven with a sample day. Reading your real calendars has not run on a Mac yet. |
+| Contacts | Find a person and call, message, email or FaceTime them. Proven with sample contacts. Reading your real contacts has not run on a Mac yet. |
+| Browser bookmarks | Search the bookmarks of Safari, Chrome, Firefox and other browsers and open them. Proven with sample bookmarks. Reading a real browser's files has not run on a Mac yet. |
+| Menu items | Search and run any menu command of the app in front. Proven with a sample app's menus. Reading a real app's menus has not run on a Mac yet. |
+| AI, with your own key | Ask questions with Apple's on-device model or a provider you configure. Nothing is sent unless you ask. Proven in the launcher with a simulated model. A real model has not answered yet. |
+| Shell commands | Type > and a command to run it in your login shell and see its output, with a history of past commands. Proven in the launcher against a simulated shell. Running a real command has not been tested in the app. |
+| Color picker | Pick a color on screen, keep the colors you use, and convert hex, RGB, HSL, HWB and OKLCH as you type, with WCAG contrast. Conversions, contrast and the history work in the launcher. Picking from the screen has not run on a Mac yet. |
+| Translate | Translate typed or selected text with the languages installed on the Mac, on a page or with tr in root search. Translate sends nothing over the network itself. Proven in the launcher with a simulated engine. Apple's Translation framework has not run in the app yet. |
+| Media controls | Play, pause and skip tracks in Music and Spotify, and see what is playing. Proven in the launcher against a simulated player. Controlling the real apps has not run on a Mac yet. |
 
 <!-- features:end -->
 
@@ -238,25 +238,14 @@ The app runs on macOS 26 or later on Apple silicon. It is developed and tested o
 
 ### Your first launch
 
-Slick has no Dock icon. A bolt appears in the menu bar, and onboarding opens in six steps: Welcome, Hotkey, Optional Features, Permissions, Theme and Done.
+Slick has no Dock icon. A bolt appears in the menu bar, and the onboarding window opens. Its six steps are Welcome, Hotkey, Optional Features, Permissions, Theme and Done.
 
-- Command-Space is the default hotkey, and Spotlight holds it on a new Mac. Until you free it, the hotkey waits, and Open in the bolt menu opens the launcher instead. The Hotkey step shows how to turn off Spotlight's shortcut in the system's own words, with a button that opens Keyboard settings. A line turns green the moment ⌘Space is free, and a HUD says "⌘Space Now Opens Slick". You can also record another hotkey.
-- Clipboard History and File Search start off. The Optional Features step lists both. Clipboard History's switch starts off there, and File Search's starts on because it is suggested. Neither switch takes effect until you press Continue.
-- Slick asks macOS for no permission at launch. The Permissions step lists only what the features you kept on can need, and asks macOS only when you press Allow. You can skip every row. Each feature asks again through a card in the panel the first time you run something that needs it.
+- ⌘Space is the default hotkey. On a new Mac, ⌘Space opens Spotlight, and the Hotkey step tells you so. When you press Continue, Slick turns off Spotlight's shortcut and takes ⌘Space. To keep ⌘Space for Spotlight, record another hotkey before you press Continue. While ⌘Space still opens Spotlight, the General pane in settings and the bolt menu offer Turn Off Spotlight's Shortcut, which does the same.
+- If another macOS shortcut uses your keys, turn it off in System Settings, under Keyboard. Slick waits until the keys are free. Until then, Open in the bolt menu opens the launcher.
+- Clipboard History and File Search start off. The Optional Features step lists both. Clipboard History's switch starts off there, and File Search's starts on because onboarding suggests it. Neither switch takes effect until you press Continue.
+- Slick asks macOS for no permission at launch. The Permissions step lists only what the features you kept on can need, and asks macOS only when you press Allow. The rows sit under four headings, Typing and Pasting, Files and Folders, Calendar and Contacts, and Other Apps. Full Disk Access comes first under Files and Folders, because allowing it also allows the folders below it except iCloud Drive. You can skip every row. Each feature asks again through a card in the panel the first time you run something that needs it.
 
-This is what the code does. Nobody has run it live on a Mac yet. [docs/FIRST-LAUNCH.md](docs/FIRST-LAUNCH.md) has the full walk: every permission and when it is asked, what Slick reads and stores, and ten things to try.
-
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="site/media/settings-general-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="site/media/settings-general-light.png">
-  <img src="site/media/settings-general-light.png" width="720" alt="Slick's settings window in the dark or light mode of your GitHub theme, over a matching gradient wallpaper, on the General pane. The hotkey is ⌘Space. Under it a note reads “Spotlight holds ⌘Space, so it does not open Slick yet. Turn off Spotlight's shortcut in System Settings, and it will.” with an Open Keyboard Settings button. Below are Open at login, off, Show in the menu bar, on, and the Panel settings. The scenario played Spotlight holding the shortcut. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario.">
-</picture>
-
-<sub>While Spotlight holds ⌘Space, the General pane in settings says so and opens Keyboard settings. Captured from the assembled app in a scenario where Spotlight holds the shortcut.</sub>
-
-</div>
+This is what the code does. Onboarding was first walked on a real Mac on 16 November 2026, and most features have not been tried there yet. [docs/FIRST-LAUNCH.md](docs/FIRST-LAUNCH.md) has the full walk. It lists every permission and when it is asked, what Slick reads and stores, and how to try each feature safely.
 
 Inside the panel, Command-K opens the actions of the selected result. The [keyboard table](docs/ARCHITECTURE.md#host) lists every other key.
 
@@ -306,7 +295,7 @@ One line in [Features.swift](Packages/App/Sources/SlickApp/Features.swift) regis
 
 ## Privacy
 
-Slick has no account and no telemetry. What it learns stays on your Mac.
+Slick has no account and no telemetry. What it learns stays on your Mac. Apart from system commands you run, such as Toggle Dark Mode, Slick changes one system setting, Spotlight's keyboard shortcut, and turns it off only when you press Continue on the Hotkey step or choose Turn Off Spotlight's Shortcut in settings or the bolt menu.
 
 ### What is stored, and where
 
@@ -335,20 +324,20 @@ Clipboard history never stores items an app marks as concealed, transient or aut
 
 Nothing leaves at launch unless you turned on update checks. Slick makes a network request only when you ask for something that needs one, or for the update check you agreed to:
 
-- a check for a new version: once a day in a release build after you turn on Check for Updates Automatically, and whenever you choose Check for Updates. It asks GitHub for the latest release's feed. The request carries the version numbers of Slick and its updater and, like any web request, your IP address.
+- a check for a new version, once a day in a release build after you turn on Check for Updates Automatically, and whenever you choose Check for Updates. It asks GitHub for the latest release's feed. The request carries the version numbers of Slick and its updater and, like any web request, your IP address.
 - a web search
 - a shell command or script you run that uses the network
 - a currency conversion, which downloads exchange rates
 - a question to an AI provider you set up
 - web icons for script commands, which start off
 
-Slick asks for no permission at launch either. It asks for each one only after you press a button: Allow in onboarding, Grant in settings, or the button on the panel's permission card. The one exception is Local Network, which macOS asks for by itself the first time Slick connects to an AI model server on another machine. No feature uses Location, the camera, the microphone, Screen Recording or Focus.
+Slick asks for no permission at launch either. It asks for each one only after you press a button: Allow in onboarding or in settings, or the button on the panel's permission card. The one exception is Local Network, which macOS asks for by itself the first time Slick connects to an AI model server on another machine. No feature uses Location, the camera, the microphone, Screen Recording or Focus.
 
 A shell command you run has every permission you gave Slick, such as Accessibility and Full Disk Access, and macOS asks in Slick's name for anything more. A command that needs the camera, the microphone or Bluetooth may be refused. Run that one with Open in Terminal.
 
 The tests use made-up data. They never read your pasteboard, walk your home folder or make a network request.
 
-To erase everything, quit Slick from the bolt menu, move `~/Library/Application Support/Slick` to the Trash and run `defaults delete com.shawnschwartz.slick`. Permissions you granted stay with the app until you remove them in System Settings.
+To erase everything, quit Slick from the bolt menu, move `~/Library/Application Support/Slick` to the Trash and run `defaults delete com.shawnschwartz.slick`. Permissions you granted stay with the app until you remove them in System Settings. If Slick turned off Spotlight's shortcut, it stays off until you turn it on again in System Settings, under Keyboard.
 
 ## Contributing
 
@@ -357,6 +346,8 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), then [docs/ARCHITECTURE.md](docs/ARCHIT
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+Spotlight is a trademark of Apple Inc. Slick is not affiliated with Apple.
 
 ---
 
