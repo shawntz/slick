@@ -82,12 +82,36 @@ extension PanelController: RunPresenter {
     }
 
     /// Shows the card and waits for its answer. Before `holdUntil` on the services clock, the
-    /// confirm button does not answer: the card shows again and a toast says to wait.
+    /// confirm button does not answer: the card shows again and a toast says to wait. When the
+    /// asking run is cancelled, as when its feature is switched off, the card goes and the answer
+    /// is no.
     private func present(
         _ content: ConfirmContent, holdUntil: Date?, onConfirm: ((ConfirmCardView) -> Void)?
     ) async -> Bool {
+        let asked = AskedCard()
+        return await withTaskCancellationHandler {
+            await present(content, holdUntil: holdUntil, onConfirm: onConfirm, asked: asked)
+        } onCancel: {
+            Task { @MainActor [weak self] in self?.withdraw(asked.pending) }
+        }
+    }
+
+    /// Takes down a card whose run was cancelled and answers it no. A card already answered or
+    /// replaced is left alone.
+    private func withdraw(_ pending: PendingAnswer?) {
+        guard let pending else { return }
+        pending.answer(false)
+        guard pendingAnswer === pending else { return }
+        pendingAnswer = nil
+        if let card = pending.card, surface.overlay === card { surface.dismissOverlay() }
+    }
+
+    private func present(
+        _ content: ConfirmContent, holdUntil: Date?, onConfirm: ((ConfirmCardView) -> Void)?, asked: AskedCard
+    ) async -> Bool {
         await withCheckedContinuation { continuation in
             let pending = PendingAnswer(continuation)
+            asked.pending = pending
             let card = ConfirmCardView(content: content)
             card.onConfirm = { [weak self, weak card, pending] in
                 if let self, let holdUntil, runtime.services.clock.now < holdUntil {
@@ -221,4 +245,10 @@ extension PanelController: RunPresenter {
         if launch == .deeplink { noteLinkSession() }
         return true
     }
+}
+
+/// The answer a question waits for, so the handler that runs when the asking run is cancelled can
+/// take its card down.
+@MainActor final class AskedCard {
+    weak var pending: PendingAnswer?
 }
