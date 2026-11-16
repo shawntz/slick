@@ -24,6 +24,9 @@ import LauncherUI
     public private(set) var isInSession = false
     /// Whether ghost completion shows.
     var showsCompletion = true
+    /// True while a link typed the query and the user has not typed, moved the selection or
+    /// clicked a row since. No row is selected then, so Return runs nothing the link chose.
+    public private(set) var holdsSelection = false
 
     private weak var host: (any PageHost)?
     private let runtime: FeatureRuntime
@@ -42,7 +45,11 @@ import LauncherUI
         self.source = source
         self.runtime = runtime
         contentView.show(list)
-        list.onSelect = { [weak self] _ in self?.noteSelection() }
+        // Only a click reports here; the page's own selections do not.
+        list.onSelect = { [weak self] _ in
+            self?.holdsSelection = false
+            self?.noteSelection()
+        }
         list.onActivate = { [weak self] index in
             guard let self else { return }
             list.select(index, animated: false)
@@ -81,12 +88,20 @@ import LauncherUI
         guard isInSession else { return }
         isInSession = false
         source.end()
+        // Ending cancels the sections still loading, so nothing will finish them: the page is no
+        // longer busy and shows no loading bar. A summon with the query still typed starts them
+        // again.
+        if snapshot.isLoading {
+            snapshot.isLoading = false
+            host?.page(self, isLoading: false)
+        }
     }
 
     /// Clears the query and draws the last empty state again, ready for the next summon. Runs at
     /// dismiss, off the summon path.
     public func resetForNextSummon() {
         query = ""
+        holdsSelection = false
         if let emptySnapshot, emptySnapshot.sections != snapshot.sections || !snapshot.query.isEmpty {
             snapshot = emptySnapshot
             render(keepSelection: false)
@@ -113,6 +128,18 @@ import LauncherUI
     }
 
     public func queryDidChange(_ text: String) {
+        holdsSelection = false
+        update(text)
+    }
+
+    /// Shows the results for text a link typed, with no row selected until the user types, moves
+    /// the selection or clicks a row.
+    public func showLinkQuery(_ text: String) {
+        holdsSelection = true
+        update(text)
+    }
+
+    private func update(_ text: String) {
         query = text
         let source = source
         snapshot = host?.workMeter.measure { source.update(query: text) } ?? source.update(query: text)
@@ -121,6 +148,8 @@ import LauncherUI
 
     public func moveSelection(_ move: SelectionMove) -> Bool {
         guard list.content.rowCount > 0 else { return false }
+        // From no selection, Up and Down both select the first row.
+        holdsSelection = false
         switch move {
         case .up: list.moveSelection(by: -1)
         case .down: list.moveSelection(by: 1)
@@ -213,7 +242,7 @@ import LauncherUI
     // MARK: Drawing
 
     /// Maps the snapshot and applies it. Keeps the selection on the same row when asked and the row
-    /// is still there; otherwise selects the first row.
+    /// is still there; otherwise selects the first row. While ``holdsSelection`` it selects none.
     func render(keepSelection: Bool) {
         guard let host else { return }
         let mapper = host.rowMapper
@@ -250,7 +279,8 @@ import LauncherUI
         }
         var index = 0
         if keepSelection, let selected, let found = flatIndex(of: selected) { index = found }
-        meter.measure { list.select(count > 0 ? index : nil, animated: false) }
+        let selection = count > 0 && !holdsSelection ? index : nil
+        meter.measure { list.select(selection, animated: false) }
         noteSelection()
         host.page(self, isLoading: snapshot.isLoading)
     }
