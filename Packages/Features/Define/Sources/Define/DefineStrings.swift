@@ -25,7 +25,7 @@ nonisolated enum DefineStrings {
     static func fallback(_ text: String) -> String {
         let shown = text.prefix(fallbackTextLimit)
         let more = text.dropFirst(fallbackTextLimit).isEmpty ? "" : "…"
-        return "Define \"\(shown)\(more)\""
+        return "Define \u{201C}\(shown)\(more)\u{201D}"
     }
 
     // MARK: Pages
@@ -82,8 +82,8 @@ nonisolated enum DefineStrings {
         "The definition appears under the other results after a short pause. Each pause looks the word up in the dictionaries on this Mac."
     static let spellingSection = "Spelling"
     static let spellingReturn = "Return on a spelling"
-    static let spellingReturnCopies = "Copies it to the clipboard"
-    static let spellingReturnPastes = "Pastes it into the frontmost app"
+    static let spellingReturnCopies = "Copy to Clipboard"
+    static let spellingReturnPastes = "Paste into the Frontmost App"
     static let spellingReturnInfo = "Command-Return does the other."
     static let accessibilityInfo = "Paste Definition and Paste Word need it to paste into the frontmost app."
     static let dictionariesSection = "Dictionaries"

@@ -182,7 +182,7 @@ struct ReminderTests {
         #expect(harness.feature.reminderListChoices.map(\.title) == ["Same as in Reminders"])
         harness.context.settings[ScheduleSettings.defaultReminderList] = F.errands.id
         #expect(
-            harness.feature.reminderListChoices.map(\.title) == ["Same as in Reminders", "The list you chose before"])
+            harness.feature.reminderListChoices.map(\.title) == ["Same as in Reminders", "The List You Chose Before"])
 
         try await harness.run("my-reminders")
         #expect(signal.generation == 1)

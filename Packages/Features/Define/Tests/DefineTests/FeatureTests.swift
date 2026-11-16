@@ -23,12 +23,13 @@ struct DeclarationTests {
         #expect(define.keywords.contains("define"))
         #expect(define.arguments.map(\.name) == ["word"])
         #expect(define.requires.isEmpty)
-        #expect(define.fallback?.title("lantern") == "Define \"lantern\"")
+        #expect(define.fallback?.title("lantern") == "Define \u{201C}lantern\u{201D}")
+        #expect(define.fallback?.startsOn == false, "a fallback starts off unless it is the feature's own web search")
         let pasted = String(repeating: "word ", count: 200_000)
         let clock = ContinuousClock()
         var title: String?
         let elapsed = clock.measure { title = define.fallback?.title(pasted) }
-        #expect(title == "Define \"" + String(pasted.prefix(60)) + "…\"")
+        #expect(title == "Define \u{201C}" + String(pasted.prefix(60)) + "…\u{201D}")
         #expect(elapsed < .milliseconds(250), "\(elapsed)")
         let spell = try harness.command("spell")
         #expect(spell.title == "Check Spelling")

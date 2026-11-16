@@ -203,10 +203,10 @@ nonisolated enum Strings {
         static let dateOnlyLabel = "Due on the day, with no set time"
         static let list = "List"
         static let priorityLabel = "Priority"
-        static let needsStart = "Choose when the event starts"
-        static let needsTitle = "Enter a title"
-        static let needsCalendar = "Choose a calendar you can add events to"
-        static let needsList = "Choose a list you can add reminders to"
+        static let needsStart = "Choose when the event starts."
+        static let needsTitle = "Enter a title."
+        static let needsCalendar = "Choose a calendar you can add events to."
+        static let needsList = "Choose a list you can add reminders to."
         static let eventCreated = "Event Created"
         static let reminderCreated = "Reminder Created"
         static let noWritableCalendar = "No Calendar Takes New Events"
@@ -293,10 +293,10 @@ nonisolated enum Strings {
 
         static func rangeTitle(_ range: ScheduleRange) -> String {
             switch range {
-            case .threeDays: "3 days"
-            case .week: "7 days"
-            case .twoWeeks: "14 days"
-            case .month: "31 days"
+            case .threeDays: "3 Days"
+            case .week: "7 Days"
+            case .twoWeeks: "14 Days"
+            case .month: "31 Days"
             }
         }
 
@@ -309,10 +309,10 @@ nonisolated enum Strings {
 
         static func leadTimeTitle(_ lead: MeetingLeadTime) -> String {
             switch lead {
-            case .twoMinutes: "2 minutes before"
-            case .fiveMinutes: "5 minutes before"
-            case .tenMinutes: "10 minutes before"
-            case .fifteenMinutes: "15 minutes before"
+            case .twoMinutes: "2 Minutes Before"
+            case .fiveMinutes: "5 Minutes Before"
+            case .tenMinutes: "10 Minutes Before"
+            case .fifteenMinutes: "15 Minutes Before"
             }
         }
 
@@ -321,7 +321,7 @@ nonisolated enum Strings {
         static let defaultListInfo =
             "Create Reminder starts with this list. Your lists show here after you open My Reminders or Create Reminder once."
         static let remindersDefaultList = "Same as in Reminders"
-        static let chosenListNotLoaded = "The list you chose before"
+        static let chosenListNotLoaded = "The List You Chose Before"
 
         static let accessSection = "Access"
         static let calendarsInfo =
