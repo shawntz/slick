@@ -41,6 +41,40 @@ import Testing
         }
     }
 
+    /// Found in the second review: the data volume names every home folder a second time through a
+    /// firmlink, which is not a symbolic link, and the Contacts, Calendars and Photos libraries were
+    /// not listed. Every path here is made up and nothing reads it.
+    @Test func theDataVolumeSpellingAndPersonalLibrariesAreProtectedToo() {
+        let data = "/System/Volumes/Data"
+        #expect(Self.needed(data + "/synthetic/home/Downloads/report.pdf") == [.protectedFolder(.downloads)])
+        #expect(Self.needed("/system/volumes/DATA/synthetic/home/Desktop") == [.protectedFolder(.desktop)])
+        #expect(
+            Self.needed(data + "/Volumes/SYNTHETIC/notes.txt") == [
+                .protectedFolder(.removableVolumes), .protectedFolder(.networkVolumes),
+            ])
+        #expect(Self.needed(data + "/synthetic/home/Library/Mail/x") == [.fullDiskAccess])
+        for library in [
+            "Library/Application Support/AddressBook/Sources/x/AddressBook-v22.abcddb",
+            "Library/Calendars/x.caldav/Info.plist", "Library/Reminders/x", "Library/Cookies/Cookies.binarycookies",
+            "Library/HomeKit/core.sqlite", "Library/Suggestions/snippets.db",
+            "Library/Application Support/CallHistoryDB/CallHistory.storedata",
+            "Library/Application Support/com.apple.TCC/TCC.db",
+            "Pictures/Photos Library.photoslibrary/database/Photos.sqlite",
+        ] {
+            #expect(Self.needed("/synthetic/home/" + library) == [.fullDiskAccess], "\(library)")
+            #expect(Self.needed(data + "/synthetic/home/" + library) == [.fullDiskAccess], "\(library)")
+        }
+        // A Photos library can live anywhere, and the system guards whichever one it uses.
+        #expect(Self.needed("/synthetic/other/Shared.photoslibrary/originals/a.heic") == [.fullDiskAccess])
+        // Places no permission guards, in either spelling.
+        for path in [
+            data, data + "/Applications/Example.app", data + "/synthetic/home/Library/Application Support/Example",
+            "/System/Volumes/DataNotes/x", "/synthetic/home/Pictures/holiday.photoslibrary-notes.txt",
+        ] {
+            #expect(Self.needed(path).isEmpty, "\(path)")
+        }
+    }
+
     @Test func theLiveGuardAllowsAProtectedPlaceOnlyOnceEveryPermissionIsGranted() {
         let permissions = FakePermissions(defaultStatus: .notDetermined)
         let readGuard = ReadGuard.permissions(permissions, home: Self.home)
@@ -55,6 +89,72 @@ import Testing
         permissions.set(.protectedFolder(.networkVolumes), to: .granted)
         #expect(readGuard.mayRead(volume))
         #expect(permissions.requests.isEmpty)
+    }
+
+    /// Found in review: the guard judged the path as written, so a link outside the protected
+    /// folders that leads into one passed it. Every link here is made up, in a temporary folder
+    /// whose own made-up `home/Downloads` stands for the protected folder.
+    @Test func aLinkIntoAProtectedPlaceCountsAsThatPlace() throws {
+        let folder = TemporaryFolder()
+        let manager = FileManager.default
+        let home = folder.url.appending(path: "home", directoryHint: .isDirectory)
+        let downloads = home.appending(path: "Downloads", directoryHint: .isDirectory)
+        let elsewhere = folder.url.appending(path: "elsewhere", directoryHint: .isDirectory)
+        try manager.createDirectory(at: downloads, withIntermediateDirectories: true)
+        try manager.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+        try Data("pdf".utf8).write(to: downloads.appending(path: "report.pdf"))
+        try Data("plain".utf8).write(to: elsewhere.appending(path: "plain.txt"))
+        func link(_ name: String, to destination: String) throws -> URL {
+            let url = elsewhere.appending(path: name)
+            try manager.createSymbolicLink(atPath: url.path(percentEncoded: false), withDestinationPath: destination)
+            return url
+        }
+        let toReport = try link("report.pdf", to: downloads.appending(path: "report.pdf").path(percentEncoded: false))
+        let relative = try link("relative", to: "../home/Downloads")
+        let toVolume = try link("volume", to: "/Volumes/SYNTHETIC")
+        let toPlain = try link("to-plain.txt", to: "plain.txt")
+        let loop = try link("loop-a", to: "loop-b")
+        _ = try link("loop-b", to: "loop-a")
+
+        let permissions = FakePermissions(defaultStatus: .notDetermined)
+        let readGuard = ReadGuard.permissions(permissions, home: home)
+        #expect(!readGuard.mayRead(toReport))
+        #expect(!readGuard.mayRead(relative.appending(path: "report.pdf")))
+        #expect(!readGuard.mayRead(toVolume.appending(path: "notes.txt")))
+        #expect(!readGuard.mayRead(loop), "a loop of links")
+        #expect(readGuard.mayRead(elsewhere.appending(path: "plain.txt")))
+        #expect(readGuard.mayRead(toPlain))
+        #expect(readGuard.mayRead(elsewhere.appending(path: "missing.txt")))
+
+        permissions.set(.protectedFolder(.downloads), to: .granted)
+        #expect(readGuard.mayRead(toReport))
+        #expect(readGuard.mayRead(relative.appending(path: "report.pdf")))
+        #expect(permissions.requests.isEmpty)
+    }
+
+    /// Finding a link must not itself read in a protected place: the walk asks about a part only
+    /// once the path up to it needs nothing missing.
+    @Test func theWalkNeverAsksAboutAPartInAProtectedPlace() {
+        let home = URL(filePath: "/synthetic/home", directoryHint: .isDirectory)
+        let links = [
+            "/synthetic/other/link": "/synthetic/home/Downloads/inner", "/synthetic/home/Downloads/inner": "/x",
+        ]
+        var asked: [String] = []
+        let lookUp: (String) -> String? = { path in
+            asked.append(path)
+            return links[path]
+        }
+        let missing: (Permission) -> Bool = { _ in false }
+        let throughLink = URL(filePath: "/synthetic/other/link/file")
+        #expect(!ProtectedLocations.mayRead(throughLink, home: home, isGranted: missing, linkDestination: lookUp))
+        #expect(asked.contains("/synthetic/other/link"), "the link was found")
+        #expect(!asked.contains { $0.hasPrefix("/synthetic/home/Downloads") })
+        asked = []
+        let inside = URL(filePath: "/synthetic/home/Downloads/inner")
+        #expect(!ProtectedLocations.mayRead(inside, home: home, isGranted: missing, linkDestination: lookUp))
+        #expect(asked.isEmpty, "the path as written is judged first")
+        #expect(ProtectedLocations.mayRead(throughLink, home: home, isGranted: { _ in true }, linkDestination: lookUp))
+        #expect(ProtectedLocations.walk("/a/./b/../c", linkDestination: { _ in nil }, allows: { _ in true }) == "/a/c")
     }
 
     /// Found in review: the icon loader drew a file in Downloads, or an app run from there, by
