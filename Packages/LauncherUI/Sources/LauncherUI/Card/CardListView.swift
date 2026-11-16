@@ -182,6 +182,7 @@ final class CardListView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         guard let theme, let context = NSGraphicsContext.current?.cgContext else { return }
+        context.touchCorners(of: bounds)
         let scale = window?.backingScaleFactor ?? 2
         let minY = Double(dirtyRect.minY + scrollOffset)
         let maxY = Double(dirtyRect.maxY + scrollOffset)

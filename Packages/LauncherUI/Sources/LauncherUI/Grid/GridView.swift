@@ -278,6 +278,7 @@ public final class GridView: NSView, LauncherContentView {
         displayPasses += 1
         cellsDrawnInLastPass = 0
         guard let theme, let context = NSGraphicsContext.current?.cgContext else { return }
+        context.touchCorners(of: bounds)
         let viewport = viewportHeight
         context.clip(to: CGRect(x: 0, y: 0, width: bounds.width, height: viewport))
         let scale = window?.backingScaleFactor ?? 2
