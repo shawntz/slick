@@ -43,6 +43,12 @@ enum BenchMode {
             print("bench FAIL: no bench named \(name); the names are \(names.joined(separator: ", "))")
             return 2
         }
+        do {
+            try folders.create()
+        } catch {
+            print("bench FAIL: cannot make the data folder: \(error.localizedDescription)")
+            return 1
+        }
         print(String(format: "app bench, 1-minute load average %.2f", loadAverage()))
         var passed = true
         for size in sizes {

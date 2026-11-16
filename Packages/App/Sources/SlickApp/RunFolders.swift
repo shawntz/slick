@@ -27,9 +27,30 @@ nonisolated struct RunFolders: Equatable, Sendable {
         return RunFolders(dataRoot: folder, isTemporary: true)
     }
 
-    /// Makes the data folder.
+    /// The data folder's mode: only this account may read it, write it or look inside. It holds
+    /// clipboard history, chats and what the launcher learned, and `--data-dir` can put it in a
+    /// place other accounts can reach.
+    static let mode: Int = 0o700
+
+    /// Makes the data folder with ``mode``, and takes group and other access away from a folder
+    /// that is already there, such as a custom data folder made by hand. Folders it has to make on
+    /// the way get the same mode. A link to a folder changes the folder it points to.
     func create() throws {
-        try FileManager.default.createDirectory(at: dataRoot, withIntermediateDirectories: true)
+        let manager = FileManager.default
+        try manager.createDirectory(
+            at: dataRoot, withIntermediateDirectories: true, attributes: [.posixPermissions: Self.mode])
+        try Self.restrict(dataRoot)
+    }
+
+    /// Clears the group and other bits of a folder's mode, if any are set.
+    static func restrict(_ folder: URL) throws {
+        let path = folder.resolvingSymlinksInPath().path
+        let manager = FileManager.default
+        let attributes = try manager.attributesOfItem(atPath: path)
+        guard let current = (attributes[.posixPermissions] as? NSNumber)?.intValue else { return }
+        let tightened = current & ~0o077
+        guard tightened != current else { return }
+        try manager.setAttributes([.posixPermissions: tightened], ofItemAtPath: path)
     }
 
     /// Deletes the folder when this run made it.
