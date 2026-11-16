@@ -153,7 +153,8 @@ import os
             services: services, features: runtime, preferences: runtime.preferences, learning: root.inspector,
             icons: icons, loginItem: platform.loginItem, themes: themes, dataDirectory: configuration.dataRoot,
             about: AboutInfo.fromMainBundle(links: ProjectLinks.about),
-            lookUpItem: { [weak root] id in root?.row(for: id) }, launcherHotkey: hotkey, updates: updates)
+            lookUpItem: { [weak root] id in root?.row(for: id) }, launcherHotkey: hotkey, updates: updates,
+            permissionWaitsForApp: { platform.permissions.waitsForApp($0) })
         settings = SettingsOpener(
             showsWindows: configuration.showsWindows, onOpen: { [weak hotkey] in hotkey?.checkNow() },
             makeController: { SettingsController(dependencies: dependencies) },
