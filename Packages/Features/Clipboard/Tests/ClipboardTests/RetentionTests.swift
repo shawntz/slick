@@ -44,7 +44,7 @@ struct RetentionTests {
         #expect(try !harness.chooseSetting("Keep items for", option: "1 Week"))
         #expect(clipboard.settings[ClipboardSettings.retention] == .threeMonths, "nothing stored on no")
         let question = try #require(harness.confirmations.last)
-        #expect(question.title == "Delete items older than 1 week?")
+        #expect(question.title == "Delete Items Older than 1 Week?")
         #expect(question.message == "Items you copied before then are deleted now. Pinned items stay.")
         #expect(question.confirmTitle == "Delete Older Items")
         #expect(question.isDestructive)
@@ -60,9 +60,9 @@ struct RetentionTests {
         #expect(try harness.chooseSetting("Keep at most", option: Strings.Settings.itemsOption(1_000, locale: locale)))
         #expect(
             harness.confirmations.last?.title
-                == "Keep only the newest \(Strings.Settings.items(1_000, locale: locale))?")
+                == "Keep Only the Newest \(Strings.Settings.itemsOption(1_000, locale: locale))?")
         #expect(try harness.chooseSetting("Space for images", option: "250 MB"))
-        #expect(harness.confirmations.last?.title == "Keep images in at most 250 MB?")
+        #expect(harness.confirmations.last?.title == "Keep at Most 250 MB of Images?")
         let afterLowering = harness.confirmations.count
         #expect(
             try harness.chooseSetting("Keep at most", option: Strings.Settings.itemsOption(100_000, locale: locale)))

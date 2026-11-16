@@ -166,7 +166,7 @@ struct ActionTests {
         try await clipboard.openHistory()
         clipboard.harness.confirmationAnswer = false
         try await clipboard.harness.perform("open-files")
-        #expect(clipboard.harness.confirmations.last?.title == "Open 12 files?")
+        #expect(clipboard.harness.confirmations.last?.title == "Open 12 Files?")
         #expect(clipboard.fakes.workspace.opened.count == 2, "declining opens nothing")
         clipboard.harness.confirmationAnswer = true
         try await clipboard.harness.perform("open-files")

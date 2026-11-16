@@ -29,11 +29,11 @@ nonisolated enum Strings {
         static let searchPlaceholder = "Search clipboard history"
 
         static let clearHistoryConfirmation = Confirmation(
-            "Delete your clipboard history?",
+            "Delete Your Clipboard History?",
             message: "Every item that is not pinned is deleted. Pinned items stay. This cannot be undone.",
             confirmTitle: "Delete History", isDestructive: true)
         static let clearRecentConfirmation = Confirmation(
-            "Delete recent clipboard history?",
+            "Delete Recent Clipboard History?",
             message: "Items copied in the period you chose are deleted. Pinned items stay. This cannot be undone.",
             confirmTitle: "Delete", isDestructive: true)
 
@@ -97,13 +97,13 @@ nonisolated enum Strings {
             "No \(Filter.title(for: filter))"
         }
 
-        static let pausedTitle = "Recording is paused"
+        static let pausedTitle = "Recording Is Paused"
         static let pausedMessage = "New copies are not saved until you resume."
         static let resume = "Resume Recording"
-        static let notAllowedTitle = "Copies are not being recorded"
+        static let notAllowedTitle = "Copies Are Not Being Recorded"
         static let notAllowedMessage = "Allow Paste from Other Apps, so new copies can be saved."
         static let allow = "Allow Access"
-        static let damagedTitle = "Your earlier clipboard history could not be read"
+        static let damagedTitle = "Your Earlier Clipboard History Could Not Be Read"
         static let damagedMessage = "A new history was started. The damaged copy was kept, not deleted."
         static let showDamaged = "Show Damaged Copy in Finder"
     }
@@ -162,7 +162,7 @@ nonisolated enum Strings {
 
         static func openManyConfirmation(_ count: Int) -> Confirmation {
             Confirmation(
-                "Open \(count) files?", message: "Each file opens in its default app.", confirmTitle: "Open All")
+                "Open \(count) Files?", message: "Each file opens in its default app.", confirmTitle: "Open All")
         }
         static let pin = "Pin"
         static let unpin = "Unpin"
@@ -174,11 +174,11 @@ nonisolated enum Strings {
         static let deleteSection = "Delete"
 
         static let deleteConfirmation = Confirmation(
-            "Delete this item?", message: "It is removed from your clipboard history. This cannot be undone.",
+            "Delete This Item?", message: "It is removed from your clipboard history. This cannot be undone.",
             confirmTitle: "Delete",
             isDestructive: true, suppressionKey: "delete-item")
         static let deleteAllConfirmation = Confirmation(
-            "Delete all clipboard history?",
+            "Delete All Clipboard History?",
             message: "Every item that is not pinned is deleted. Pinned items stay. This cannot be undone.",
             confirmTitle: "Delete All", isDestructive: true)
 
@@ -211,9 +211,9 @@ nonisolated enum Strings {
     }
 
     enum Status {
-        static let needsAccess = "Clipboard history cannot see what you copy"
+        static let needsAccess = "Clipboard History Cannot See What You Copy"
         static let needsAccessMessage = "Allow Paste from Other Apps, so new copies can be saved."
-        static let paused = "Recording is paused"
+        static let paused = "Recording Is Paused"
         static let pausedMessage = "Nothing you copy is saved until you resume. Your history stays."
     }
 
@@ -267,7 +267,7 @@ nonisolated enum Strings {
         /// Asked before a shorter time to keep items, which deletes the older ones at once.
         static func shortenRetention(to value: Retention) -> Confirmation {
             Confirmation(
-                "Delete items older than \(retentionPhrase(value))?",
+                "Delete Items Older than \(retentionTitle(value))?",
                 message: "Items you copied before then are deleted now. Pinned items stay.",
                 confirmTitle: "Delete Older Items", isDestructive: true)
         }
@@ -275,7 +275,7 @@ nonisolated enum Strings {
         /// Asked before a lower item cap, which deletes the oldest items at once.
         static func lowerItemCap(to count: Int, locale: Locale) -> Confirmation {
             Confirmation(
-                "Keep only the newest \(items(count, locale: locale))?",
+                "Keep Only the Newest \(itemsOption(count, locale: locale))?",
                 message: "Older items beyond that are deleted now. Pinned items stay.",
                 confirmTitle: "Delete Older Items", isDestructive: true)
         }
@@ -283,22 +283,9 @@ nonisolated enum Strings {
         /// Asked before less space for images, which deletes the oldest images at once.
         static func lowerImageSpace(to megabytes: Int, locale: Locale) -> Confirmation {
             Confirmation(
-                "Keep images in at most \(self.megabytes(megabytes, locale: locale))?",
+                "Keep at Most \(self.megabytes(megabytes, locale: locale)) of Images?",
                 message: "The oldest images beyond that are deleted now. Pinned images stay.",
                 confirmTitle: "Delete Older Images", isDestructive: true)
-        }
-
-        /// A time to keep items, inside a sentence.
-        static func retentionPhrase(_ value: Retention) -> String {
-            switch value {
-            case .day: "1 day"
-            case .week: "1 week"
-            case .month: "1 month"
-            case .threeMonths: "3 months"
-            case .sixMonths: "6 months"
-            case .year: "1 year"
-            case .forever: "forever"
-            }
         }
 
         static func primaryActionTitle(_ value: PrimaryAction) -> String {
@@ -308,14 +295,9 @@ nonisolated enum Strings {
             }
         }
 
-        /// An item cap as the picker's menu lists it.
+        /// An item cap as the picker's menu and the question before a lower cap show it.
         static func itemsOption(_ count: Int, locale: Locale) -> String {
             "\(count.formatted(.number.locale(locale))) Items"
-        }
-
-        /// An item cap inside a sentence.
-        static func items(_ count: Int, locale: Locale) -> String {
-            "\(count.formatted(.number.locale(locale))) items"
         }
 
         static func megabytes(_ count: Int, locale: Locale) -> String {
