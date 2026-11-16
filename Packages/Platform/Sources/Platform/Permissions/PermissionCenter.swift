@@ -20,6 +20,11 @@ nonisolated public protocol PermissionSystem: Sendable {
     /// daemon. The center never makes the main thread wait for such a check.
     func checkMayWait(_ permission: Permission) -> Bool
 
+    /// True when the permission can be asked for only while an app runs, that app is not running
+    /// now, and a request would not start it: Automation of a player that is closed. A request for
+    /// it asks nothing. Never prompts. The default is false.
+    func waitsForApp(_ permission: Permission) -> Bool
+
     /// Finds out again, without a prompt, the status of a permission that has no check, such as
     /// Full Disk Access after the user went to System Settings to grant it. Nil when it cannot.
     /// The center calls it only shortly after the user asked for the permission.
@@ -28,6 +33,8 @@ nonisolated public protocol PermissionSystem: Sendable {
 
 extension PermissionSystem {
     public func checkMayWait(_ permission: Permission) -> Bool { true }
+
+    nonisolated public func waitsForApp(_ permission: Permission) -> Bool { false }
 
     public func recheck(_ permission: Permission) async -> PermissionStatus? { nil }
 }
@@ -54,7 +61,9 @@ extension PermissionSystem {
 ///   own grant.
 /// - Automation can be checked only while the target app runs. The center remembers the last
 ///   answer a check found, so while the app is not running the status is that answer, or
-///   `.notDetermined` when no check or request ever found one.
+///   `.notDetermined` when no check or request ever found one. A request for an app that is not
+///   running starts nothing and asks nothing; ``waitsForApp(_:)`` reports it, and settings shows a
+///   sentence in place of a button for it.
 /// - Full Disk Access and Paste from Other Apps have no system prompt. A request that does not
 ///   find them granted opens their pane in System Settings. A second open of the same pane right
 ///   after, as the host does when a request fails, is skipped.
@@ -158,6 +167,8 @@ nonisolated public final class PermissionCenter: PermissionService {
     /// remembered status is never trusted here: when a feature found Full Disk Access missing after
     /// all, asking again is how the memory gets corrected.
     public func request(_ permission: Permission) async -> PermissionStatus {
+        // The target is not running and nothing may start it: there is no one to ask.
+        if system.waitsForApp(permission) { return announceStatus(of: permission) }
         noteAsked(permission)
         if await checkNow(permission) == .granted { return announceStatus(of: permission) }
         if case .protectedFolder(let folder) = permission, Self.fullDiskAccessCovers(folder),
@@ -177,6 +188,12 @@ nonisolated public final class PermissionCenter: PermissionService {
             await openSettings(for: permission)
         }
         return status
+    }
+
+    /// True for Automation of an app that is not running and that a request would not start. A
+    /// request for it asks nothing, so settings offers no button for it. Never prompts.
+    public func waitsForApp(_ permission: Permission) -> Bool {
+        system.waitsForApp(permission)
     }
 
     /// Opens the permission's pane, unless the same pane opened a moment ago.

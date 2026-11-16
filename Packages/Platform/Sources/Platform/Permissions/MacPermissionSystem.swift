@@ -20,7 +20,9 @@ import Kit
 ///
 /// Automation can be checked and asked only while the target app runs. A check never starts it,
 /// so the check of an app that is not running has no answer, and the center reports the last one
-/// it saw. A request starts the app hidden first, then asks: ``AutomationPermission``.
+/// it saw. A request never starts an app the user sees: for an app that is not running it asks
+/// nothing, and ``waitsForApp(_:)`` says so. Only the faceless helpers in
+/// ``AutomationPermission/helpersStartedToAsk`` are started hidden to ask: ``AutomationPermission``.
 nonisolated public final class MacPermissionSystem: PermissionSystem {
     private let home: URL
     private let location = LocationStatusReader()
@@ -98,7 +100,11 @@ nonisolated public final class MacPermissionSystem: PermissionSystem {
             // the pane instead.
             break
         case .automation(let bundleID):
-            return await AutomationPermission.request(bundleID, using: automation)
+            // The one call that may start an app to ask, and only a faceless helper, which shows
+            // nothing and quits by itself.
+            return await AutomationPermission.request(
+                bundleID, using: automation,
+                startingHelper: AutomationPermission.helpersStartedToAsk.contains(bundleID))
         case .fullDiskAccess:
             return await Self.probe(ProtectedLocations.fullDiskAccessTargets(home: home))
         case .protectedFolder(let folder):
@@ -112,6 +118,13 @@ nonisolated public final class MacPermissionSystem: PermissionSystem {
                     : ProtectedLocations.targets(for: folder, home: home, removableVolumes: [], networkVolumes: []))
         }
         return check(permission)
+    }
+
+    /// True for Automation of an app that is not running and that a request would not start, so
+    /// macOS can ask only the first time the user controls that app while it is open.
+    public func waitsForApp(_ permission: Permission) -> Bool {
+        guard case .automation(let bundleID) = permission else { return false }
+        return !AutomationPermission.mayAsk(bundleID, using: automation)
     }
 
     /// Full Disk Access has no check, so after the user went to System Settings the probe runs
@@ -230,24 +243,41 @@ nonisolated public struct LiveAutomationSystem: AutomationSystem {
 ///
 /// - A check never prompts and never starts the app. For an app that is not running it has no
 ///   answer.
-/// - A request starts the app hidden when it is not running, waits until the Apple Event Manager
-///   finds it, then asks. The system prompt shows only then, after the user pressed Grant.
+/// - A request asks a running app, after the user pressed Grant. It starts nothing for an app that
+///   is not running and returns nil, because starting a player such as Music or Spotify, even
+///   hidden, is not what the user asked for. macOS then asks the first time the user controls that
+///   app while it is open.
+/// - The one exception is a faceless helper in ``helpersStartedToAsk``, which the caller names
+///   explicitly: the request starts it hidden, waits until the Apple Event Manager finds it, then
+///   asks.
 nonisolated enum AutomationPermission {
     /// How long a request waits for an app it started to answer.
     static let launchWait: Duration = .seconds(5)
+
+    /// Faceless helpers a request may start hidden to ask. Starting one shows nothing, and it quits
+    /// by itself after a while. System Events is the System feature's way to switch Dark Mode, so
+    /// onboarding and settings can still ask for it before the first use.
+    static let helpersStartedToAsk: Set<String> = ["com.apple.systemevents"]
+
+    /// True when a request for the app can ask now: it runs, or it is a helper a request starts.
+    static func mayAsk(_ bundleID: String, using system: any AutomationSystem) -> Bool {
+        helpersStartedToAsk.contains(bundleID) || system.isRunning(bundleID)
+    }
 
     /// The status without asking. Nil when the app is not running.
     static func check(_ bundleID: String, using system: any AutomationSystem) -> PermissionStatus? {
         status(for: system.determine(bundleID, askingIfNeeded: false))
     }
 
-    /// Asks the user, starting the app hidden first when it is not running. Nil when the app could
-    /// not be started or did not answer in time. Waits for the user's answer.
+    /// Asks the user and waits for the answer. An app that is not running is started hidden first
+    /// only when `startingHelper` is true, which the caller passes for a faceless helper alone;
+    /// otherwise nothing starts and nothing is asked. Nil when the app is not running and was not
+    /// started, could not be started, or did not answer in time.
     @concurrent static func request(
-        _ bundleID: String, using system: any AutomationSystem, wait: Duration = launchWait
+        _ bundleID: String, using system: any AutomationSystem, startingHelper: Bool, wait: Duration = launchWait
     ) async -> PermissionStatus? {
         if !system.isRunning(bundleID) {
-            guard await system.launchHidden(bundleID) else { return nil }
+            guard startingHelper, await system.launchHidden(bundleID) else { return nil }
         }
         // An app that just started answers Apple Events a moment after it shows up as running.
         let deadline = ContinuousClock.now + wait

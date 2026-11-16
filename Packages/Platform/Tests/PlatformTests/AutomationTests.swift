@@ -18,37 +18,83 @@ import Testing
         #expect(system.asks == 0)
     }
 
-    @Test func aRequestStartsTheAppHiddenThenAsks() async {
+    @Test func aRequestForAnAppThatIsNotRunningStartsNothingAndAsksNothing() async {
+        let system = FakeAutomationSystem(running: false)
+        #expect(await AutomationPermission.request(bundleID, using: system, startingHelper: false) == nil)
+        #expect(system.launches == 0)
+        #expect(system.asks == 0)
+    }
+
+    @Test func aRequestStartsAFacelessHelperHiddenThenAsks() async {
         let system = FakeAutomationSystem(running: false)
         system.answerAfterLaunch = noErr
-        #expect(await AutomationPermission.request(bundleID, using: system) == .granted)
+        #expect(await AutomationPermission.request(bundleID, using: system, startingHelper: true) == .granted)
         #expect(system.launches == 1)
         #expect(system.asks == 1)
     }
 
     @Test func aRequestToARunningAppAsksWithoutStartingIt() async {
         let system = FakeAutomationSystem(running: true, answer: OSStatus(errAEEventNotPermitted))
-        #expect(await AutomationPermission.request(bundleID, using: system) == .denied)
+        #expect(await AutomationPermission.request(bundleID, using: system, startingHelper: false) == .denied)
         #expect(system.launches == 0)
     }
 
-    @Test func anAppThatJustStartedIsAskedAgainUntilItAnswers() async {
+    @Test func aHelperThatJustStartedIsAskedAgainUntilItAnswers() async {
         let system = FakeAutomationSystem(running: false)
         system.answerAfterLaunch = noErr
         system.notFoundAsks = 2
-        #expect(await AutomationPermission.request(bundleID, using: system) == .granted)
+        #expect(await AutomationPermission.request(bundleID, using: system, startingHelper: true) == .granted)
         #expect(system.asks == 3)
 
         let silent = FakeAutomationSystem(running: false)
         silent.answerAfterLaunch = OSStatus(procNotFound)
-        #expect(await AutomationPermission.request(bundleID, using: silent, wait: .milliseconds(250)) == nil)
+        #expect(
+            await AutomationPermission.request(
+                bundleID, using: silent, startingHelper: true, wait: .milliseconds(250)) == nil)
     }
 
-    @Test func anAppThatCannotStartIsNeverAsked() async {
+    @Test func aHelperThatCannotStartIsNeverAsked() async {
         let system = FakeAutomationSystem(running: false)
         system.launchSucceeds = false
-        #expect(await AutomationPermission.request(bundleID, using: system) == nil)
+        #expect(await AutomationPermission.request(bundleID, using: system, startingHelper: true) == nil)
         #expect(system.asks == 0)
+    }
+
+    /// The players Media Controls names, and anything else that is not a faceless helper, are
+    /// asked only while they run. A request through the live system starts none of them.
+    @Test func theLiveSystemStartsNoPlayerToAsk() async {
+        for player in ["com.apple.Music", "com.spotify.client", "com.apple.finder"] {
+            let fake = FakeAutomationSystem(running: false)
+            let live = MacPermissionSystem(homeDirectory: URL(filePath: "/synthetic/home"), automation: fake)
+            let permission = Permission.automation(bundleID: player)
+            #expect(live.waitsForApp(permission))
+            #expect(await live.request(permission) == nil)
+            #expect(fake.launches == 0)
+            #expect(fake.asks == 0)
+
+            fake.setRunning(true, answer: OSStatus(errAEEventWouldRequireUserConsent))
+            #expect(!live.waitsForApp(permission), "a running app can be asked")
+        }
+    }
+
+    /// System Events is the one faceless helper a request may start hidden, by an explicit choice
+    /// at the one call in MacPermissionSystem.
+    @Test func theLiveSystemStartsSystemEventsHiddenToAsk() async {
+        let fake = FakeAutomationSystem(running: false)
+        fake.answerAfterLaunch = noErr
+        let live = MacPermissionSystem(homeDirectory: URL(filePath: "/synthetic/home"), automation: fake)
+        let systemEvents = Permission.automation(bundleID: "com.apple.systemevents")
+        #expect(AutomationPermission.helpersStartedToAsk == ["com.apple.systemevents"])
+        #expect(!live.waitsForApp(systemEvents))
+        #expect(await live.request(systemEvents) == .granted)
+        #expect(fake.launches == 1)
+    }
+
+    @Test func onlyAutomationWaitsForAnApp() {
+        let live = MacPermissionSystem(
+            homeDirectory: URL(filePath: "/synthetic/home"), automation: FakeAutomationSystem(running: false))
+        #expect(!live.waitsForApp(.accessibility))
+        #expect(!live.waitsForApp(.protectedFolder(.desktop)))
     }
 
     @Test func theLiveSystemsChecksGoThroughTheSeam() {

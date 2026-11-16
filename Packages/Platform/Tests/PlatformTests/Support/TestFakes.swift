@@ -16,6 +16,7 @@ nonisolated final class FakePermissionSystem: PermissionSystem {
         var slowChecks: [Permission: Duration] = [:]
         var rechecks: [Permission: PermissionStatus] = [:]
         var recheckCount = 0
+        var waiting: Set<Permission> = []
     }
 
     let state = Mutex(State())
@@ -75,6 +76,17 @@ nonisolated final class FakePermissionSystem: PermissionSystem {
 
     func open(settingsURL: URL) async {
         state.withLock { $0.openedURLs.append(settingsURL) }
+    }
+
+    /// Plays an Automation target that is not running and that a request would not start.
+    func setWaiting(_ permission: Permission, _ waits: Bool) {
+        state.withLock { state in
+            if waits { state.waiting.insert(permission) } else { state.waiting.remove(permission) }
+        }
+    }
+
+    func waitsForApp(_ permission: Permission) -> Bool {
+        state.withLock { $0.waiting.contains(permission) }
     }
 }
 

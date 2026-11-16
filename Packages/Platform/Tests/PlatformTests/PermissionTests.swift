@@ -333,6 +333,22 @@ import Testing
         #expect(system.recheckCount == 0)
     }
 
+    @Test func aRequestForAnAppThatIsNotRunningAsksNothingAndSaysSo() async {
+        let center = makeCenter()
+        let player = Permission.automation(bundleID: "com.example.player")
+        system.setAnswer(.granted, for: player)
+        system.setWaiting(player, true)
+        #expect(center.waitsForApp(player))
+        #expect(await center.request(player) == .notDetermined)
+        #expect(system.requests.isEmpty, "the system was never asked, so nothing could start the app")
+        #expect(system.openedURLs.isEmpty)
+
+        system.setWaiting(player, false)
+        #expect(!center.waitsForApp(player))
+        #expect(await center.request(player) == .granted)
+        #expect(system.requests == [player])
+    }
+
     @Test func automationKeepsTheLastAnswerWhileTheAppIsNotRunning() async {
         let center = makeCenter()
         let events = Permission.automation(bundleID: "com.example.events")
