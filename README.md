@@ -59,7 +59,7 @@ The [latency rules](docs/ARCHITECTURE.md#latency-rules) say how. No file, networ
 
 ### Real Liquid Glass
 
-The panel is one `NSGlassEffectView`, the system's own Liquid Glass, not a blur imitation. Glass shows its full look only while its window is key. So Slick keeps a single key panel and draws the action panel, previews, confirmations and forms inside it. It makes the panel key before it shows it, so the first frame of a summon already has the finished look.
+Slick draws the panel in `NSGlassEffectView`, the system's own Liquid Glass, not a blur imitation. Glass shows its full look only while its window is key. So Slick keeps a single key panel and draws the action panel, previews, confirmations and forms inside it. It makes the panel key before it shows it, so the first frame of a summon already has the finished look.
 
 <table>
   <tr>
@@ -74,6 +74,45 @@ The panel is one `NSGlassEffectView`, the system's own Liquid Glass, not a blur 
     <td width="50%" valign="top">
       <img src="site/media/clip-themes-dark.gif" width="380" alt="A recording of Slick's search panel in dark mode over a purple gradient wallpaper, with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm red and Violet uses a purple lens. The themes were switched through the theme setting, not the settings window. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.">
       <br><sub>Switching themes restyles the open panel at once. The theme editor and sharing are still in progress.</sub>
+    </td>
+  </tr>
+</table>
+
+Two more built-in themes change the shape and the clarity of the glass. Pick one in Settings, under Appearance.
+
+Beam is modeled on the search panel of macOS 27, with the query in a capsule of glass and the results in a separate container below it.
+
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="site/media/clip-beam-dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="site/media/clip-beam-light.gif">
+  <img src="site/media/clip-beam-light.gif" width="720" alt="A recording of Slick's search panel in the Beam theme, in the dark or light mode of your GitHub theme, over a matching gradient wallpaper. Beam draws two pieces of glass: a tall capsule that holds the search field and a glowing caret, and below it, apart from it, a rounded container of results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.">
+</picture>
+
+<sub>Typing "cal" narrows the results, and Command-K opens the action panel inside the results container. Each row shows the Command-digit shortcut that runs it.</sub>
+
+</div>
+
+Clear draws Standard's panel in the system's clear glass, its most translucent style, with no tint. Nothing frosts the window behind it, so the panel's text carries a soft halo instead. Over a busy or bright window, that text can be hard to read.
+
+<div align="center">
+
+<img src="site/media/clip-clear-dark.gif" width="720" alt="A recording of Slick's search panel in the Clear theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. Clear's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.">
+
+<sub>The About page of Slick's settings window stays sharp behind Clear's glass.</sub>
+
+</div>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="site/media/glass-standard-dark.png" width="380" alt="Slick's search panel in the Standard theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The frosted, tinted glass blurs the app icon and the lines of text behind it into soft shapes. The picture beside it shows the same scene in the Clear theme. Captured from the assembled app running a scripted scenario, with Apple's own apps.">
+      <br><sub>Standard: frosted glass blurs the window behind the panel.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="site/media/glass-clear-dark.png" width="380" alt="Slick's search panel in the Clear theme, dark mode, with “cal” typed and Calculator selected, over the same About page. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it, and the panel's text carries a soft dark halo. The picture beside it shows the same scene in the Standard theme. Captured from the assembled app running a scripted scenario, with Apple's own apps.">
+      <br><sub>Clear: the same window stays sharp through the glass.</sub>
     </td>
   </tr>
 </table>
@@ -146,7 +185,7 @@ As of 2026-11-15, 11 of 25 features are available and 14 are in progress.
 
 | In progress | What it does |
 |---|---|
-| Themes | Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher; the editor and sharing are not tested in the app yet. |
+| Themes | Seven built-in themes, including Beam, modeled on the search panel of macOS 27, and Clear, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher; the editor and sharing are not tested in the app yet. |
 | Updates | Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. No release has shipped the updater yet, so it has not run on a Mac. |
 
 #### Built-in tools
