@@ -47,15 +47,16 @@ import LauncherUI
         }
     }
 
-    /// A started runtime, a panel prewarmed and summoned.
+    /// A started runtime, with `features` besides the test features, and a panel prewarmed and
+    /// summoned.
     static func make(
         rows: [Row] = SampleRows.all, fallbacks: [Row] = [], settings: [String: SettingStorage] = [:],
-        themes: ThemeStore? = nil, summon: Bool = true
+        themes: ThemeStore? = nil, summon: Bool = true, features: [FeatureRegistration] = []
     ) async -> PanelFixture {
         _ = NSApplication.shared
         let runtime = RuntimeFixture()
         for (name, value) in settings { runtime.fakes.settings.set(value, for: HostSettings.namespace + "." + name) }
-        await runtime.start()
+        await runtime.start(more: features)
         let fixture = PanelFixture(
             runtime: runtime, root: FakeRootSource(rows: rows, fallbacks: fallbacks), themes: themes)
         fixture.panel.prewarm()

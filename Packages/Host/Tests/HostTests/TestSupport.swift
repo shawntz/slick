@@ -436,10 +436,12 @@ nonisolated enum ShelfSettings {
         runtime.pipeline.presenter = presenter
     }
 
-    func start() async {
-        await runtime.start([
-            FeatureRegistration(Workbench.self), FeatureRegistration(Relay.self), FeatureRegistration(Watcher.self),
-        ])
+    /// Registers and activates the test features, then `more`.
+    func start(more: [FeatureRegistration] = []) async {
+        await runtime.start(
+            [
+                FeatureRegistration(Workbench.self), FeatureRegistration(Relay.self), FeatureRegistration(Watcher.self),
+            ] + more)
     }
 
     var workbench: Workbench { runtime.instance("workbench") as! Workbench }
