@@ -1,0 +1,11 @@
+{
+  "name": "net finds the Network settings pane before Next Track, so Return never touches the player",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "net" },
+    { "waitUntilIdle": 15 },
+    { "expect": { "selection": "Network", "rowsInclude": ["Network", "Next Track"] } },
+    { "dismiss": true }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Play or Pause says what plays in the simulated player, and Next Track skips ahead",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "play or pause" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "selection": "Play or Pause" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "hud": "Playing “Example Song One” by Example Artist" } },
+    { "summon": true },
+    { "press": "escape" },
+    { "type": "next track" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "Next Track" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "hud": "Playing “Example Song Two” by Example Artist", "launched": [] } }
+  ]
+}

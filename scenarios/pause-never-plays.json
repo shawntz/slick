@@ -1,0 +1,14 @@
+{
+  "name": "Typing pause and pressing Return never starts the paused player",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "pause" },
+    { "waitUntilIdle": 15 },
+    { "expect": { "selection": "Pause" } },
+    { "press": "return" },
+    { "waitUntilIdle": 15 },
+    { "expect": { "visible": false } },
+    { "app": { "hud": "Music Is Already Paused" } }
+  ]
+}

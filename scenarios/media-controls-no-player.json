@@ -1,0 +1,24 @@
+{
+  "name": "With no player running, Play or Pause asks before it opens the preferred player, and Cancel opens nothing",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "setSettings": { "media.simulatedQuit": "com.apple.Music" } } },
+    { "summon": true },
+    { "type": "play or pause" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "selection": "Play or Pause" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "card": "Open Music?", "visible": true } },
+    { "press": "escape" },
+    { "expect": { "card": "", "visible": true } },
+    { "app": { "launched": [] } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "card": "Open Music?" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "launched": ["com.apple.Music"], "hud": "Opened Music" } }
+  ]
+}

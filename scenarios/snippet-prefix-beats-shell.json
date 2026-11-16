@@ -1,0 +1,12 @@
+{
+  "name": "A snippet keyword behind the prefix > still finds the snippet, not a shell command",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "setSettings": { "snippets.keywordPrefix": ">" } } },
+    { "summon": true },
+    { "type": ">;date" },
+    { "waitUntilIdle": 15 },
+    { "expect": { "selection": "Today's Date" } },
+    { "dismiss": true }
+  ]
+}

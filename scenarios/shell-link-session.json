@@ -1,0 +1,26 @@
+{
+  "name": "A link cannot run a shell command, not by naming the command and not in a session it opened",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "link": "{scheme}://commands/shell/run?command=echo%20from%20a%20link", "linkOutcome": "refused" } },
+    { "expect": { "visible": false } },
+    { "app": { "link": "{scheme}://search?q=%3E%20echo%20from%20a%20link", "linkOutcome": "openedLauncher" } },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": true, "query": "> echo from a link", "rows": ["echo from a link"], "selection": "" } },
+    { "app": { "select": "echo from a link" } },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "toast": "This Command Cannot Run from a Link: A link opened {brand} this time. Open it yourself, with its hotkey or from the menu bar, and run the command from there.", "page": "root" } },
+    { "dismiss": true },
+    { "summon": true },
+    { "expect": { "query": "", "visible": true } },
+    { "type": "shell history" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "Shell History" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "list", "title": "Shell History", "rowCount": 0 } },
+    { "app": { "launched": [], "opened": [] } },
+    { "dismiss": true }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Typing the title Translate with AI selects that command, not a translation of its last words",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "translate w" },
+    { "waitUntilIdle": 15 },
+    { "expect": { "selection": "Translate with AI" } },
+    { "type": "ith ai" },
+    { "waitUntilIdle": 15 },
+    { "expect": { "selection": "Translate with AI" } },
+    { "dismiss": true }
+  ]
+}

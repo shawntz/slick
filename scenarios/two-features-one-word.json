@@ -1,0 +1,22 @@
+{
+  "name": "A word that two features answer: translate, note with and without a space, and color",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "translate" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rows": ["Translate", "Translate with AI", "Translate Selection", "Search Google Translate", "Search Google for \"translate\"", "Search Wikipedia for \"translate\""], "selection": "Translate" } },
+    { "press": "escape" },
+    { "type": "note" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rows": ["Notes", "Create Note", "Append to Note", "Search Notes", "Turn On Snippet Expansion", "Search Google for \"note\"", "Search Wikipedia for \"note\""], "selection": "Notes" } },
+    { "type": " " },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rows": ["Notes", "Create Note", "Append to Note", "Search Notes", "Turn On Snippet Expansion", "Search Google for \"note \"", "Search Wikipedia for \"note \""], "selection": "Notes" } },
+    { "press": "escape" },
+    { "type": "color" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rows": ["Color History", "Pick Color", "Search Colors", "Search Google for \"color\"", "Search Wikipedia for \"color\""], "selection": "Color History" } },
+    { "dismiss": true }
+  ]
+}

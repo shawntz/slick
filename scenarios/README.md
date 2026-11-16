@@ -1,6 +1,6 @@
 # Scenarios
 
-Each file here drives the whole launcher end to end: the real panel, the real root search and all sixteen features, in the `scenario` run environment. Services are inert, apps come from the Apps feature's synthetic tree under `com.example`, and data lives in a temporary folder. Each feature serves its own made-up data: a calendar day with a meeting about to start, a few contacts, browser bookmarks, a file index of 3,000 names, dictionary entries, menus of an "Example Editor" and a simulated on-device model.
+Each file here drives the whole launcher end to end: the real panel, the real root search and all twenty-one features, in the `scenario` run environment. Services are inert, apps come from the Apps feature's synthetic tree under `com.example`, and data lives in a temporary folder. Each feature serves its own made-up data: a calendar day with a meeting about to start, a few contacts, browser bookmarks, a file index of 3,000 names, dictionary entries, menus of an "Example Editor", a simulated on-device model, a simulated shell that starts no process, a color sampler that returns Rebecca Purple, a table of made-up translations and a music player with three made-up songs. Notes keeps its notes in the run's own data folder.
 
 The run's clock reads UTC and US English, so hours, dates and numbers read the same on every Mac. It follows the real time until a `setTime` step moves it forward.
 
@@ -67,6 +67,9 @@ An app step is `{ "app": { ... } }`. Its actions run first, in the order of this
 | `theme` | string | the selected theme, and the panel draws it |
 | `featuresActive` | object | each feature, by ID, is active or not |
 | `fallbacksOn` | strings | the IDs of the fallbacks that are on, in the order root search shows them |
+| `selectedSubtitle` | string | the selected row's subtitle on the top page, `""` for none |
+| `detailMetadata` | object | each label of the top detail page's metadata shows exactly this text, such as `{ "Status": "Exited with status 0" }`. Tags read as their texts joined by commas |
+| `filter` | string | the title of the option the top list's dropdown shows |
 
 Host's expectations include `card`: the title of the confirmation or permission card waiting for an answer, `""` for none, and `largeType`: the text Large Type showed last, `""` for none. A `toast` expectation writes `{brand}` for the app's name. Host's `clickLink` step clicks a link the detail shows, by its target. A `tab` press moves into a command's argument chips when they show, as the search field does.
 
@@ -80,6 +83,7 @@ A file with `"systemApps": true` shows Apple's own apps with their real icons an
 - Wait for idle before a Return that closes the panel when the scenario is about the results, as a person sees them first. A Return pressed while an async section still loads is fine too: closing the panel cancels that section and the root page is idle again.
 - Schedule's made-up day has a meeting five minutes after the run's clock starts, so every empty state offers "Join Design Review". A scenario about the empty state turns Schedule off with `setFeatures`.
 - Name only made-up apps, people, files and links.
+- Media Controls' simulated Music runs from the start. To show what happens when no player runs, quit it with `{ "app": { "setSettings": { "media.simulatedQuit": "com.apple.Music" } } }`, a setting only the simulated players read.
 
 ## The files
 
@@ -131,12 +135,24 @@ A file with `"systemApps": true` shows Apple's own apps with their real icons an
 | deep-links-new-features.json | a link to each command of Calculator, Dictionary, Schedule, Contacts, Bookmarks, AI, Menu Items and File Search asks before it runs; a link to a feature that is off is refused. None of these eight has a hidden command |
 | calculator-and-app.json | with `systemApps`, Apple's Calculator app leads "calculator" and launches, the calculator still answers "12 * 12", and "time" leads with Time Machine while the current time answers in its own section |
 | typing-at-launch.json | with `startsBeforeReady`, "cal" typed before the apps are scanned keeps the text and shows what is ready; the next keystroke finds Calendar and Return launches it |
-| link-session-refusals.json | links to Import Snippets and Import Quicklinks are refused; in a session a search link opened, Return on Import Snippets is refused with a toast and asks for no file, while the next session the user opens runs it; a destructive question in a link session starts on Cancel, so Return cancels it |
+| link-session-refusals.json | links to Import Snippets and Import Quicklinks are refused; in a session a search link opened, Return on Import Snippets is refused with a toast and asks for no file, while the next session the user opens starts with an empty field and runs it once typed; a destructive question in a link session starts on Cancel, so Return cancels it |
 | dropdown-value-refused.json | a link that gives Clear Recent Clipboard History a period it does not offer asks first, then is refused with a toast that names the argument, and the history keeps its item |
 | detail-links.json | in an Ask AI answer, a web link opens at once and a link to another app's scheme shows its full target in a toast first; the toast's Open, first in the action panel, opens it |
 | large-type.json | a calculator answer offers Show in Large Type, and Command-L closes the panel and shows "144" in Large Type |
 | file-actions.json | with File Search on, a made-up file in the run's home folder offers every file action, and Command-D duplicates it twice as "plan copy.rs" and "plan copy 2.rs", never over another file |
 | import-snippets.json | Import Snippets reads a made-up Raycast file from the open dialog, lists two to add and one not valid, imports on Return with a toast of the counts, and the new snippet is found in root search |
 | import-quicklinks.json | Import Quicklinks reads a made-up Raycast file, imports the web link and turns off the one for another app, which root search then does not offer |
+| shell-commands.json | a command typed after `>` shows as one row with the whole command, Return opens the simulated shell's output with its end status and the page's actions; a command typed after two spaces runs and leaves Shell History empty, and the next one is kept |
+| shell-link-session.json | a link that names Run Shell Command is refused; in a session a search link opened, Return on the `>` row is refused with a toast, the next summon starts with an empty field, and Shell History stays empty |
+| notes.json | `note` and text in root search saves a note with a HUD, Append to Note adds a line to it, and Search Notes finds it by a word of the added line |
+| colors.json | Pick Color copies the simulated sampler's color and Color History lists it; a typed hex color shows its conversions, offers Show in Large Type and copies on Return; a contrast query answers with the ratio |
+| translate.json | `tr Bonjour` fills its row with the simulated translation, Return copies it and Command-L shows it in Large Type; a pair that is not installed names the language to download and opens Translation Languages; the Translate page translates the search field and its language menu changes the language |
+| media-controls.json | Play or Pause says what the simulated Music plays now, and Next Track skips to the next song |
+| media-controls-no-player.json | with the simulated Music quit, Play or Pause asks before it opens a player, Cancel opens nothing, and Open launches Music |
+| two-features-one-word.json | which row comes first for words two features answer: `translate` leads with Translate, `note` with and without a space leads with the Notes app, and `color` leads with Color History |
+| translate-with-ai.json | typing the title Translate with AI selects that command at each step, not a translation of its last words |
+| net-finds-network.json | `net` selects the Network settings pane before Next Track, so Return never touches the player |
+| snippet-prefix-beats-shell.json | with the snippet keyword prefix set to `>`, `>;date` selects the snippet, because an answer that claims the top beats Shell's takeover |
+| pause-never-plays.json | `pause` selects Pause, and Return on it leaves the paused simulated Music paused and says so |
 
 `FastTypingTests` in App's tests adds a slow async provider to the joined app and types faster than it answers. `OneItemTwoRowsTests` adds a file search that finds an app's own bundle, which the scenario environment's file index cannot hold, and checks that the app shows once.
