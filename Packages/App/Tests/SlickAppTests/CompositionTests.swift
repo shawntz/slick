@@ -40,7 +40,7 @@ struct CompositionTests {
                 environment: .selftest, dataRoot: folder.url, rootStorage: .inMemory, hotkeys: hotkeys,
                 makesPanel: false))
         await assembly.start(prewarm: false)
-        _ = await SelfTest.within(.seconds(20)) { await assembly.root.ready() }
+        _ = await SelfTest.within(.seconds(20)) { await assembly.ready() }
 
         // Root's services reach the features.
         let usage = assembly.services.usage
@@ -96,14 +96,51 @@ struct CompositionTests {
         let running = ItemID.command(feature: "apps", command: "running")
         #expect(try open("commands/apps/running") == .asked(running))
         #expect(try open("commands/apps/running") == .asked(running))
-        links.allowAlways(running)
-        #expect(links.alwaysAllowed == [running])
+        let runningEntry = try #require(assembly.runtime.command(running))
+        links.allowAlways(runningEntry, arguments: [:])
+        #expect(
+            links.alwaysAllowed == [
+                LinkAllowances.Entry(command: running, arguments: [:], title: "Running Applications")
+            ])
         #expect(try open("commands/apps/running") == .ran(running))
 
         // A command that is switched off does not run, even when allowed.
         assembly.runtime.preferences.setEnabled(false, command: running)
         #expect(try open("commands/apps/running") == .refused(.commandOff))
 
+        // A command that keeps out of deep links is refused before the page that asks, and even
+        // after Always Allow. Snippets' Fill In Snippet is hidden and pastes at once.
+        let fill = ItemID.command(feature: "snippets", command: "fill")
+        #expect(assembly.runtime.command(fill)?.command.allowsDeepLinks == false)
+        #expect(try open("commands/snippets/fill") == .refused(.commandRefusesLinks))
+        links.allowAlways(try #require(assembly.runtime.command(fill)), arguments: [:])
+        #expect(try open("commands/snippets/fill") == .refused(.commandRefusesLinks))
+        #expect(!links.outcomes.contains(.asked(fill)))
+        #expect(!links.outcomes.contains(.ran(fill)))
+
+        await assembly.shutdown()
+    }
+
+    /// An allowance whose command is gone, or has another title now, is dropped before the next
+    /// command link, so a script saved later where an allowed one was does not inherit it.
+    @Test func allowancesForGoneOrRenamedCommandsAreDropped() async throws {
+        let folder = Folder()
+        defer { folder.remove() }
+        let assembly = Assembly(
+            .init(environment: .selftest, dataRoot: folder.url, rootStorage: .inMemory, makesPanel: false))
+        await assembly.start(prewarm: false)
+        let links = assembly.links
+        let store = LinkAllowances.settings(assembly.services.settings)
+        let running = ItemID.command(feature: "apps", command: "running")
+        let kept = LinkAllowances.Entry(command: running, arguments: [:], title: "Running Applications")
+        let renamed = LinkAllowances.Entry(command: running, arguments: ["x": "1"], title: "Old Title")
+        let gone = LinkAllowances.Entry(
+            command: .command(feature: "scripts", command: "removed"), arguments: [:], title: "Removed Script")
+        for entry in [kept, renamed, gone] { LinkAllowances.add(entry, in: store) }
+
+        let outcome = links.handle(try #require(URL(string: Brand.urlScheme + "://commands/apps/running")))
+        #expect(outcome == .ran(running))
+        #expect(links.alwaysAllowed == [kept])
         await assembly.shutdown()
     }
 

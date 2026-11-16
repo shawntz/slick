@@ -5,9 +5,15 @@ import KitHosting
 import SettingsUI
 import os
 
-/// Acts on deep links. Opening the launcher and settings happens at once. A command never runs
+/// Acts on deep links. Opening the launcher and settings happens at once, but a link that opens
+/// the launcher selects no row, so Return runs nothing the link chose. A command never runs
 /// silently: unless the user chose to always allow that command from links, the panel opens on a
-/// page that names the command and its arguments and offers Run Once, Always Allow and Cancel.
+/// page that names the command and its arguments and offers Run, Always Allow and Cancel, with
+/// Cancel selected and Run and Always Allow waiting a second. Always Allow covers exactly the
+/// arguments shown, and only while the command keeps its title: see ``LinkAllowances``. A command
+/// that keeps out of deep links, with `allowsDeepLinks: false`, is refused before that page shows,
+/// even when the user chose Always Allow for it. A panel session a link opened copies instead of
+/// pasting.
 @MainActor final class DeepLinkRouter {
     /// What a link did, for tests and scenarios.
     enum Outcome: Equatable {
@@ -19,10 +25,6 @@ import os
         case refused(DeepLinkError)
     }
 
-    /// Where the always-allowed commands are stored, beside ``HostSettings``.
-    static let settingsNamespace = "app.links"
-    static let allowedCommands = SettingKey("allowedCommands", default: [String]())
-
     private let runtime: FeatureRuntime
     private let panel: PanelController?
     private let settings: SettingsOpener
@@ -32,17 +34,20 @@ import os
     private(set) var outcomes: [Outcome] = []
     /// How many outcomes ``outcomes`` keeps.
     static let keptOutcomes = 64
+    /// What the page that asks counts its wait on. The services' clock; tests replace it.
+    var clock: any ClockService
 
     init(runtime: FeatureRuntime, panel: PanelController?, settings: SettingsOpener) {
         self.runtime = runtime
         self.panel = panel
         self.settings = settings
-        store = FeatureSettings(featureID: Self.settingsNamespace, service: runtime.services.settings)
+        clock = runtime.services.clock
+        store = LinkAllowances.settings(runtime.services.settings)
     }
 
-    /// The commands that run from links without asking, as `cmd:` IDs.
-    var alwaysAllowed: Set<ItemID> {
-        Set(store[Self.allowedCommands].compactMap(ItemID.init(rawValue:)))
+    /// The commands that run from links without asking, each with the exact arguments allowed.
+    var alwaysAllowed: [LinkAllowances.Entry] {
+        LinkAllowances.entries(in: store)
     }
 
     /// Reads a URL and acts on it. Returns what it did.
@@ -85,11 +90,13 @@ import os
             let id = ItemID.command(feature: featureID, command: commandID)
             guard let entry = runtime.command(id) else { throw .unknownCommand }
             guard entry.isEnabled else { throw .commandOff }
+            guard entry.command.allowsDeepLinks else { throw .commandRefusesLinks }
             let declared = Set(entry.command.arguments.map(\.name))
             if let unknown = arguments.keys.sorted().first(where: { !declared.contains($0) }) {
                 throw .unknownArgument(unknown)
             }
-            if alwaysAllowed.contains(id) {
+            dropGoneAllowances()
+            if LinkAllowances.allows(id, arguments: arguments, title: entry.command.title, in: store) {
                 run(id, arguments: arguments)
                 return .ran(id)
             }
@@ -100,11 +107,10 @@ import os
 
     // MARK: Acting
 
+    /// Opens root search with the link's text typed and no row selected, so Return runs nothing
+    /// until the user types or moves the selection.
     private func openLauncher(query: String?) {
-        guard let panel else { return }
-        panel.popToRoot()
-        panel.summon()
-        panel.setQuery(query ?? "")
+        panel?.showRootForLink(query: query ?? "")
     }
 
     private func run(_ id: ItemID, arguments: [String: String]) {
@@ -112,60 +118,49 @@ import os
         runtime.pipeline.runCommand(id, arguments: arguments, launch: .deeplink)
     }
 
-    /// Stores that the command may run from links without asking.
-    func allowAlways(_ id: ItemID) {
-        var stored = store[Self.allowedCommands]
-        guard !stored.contains(id.rawValue) else { return }
-        stored.append(id.rawValue)
-        store[Self.allowedCommands] = stored.sorted()
+    /// Stores that the command may run from links without asking, with exactly these arguments
+    /// and while it keeps its title.
+    func allowAlways(_ entry: CommandEntry, arguments: [String: String]) {
+        LinkAllowances.add(
+            LinkAllowances.Entry(command: entry.id, arguments: arguments, title: entry.command.title), in: store)
     }
 
-    /// Opens the panel on a page that asks before the command runs.
+    /// Drops every allowance whose command is gone or has another title now, so a script saved
+    /// later where an allowed one was does not inherit it. Runs before each command link. A
+    /// command of a feature that is switched off stays known, so its allowances stay; Script
+    /// Commands lists no scripts while it is off, so theirs go.
+    func dropGoneAllowances() {
+        let runtime = runtime
+        let dropped = LinkAllowances.removeAll(in: store) { allowance in
+            runtime.command(allowance.command)?.command.title == allowance.title
+        }
+        if dropped > 0 { log.info("dropped \(dropped, privacy: .public) link allowances") }
+    }
+
+    /// Opens the panel on a page that asks before the command runs, with Cancel selected. See
+    /// ``LinkConsentSource`` for the wait before Run and Always Allow work.
     private func ask(_ entry: CommandEntry, arguments: [String: String]) {
         guard let panel else { return }
         let id = entry.id
-        let title = entry.command.title
-        let detail = AppStrings.linkArguments(arguments)
-        let runOnce = Row(
-            id: ItemID("app-link", "run"), title: AppStrings.linkRunOnce(title), subtitle: detail,
-            icon: .symbol("play.fill"), memory: .never)
-        let always = Row(
-            id: ItemID("app-link", "always"), title: AppStrings.linkAlwaysAllow,
-            subtitle: AppStrings.linkAlwaysAllowDetail(title), icon: .symbol("checkmark.shield"), memory: .never)
-        let cancel = Row(
-            id: ItemID("app-link", "cancel"), title: AppStrings.linkCancel, icon: .symbol("xmark"), memory: .never)
-        let page = ListPage(
-            sections: [ListSection(AppStrings.linkSection, id: "link", rows: [runOnce, always, cancel])],
-            title: AppStrings.linkPageTitle,
-            actions: { [weak self] row in
-                let key = row.id.key
-                let label =
-                    switch key {
-                    case "run": AppStrings.linkRunOnce(title)
-                    case "always": AppStrings.linkAlwaysAllow
-                    default: AppStrings.linkCancel
-                    }
-                return [
-                    Action(label, id: "link." + key) { _ in
-                        guard let self else { return .keepOpen }
-                        switch key {
-                        case "run":
-                            self.run(id, arguments: arguments)
-                            return .keepOpen
-                        case "always":
-                            self.allowAlways(id)
-                            self.run(id, arguments: arguments)
-                            return .keepOpen
-                        default:
-                            return .popToRoot
-                        }
-                    }
-                ]
-            })
-        let origin = RunOrigin(
-            featureID: HostSettings.namespace, feature: runtime.hostContext, launch: .deeplink)
-        panel.popToRoot()
-        panel.summon()
-        panel.push(panel.makePage(.list(page), origin: origin))
+        let source = LinkConsentSource(
+            commandTitle: entry.command.title, arguments: arguments,
+            alwaysDetail: AppStrings.linkAlwaysAllowDetail(entry.command.title, hasArguments: !arguments.isEmpty),
+            clock: clock
+        ) { [weak self] choice in
+            guard let self else { return }
+            switch choice {
+            case .run:
+                run(id, arguments: arguments)
+            case .always:
+                allowAlways(entry, arguments: arguments)
+                run(id, arguments: arguments)
+            case .cancel:
+                break
+            }
+        }
+        let origin = RunOrigin(featureID: HostSettings.namespace, feature: runtime.hostContext, launch: .deeplink)
+        let page = panel.makePage(.list(ListPage(source, title: AppStrings.linkPageTitle)), origin: origin)
+        (page as? ListPageController)?.preferredSelection = LinkConsentSource.cancelID
+        panel.pushForLink(page)
     }
 }

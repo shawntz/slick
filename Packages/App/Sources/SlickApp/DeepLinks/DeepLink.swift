@@ -215,6 +215,9 @@ nonisolated enum DeepLinkError: Error, Equatable, Sendable {
     // Found by the router, which knows what exists.
     case unknownCommand
     case commandOff
+    /// The command declares `allowsDeepLinks: false`. Refused before the page that asks, and even
+    /// when the user chose Always Allow for it.
+    case commandRefusesLinks
     case unknownArgument(String)
     case unknownPane
     case unknownFeature
