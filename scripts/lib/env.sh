@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared setup for every script in scripts/. Source it; do not run it.
 #
 # Sets ROOT to the repository root, puts the Rust toolchain on PATH, pins the macOS deployment
@@ -21,33 +22,55 @@ done < "$ROOT/support/brand.env"
 # Name of the app bundle that scripts/bundle.sh writes.
 export APP_BUNDLE="$BRAND_NAME.app"
 
-# timeout(1) ships with macOS only from 27.2. On an older system, such as a hosted CI runner, this
-# stand-in runs a command, ends it after the given number of seconds and returns 124, as
-# timeout(1) does. The command reads no input, which none of the callers need.
+# Ends a process and every process under it, the deepest first, so no child is left behind
+# under another parent.
+end_tree() { # <pid>
+    local child
+    for child in $(pgrep -P "$1" 2> /dev/null); do
+        end_tree "$child"
+    done
+    kill -TERM "$1" 2> /dev/null || true
+}
+
+# Runs a command for at most the given number of seconds. When the time runs out, it ends the
+# command and every process the command started, and returns 124, as timeout(1) does. Otherwise it
+# returns the command's own status. The command stays in the caller's process group, and an
+# interrupt or a TERM that reaches this shell, such as a person's Ctrl-C under make, ends the
+# command's processes too. The command reads no input.
+time_limit() { # <seconds> <command...>
+    local seconds=$1 status=0 pid watchdog marker old_int old_term
+    shift
+    marker=$(mktemp -u "${TMPDIR:-/tmp}/slick-time-limit.XXXXXX")
+    "$@" < /dev/null &
+    pid=$!
+    (
+        sleep "$seconds" &
+        wait "$!" 2> /dev/null
+        : > "$marker"
+        end_tree "$pid"
+    ) > /dev/null 2>&1 &
+    watchdog=$!
+    old_int=$(trap -p INT)
+    old_term=$(trap -p TERM)
+    trap 'end_tree "$pid"' INT TERM
+    wait "$pid" 2> /dev/null || status=$?
+    eval "${old_int:-trap - INT}"
+    eval "${old_term:-trap - TERM}"
+    if [ -e "$marker" ]; then
+        status=124
+    else
+        # The command ended first, or was ended. Stop the watchdog and its sleep.
+        end_tree "$watchdog"
+    fi
+    wait "$watchdog" 2> /dev/null || true
+    rm -f "$marker"
+    return "$status"
+}
+
+# timeout(1) ships with macOS only from 27.2. On an older system, such as a hosted CI runner,
+# time_limit stands in for it. Callers pass only a number of seconds and a command.
 if ! command -v timeout > /dev/null 2>&1; then
     timeout() { # <seconds> <command...>
-        local seconds=$1 status=0 pid watchdog marker
-        shift
-        marker=$(mktemp -u "${TMPDIR:-/tmp}/slick-timeout.XXXXXX")
-        "$@" &
-        pid=$!
-        (
-            sleep "$seconds" &
-            wait "$!" 2> /dev/null
-            : > "$marker"
-            kill -TERM "$pid" 2> /dev/null
-        ) > /dev/null 2>&1 &
-        watchdog=$!
-        wait "$pid" 2> /dev/null || status=$?
-        if [ -e "$marker" ]; then
-            status=124
-        else
-            # The command ended first. Stop the watchdog and its sleep.
-            pkill -TERM -P "$watchdog" 2> /dev/null || true
-            kill -TERM "$watchdog" 2> /dev/null || true
-        fi
-        wait "$watchdog" 2> /dev/null || true
-        rm -f "$marker"
-        return "$status"
+        time_limit "$@"
     }
 fi

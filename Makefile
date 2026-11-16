@@ -8,8 +8,10 @@
 #   make run              build, then launch through LaunchServices (for people, not agents)
 #   make selftest         build, then run --selftest directly and through LaunchServices
 #   make test             every Rust and Swift test (make -j4 test runs them in parallel)
-#   make test-rust        every Rust test
+#   make test-rust        every Rust test, ended after RUST_TEST_TIMEOUT seconds (default 900)
 #   make test-<Pkg>       one Swift package's tests, for example make test-Kit
+#   make test-scripts     the scripts that install, publish pictures and bound test runs, in a
+#                         temporary folder that never reaches the Mac or the site
 #   make bench            latency tables from the app bundle (NAME=<bench> picks one)
 #   make scenario S=<f>   scripted UI run from scenario file <f>
 #   make lint             rustfmt, clippy, swift format, manifest, brand and LaunchServices checks
@@ -40,7 +42,7 @@ RUST_LINKED_TESTS := test-CoreBridge test-Root test-App
 SWIFT_SOURCES = $(foreach d,$(PACKAGE_DIRS),$(wildcard $(d)/Package.swift $(d)/Sources $(d)/Tests))
 
 .DEFAULT_GOAL := app
-.PHONY: help bootstrap core app run selftest test test-rust bench scenario lint fmt xcode clean $(TEST_TARGETS)
+.PHONY: help bootstrap core app run selftest test test-rust test-scripts bench scenario lint fmt xcode clean $(TEST_TARGETS)
 
 help:
 	@sed -n 's/^#   //p' $(MAKEFILE_LIST)
@@ -62,10 +64,17 @@ run: app
 selftest: app
 	@$(SCRIPTS)/selftest.sh "$(APP)"
 
-test: test-rust $(TEST_TARGETS)
+test: test-rust test-scripts $(TEST_TARGETS)
 
+# A hung Rust test fails the run instead of hanging it. time_limit, in scripts/lib/env.sh, ends cargo
+# and every test process under it after RUST_TEST_TIMEOUT seconds and returns 124. The workspace
+# takes under a minute on a loaded Mac.
+RUST_TEST_TIMEOUT ?= 900
 test-rust:
-	@$(CARGO) test --locked --workspace
+	@. $(SCRIPTS)/lib/env.sh && time_limit $(RUST_TEST_TIMEOUT) $(CARGO) test --locked --workspace
+
+test-scripts:
+	@$(SCRIPTS)/test-scripts.sh
 
 $(RUST_LINKED_TESTS): core
 
