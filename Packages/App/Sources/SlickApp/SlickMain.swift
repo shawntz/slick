@@ -10,8 +10,8 @@ public enum SlickMain {
     nonisolated static let timeoutStatus: Int32 = 3
 
     /// Runs the mode that `arguments` ask for. `arguments` starts with the executable path, like
-    /// `CommandLine.arguments`. Returns the exit status for arguments that cannot be parsed;
-    /// every mode that parses runs an application and ends the process itself.
+    /// `CommandLine.arguments`. Returns the exit status for arguments that cannot be parsed and for
+    /// `--version`; every other mode runs an application and ends the process itself.
     public static func run(arguments: [String]) -> Int32 {
         let options: LaunchOptions
         do {
@@ -20,6 +20,11 @@ public enum SlickMain {
         } catch {
             printError("\(Brand.name): \(error.message)\n\(LaunchMode.usage)")
             return usageStatus
+        }
+        if options.mode == .version {
+            // Before any folder, window, menu bar item or hotkey. main.swift exits with the status.
+            print(VersionLine.text(info: Bundle.main.infoDictionary ?? [:]))
+            return 0
         }
         let folders = RunFolders.resolve(options, currentDirectory: FileManager.default.currentDirectoryPath)
         switch options.mode {
@@ -33,6 +38,8 @@ public enum SlickMain {
             ModeHost.run(name: "bench", limit: .seconds(600)) {
                 await BenchMode.run(only: name, folders: folders)
             }
+        case .version:
+            return 0
         case .scenario(let path):
             let current = FileManager.default.currentDirectoryPath
             let file = LaunchOptions.fileURL(path, currentDirectory: current)

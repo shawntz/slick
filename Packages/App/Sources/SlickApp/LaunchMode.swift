@@ -11,12 +11,17 @@ nonisolated enum LaunchMode: Equatable, Sendable {
     case bench(name: String?)
     /// `--scenario <file>`: a scripted UI run with captures and assertions.
     case scenario(path: String)
+    /// `--version`: print the name, the version and the build number, and exit before the app makes
+    /// any window, menu bar item or hotkey. dyld has loaded every linked framework by then, so a
+    /// bundle whose framework is missing or wrongly signed fails at once.
+    case version
 
-    /// The run environment of the mode. Only the launcher touches the real Mac.
+    /// The run environment of the mode. Only the launcher touches the real Mac. `--version` ends
+    /// before any environment is built, and counts as a run outside the live launcher.
     var environment: RunEnvironment {
         switch self {
         case .launcher: .live
-        case .selftest: .selftest
+        case .selftest, .version: .selftest
         case .bench: .bench
         case .scenario: .scenario
         }
@@ -25,7 +30,7 @@ nonisolated enum LaunchMode: Equatable, Sendable {
     /// The first word of the verdict line the mode prints last, such as "selftest PASS".
     var verdictName: String? {
         switch self {
-        case .launcher: nil
+        case .launcher, .version: nil
         case .selftest: "selftest"
         case .bench: "bench"
         case .scenario: "scenario"
@@ -34,12 +39,13 @@ nonisolated enum LaunchMode: Equatable, Sendable {
 
     /// The usage text printed when the arguments cannot be parsed.
     static let usage = """
-        usage: <app> [--selftest | --bench [name] | --scenario <file> [--output <folder>]] [--data-dir <folder>]
+        usage: <app> [--selftest | --bench [name] | --scenario <file> [--output <folder>] | --version] [--data-dir <folder>]
           (no flag)           run the launcher
           --selftest          start every feature without UI, query root search, print a verdict and exit
           --bench [name]      print latency tables, measured inside the app bundle
           --scenario <file>   run a scripted UI scenario
           --output <folder>   where a scenario writes result.json and its captures
+          --version           print the name, the version and the build number, and exit
           --data-dir <folder> use this data folder instead of the default
         """
 }
@@ -128,6 +134,9 @@ nonisolated struct LaunchOptions: Equatable, Sendable {
                 throw UsageError("--scenario needs exactly one file")
             }
             return .scenario(path: path)
+        case "--version":
+            guard rest.isEmpty else { throw UsageError("--version takes no arguments") }
+            return .version
         default:
             throw UsageError("unknown argument \(first)")
         }
