@@ -201,6 +201,17 @@ final class DetailTextView: NSView, NSTextViewDelegate {
         return result
     }
 
+    /// The targets of the links in the text, in order, each once per run.
+    var linkTargets: [URL] {
+        guard let storage = textView.textStorage else { return [] }
+        var targets: [URL] = []
+        storage.enumerateAttribute(.link, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
+            let url = (value as? URL) ?? (value as? String).flatMap(URL.init(string:))
+            if let url { targets.append(url) }
+        }
+        return targets
+    }
+
     // MARK: NSTextViewDelegate
 
     func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {

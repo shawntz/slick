@@ -124,6 +124,27 @@ struct DetailStylingTests {
         #expect(plain != green)
     }
 
+    /// The pane lists the links it shows, in the body and the metadata, and a click on one hands
+    /// its target to `onOpenLink`; it opens nothing itself.
+    @Test func thePaneListsItsLinksAndAClickHandsOneOn() {
+        _ = NSApplication.shared
+        let pane = makePane()
+        var clicked: [String] = []
+        pane.onOpenLink = { clicked.append($0.absoluteString) }
+        pane.apply(
+            DetailContent(
+                body: .markdown("See [the docs](https://example.com/docs) or [the app](exampleapp://open?item=7)."),
+                metadata: [.link("Source", text: "example.org", url: "https://example.org/")]))
+        #expect(
+            pane.linkTargets.map(\.absoluteString) == [
+                "https://example.com/docs", "exampleapp://open?item=7", "https://example.org/",
+            ])
+        #expect(pane.clickLink(target: "exampleapp://open?item=7"))
+        #expect(pane.clickLink(target: "https://example.org/"))
+        #expect(!pane.clickLink(target: "exampleapp://other"), "a link the pane does not show")
+        #expect(clicked == ["exampleapp://open?item=7", "https://example.org/"])
+    }
+
     @Test func richTextKeepsSizesAndColoursWithinTheRules() throws {
         _ = NSApplication.shared
         let pane = makePane()

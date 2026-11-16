@@ -127,6 +127,24 @@ public final class DetailPane: NSView, LauncherContentView {
     /// The body text shown now, for tests and accessibility.
     public var bodyText: String { textView.string }
 
+    /// Every link the pane shows, in the body's text and then in the metadata, as a click hands it
+    /// to ``onOpenLink``. For inspection and scenarios.
+    public var linkTargets: [URL] {
+        var targets = textView.linkTargets
+        for item in content.metadata {
+            if case .link(_, _, let target) = item, let url = URL(string: target) { targets.append(url) }
+        }
+        return targets
+    }
+
+    /// Clicks the shown link whose target is `target`, as a person would: ``onOpenLink`` gets it.
+    /// False when the pane shows no such link.
+    @discardableResult public func clickLink(target: String) -> Bool {
+        guard let url = linkTargets.first(where: { $0.absoluteString == target }) else { return false }
+        onOpenLink?(url)
+        return true
+    }
+
     override public func layout() {
         super.layout()
         guard let theme else { return }
