@@ -2,7 +2,7 @@ import Foundation
 import KitHosting
 
 /// Onboarding's Optional Features step without its window, for scenarios: the model the window
-/// shows, walked from Welcome to the step, its switches set as a person would leave them, then
+/// shows, put on the step, its switches set as a person would leave them, then
 /// Continue, which applies them. Nothing is shown and onboarding is not marked done.
 public enum OnboardingRehearsal {
     /// Sets each optional feature's switch by feature ID and continues past the step. Returns the
@@ -12,12 +12,8 @@ public enum OnboardingRehearsal {
     ) async -> [String] {
         let model = OnboardingModel(context: SettingsContext(dependencies), onFinish: {})
         var problems: [String] = []
-        while model.step < .features {
-            let before = model.step
-            await model.next()
-            if model.step == before { break }
-        }
-        guard model.step == .features else {
+        // Straight to the step: Continue on the hotkey step could turn a macOS shortcut off.
+        guard model.show(.features) else {
             return ["onboarding has no Optional Features step: no feature is off by default"]
         }
         let listed = Set(model.optionalFeatures.map(\.id))

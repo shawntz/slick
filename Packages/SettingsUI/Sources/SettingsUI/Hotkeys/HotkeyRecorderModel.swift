@@ -209,11 +209,11 @@ struct HotkeyTarget {
         switch state {
         case .idle, .recording: nil
         case .review(let combo, let conflicts):
-            "\(combo.displayString) is used by \(owners(conflicts)). Replace it?"
+            "\(owners(conflicts)) uses \(combo.displayString). Replace it?"
         case .blocked(let combo, let conflicts):
-            "\(combo.displayString) is used by \(owners(conflicts)), which keeps it. Choose another."
+            "\(owners(conflicts)) uses \(combo.displayString) and keeps it. Choose other keys."
         case .held(let combo, let conflicts):
-            "\(owners(conflicts)) holds \(combo.displayString) for now. \(Brand.name) takes it as soon as you turn that shortcut off."
+            "\(owners(conflicts)) already uses \(combo.displayString). \(Brand.name) can use it after you turn off that shortcut in System Settings."
         case .message(let text): text
         }
     }

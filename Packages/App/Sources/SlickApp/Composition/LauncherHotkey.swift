@@ -18,6 +18,14 @@ import os
 /// - Another binding or the system refuses it otherwise. The last working combination stays bound,
 ///   ``onRefusal`` runs, and the refusal is retried after the next change to the item hotkeys,
 ///   because settings clears an item's hotkey right after it gives the combination to the launcher.
+///
+/// When the macOS shortcut is one of Spotlight's own, the wait says it can be turned off, and
+/// ``turnOffSystemShortcut()`` turns it off through the hotkey service and binds the hotkey. Only
+/// the person's Continue on onboarding's hotkey step, the General pane's button and the menu bar
+/// menu's item call it, never the launcher by itself. A try that leaves the keys taken changes
+/// nothing else and marks the wait ``LauncherHotkeyWait/turnOffFailed``. A shortcut turned off this
+/// way is noted, with the time, under ``turnedOffNote``, so the General pane can offer to turn it
+/// back on once the launcher uses other keys.
 @MainActor final class LauncherHotkey: LauncherHotkeyStatus {
     /// The ID the hotkey is registered under with ``HotkeyService``.
     static let bindingID = "app.launcher"
@@ -50,6 +58,19 @@ import os
     var onRefusal: ((KeyCombo, any Error) -> Void)?
     /// Called when a combination that waited behind a macOS shortcut is bound, for a HUD.
     var onBoundAfterWait: ((KeyCombo) -> Void)?
+    /// The combination whose shortcut the app tried to turn off and could not, while it still waits.
+    private var failedTurnOff: KeyCombo?
+
+    /// What the app keeps about a Spotlight shortcut it turned off: which one, its keys and when.
+    nonisolated struct TurnedOffNote: CodableSettingValue, Hashable {
+        var number: Int
+        var owner: String
+        var keys: String
+        var date: Date
+    }
+
+    /// The note in the general settings. Nil until the app turns a shortcut off.
+    static let turnedOffNote = SettingKey("turnedOffSystemShortcut", default: TurnedOffNote?.none)
 
     /// True while the timer that checks a waiting hotkey runs.
     var isRechecking: Bool { recheck != nil }
@@ -119,6 +140,52 @@ import os
         apply()
     }
 
+    // MARK: Turning a macOS shortcut off
+
+    /// Turns off the macOS shortcut the hotkey waits for and binds the hotkey, when the wait says
+    /// the app can. True when the hotkey is bound afterwards. A try that leaves the keys taken
+    /// changes nothing else and marks the wait as failed, so every place offers the advice instead.
+    func turnOffSystemShortcut() async -> Bool {
+        guard let wait, wait.canTurnOff else { return false }
+        let combo = wait.combo
+        guard let shortcut = await hotkeys.turnOffSystemShortcut(for: combo) else {
+            log.error("could not turn off the macOS shortcut on \(combo.description, privacy: .public)")
+            if self.wait?.combo == combo {
+                failedTurnOff = combo
+                settle(bound: nil, wait: LauncherHotkeyWait(combo: combo, owner: wait.owner, turnOffFailed: true))
+            }
+            return false
+        }
+        log.info("turned off \(shortcut.owner, privacy: .public)'s shortcut \(shortcut.number) for the launcher")
+        general[Self.turnedOffNote] = TurnedOffNote(
+            number: shortcut.number, owner: shortcut.owner, keys: combo.description, date: clock.now)
+        apply()
+        return bound == combo
+    }
+
+    /// The Spotlight shortcut the app turned off, while the launcher hotkey uses other keys and the
+    /// shortcut is still off. Reads the system's shortcuts, so it is not for a hot path.
+    var turnedOffShortcut: TurnedOffShortcut? {
+        guard let note = general[Self.turnedOffNote], let combo = KeyCombo(parsing: note.keys),
+            general[HostSettings.launcherHotkey] != combo,
+            !hotkeys.conflicts(for: combo).contains(where: \.isSystemShortcut)
+        else { return nil }
+        return TurnedOffShortcut(combo: combo, owner: note.owner, date: note.date)
+    }
+
+    /// Turns the noted shortcut back on, as it was turned off, and forgets the note. True when the
+    /// system took it.
+    func turnShortcutBackOn() async -> Bool {
+        guard let note = general[Self.turnedOffNote] else { return false }
+        guard await hotkeys.turnOnSystemShortcut(SystemShortcut(number: note.number, owner: note.owner)) else {
+            log.error("could not turn \(note.owner, privacy: .public)'s shortcut \(note.number) back on")
+            return false
+        }
+        general[Self.turnedOffNote] = nil
+        statusChanges.send()
+        return true
+    }
+
     /// Makes the binding match the setting.
     func apply() {
         let wanted = general[HostSettings.launcherHotkey]
@@ -167,7 +234,11 @@ import os
             log.info(
                 "launcher hotkey \(combo.description, privacy: .public) waits for \(holder.owner, privacy: .public)")
         }
-        settle(bound: nil, wait: LauncherHotkeyWait(combo: combo, owner: holder.owner))
+        let failed = failedTurnOff == combo
+        settle(
+            bound: nil,
+            wait: LauncherHotkeyWait(
+                combo: combo, owner: holder.owner, canTurnOff: holder.canTurnOff && !failed, turnOffFailed: failed))
         if isNew || recheck == nil { startRechecking() }
     }
 
@@ -176,6 +247,7 @@ import os
         let changed = newBound != bound || newWait != wait
         bound = newBound
         wait = newWait
+        if newWait?.combo != failedTurnOff { failedTurnOff = nil }
         if newWait == nil { stopRechecking() }
         if changed { statusChanges.send() }
     }

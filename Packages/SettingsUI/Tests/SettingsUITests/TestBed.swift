@@ -70,17 +70,28 @@ import LauncherUI
     static let show = ItemID.command(feature: "helper", command: "show")
 }
 
-/// The launcher hotkey's binding as a test sets it. ``checkNow()`` counts calls.
+/// The launcher hotkey's binding as a test sets it. ``checkNow()`` counts calls. Turning a
+/// shortcut off works like the app's: it binds the waited combination, or, when ``turnOffWorks``
+/// is false, marks the wait as failed.
 @MainActor final class FakeLauncherHotkeyStatus: LauncherHotkeyStatus {
     let statusChanges = ChangeSignal()
     var bound: KeyCombo? = KeyCombo(.space, .command)
     var wait: LauncherHotkeyWait?
     private(set) var checks = 0
+    /// Whether the next turn-off frees the keys.
+    var turnOffWorks = true
+    private(set) var turnOffs = 0
+    var turnedOffShortcut: TurnedOffShortcut?
+    /// Whether turning the shortcut back on works.
+    var turnBackOnWorks = true
+    private(set) var turnBackOns = 0
 
-    /// Plays the app waiting behind a macOS shortcut.
-    func startWaiting(_ combo: KeyCombo = KeyCombo(.space, .command), owner: String = "Spotlight") {
+    /// Plays the app waiting for a macOS shortcut. `canTurnOff` plays one of Spotlight's own.
+    func startWaiting(
+        _ combo: KeyCombo = KeyCombo(.space, .command), owner: String = "Spotlight", canTurnOff: Bool = false
+    ) {
         bound = nil
-        wait = LauncherHotkeyWait(combo: combo, owner: owner)
+        wait = LauncherHotkeyWait(combo: combo, owner: owner, canTurnOff: canTurnOff)
         statusChanges.send()
     }
 
@@ -93,6 +104,26 @@ import LauncherUI
 
     func checkNow() {
         checks += 1
+    }
+
+    func turnOffSystemShortcut() async -> Bool {
+        turnOffs += 1
+        guard let wait, wait.canTurnOff else { return false }
+        guard turnOffWorks else {
+            self.wait = LauncherHotkeyWait(combo: wait.combo, owner: wait.owner, turnOffFailed: true)
+            statusChanges.send()
+            return false
+        }
+        bindWaited()
+        return true
+    }
+
+    func turnShortcutBackOn() async -> Bool {
+        turnBackOns += 1
+        guard turnBackOnWorks else { return false }
+        turnedOffShortcut = nil
+        statusChanges.send()
+        return true
     }
 }
 

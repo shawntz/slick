@@ -79,7 +79,8 @@ import os
             settings: assembly.services.settings, updates: assembly.updates,
             openLauncher: { [weak assembly] in assembly?.panel?.summon() },
             openSettings: { [weak assembly] in assembly?.settings.open() },
-            openKeyboardSettings: { Task { try? await workspace.open(SpotlightShortcutGuide.keyboardSettingsURL) } })
+            openKeyboardSettings: { Task { try? await workspace.open(SpotlightShortcutGuide.keyboardSettingsURL) } },
+            turnOffShortcut: { [weak assembly] in Task { await assembly?.turnOffLauncherShortcut() } })
         statusItem = status
         // The menu bar item comes first: while the hotkey waits behind Spotlight, it is the only
         // way to open the launcher.

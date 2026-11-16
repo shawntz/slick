@@ -3,8 +3,10 @@ import KitHosting
 import Observation
 
 /// The general pane: the launcher hotkey, open at login, the menu bar item, where and how big the
-/// panel opens, when it returns to root search, and updates. While a macOS shortcut holds the
-/// launcher hotkey, the pane says so under the recorder, with a button that opens Keyboard settings.
+/// panel opens, when it returns to root search, and updates. While a macOS shortcut uses the
+/// launcher hotkey's keys, the pane says so under the recorder, with a button that turns Spotlight's
+/// shortcut off or, for any other shortcut, opens Keyboard settings. Once the launcher uses other
+/// keys, a Spotlight shortcut the app turned off gets a button that turns it back on.
 /// A build that updates itself shows the automatic check switch, an update a scheduled check found,
 /// the time of the last check and Check Now. A build from source says that git updates it.
 @Observable final class GeneralModel {
@@ -59,7 +61,40 @@ import Observation
 
     /// The sentence under the recorder while the hotkey waits.
     var hotkeyWaitNote: String? {
-        hotkeyWait.map(SpotlightShortcutGuide.waitingNote)
+        guard let wait = hotkeyWait else { return nil }
+        if wait.canTurnOff { return SpotlightShortcutGuide.paneNote(wait) }
+        if wait.turnOffFailed { return SpotlightShortcutGuide.failedNote(wait) }
+        return SpotlightShortcutGuide.paneCannotTurnOffNote(wait)
+    }
+
+    /// True while the pane's button turns the macOS shortcut off.
+    private(set) var isTakingKeys = false
+
+    /// Turns off the macOS shortcut that uses the launcher's keys and binds the hotkey. Only the
+    /// pane's Turn Off button calls it. A try that fails leaves the advice under the recorder.
+    func turnOffShortcut() async {
+        guard !isTakingKeys, let status = context.launcherHotkey else { return }
+        isTakingKeys = true
+        revision.bump()
+        _ = await status.turnOffSystemShortcut()
+        isTakingKeys = false
+        revision.bump()
+    }
+
+    /// A Spotlight shortcut the app turned off, while the launcher uses other keys and the shortcut
+    /// is still off, or nil.
+    var turnedOffShortcut: TurnedOffShortcut? {
+        revision.track()
+        return context.launcherHotkey?.turnedOffShortcut
+    }
+
+    /// Turns that shortcut back on. Only the pane's Turn It Back On button calls it.
+    func turnShortcutBackOn() async {
+        guard let status = context.launcherHotkey, let shortcut = status.turnedOffShortcut else { return }
+        if await !status.turnShortcutBackOn() {
+            context.toasts.show(.failure("Could Not Turn \(shortcut.owner)'s Shortcut Back On"))
+        }
+        revision.bump()
     }
 
     /// Opens the Keyboard pane of System Settings, where the shortcut that holds the hotkey lives.

@@ -15,7 +15,8 @@ import Kit
 /// | `sessionStart` | `true` | plays a wake or an unlock on the run's system context |
 /// | `frontApp` | string | puts the app with this bundle ID in front, for the system context and the workspace |
 /// | `pressHotkey` | `true` | does what the launcher hotkey does, through its binding |
-/// | `systemShortcuts` | strings | plays the macOS shortcuts that hold these combinations, as Spotlight holds `cmd+space` on a new Mac; `[]` turns them all off. The launcher notices on its own timer or when settings opens |
+/// | `systemShortcuts` | strings | plays the macOS shortcuts that use these combinations, as Spotlight uses `cmd+space` on a new Mac; `[]` turns them all off. The launcher notices on its own timer or when settings opens. Spotlight's own two, on `cmd+space` and `opt+cmd+space`, can be turned off by the app |
+/// | `turnOffShortcut` | `true` | does what the menu bar menu's Turn Off item does: turns off the macOS shortcut the launcher hotkey waits for, when the app can, in memory only |
 /// | `setFeatures` | object | turns each feature, by ID, on or off |
 /// | `setSettings` | object | sets general settings: `themeName`, `visibleRows`, `inlineCompletion`, `panelSizing`, `launcherHotkey` or `tabCommand`; a name with a dot, such as `windows.showsLayoutName`, sets that feature setting as stored |
 /// | `setHotkey` | object | gives `item` the hotkey `keys`, as settings does; `""` clears it |
@@ -33,6 +34,7 @@ import Kit
 /// | `captureSettings` | string | writes `captures/<name>.png` of the settings window `openSettings` opened |
 /// | `closeSettings` | `true` | closes that window |
 /// | `openOnboarding` | string | opens the real onboarding window on this step, `welcome`, `hotkey`, `features`, `permissions`, `theme` or `done`, at the place `openSettings` uses, without key status; it applies no switch and marks nothing done |
+/// | `continueOnboarding` | `true` | presses Continue on the step the onboarding window `openOnboarding` opened shows, as the person does; on the hotkey step that turns off Spotlight's shortcut when the app can |
 /// | `captureOnboarding` | string | writes `captures/<name>.png` of the onboarding window `openOnboarding` opened |
 /// | `closeOnboarding` | `true` | closes that window |
 /// | `linkOutcome` | string | the last link was `openedLauncher`, `asked`, `ran`, `openedSettings`, `openedFeatureSettings` or `refused` |
@@ -46,7 +48,9 @@ import Kit
 /// | `homeFiles` | strings | each of these paths exists in the run's home folder |
 /// | `openDialogs` | number | how many open dialogs were asked for in the run so far |
 /// | `hotkeyBound` | bool | a launcher hotkey is bound |
-/// | `hotkeyWaiting` | string | the owner of the macOS shortcut the launcher hotkey waits behind, `""` for none |
+/// | `hotkeyWaiting` | string | the owner of the macOS shortcut the launcher hotkey waits for, `""` for none |
+/// | `hotkeyCanTurnOff` | bool | the app can turn off the macOS shortcut the launcher hotkey waits for |
+/// | `onboardingStep` | string | the step the onboarding window shows |
 /// | `launcherHotkey` | string | the launcher hotkey bound now, as `KeyCombo` writes it |
 /// | `hotkeyRefused` | bool | the last `setHotkey` was refused |
 /// | `itemHotkeys` | object | each item ID has exactly this hotkey; `""` for none |
@@ -63,6 +67,7 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var frontApp: String?
     var pressHotkey: Bool?
     var systemShortcuts: [String]?
+    var turnOffShortcut: Bool?
     var setFeatures: [String: Bool]?
     var setSettings: [String: SettingValue]?
     var setHotkey: HotkeyRequest?
@@ -80,6 +85,7 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var captureSettings: String?
     var closeSettings: Bool?
     var openOnboarding: String?
+    var continueOnboarding: Bool?
     var captureOnboarding: String?
     var closeOnboarding: Bool?
     var linkOutcome: String?
@@ -94,6 +100,8 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var openDialogs: Int?
     var hotkeyBound: Bool?
     var hotkeyWaiting: String?
+    var hotkeyCanTurnOff: Bool?
+    var onboardingStep: String?
     var launcherHotkey: String?
     var hotkeyRefused: Bool?
     var itemHotkeys: [String: String]?
@@ -146,14 +154,15 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey, CaseIterable {
         case setTime, advanceClock, sessionStart, frontApp
-        case pressHotkey, systemShortcuts, setFeatures, setSettings, setHotkey, setFallbacks, onboarding
+        case pressHotkey, systemShortcuts, turnOffShortcut, setFeatures, setSettings, setHotkey, setFallbacks,
+            onboarding
         case copyAsOtherApp, makeFiles, chooseFiles, pressKeys, link
         case waitForRow, select, waitUntilReady, openSettings, captureSettings, closeSettings
-        case openOnboarding, captureOnboarding, closeOnboarding
+        case openOnboarding, continueOnboarding, captureOnboarding, closeOnboarding
         case linkOutcome, launched, opened
         case settings
         case aliases, favorites, hud, pasteboardText, homeFiles, openDialogs
-        case hotkeyBound, hotkeyWaiting, launcherHotkey, hotkeyRefused
+        case hotkeyBound, hotkeyWaiting, hotkeyCanTurnOff, onboardingStep, launcherHotkey, hotkeyRefused
         case itemHotkeys
         case theme, featuresActive, fallbacksOn
         case selectedSubtitle, detailMetadata, filter
@@ -187,6 +196,7 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         frontApp = try container.decodeIfPresent(String.self, forKey: .frontApp)
         pressHotkey = try container.decodeIfPresent(Bool.self, forKey: .pressHotkey)
         systemShortcuts = try container.decodeIfPresent([String].self, forKey: .systemShortcuts)
+        turnOffShortcut = try container.decodeIfPresent(Bool.self, forKey: .turnOffShortcut)
         setFeatures = try container.decodeIfPresent([String: Bool].self, forKey: .setFeatures)
         setSettings = try container.decodeIfPresent([String: SettingValue].self, forKey: .setSettings)
         setHotkey = try container.decodeIfPresent(HotkeyRequest.self, forKey: .setHotkey)
@@ -204,6 +214,7 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         captureSettings = try container.decodeIfPresent(String.self, forKey: .captureSettings)
         closeSettings = try container.decodeIfPresent(Bool.self, forKey: .closeSettings)
         openOnboarding = try container.decodeIfPresent(String.self, forKey: .openOnboarding)
+        continueOnboarding = try container.decodeIfPresent(Bool.self, forKey: .continueOnboarding)
         captureOnboarding = try container.decodeIfPresent(String.self, forKey: .captureOnboarding)
         closeOnboarding = try container.decodeIfPresent(Bool.self, forKey: .closeOnboarding)
         linkOutcome = try container.decodeIfPresent(String.self, forKey: .linkOutcome)
@@ -218,6 +229,8 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         openDialogs = try container.decodeIfPresent(Int.self, forKey: .openDialogs)
         hotkeyBound = try container.decodeIfPresent(Bool.self, forKey: .hotkeyBound)
         hotkeyWaiting = try container.decodeIfPresent(String.self, forKey: .hotkeyWaiting)
+        hotkeyCanTurnOff = try container.decodeIfPresent(Bool.self, forKey: .hotkeyCanTurnOff)
+        onboardingStep = try container.decodeIfPresent(String.self, forKey: .onboardingStep)
         launcherHotkey = try container.decodeIfPresent(String.self, forKey: .launcherHotkey)
         hotkeyRefused = try container.decodeIfPresent(Bool.self, forKey: .hotkeyRefused)
         itemHotkeys = try container.decodeIfPresent([String: String].self, forKey: .itemHotkeys)

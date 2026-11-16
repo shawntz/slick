@@ -26,7 +26,7 @@ import KitHosting
 /// | file dialogs | answer as if the user cancelled |
 /// | permissions | all granted, never asks, opens nothing |
 /// | workspace | opens, trashes and launches nothing, knows no apps |
-/// | hotkeys | bookkeeping only, nothing registered with macOS |
+/// | hotkeys | bookkeeping only, nothing registered with macOS; Spotlight's shortcuts turn off only in memory |
 /// | pasteboard | a private pasteboard of its own; a paste sends no keystroke |
 /// | selection | never finds one |
 /// | text expansion | hears no keyboard, types nothing |
@@ -131,12 +131,15 @@ import KitHosting
             let http = URLSessionHTTP()
             let keystrokes = CGEventKeystrokePoster()
             secrets = KeychainSecrets(backend: SecItemKeychain())
-            processes = ProcessRunner(baseEnvironment: ProcessRunner.cleanEnvironment(home: storage.homeDirectory))
+            let processes = ProcessRunner(baseEnvironment: ProcessRunner.cleanEnvironment(home: storage.homeDirectory))
+            self.processes = processes
             self.http = http
             fileDialogs = PanelFileDialogs()
             self.permissions = permissions
             workspace = LiveWorkspace(system: workspaceSystem, catalog: catalog, frontmost: frontmost)
-            hotkeys = HotkeyCenter(system: CarbonHotkeySystem())
+            // The one place a switch that changes the Mac's keyboard shortcuts is made.
+            hotkeys = HotkeyCenter(
+                system: CarbonHotkeySystem(), shortcuts: LiveSpotlightShortcutSwitch(processes: processes))
             self.keystrokes = keystrokes
             pasteboard = LivePasteboard(
                 pasteboard: .general, permissions: permissions, poster: keystrokes, clock: clock,
@@ -174,7 +177,8 @@ import KitHosting
             workspace = LiveWorkspace(
                 system: IsolatedWorkspaceSystem(environment: environment), catalog: ApplicationCatalog(folders: []),
                 frontmost: frontmost)
-            hotkeys = HotkeyCenter(system: InertHotkeySystem())
+            let hotkeySystem = InertHotkeySystem()
+            hotkeys = HotkeyCenter(system: hotkeySystem, shortcuts: InertSpotlightShortcutSwitch(system: hotkeySystem))
             self.keystrokes = keystrokes
             pasteboard = LivePasteboard(pasteboard: board, permissions: permissions, poster: keystrokes, clock: clock)
             privatePasteboard = board

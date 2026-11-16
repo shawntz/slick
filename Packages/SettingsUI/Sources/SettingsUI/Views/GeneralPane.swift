@@ -1,3 +1,4 @@
+import Kit
 import KitHosting
 import SwiftUI
 
@@ -11,14 +12,32 @@ struct GeneralPane: View {
                     HotkeyRecorder(model: model.launcherHotkey, showsHeldNote: model.hotkeyWait == nil)
                 } label: {
                     Text("Hotkey")
-                    Text("Opens the launcher from any app.")
+                    Text("Press it anywhere to open \(Brand.name).")
                 }
-                if let note = model.hotkeyWaitNote {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label(note, systemImage: "hourglass")
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Button(SpotlightShortcutGuide.openButton) { model.openKeyboardSettings() }
+                if let wait = model.hotkeyWait, let note = model.hotkeyWaitNote {
+                    // The button sits under the note's text, not under its hourglass.
+                    Label {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(note)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if wait.canTurnOff {
+                                Button(SpotlightShortcutGuide.turnOffButton(wait)) {
+                                    Task { await model.turnOffShortcut() }
+                                }
+                                .disabled(model.isTakingKeys)
+                            } else {
+                                Button(SpotlightShortcutGuide.openButton) { model.openKeyboardSettings() }
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: "hourglass").foregroundStyle(.secondary)
+                    }
+                } else if let shortcut = model.turnedOffShortcut {
+                    LabeledContent {
+                        Button(SpotlightShortcutGuide.turnBackOnButton) { Task { await model.turnShortcutBackOn() } }
+                    } label: {
+                        Text(SpotlightShortcutGuide.turnedOffNote(shortcut))
                     }
                 }
                 Toggle(isOn: $model.launchAtLogin) {
@@ -29,7 +48,7 @@ struct GeneralPane: View {
                 }
                 if model.isUnreachable {
                     Label(
-                        "With no hotkey and no menu bar item, nothing opens the launcher.",
+                        "With no hotkey and no menu bar item, nothing opens \(Brand.name).",
                         systemImage: "exclamationmark.triangle.fill"
                     )
                     .foregroundStyle(.orange)

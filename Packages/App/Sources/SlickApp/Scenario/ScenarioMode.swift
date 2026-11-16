@@ -284,6 +284,13 @@ enum ScenarioMode {
         if let shortcuts = step.systemShortcuts {
             problems += playSystemShortcuts(shortcuts, hotkeys: assembly.platform.hotkeys)
         }
+        if step.turnOffShortcut == true {
+            if assembly.hotkey.wait?.canTurnOff == true {
+                await assembly.turnOffLauncherShortcut()
+            } else {
+                problems.append("the launcher hotkey waits for no shortcut the app can turn off")
+            }
+        }
         for (featureID, enabled) in (step.setFeatures ?? [:]).sorted(by: { $0.key < $1.key }) {
             guard assembly.runtime.feature(featureID) != nil else {
                 problems.append("no feature \(featureID)")
@@ -424,6 +431,14 @@ enum ScenarioMode {
         if let expected = step.hotkeyWaiting {
             let owner = assembly.hotkey.wait?.owner ?? ""
             if owner != expected { problems.append("the launcher hotkey waited for \(owner), expected \(expected)") }
+        }
+        if let expected = step.hotkeyCanTurnOff, (assembly.hotkey.wait?.canTurnOff ?? false) != expected {
+            problems.append(
+                expected ? "the app cannot turn off the shortcut the hotkey waits for" : "the app can turn it off")
+        }
+        if let expected = step.onboardingStep {
+            let shown = assembly.settings.existingOnboarding?.shownStep.rawValue ?? "none"
+            if shown != expected { problems.append("onboarding showed \(shown), expected \(expected)") }
         }
         if let expected = step.launcherHotkey {
             let bound = assembly.hotkey.bound?.description ?? ""
@@ -636,6 +651,15 @@ enum ScenarioMode {
                 problems.append("no onboarding step \(name); the steps are \(names)")
             }
         }
+        if step.continueOnboarding == true {
+            if let onboarding = assembly.settings.existingOnboarding {
+                await onboarding.pressContinue()
+                // Let the hotkey's change reach the window before anything captures it.
+                for _ in 0..<10 { await Task.yield() }
+            } else {
+                problems.append("no onboarding window to continue; open one with openOnboarding first")
+            }
+        }
         if let name = step.captureOnboarding {
             if let frame = assembly.settings.existingOnboarding?.captureFrame, let runner {
                 do {
@@ -663,7 +687,7 @@ enum ScenarioMode {
     }
 
     /// Makes the run's inert hotkey system report macOS shortcuts on these combinations. Returns the
-    /// problems.
+    /// problems. Spotlight's on its own keys can then be turned off, in memory only.
     static func playSystemShortcuts(_ keys: [String], hotkeys: HotkeyCenter) -> [String] {
         guard let system = hotkeys.system as? InertHotkeySystem else { return ["the hotkey system is not inert"] }
         var shortcuts: [SymbolicHotkey] = []

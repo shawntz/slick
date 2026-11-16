@@ -1,6 +1,10 @@
+import AppKit
+import Foundation
 import Kit
 import KitHosting
 import KitTesting
+import LauncherUI
+import Platform
 import SettingsUI
 import Testing
 
@@ -203,6 +207,122 @@ struct LauncherHotkeyTests {
         fixture.hotkey.stop()
     }
 
+    @Test func turningSpotlightOffBindsTheHotkeyAndNotesIt() async throws {
+        let fixture = Fixture()
+        let spotlight = KeyCombo(.space, .command)
+        fixture.fakes.hotkeys.addSystemShortcut(spotlight, canTurnOff: true)
+        var freed: [KeyCombo] = []
+        fixture.hotkey.onBoundAfterWait = { freed.append($0) }
+        fixture.hotkey.start()
+        #expect(fixture.hotkey.wait == LauncherHotkeyWait(combo: spotlight, owner: "Spotlight", canTurnOff: true))
+        // Nothing is turned off by itself, at start or on a check.
+        fixture.hotkey.checkNow()
+        #expect(fixture.fakes.hotkeys.turnOffRequests.isEmpty)
+        #expect(fixture.general[LauncherHotkey.turnedOffNote] == nil)
+
+        #expect(await fixture.hotkey.turnOffSystemShortcut())
+        #expect(fixture.fakes.hotkeys.turnOffRequests == [spotlight])
+        #expect(fixture.hotkey.bound == spotlight)
+        #expect(fixture.registered == spotlight)
+        #expect(fixture.hotkey.wait == nil)
+        #expect(freed == [spotlight])
+        #expect(!fixture.hotkey.isRechecking)
+        let note = try #require(fixture.general[LauncherHotkey.turnedOffNote])
+        #expect(note.number == 64)
+        #expect(note.owner == "Spotlight")
+        #expect(note.keys == "cmd+space")
+        #expect(note.date == fixture.fakes.clock.now)
+        // While the launcher uses those keys, the pane offers nothing.
+        #expect(fixture.hotkey.turnedOffShortcut == nil)
+        // Bound: another try does nothing.
+        #expect(await !fixture.hotkey.turnOffSystemShortcut())
+        #expect(fixture.fakes.hotkeys.turnOffRequests == [spotlight])
+        fixture.hotkey.stop()
+    }
+
+    @Test func aFailedTryChangesNothingElseAndIsNotRepeated() async throws {
+        let fixture = Fixture()
+        let spotlight = KeyCombo(.space, .command)
+        fixture.fakes.hotkeys.addSystemShortcut(spotlight, canTurnOff: true)
+        fixture.fakes.hotkeys.turnOffFails = true
+        fixture.hotkey.start()
+        #expect(await !fixture.hotkey.turnOffSystemShortcut())
+        #expect(fixture.hotkey.bound == nil)
+        #expect(fixture.registered == nil)
+        #expect(fixture.hotkey.wait == LauncherHotkeyWait(combo: spotlight, owner: "Spotlight", turnOffFailed: true))
+        #expect(fixture.general[LauncherHotkey.turnedOffNote] == nil)
+        #expect(fixture.hotkey.isRechecking)
+        // The wait keeps saying so on later checks, and no other place offers to try again.
+        fixture.hotkey.checkNow()
+        #expect(fixture.hotkey.wait?.turnOffFailed == true)
+        #expect(await !fixture.hotkey.turnOffSystemShortcut())
+        #expect(fixture.fakes.hotkeys.turnOffRequests == [spotlight])
+        // The person turns it off by hand: the next check binds it.
+        fixture.fakes.hotkeys.removeConflicts(for: spotlight)
+        fixture.hotkey.checkNow()
+        #expect(fixture.hotkey.bound == spotlight)
+        // A new wait on the same keys may try again.
+        fixture.general[HostSettings.launcherHotkey] = KeyCombo(.k, [.command, .option])
+        await fixture.fakes.settle()
+        fixture.fakes.hotkeys.addSystemShortcut(spotlight, canTurnOff: true)
+        fixture.general[HostSettings.launcherHotkey] = spotlight
+        await fixture.fakes.settle()
+        #expect(fixture.hotkey.wait?.canTurnOff == true)
+        #expect(fixture.hotkey.wait?.turnOffFailed == false)
+        fixture.hotkey.stop()
+    }
+
+    @Test func anotherMacOSShortcutIsNeverTouched() async throws {
+        let fixture = Fixture()
+        let missionControl = KeyCombo(.upArrow, .control)
+        fixture.fakes.hotkeys.addSystemShortcut(missionControl, owner: "Mission Control")
+        fixture.general[HostSettings.launcherHotkey] = missionControl
+        fixture.hotkey.start()
+        #expect(fixture.hotkey.wait == LauncherHotkeyWait(combo: missionControl, owner: "Mission Control"))
+        #expect(await !fixture.hotkey.turnOffSystemShortcut())
+        #expect(fixture.fakes.hotkeys.turnOffRequests.isEmpty)
+        #expect(fixture.hotkey.wait?.turnOffFailed == false)
+        #expect(fixture.hotkey.bound == nil)
+        fixture.hotkey.stop()
+    }
+
+    @Test func aShortcutTurnedOffIsOfferedBackOnceTheLauncherMoves() async throws {
+        let fixture = Fixture()
+        let spotlight = KeyCombo(.space, .command)
+        fixture.fakes.hotkeys.addSystemShortcut(spotlight, canTurnOff: true)
+        fixture.hotkey.start()
+        #expect(await fixture.hotkey.turnOffSystemShortcut())
+        let other = KeyCombo(.k, [.command, .option])
+        fixture.general[HostSettings.launcherHotkey] = other
+        await fixture.fakes.settle()
+        #expect(fixture.hotkey.bound == other)
+        let offered = try #require(fixture.hotkey.turnedOffShortcut)
+        #expect(offered.combo == spotlight)
+        #expect(offered.owner == "Spotlight")
+        #expect(await fixture.hotkey.turnShortcutBackOn())
+        #expect(fixture.fakes.hotkeys.turnOnRequests == [SystemShortcut(number: 64, owner: "Spotlight")])
+        #expect(fixture.general[LauncherHotkey.turnedOffNote] == nil)
+        #expect(fixture.hotkey.turnedOffShortcut == nil)
+        // Spotlight uses the keys again; the launcher keeps its own.
+        #expect(fixture.fakes.hotkeys.conflicts(for: spotlight).first?.isSystemShortcut == true)
+        #expect(fixture.hotkey.bound == other)
+        #expect(await !fixture.hotkey.turnShortcutBackOn())
+        fixture.hotkey.stop()
+    }
+
+    @Test func aShortcutThePersonTurnedBackOnIsNotOffered() async throws {
+        let fixture = Fixture()
+        let spotlight = KeyCombo(.space, .command)
+        fixture.fakes.hotkeys.addSystemShortcut(spotlight, canTurnOff: true)
+        fixture.hotkey.start()
+        #expect(await fixture.hotkey.turnOffSystemShortcut())
+        fixture.general[HostSettings.launcherHotkey] = KeyCombo(.k, [.command, .option])
+        await fixture.fakes.settle()
+        fixture.fakes.hotkeys.addSystemShortcut(spotlight)
+        #expect(fixture.hotkey.turnedOffShortcut == nil)
+        fixture.hotkey.stop()
+    }
+
     @Test func aRefusedSettingWinsOnceTheConflictIsGone() async throws {
         let fakes = FakeServices()
         let hotkeys = ConflictingHotkeys(base: fakes.hotkeys)
@@ -257,5 +377,46 @@ func waitUntil(_ condition: @MainActor () -> Bool) async throws {
             return
         }
         try await Task.sleep(for: .milliseconds(5))
+    }
+}
+
+/// The menu bar menu's Turn Off, through the whole launcher as a scenario builds it: the inert
+/// switch turns the played shortcut off in memory, and a refused try shows the failure HUD.
+@Suite("Turn off from the menu", .serialized, .timeLimit(.minutes(1)))
+struct TurnOffFromMenuTests {
+    @Test func theMenusTurnOffBindsTheHotkeyOrSaysItCouldNot() async throws {
+        let data = FileManager.default.temporaryDirectory.appending(path: "turn-off-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: data) }
+        _ = NSApplication.shared
+        let surface = LauncherSurface(visibleFrame: ScenarioRunTests.offscreen)
+        let file = ScenarioMode.File(name: "turn off", timeLimit: 20, items: [])
+        let assembly = Assembly(try ScenarioMode.configuration(for: file, dataRoot: data, surface: surface))
+        await assembly.start(prewarm: false)
+        let inert = try #require(assembly.platform.hotkeys.shortcuts as? InertSpotlightShortcutSwitch)
+        let spotlight = KeyCombo(.space, .command)
+        #expect(ScenarioMode.playSystemShortcuts(["cmd+space"], hotkeys: assembly.platform.hotkeys).isEmpty)
+        assembly.general[HostSettings.launcherHotkey] = KeyCombo(.k, [.command, .option])
+        try await waitUntil { assembly.hotkey.bound == KeyCombo(.k, [.command, .option]) }
+        assembly.general[HostSettings.launcherHotkey] = spotlight
+        try await waitUntil { assembly.hotkey.wait?.canTurnOff == true }
+
+        inert.refusesChanges = true
+        await assembly.turnOffLauncherShortcut()
+        #expect(assembly.hotkey.bound == nil)
+        #expect(assembly.hotkey.wait?.turnOffFailed == true)
+        #expect(assembly.recordingHUD?.shown.last?.title == "Could Not Turn Off Spotlight's Shortcut")
+
+        // A new wait may try again, and this time the switch takes it.
+        inert.refusesChanges = false
+        assembly.general[HostSettings.launcherHotkey] = KeyCombo(.k, [.command, .option])
+        try await waitUntil { assembly.hotkey.bound == KeyCombo(.k, [.command, .option]) }
+        assembly.general[HostSettings.launcherHotkey] = spotlight
+        try await waitUntil { assembly.hotkey.wait?.canTurnOff == true }
+        await assembly.turnOffLauncherShortcut()
+        #expect(assembly.hotkey.bound == spotlight)
+        #expect(assembly.recordingHUD?.shown.last?.title == "⌘Space Now Opens \(Brand.name)")
+        #expect(inert.changes.map(\.enabled) == [false, false])
+        #expect(inert.changes.map(\.shortcut) == [.search, .search])
+        await assembly.shutdown()
     }
 }

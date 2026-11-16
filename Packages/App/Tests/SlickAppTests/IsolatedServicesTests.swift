@@ -2,6 +2,7 @@ import Foundation
 import Host
 import Kit
 import KitTesting
+import Platform
 import Testing
 
 @testable import ColorTools
@@ -85,6 +86,35 @@ struct IsolatedServicesTests {
             let disk = context.service(NoteDiskKey.self)
             #expect(throws: DiskError.outsideRun) { try disk.list(outside, limit: 1) }
         }
+    }
+
+    /// The switch that turns Spotlight's shortcuts off reaches the Mac only in the live launcher.
+    /// Every other run gets the inert one over the inert hotkey system, and the Kit service the
+    /// features and the launcher hotkey use is that hotkey center.
+    @Test(arguments: Mode.allCases)
+    func theSpotlightSwitchIsNeverTheLiveOne(_ mode: Mode) async throws {
+        try await withFeature("shell", in: mode) { context, _, _ in
+            #expect(context.hotkeys is HotkeyCenter)
+            let center = try #require(context.hotkeys as? HotkeyCenter)
+            #expect(Self.liveServices(hotkeys: center).isEmpty)
+        }
+    }
+
+    /// The check above reports a live switch, made here and never called.
+    @Test func theSwitchCheckReportsALiveSwitch() {
+        let live = HotkeyCenter(
+            system: InertHotkeySystem(), shortcuts: LiveSpotlightShortcutSwitch(processes: FakeProcesses()))
+        #expect(Self.liveServices(hotkeys: live) == ["spotlight switch"])
+        #expect(Self.liveServices(hotkeys: HotkeyCenter(system: CarbonHotkeySystem())) == ["hotkey system"])
+    }
+
+    static func liveServices(hotkeys: HotkeyCenter) -> [String] {
+        var found: [String] = []
+        if !(hotkeys.system is InertHotkeySystem) { found.append("hotkey system") }
+        if let shortcuts = hotkeys.shortcuts, !(shortcuts is InertSpotlightShortcutSwitch) {
+            found.append("spotlight switch")
+        }
+        return found
     }
 
     // MARK: The checks catch a live service

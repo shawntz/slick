@@ -53,10 +53,15 @@ extension SymbolicHotkey {
 
 /// The live hotkey service: bookkeeping and conflict checks on top of a ``HotkeySystem``.
 ///
-/// A combination conflicts with an enabled system shortcut that uses it, which Slick cannot take
-/// over and which is marked ``HotkeyConflict/isSystemShortcut``, and with any of Slick's own
-/// registrations under another ID, which it can after asking. ``register(_:id:handler:)`` refuses
-/// either kind; the host unregisters the other item first.
+/// A combination conflicts with an enabled system shortcut that uses it, which Slick never
+/// registers over and which is marked ``HotkeyConflict/isSystemShortcut``, and with any of Slick's
+/// own registrations under another ID, which it can take after asking. ``register(_:id:handler:)``
+/// refuses either kind; the host unregisters the other item first.
+///
+/// A system shortcut that is one of Spotlight's own two, as the ``SpotlightShortcutSwitch`` reads
+/// it, is marked ``HotkeyConflict/canTurnOff``, and ``turnOffSystemShortcut(for:)`` turns it off
+/// through that switch, then reads the system's shortcuts again to check that the combination is
+/// free. Every other system shortcut is never touched.
 /// Handlers run on the main actor. Call the service from the main actor: the Carbon calls run on
 /// the main thread, and a call from elsewhere waits for it.
 nonisolated public final class HotkeyCenter: HotkeyService {
@@ -73,12 +78,20 @@ nonisolated public final class HotkeyCenter: HotkeyService {
     }
 
     /// The system the registrations go to. A scenario reaches the inert one through it to play a
-    /// macOS shortcut that holds a combination.
+    /// macOS shortcut that uses a combination.
     public let system: any HotkeySystem
+    /// What turns Spotlight's shortcuts off and on. Only the live launcher passes the live one.
+    public let shortcuts: (any SpotlightShortcutSwitch)?
     private let state = Mutex(State())
 
-    public init(system: any HotkeySystem) {
+    /// - Parameters:
+    ///   - system: Where the registrations go.
+    ///   - shortcuts: What turns Spotlight's shortcuts off and on. Nil makes the inert switch over an
+    ///     ``InertHotkeySystem`` and no switch over any other system, so no conflict can be turned
+    ///     off.
+    public init(system: any HotkeySystem, shortcuts: (any SpotlightShortcutSwitch)? = nil) {
         self.system = system
+        self.shortcuts = shortcuts ?? (system as? InertHotkeySystem).map(InertSpotlightShortcutSwitch.init(system:))
         system.setPressHandler { [weak self] number in
             self?.dispatch(number: number)
         }
@@ -135,11 +148,14 @@ nonisolated public final class HotkeyCenter: HotkeyService {
     /// The conflicts for a combination, leaving out the registration under `id`.
     public func conflicts(for combo: KeyCombo, excluding id: String?) -> [HotkeyConflict] {
         var conflicts: [HotkeyConflict] = []
-        if let mask = CarbonModifiers.mask(for: combo.modifiers, allowingFunction: true) {
-            let usedBySystem = system.symbolicHotkeys().contains {
-                $0.isEnabled && $0.keyCode == combo.key.code && $0.modifiers == mask
-            }
-            if usedBySystem {
+        if let mask = CarbonModifiers.mask(for: combo.modifiers, allowingFunction: true),
+            usedBySystem(combo, mask: mask)
+        {
+            if let spotlight = shortcuts?.shortcut(keyCode: combo.key.code, modifiers: mask) {
+                conflicts.append(
+                    HotkeyConflict(owner: spotlight.owner, canOverride: false, isSystemShortcut: true, canTurnOff: true)
+                )
+            } else {
                 conflicts.append(
                     HotkeyConflict(
                         owner: SystemShortcutNames.owner(of: combo), canOverride: false, isSystemShortcut: true))
@@ -150,6 +166,32 @@ nonisolated public final class HotkeyCenter: HotkeyService {
         }
         conflicts += own.map { HotkeyConflict(owner: $0, canOverride: true) }
         return conflicts
+    }
+
+    /// Turns off the Spotlight shortcut that uses the combination, then reads the system's
+    /// shortcuts again. Returns the shortcut when the combination is free afterwards. Returns nil
+    /// without changing anything when no Spotlight shortcut that is on uses it, which leaves every
+    /// other macOS shortcut alone, and nil when the switch failed or the combination is still taken.
+    @concurrent public func turnOffSystemShortcut(for combo: KeyCombo) async -> SystemShortcut? {
+        guard let shortcuts, let mask = CarbonModifiers.mask(for: combo.modifiers, allowingFunction: true),
+            usedBySystem(combo, mask: mask),
+            let spotlight = shortcuts.shortcut(keyCode: combo.key.code, modifiers: mask)
+        else { return nil }
+        guard await shortcuts.setEnabled(false, spotlight) else { return nil }
+        return usedBySystem(combo, mask: mask) ? nil : spotlight.systemShortcut
+    }
+
+    /// Turns a Spotlight shortcut back on, in the same two steps that turned it off. True when both
+    /// reported success. Any other shortcut is never touched.
+    @concurrent public func turnOnSystemShortcut(_ shortcut: SystemShortcut) async -> Bool {
+        guard let shortcuts, let spotlight = SpotlightShortcut(rawValue: shortcut.number) else { return false }
+        return await shortcuts.setEnabled(true, spotlight)
+    }
+
+    /// True when an enabled macOS shortcut uses the key with these Carbon modifiers, as the system
+    /// reports its shortcuts now.
+    private func usedBySystem(_ combo: KeyCombo, mask: UInt32) -> Bool {
+        system.symbolicHotkeys().contains { $0.isEnabled && $0.keyCode == combo.key.code && $0.modifiers == mask }
     }
 
     /// Runs the handler of the registration with this number. The system's press handler calls

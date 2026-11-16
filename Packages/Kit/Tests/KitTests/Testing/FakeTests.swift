@@ -93,6 +93,40 @@ struct FakeTests {
         #expect(pressed == 1)
     }
 
+    @Test func onlyASystemShortcutMarkedSoIsTurnedOffAndBackOn() async {
+        let hotkeys = FakeHotkeys()
+        let spotlight = KeyCombo(.space, .command)
+        let missionControl = KeyCombo(.upArrow, .control)
+        hotkeys.addSystemShortcut(spotlight, canTurnOff: true)
+        hotkeys.addSystemShortcut(missionControl, owner: "Mission Control")
+        #expect(hotkeys.conflicts(for: spotlight).map(\.canTurnOff) == [true])
+        #expect(hotkeys.conflicts(for: missionControl).map(\.canTurnOff) == [false])
+
+        #expect(await hotkeys.turnOffSystemShortcut(for: missionControl) == nil)
+        #expect(hotkeys.conflicts(for: missionControl).count == 1)
+        hotkeys.turnOffFails = true
+        #expect(await hotkeys.turnOffSystemShortcut(for: spotlight) == nil)
+        #expect(hotkeys.conflicts(for: spotlight).count == 1)
+        hotkeys.turnOffFails = false
+        let shortcut = await hotkeys.turnOffSystemShortcut(for: spotlight)
+        #expect(shortcut == SystemShortcut(number: 64, owner: "Spotlight"))
+        #expect(hotkeys.conflicts(for: spotlight).isEmpty)
+        #expect(hotkeys.turnedOff == [spotlight: SystemShortcut(number: 64, owner: "Spotlight")])
+        #expect(hotkeys.turnOffRequests == [missionControl, spotlight, spotlight])
+
+        #expect(await hotkeys.turnOnSystemShortcut(SystemShortcut(number: 64, owner: "Spotlight")))
+        #expect(hotkeys.conflicts(for: spotlight).map(\.canTurnOff) == [true])
+        #expect(await !hotkeys.turnOnSystemShortcut(SystemShortcut(number: 64, owner: "Spotlight")))
+    }
+
+    /// A hotkey service written before the requests existed still builds, and turns nothing off.
+    @Test func aServiceWithoutTheRequestsTurnsNothingOff() async {
+        let service = OlderHotkeys()
+        #expect(await service.turnOffSystemShortcut(for: KeyCombo(.space, .command)) == nil)
+        #expect(await !service.turnOnSystemShortcut(SystemShortcut(number: 64, owner: "Spotlight")))
+        #expect(HotkeyConflict(owner: "Spotlight", canOverride: false, isSystemShortcut: true).canTurnOff == false)
+    }
+
     @Test func storageLivesInATemporaryFolderThatGoesAway() throws {
         var root: URL?
         do {
@@ -112,4 +146,11 @@ struct FakeTests {
         watcher.simulateChange([URL(filePath: "/tmp/elsewhere/a"), URL(filePath: "/tmp/kit-example/scripts/b.sh")])
         #expect(await changes.next() == [URL(filePath: "/tmp/kit-example/scripts/b.sh")])
     }
+}
+
+/// A hotkey service as one was written before Kit could turn a macOS shortcut off.
+private struct OlderHotkeys: HotkeyService {
+    func register(_ combo: KeyCombo, id: String, handler: @escaping @MainActor @Sendable () -> Void) throws {}
+    func unregister(id: String) {}
+    func conflicts(for combo: KeyCombo) -> [HotkeyConflict] { [] }
 }

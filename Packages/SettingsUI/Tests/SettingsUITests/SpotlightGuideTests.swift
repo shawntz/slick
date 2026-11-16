@@ -20,18 +20,25 @@ import Testing
     }
 
     @Test(.enabled(if: FileManager.default.fileExists(atPath: keyboard.path)))
-    func theStepsUseTheSystemsOwnWords() throws {
+    func theSentencesUseTheSystemsOwnWords() throws {
         let names = try #require(Self.english("InfoPlist"))
         let localizable = try #require(Self.english("Localizable"))
         let shortcuts = try #require(Self.english("DefaultShortcutsTable"))
         let pane = try #require(names["CFBundleDisplayName"] as? String)
         let button = try #require(localizable["Keyboard Shortcuts…"] as? String)
         let row = try #require(shortcuts["Spotlight"] as? String)
-        let checkbox = try #require(shortcuts["Show Spotlight search"] as? String)
-        let steps = SpotlightShortcutGuide.steps
-        #expect(steps[0] == "Open \(pane) in System Settings.")
-        #expect(steps[1] == "Click \(button), then \(row).")
-        #expect(steps[2] == "Turn off \(checkbox).")
+        let search = try #require(shortcuts["Show Spotlight search"] as? String)
+        let finder = try #require(shortcuts["Show Finder search window"] as? String)
+        // The sentences name the button without its ellipsis, as a place.
+        let place = "\(pane), \(button.replacingOccurrences(of: "…", with: "")), \(row)"
+        let wait = LauncherHotkeyWait(combo: KeyCombo(.space, .command), owner: "Spotlight", canTurnOff: true)
+        #expect(SpotlightShortcutGuide.takeOverFootnote(wait).contains("open System Settings, \(place)."))
+        #expect(
+            SpotlightShortcutGuide.failedNote(wait).contains("Turn off \(search) in System Settings, under \(place)."))
+        let finderWait = LauncherHotkeyWait(combo: KeyCombo(.space, [.command, .option]), owner: "Spotlight")
+        #expect(SpotlightShortcutGuide.failedNote(finderWait).contains("Turn off \(finder) in System Settings"))
+        let other = LauncherHotkeyWait(combo: KeyCombo(.upArrow, .control), owner: "Mission Control")
+        #expect(SpotlightShortcutGuide.cannotTurnOffNote(other).contains("in System Settings, under \(pane)."))
     }
 
     @Test(.enabled(if: FileManager.default.fileExists(atPath: keyboard.path)))

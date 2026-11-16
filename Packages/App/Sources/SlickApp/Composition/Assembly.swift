@@ -216,6 +216,16 @@ import os
     /// True while a feature's clipboard history answers the pasteboard's recent text.
     var hasHistoryReader: Bool { historyReader != nil }
 
+    /// Turns off the macOS shortcut the launcher hotkey waits for, as the menu bar menu's item does
+    /// after the person chose it. A success shows the HUD that the hotkey is bound; a failure shows
+    /// one that says the shortcut is still on.
+    func turnOffLauncherShortcut() async {
+        guard let wait = hotkey.wait, wait.canTurnOff else { return }
+        if await !hotkey.turnOffSystemShortcut() {
+            panel?.showHUD(.failure(SpotlightShortcutGuide.turnOffFailedTitle(wait)))
+        }
+    }
+
     // MARK: Lifecycle
 
     /// Starts Platform's monitors, registers and activates the features, connects the services

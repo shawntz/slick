@@ -1,3 +1,4 @@
+import Foundation
 import Kit
 import KitHosting
 import KitHostingTesting
@@ -28,21 +29,81 @@ import Testing
         #expect(!bed.general[HostSettings.showStatusItem])
     }
 
-    @Test func saysUnderTheRecorderWhileAMacOSShortcutHoldsTheHotkey() async {
+    @Test func saysUnderTheRecorderWhileAMacOSShortcutUsesTheKeys() async {
         let bed = TestBed()
         let model = GeneralModel(context: bed.context())
         #expect(model.hotkeyWait == nil)
         #expect(model.hotkeyWaitNote == nil)
 
-        bed.hotkeyStatus.startWaiting()
-        #expect(model.hotkeyWait == LauncherHotkeyWait(combo: KeyCombo(.space, .command), owner: "Spotlight"))
-        #expect(model.hotkeyWaitNote?.hasPrefix("Spotlight holds ⌘Space, so it does not open") == true)
+        let combo = KeyCombo(.upArrow, .control)
+        bed.hotkeyStatus.startWaiting(combo, owner: "Mission Control")
+        #expect(model.hotkeyWait == LauncherHotkeyWait(combo: combo, owner: "Mission Control"))
+        #expect(
+            model.hotkeyWaitNote
+                == "Mission Control uses ⌃↑ right now. To open \(Brand.name) with ⌃↑, turn off that shortcut in "
+                + "System Settings, under Keyboard.")
         model.openKeyboardSettings()
         #expect(await eventually { bed.fakes.workspace.opened == [SpotlightShortcutGuide.keyboardSettingsURL] })
+        // The pane offers no Turn Off for a shortcut the app cannot turn off, and its call does nothing.
+        await model.turnOffShortcut()
+        #expect(model.hotkeyWait?.combo == combo)
 
         bed.hotkeyStatus.bindWaited()
         #expect(model.hotkeyWait == nil)
         #expect(!model.isUnreachable)
+    }
+
+    @Test func turnsSpotlightsShortcutOffWithItsButton() async {
+        let bed = TestBed()
+        let model = GeneralModel(context: bed.context())
+        bed.hotkeyStatus.startWaiting(canTurnOff: true)
+        let wait = model.hotkeyWait
+        #expect(model.hotkeyWaitNote == "⌘Space opens Spotlight, not \(Brand.name).")
+        #expect(wait.map(SpotlightShortcutGuide.turnOffButton) == "Turn Off Spotlight's Shortcut")
+        #expect(bed.hotkeyStatus.turnOffs == 0)
+        await model.turnOffShortcut()
+        #expect(bed.hotkeyStatus.turnOffs == 1)
+        #expect(model.hotkeyWait == nil)
+        #expect(bed.hotkeyStatus.bound == KeyCombo(.space, .command))
+        #expect(!model.isTakingKeys)
+    }
+
+    @Test func aFailedTryFromThePaneLeavesTheAdvice() async {
+        let bed = TestBed()
+        let model = GeneralModel(context: bed.context())
+        bed.hotkeyStatus.startWaiting(canTurnOff: true)
+        bed.hotkeyStatus.turnOffWorks = false
+        await model.turnOffShortcut()
+        #expect(model.hotkeyWait?.turnOffFailed == true)
+        #expect(model.hotkeyWait?.canTurnOff == false)
+        #expect(
+            model.hotkeyWaitNote
+                == "\(Brand.name) could not turn off Spotlight's shortcut. Turn off Show Spotlight search in System "
+                + "Settings, under Keyboard, Keyboard Shortcuts, Spotlight.")
+    }
+
+    @Test func offersToTurnAShortcutTheAppTurnedOffBackOn() async {
+        let bed = TestBed()
+        let context = bed.context()
+        let model = GeneralModel(context: context)
+        #expect(model.turnedOffShortcut == nil)
+        let shortcut = TurnedOffShortcut(
+            combo: KeyCombo(.space, .command), owner: "Spotlight", date: Date(timeIntervalSince1970: 1_800_000_000))
+        bed.hotkeyStatus.turnedOffShortcut = shortcut
+        bed.hotkeyStatus.statusChanges.send()
+        #expect(await eventually { model.turnedOffShortcut == shortcut })
+        #expect(
+            SpotlightShortcutGuide.turnedOffNote(shortcut) == "\(Brand.name) turned off Spotlight's ⌘Space shortcut.")
+        #expect(SpotlightShortcutGuide.turnBackOnButton == "Turn It Back On")
+
+        bed.hotkeyStatus.turnBackOnWorks = false
+        await model.turnShortcutBackOn()
+        #expect(model.turnedOffShortcut == shortcut)
+        #expect(context.toasts.current?.toast.title == "Could Not Turn Spotlight's Shortcut Back On")
+        bed.hotkeyStatus.turnBackOnWorks = true
+        await model.turnShortcutBackOn()
+        #expect(bed.hotkeyStatus.turnBackOns == 2)
+        #expect(model.turnedOffShortcut == nil)
     }
 
     @Test func keepsVisibleRowsInRange() {

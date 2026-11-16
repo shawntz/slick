@@ -10,6 +10,36 @@ public protocol HotkeyService: Sendable {
 
     /// Hotkeys the system or Slick already binds to this combination. Never registers anything.
     func conflicts(for combo: KeyCombo) -> [HotkeyConflict]
+
+    /// Turns off the macOS shortcut that uses the combination, when its conflict says
+    /// ``HotkeyConflict/canTurnOff``, and reads the system's shortcuts again. Only the host calls
+    /// it, for the launcher's own hotkey, after the person agreed. Returns the shortcut it turned
+    /// off when the combination is free afterwards, and nil when it is not: then nothing else
+    /// changed. The default does nothing and returns nil.
+    @concurrent func turnOffSystemShortcut(for combo: KeyCombo) async -> SystemShortcut?
+
+    /// Turns a shortcut that ``turnOffSystemShortcut(for:)`` turned off back on, in the same way.
+    /// True when the system reads it on again. The default does nothing and returns false.
+    @concurrent func turnOnSystemShortcut(_ shortcut: SystemShortcut) async -> Bool
+}
+
+extension HotkeyService {
+    @concurrent public func turnOffSystemShortcut(for combo: KeyCombo) async -> SystemShortcut? { nil }
+
+    @concurrent public func turnOnSystemShortcut(_ shortcut: SystemShortcut) async -> Bool { false }
+}
+
+/// A macOS keyboard shortcut that Slick can turn off when the person asks, such as Spotlight's.
+public struct SystemShortcut: Hashable, Sendable {
+    /// The system's number for the shortcut, such as 64 for Show Spotlight search.
+    public var number: Int
+    /// Who owns it, such as "Spotlight".
+    public var owner: String
+
+    public init(number: Int, owner: String) {
+        self.number = number
+        self.owner = owner
+    }
 }
 
 /// Something else that uses a key combination.
@@ -18,15 +48,20 @@ public struct HotkeyConflict: Hashable, Sendable {
     public var owner: String
     /// True when Slick may take the combination over after asking the user.
     public var canOverride: Bool
-    /// True when an enabled macOS keyboard shortcut holds the combination, such as Spotlight's.
-    /// Slick can never take it over. The launcher hotkey alone may wait for the user to turn that
-    /// shortcut off; every other hotkey is refused.
+    /// True when an enabled macOS keyboard shortcut uses the combination, such as Spotlight's.
+    /// Slick never registers over it. The launcher hotkey alone may wait for that shortcut to be
+    /// turned off; every other hotkey is refused.
     public var isSystemShortcut: Bool
+    /// True when the macOS shortcut is one Slick can turn off itself, through
+    /// ``HotkeyService/turnOffSystemShortcut(for:)``: Spotlight's own two shortcuts. False for
+    /// every other conflict.
+    public var canTurnOff: Bool
 
-    public init(owner: String, canOverride: Bool, isSystemShortcut: Bool = false) {
+    public init(owner: String, canOverride: Bool, isSystemShortcut: Bool = false, canTurnOff: Bool = false) {
         self.owner = owner
         self.canOverride = canOverride
         self.isSystemShortcut = isSystemShortcut
+        self.canTurnOff = canTurnOff
     }
 }
 

@@ -192,6 +192,13 @@ public final class OnboardingController {
         return window.frame
     }
 
+    /// Presses Continue on the step the window shows, as the person does, for a scenario. On the
+    /// hotkey step, while the app can turn off the macOS shortcut that uses the launcher's keys,
+    /// that is what Continue does.
+    public func pressContinue() async {
+        await model.next()
+    }
+
     /// The frame of the window ``showForCapture(_:at:)`` opened, while it is on screen.
     public var captureFrame: CGRect? {
         guard let captureWindow, captureWindow.isVisible else { return nil }

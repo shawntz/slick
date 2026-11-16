@@ -97,7 +97,7 @@ import Testing
         #expect(proposed == combo)
         #expect(conflicts.map(\.owner) == [TestBed.list.rawValue])
         // The owner reads as the command's title.
-        #expect(model.note == "⌃⌥L is used by List Samples. Replace it?")
+        #expect(model.note == "List Samples uses ⌃⌥L. Replace it?")
         #expect(bed.preferences.hotkeys[TestBed.open] == nil)
         model.confirmReplace()
         #expect(bed.preferences.hotkeys[TestBed.open] == combo)
@@ -130,7 +130,7 @@ import Testing
             return
         }
         #expect(conflicts == [HotkeyConflict(owner: "Launcher", canOverride: false)])
-        #expect(model.note?.contains("which keeps it") == true)
+        #expect(model.note?.contains("and keeps it. Choose other keys.") == true)
         #expect(bed.preferences.hotkeys[TestBed.open] == nil)
     }
 
@@ -186,7 +186,10 @@ import Testing
                     combo,
                     [HotkeyConflict(owner: owner, canOverride: false, isSystemShortcut: true)]
                 ))
-        #expect(model.note?.hasPrefix("Select the previous input source holds ⌃Space for now.") == true)
+        #expect(
+            model.note
+                == "Select the previous input source already uses ⌃Space. \(Brand.name) can use it after you turn off "
+                + "that shortcut in System Settings.")
         #expect(bed.general[HostSettings.launcherHotkey] == combo)
         model.dismiss()
         #expect(model.note == nil)
@@ -221,7 +224,7 @@ import Testing
             HotkeyTargets.item(TestBed.open, title: "Open", preferences: bed.preferences))
         model.beginRecording()
         model.handle(key: .space, modifiers: .command)
-        #expect(model.note == "⌘Space is used by Spotlight, which keeps it. Choose another.")
+        #expect(model.note == "Spotlight uses ⌘Space and keeps it. Choose other keys.")
         #expect(bed.preferences.hotkeys[TestBed.open] == nil)
 
         // A feature's own hotkey setting is refused too.
