@@ -2,7 +2,7 @@ import Foundation
 import Kit
 
 /// The words the feature sends to models. People do not read these in the panel, so they live apart
-/// from ``Strings``. The selected text is always quoted at the end, so the instruction comes first.
+/// from ``Strings``. The selected text is always fenced at the end, so the instruction comes first.
 nonisolated enum Prompts {
     /// The system prompt until the user writes their own.
     static let defaultSystem =
@@ -43,9 +43,27 @@ nonisolated enum Prompts {
         }
     }
 
-    /// The whole prompt for a command: the instruction, then the text in triple quotes, as the
-    /// template engine quotes user content.
+    /// The whole prompt for a command: the instruction, then the text between two fence lines of
+    /// double quotes. The text may come from any web page or email, so it must not be able to close
+    /// the fence and go on as if it were the instruction: the fence is longer than any run of
+    /// double quotes in the text.
     static func textCommand(_ instruction: String, text: String) -> String {
-        instruction + "\n\nText:\n\"\"\"\n" + text + "\n\"\"\""
+        let fence = fence(for: text)
+        return instruction + "\n\nText:\n" + fence + "\n" + text + "\n" + fence
+    }
+
+    /// Double quotes, one more than the longest run of them in `text`, and at least three.
+    static func fence(for text: String) -> String {
+        var longest = 0
+        var run = 0
+        for scalar in text.unicodeScalars {
+            if scalar == "\"" {
+                run += 1
+                longest = max(longest, run)
+            } else {
+                run = 0
+            }
+        }
+        return String(repeating: "\"", count: max(3, longest + 1))
     }
 }
