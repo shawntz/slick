@@ -54,6 +54,7 @@ Each step is an object with exactly one key, the step's name. An unknown name, o
 | `capture` | name, or `{ "name": name, "key": true }` | Writes `captures/<name>.png` in the output folder. With `key`, the panel takes key status for about 120 ms so the glass shows its key look. Fails when the panel is hidden or the capture takes longer than 5 s. |
 | `record` | object | Starts a clip. See "Recording a clip". |
 | `stopRecording` | `true` or object | Ends the clip and writes its files. See "Recording a clip". |
+| `still` | string | During a clip, writes `captures/<name>.png` of the clip's whole recorded area: the wallpaper and every window of this app over it. The panel may be hidden. See "Recording a clip". |
 
 ## Keys
 
@@ -78,7 +79,7 @@ Every key is optional. Each key present must hold, and the step reports every on
 | `rows` | strings | The titles of every shown row, or every cell in a grid, are exactly these, in order. |
 | `rowsInclude` | strings | Each of these titles is among the shown rows or cells. |
 | `rowCount` | number | This many rows or cells show. |
-| `selection` | string | The selected row's or cell's title. |
+| `selection` | string | The selected row's or cell's title. `""` means nothing is selected. |
 | `toast` | string | The action bar shows this toast text. A toast with a message reads `Title: message`. |
 | `noToast` | `true` | No toast shows. |
 | `title` | string | The top page's title, as the breadcrumb shows it. Empty for root search. |
@@ -89,6 +90,7 @@ Every key is optional. Each key present must hold, and the step reports every on
 | `actions` | strings | The action panel is open and its entries have exactly these titles, in order. |
 | `visible` | bool | The panel is on screen, or hidden. |
 | `fieldErrors` | strings | Exactly these form field IDs show an error, in any order. `[]` means none. |
+| `card` | string | The title of the confirmation or permission card waiting for an answer. `""` means none. |
 
 ## Recording a clip
 
@@ -122,6 +124,7 @@ What happens:
 - The panel takes key status for the whole clip, so the glass shows its key look, and every summon makes it key. After each step the recorder checks that a visible panel is key. A clip where it was not fails, because its glass looked flat.
 - The pauses are a person's: 0.3 s before typing starts, then about eight characters a second at uneven gaps, 0.42 s before a key press, 0.24 s between repeats of the same key, 0.5 s before a Command chord, 0.55 s before a summon and 0.5 s before a dismiss. `wait` steps add holds. Expectations and `waitUntilIdle` add none.
 - A capture during a clip keeps the clip's wallpaper and key status.
+- A window of this app that is open inside the recorded area when the clip starts, such as the settings window from `openSettings`, stays in front: the wallpaper takes its level, just below it, and a `still` step pictures it over the wallpaper. Open it before `record`. A window opened during the clip sits behind the wallpaper. When input arrives, such windows are put away with the panel.
 - The moment anyone touches the keyboard, mouse or trackpad, the panel is put away, key status goes back, and the run fails with "input arrived during the clip, so it was thrown out". A failed step also throws the clip out. So does a file that ends while a clip records.
 
 `stopRecording` takes `tail`, the seconds recorded after the last step, 0.8 by default, and `poster`, the second of the clip for the poster picture, the last frame by default. `webMaxBytes`, 3,000,000, `gifWidth`, 940, and `gifMaxBytes`, 6,000,000, set the budgets. It writes into `clips/` in the output folder:
@@ -150,15 +153,26 @@ Standard output gets one line per step, `step 3 expect: ok`, and the verdict las
 ## Writing a scenario
 
 - Wait with `waitUntilIdle` after anything that loads: pushing a page, a custom-filtered keystroke, a submit.
+- A Return pressed while an async section still loads is fine: closing the panel cancels the section and the root page is idle again.
 - Check one thing per `expect` where a failure would be ambiguous. A step reports every key that does not hold.
 - Use invented data only. A scenario never names real people, files or apps.
 - Captures in a scenario run against App's real root search show whatever that build's catalog holds. Use the scenario environment's fixtures for anything you commit.
+
+## App steps and file keys
+
+App adds steps of its own for what only the app can see or do, written `{ "app": { ... } }` among these steps, and two file keys: `startTime`, the moment the run's clock starts, and `systemApps`, which lists Apple's own apps with their real icons. scenarios/README.md documents every key. The ones a person reaches for most:
+
+- `select`: picks a row by its title, with Down and Up as a person would. Use it instead of counting Down presses, which break when a feature adds or hides a row.
+- `waitForRow`: waits, 5 s at most, until a row shows on a page that fills itself after its own read.
+- `setTime`, `sessionStart` and `frontApp`: move the run's clock, play a wake and put an app in front, so suggestions before typing can be proved. The run's clock reads UTC and US English.
+- `openSettings`, `captureSettings` and `closeSettings`: open the real settings window on a pane at a fixed place without key status or a saved frame, capture it and close it.
 
 ## Examples
 
 - `Packages/Host/Tests/Scenarios/root-to-list.json`: ghost completion, opening a list from root search, filtering it, the action panel, Escape's three steps and a capture.
 - `Packages/Host/Tests/Scenarios/form-validation.json`: a form's required field, its validator's error, a valid submit and the toast it shows.
 - `scenarios/media/*.json`: the clips on the website and in the README. `make media` records them.
+- `scenarios/*.json`: the joined app, every feature included. `make test-App` runs them headless.
 
 `ScenarioTests` runs the two Host examples against the host's test features and fake root search, with the panel off screen and a stand-in capture.
 
