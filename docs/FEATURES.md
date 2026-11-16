@@ -71,7 +71,9 @@ Every feature follows these. Review checks each one.
 
 **No downloads when a row draws.** A row never makes the host fetch an icon. `.favicon(domain:)` draws only from the favicon cache, and a globe until something fills it. Do not give a row `.remote(url)`: the host downloads such an icon the first time a row shows it. Download an icon after something the user did, keep it in your cache folder and use `.image(path:)`.
 
-**Deep links.** Any web page can fire a deep link, and once the user chose Always Allow for a command the link runs it without a word. A hidden command that acts at once, such as one that pastes, declares `allowsDeepLinks: false`. `harness.pendingIssues` reports a hidden command with no confirmation that still allows them.
+**Deep links.** Any web page can fire a deep link, and once the user chose Always Allow for a command and those exact arguments, a link with the same arguments runs it without a word. A hidden command that acts at once, such as one that pastes, declares `allowsDeepLinks: false`. `harness.issues` reports a hidden command with no confirmation that still allows them, and the host refuses to register that feature.
+
+**Loading after activation.** A feature that loads an index or data in the background after `activate()` returns implements `waitUntilReady()`, which returns once that loading is done. Scenarios, the selftest and benchmarks wait for it. The live launcher never does.
 
 **Names and data.** A module is never named after a Swift or Apple type or framework. Features ship their data as Swift source, because the bundle script copies no resource bundles. "Setting up the package" shows both.
 
@@ -586,7 +588,7 @@ What it can do:
 
 It follows the host's rules: host filtering through the fuzzy index with section visibility and rank hints, the first row selected after a load, permissions checked before anything runs and after `.needsPermission`, confirmations asked (`confirmationAnswer`), required form fields before `validate`, runs ordered by `RunPolicy`, toasts drawn as HUDs while the panel is closed, actions hidden while their command is in `unavailableCommands`, and a page loaded again after an action when it called `reload()`, when its source's signal fired or when a setting in `reloadsOnSettings` changed. Missing permissions throw `HarnessError.permissionRequired` unless `grantsMissingPermissions` is set, in which case the harness asks the fake permission center as if the user pressed Grant. Thrown errors reach the test unless `throwsActionErrors` is false, in which case the harness shows them as the host does. Debounces are skipped. Compare outcomes with `outcome.kind == .keepOpen`.
 
-`issues` must be empty. `pendingIssues` lists problems under rules newer than some features, such as a hidden command that still allows deep links. They do not fail registration yet, but a new feature keeps them empty too.
+`issues` must be empty. `pendingIssues` lists problems under rules newer than some features. They do not fail registration yet, but a new feature keeps them empty too. No rule is pending now: the last one, a hidden command that still allows deep links, is part of `issues`.
 
 Background work is never awaited by itself. After a fake plays something, such as `simulateCopy`, `permissions.set`, a settings write or `simulateChange`, call `try await harness.settle()`: it returns once every consumer of the fakes' streams has handled what it received, and reloads the open page if its source changed. `waitForChange()` waits for the page's source to signal and reloads. A stream a feature makes and never reads holds `settle()` until the test's time limit, so give every suite `.timeLimit(.minutes(1))`.
 
