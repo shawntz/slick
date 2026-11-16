@@ -60,6 +60,11 @@ public final class LauncherSurface {
         didSet { if accessibilityOverride != oldValue { refreshTheme() } }
     }
 
+    /// Runs after the system's appearance changed and the surface resolved its theme for it. The
+    /// surface restyles what it draws by itself. Whoever hands it pictures made for one appearance,
+    /// such as row glyphs, makes them again here.
+    public var onAppearanceChange: (() -> Void)?
+
     /// Every piece of glass in the window, the query row's first.
     public var glassPieces: [NSGlassEffectView] { layout == .split ? [glass, resultsGlass] : [glass] }
 
@@ -139,7 +144,10 @@ public final class LauncherSurface {
         heightAnimator = GlassHeightAnimator(view: root, initial: glass.frame.height) { [weak self] height in
             self?.applyGlassHeight(height)
         }
-        root.onEffectiveAppearanceChange = { [weak self] in self?.refreshTheme() }
+        root.onEffectiveAppearanceChange = { [weak self] in
+            self?.refreshTheme()
+            self?.onAppearanceChange?()
+        }
         accessibilityObserver = DisplayAccessibilityObserver { [weak self] _ in self?.refreshTheme() }
         refreshTheme()
     }

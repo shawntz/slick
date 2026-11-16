@@ -118,6 +118,7 @@ import LauncherUI
         let themeName = general[HostSettings.themeName]
         if let themes, themes.selectedName != themeName { themes.select(themeName) }
         applyTheme()
+        surface.onAppearanceChange = { [weak self] in self?.followAppearance() }
         rootPage.showsCompletion = general[HostSettings.inlineCompletion]
         configure(rootPage)
         showTop(animated: false)
@@ -425,13 +426,20 @@ import LauncherUI
         let scale = Double(surface.panel.backingScaleFactor)
         rowMapper.rowIconSize = IconSize(points: theme.list.iconSize, scale: scale)
         rowMapper.accessoryIconSize = IconSize(points: theme.list.accessoryIconSize, scale: scale)
+        followAppearance()
+        let sizing = sizing
+        for page in stack { page.contentView.sizing = sizing }
+        surface.updateHeight(animated: false)
+    }
+
+    /// Hands the surface's resolved theme to the row mapper, and has every page draw its rows
+    /// again when the appearance changed, because glyphs are drawn for one appearance. Runs when
+    /// the theme is applied and when the system switches between light and dark under the panel.
+    func followAppearance() {
         let appearanceChanged = rowMapper.isDark != surface.resolvedTheme.isDark
         rowMapper.isDark = surface.resolvedTheme.isDark
         rowMapper.resolvedTheme = surface.resolvedTheme
         if appearanceChanged { for page in stack { page.appearanceDidChange() } }
-        let sizing = sizing
-        for page in stack { page.contentView.sizing = sizing }
-        surface.updateHeight(animated: false)
     }
 
     private func startWatching() {
