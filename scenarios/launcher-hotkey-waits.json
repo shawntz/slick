@@ -1,15 +1,17 @@
 {
-  "name": "The launcher hotkey waits while Spotlight holds Command-Space and binds once it is free",
+  "name": "The launcher hotkey waits while Spotlight uses Command-Space, the menu's Turn Off takes it, and a shortcut the app cannot turn off keeps it waiting",
   "timeLimit": 20,
   "steps": [
     { "app": { "hotkeyBound": true, "launcherHotkey": "cmd+space", "hotkeyWaiting": "" } },
     { "app": { "systemShortcuts": ["cmd+space"], "setSettings": { "launcherHotkey": "ctrl+opt+k" }, "launcherHotkey": "ctrl+opt+k", "hotkeyWaiting": "" } },
-    { "app": { "setSettings": { "launcherHotkey": "cmd+space" }, "hotkeyBound": false, "hotkeyWaiting": "Spotlight" } },
+    { "app": { "setSettings": { "launcherHotkey": "cmd+space" }, "hotkeyBound": false, "hotkeyWaiting": "Spotlight", "hotkeyCanTurnOff": true } },
     { "app": { "setHotkey": { "item": "app:com.example.notes", "keys": "cmd+space" }, "hotkeyRefused": true, "itemHotkeys": { "app:com.example.notes": "" } } },
     { "app": { "link": "{scheme}://settings", "settings": [""], "hotkeyBound": false, "hotkeyWaiting": "Spotlight" } },
-    { "app": { "systemShortcuts": [], "link": "{scheme}://settings/general", "settings": ["", "general"], "hotkeyBound": true, "launcherHotkey": "cmd+space", "hotkeyWaiting": "", "hud": "⌘Space Now Opens {brand}" } },
+    { "app": { "turnOffShortcut": true, "hotkeyBound": true, "launcherHotkey": "cmd+space", "hotkeyWaiting": "", "hud": "⌘Space Now Opens {brand}" } },
     { "app": { "pressHotkey": true } },
     { "expect": { "visible": true } },
-    { "dismiss": true }
+    { "dismiss": true },
+    { "app": { "systemShortcuts": ["ctrl+up"], "setSettings": { "launcherHotkey": "ctrl+up" }, "hotkeyBound": false, "hotkeyWaiting": "Mission Control", "hotkeyCanTurnOff": false } },
+    { "app": { "setSettings": { "launcherHotkey": "cmd+space" }, "hotkeyBound": true, "launcherHotkey": "cmd+space", "hotkeyWaiting": "" } }
   ]
 }

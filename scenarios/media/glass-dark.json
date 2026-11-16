@@ -1,22 +1,20 @@
 {
-  "name": "Standard and Clear over the same window, with the same query",
+  "name": "Glass theme, dark mode, over a window, from opening the panel to picking an app",
   "timeLimit": 110,
   "systemApps": true,
   "media": {
+    "file": "clip-glass-dark",
     "appearance": "dark",
-    "clip": false,
+    "caption": "The Glass theme uses the system's most translucent glass. The window behind the panel stays sharp.",
+    "alt": "A recording of Slick's search panel in the Glass theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. The theme's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in the Glass theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. The theme's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in the Glass theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple's own apps.",
     "stills": [
       {
-        "capture": "glass-standard-dark",
-        "file": "glass-standard-dark.png",
-        "caption": "Standard: frosted glass blurs the window behind the panel.",
-        "alt": "Slick's search panel in the Standard theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The frosted, tinted glass blurs the app icon and the lines of text behind it into soft shapes. The picture beside it shows the same scene in the Clear theme. Captured from the assembled app running a scripted scenario, with Apple's own apps."
-      },
-      {
-        "capture": "glass-clear-dark",
-        "file": "glass-clear-dark.png",
-        "caption": "Clear: the same window stays sharp through the glass.",
-        "alt": "Slick's search panel in the Clear theme, dark mode, with “cal” typed and Calculator selected, over the same About page. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it, and the panel's text carries a soft dark halo. The picture beside it shows the same scene in the Standard theme. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+        "capture": "glass-dark",
+        "file": "glass-dark.png",
+        "caption": "The Glass theme in dark mode. Nothing frosts the window behind the panel.",
+        "alt": "Slick's search panel in the Glass theme, dark mode, over the About page of Slick's settings window and a purple gradient wallpaper. The query “cal” lists Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink, with Calculator selected. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it. The panel's text carries a soft dark halo. Captured from the assembled app running a scripted scenario, with Apple's own apps."
       }
     ]
   },
@@ -35,13 +33,13 @@
         "setSettings": {
           "visibleRows": 7,
           "app.general.resetToRootAfter": 0,
-          "themeName": "Standard"
+          "themeName": "Glass"
         }
       }
     },
     {
       "app": {
-        "theme": "Standard"
+        "theme": "Glass"
       }
     },
     {
@@ -151,7 +149,7 @@
     },
     {
       "record": {
-        "name": "glass-dark",
+        "name": "clip-glass-dark",
         "appearance": "dark",
         "lead": 0.3
       }
@@ -188,10 +186,25 @@
       }
     },
     {
+      "wait": 0.5
+    },
+    {
       "wait": 0.3
     },
     {
-      "type": "cal"
+      "type": "c"
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "type": "a"
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "type": "l"
     },
     {
       "waitUntilIdle": 2
@@ -200,6 +213,9 @@
       "expect": {
         "selection": "Calendar"
       }
+    },
+    {
+      "wait": 0.6
     },
     {
       "app": {
@@ -212,21 +228,41 @@
       }
     },
     {
-      "wait": 0.8
+      "wait": 0.5
     },
     {
-      "still": "glass-standard-dark"
+      "still": "glass-dark"
     },
     {
-      "app": {
-        "setSettings": {
-          "themeName": "Clear"
-        },
-        "theme": "Clear"
+      "press": "cmd+k"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "actions": [
+          "Open",
+          "Show in Finder",
+          "Show Package Contents",
+          "Copy Name",
+          "Copy Bundle Identifier",
+          "Copy Path",
+          "Add to Favorites",
+          "Set Alias",
+          "Set Hotkey",
+          "Reset Ranking"
+        ]
       }
     },
     {
       "wait": 1.0
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "waitUntilIdle": 2
     },
     {
       "expect": {
@@ -236,27 +272,42 @@
       }
     },
     {
-      "still": "glass-clear-dark"
+      "wait": 0.3
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
     },
     {
       "wait": 0.2
     },
     {
       "stopRecording": {
-        "tail": 0.2
+        "tail": 0.5,
+        "poster": 5.3
+      }
+    },
+    {
+      "app": {
+        "launched": [
+          "com.apple.mail",
+          "com.apple.iCal",
+          "com.apple.Music",
+          "com.apple.Notes",
+          "com.apple.calculator"
+        ]
       }
     },
     {
       "app": {
         "closeSettings": true
-      }
-    },
-    {
-      "app": {
-        "setSettings": {
-          "themeName": "Standard"
-        },
-        "theme": "Standard"
       }
     }
   ]

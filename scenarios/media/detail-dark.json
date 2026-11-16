@@ -8,7 +8,7 @@
     "caption": "Clipboard History opens as a list with a detail pane beside it.",
     "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its character and word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip.",
     "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its character and word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip.",
-    "posterAlt": "Slick's Clipboard History in dark mode: four copied items on the left, and the selected note's text, type, character and word count, size and copy time on the right. A frame from a recording of the assembled app with made-up copied items."
+    "posterAlt": "Slick's Clipboard History in dark mode. Four copied items are on the left, and the selected note's text, type, character and word count, size and copy time are on the right. A frame from a recording of the assembled app with made-up copied items."
   },
   "steps": [
     {

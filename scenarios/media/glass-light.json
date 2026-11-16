@@ -1,20 +1,20 @@
 {
-  "name": "Clear, dark: the panel opens over a window, three letters narrow the results, the actions open and close, and Return picks an app",
+  "name": "Glass theme, light mode, over a window, from opening the panel to picking an app",
   "timeLimit": 110,
   "systemApps": true,
   "media": {
-    "file": "clip-clear-dark",
-    "appearance": "dark",
-    "caption": "Clear: the most translucent glass. The window behind the panel stays sharp.",
-    "alt": "A recording of Slick's search panel in the Clear theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. Clear's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "gifAlt": "A recording of Slick's search panel in the Clear theme, dark mode. Slick's settings window, open on its About page, sits over a purple gradient wallpaper behind the panel. Clear's glass has no tint and no frost, so the app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft dark halo. The panel opens with Music, Notes, Mail and Calendar suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "posterAlt": "Slick's search panel in the Clear theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple's own apps.",
+    "file": "clip-glass-light",
+    "appearance": "light",
+    "caption": "The Glass theme uses the system's most translucent glass. The window behind the panel stays sharp.",
+    "alt": "A recording of Slick's search panel in the Glass theme, light mode. Slick's settings window, open on its About page, sits over a pale lavender wallpaper behind the panel. The theme's glass has no tint and no frost. Over the white page it is almost invisible, and only its edge shows where it crosses the grey sidebar. The app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft light halo. The panel opens with Calendar, Music, Notes and Mail suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in the Glass theme, light mode. Slick's settings window, open on its About page, sits over a pale lavender wallpaper behind the panel. The theme's glass has no tint and no frost. Over the white page it is almost invisible, and only its edge shows where it crosses the grey sidebar. The app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft light halo. The panel opens with Calendar, Music, Notes and Mail suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in the Glass theme, light mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple's own apps.",
     "stills": [
       {
-        "capture": "clear-dark",
-        "file": "clear-dark.png",
-        "caption": "Clear in dark mode: nothing frosts the window behind the panel.",
-        "alt": "Slick's search panel in the Clear theme, dark mode, over the About page of Slick's settings window and a purple gradient wallpaper. The query “cal” lists Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink, with Calculator selected. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it. The panel's text carries a soft dark halo. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+        "capture": "glass-light",
+        "file": "glass-light.png",
+        "caption": "The Glass theme in light mode. Nothing frosts the window behind the panel.",
+        "alt": "Slick's search panel in the Glass theme, light mode, over the About page of Slick's settings window and a pale lavender wallpaper. The query “cal” lists Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink, with Calculator selected. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it. The panel's text carries a soft light halo. Captured from the assembled app running a scripted scenario, with Apple's own apps."
       }
     ]
   },
@@ -33,13 +33,13 @@
         "setSettings": {
           "visibleRows": 7,
           "app.general.resetToRootAfter": 0,
-          "themeName": "Clear"
+          "themeName": "Glass"
         }
       }
     },
     {
       "app": {
-        "theme": "Clear"
+        "theme": "Glass"
       }
     },
     {
@@ -149,8 +149,8 @@
     },
     {
       "record": {
-        "name": "clip-clear-dark",
-        "appearance": "dark",
+        "name": "clip-glass-light",
+        "appearance": "light",
         "lead": 0.3
       }
     },
@@ -231,7 +231,7 @@
       "wait": 0.5
     },
     {
-      "still": "clear-dark"
+      "still": "glass-light"
     },
     {
       "press": "cmd+k"

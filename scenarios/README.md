@@ -29,6 +29,7 @@ An app step is `{ "app": { ... } }`. Its actions run first, in the order of this
 | `sessionStart` | `true` | plays a wake or an unlock on the run's system context |
 | `frontApp` | string | puts the app with this bundle ID in front, for root search's context and for the workspace, as Search Menu Items reads it |
 | `pressHotkey` | `true` | does what the launcher hotkey does, through its binding |
+| `turnOffShortcut` | `true` | does what the menu bar menu's Turn Off item does: turns off the macOS shortcut the launcher hotkey waits for, when the app can. Only the run's own played shortcuts change |
 | `systemShortcuts` | strings | plays the macOS shortcuts that hold these combinations, as Spotlight holds `cmd+space` on a new Mac; `[]` turns them all off. The launcher notices on its own timer or when settings opens |
 | `setFeatures` | object | turns each feature, by ID, on or off, then waits for root search to settle |
 | `setSettings` | object | sets `themeName`, `visibleRows`, `inlineCompletion`, `panelSizing`, `launcherHotkey` or `tabCommand`; a name with a dot, such as `windows.showsLayoutName`, sets that feature setting as stored |
@@ -47,6 +48,7 @@ An app step is `{ "app": { ... } }`. Its actions run first, in the order of this
 | `captureSettings` | string | writes `captures/<name>.png` of the window `openSettings` opened |
 | `closeSettings` | `true` | closes that window |
 | `openOnboarding` | string | opens the real onboarding window on this step, `welcome`, `hotkey`, `features`, `permissions`, `theme` or `done`, at the place `openSettings` uses, in the same way: the app does not come forward and the window never takes key status. It applies no switch and marks onboarding not done. The launcher hotkey checks at once whether a macOS shortcut holds it, so the hotkey step shows the wait. Fails for a step with nothing to show, such as permissions when no feature that is on needs one |
+| `continueOnboarding` | `true` | presses Continue on the step the window `openOnboarding` opened shows, as the person does. On the hotkey step, while Spotlight's shortcut uses the keys, that turns the shortcut off and moves on, or stays on the step when the try fails |
 | `captureOnboarding` | string | writes `captures/<name>.png` of the window `openOnboarding` opened |
 | `closeOnboarding` | `true` | closes that window |
 | `linkOutcome` | string | the last link was `openedLauncher`, `asked`, `ran`, `openedSettings`, `openedFeatureSettings` or `refused` |
@@ -60,7 +62,9 @@ An app step is `{ "app": { ... } }`. Its actions run first, in the order of this
 | `homeFiles` | strings | each of these paths exists in the run's home folder |
 | `openDialogs` | number | how many open dialogs were asked for in the run so far |
 | `hotkeyBound` | bool | a launcher hotkey is bound |
-| `hotkeyWaiting` | string | the owner of the macOS shortcut the launcher hotkey waits behind, `""` for none |
+| `hotkeyWaiting` | string | the owner of the macOS shortcut the launcher hotkey waits for, `""` for none |
+| `hotkeyCanTurnOff` | bool | the app can turn off the macOS shortcut the launcher hotkey waits for, as it can Spotlight's own two |
+| `onboardingStep` | string | the step the onboarding window shows |
 | `launcherHotkey` | string | the launcher hotkey bound now, such as `cmd+space` |
 | `hotkeyRefused` | bool | the last `setHotkey` was refused |
 | `itemHotkeys` | object | each item ID has exactly this hotkey; `""` for none |
@@ -104,9 +108,9 @@ A file with `"systemApps": true` shows Apple's own apps with their real icons an
 | feature-off-while-shown.json | a feature switched off while its rows show removes them and pops its page |
 | alias-equals-title.json | an alias equal to another item's title wins that query |
 | hotkey-conflicts.json | item and launcher hotkey conflicts, takeover, retry, and pressing an item hotkey |
-| launcher-hotkey-waits.json | while Spotlight holds Command-Space the launcher binds nothing and items are refused; once it is free, opening settings binds it with a HUD |
+| launcher-hotkey-waits.json | while Spotlight uses Command-Space the launcher binds nothing and items are refused; the menu's Turn Off frees it and binds it with a HUD; a shortcut the app cannot turn off keeps the hotkey waiting |
 | theme-switch-while-open.json | a theme switch while the panel and the action panel show |
-| themes-beam-and-clear.json | Beam and Clear each draw root search, the action panel, a toast, a pushed list and a form |
+| themes-spotlight-and-glass.json | Spotlight and Glass each draw root search, the action panel, a toast, a pushed list and a form |
 | settings-while-pushed.json | settings changed while a list is pushed keep the page and its selection |
 | hostile-links-more.json | more hostile links are refused; a command kept out of links is refused without asking; a destructive command by link asks twice, with Cancel selected first |
 | two-summons.json | summons and hotkey presses in quick succession |
@@ -127,6 +131,7 @@ A file with `"systemApps": true` shows Apple's own apps with their real icons an
 | menu-items.json | Search Menu Items lists the menus of the app in front, filters to one item and runs it |
 | system-apps.json | with `systemApps`, TextEdit shows by its own name and launches by Apple's bundle ID |
 | settings-window.json | the settings window opens on two panes for captures and closes, and the panel still opens after |
+| onboarding-continue-takes-the-hotkey.json | Continue on onboarding's hotkey step turns off Spotlight's shortcut, binds Command-Space and moves to the next step |
 | onboarding-window.json | the onboarding window opens on its hotkey step while Spotlight holds the hotkey, then on Optional Features, for captures, and closes, and the panel still opens after |
 | two-features-one-query.json | "calendar" shows the Calendar app and Schedule's commands; each row's action panel and Return belong to its own feature |
 | onboarding-then-settings.json | File Search switched off in onboarding stays off: no folder listing, no Search Files. Turned on later, both work |

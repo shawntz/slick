@@ -1,0 +1,14 @@
+{
+  "name": "Continue on onboarding's hotkey step turns off Spotlight's shortcut, takes Command-Space and moves on",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "systemShortcuts": ["cmd+space"], "setSettings": { "launcherHotkey": "ctrl+opt+k" } } },
+    { "app": { "setSettings": { "launcherHotkey": "cmd+space" }, "hotkeyBound": false, "hotkeyWaiting": "Spotlight", "hotkeyCanTurnOff": true } },
+    { "app": { "openOnboarding": "hotkey", "captureOnboarding": "onboarding-hotkey-before", "onboardingStep": "hotkey", "hotkeyBound": false } },
+    { "app": { "continueOnboarding": true, "captureOnboarding": "onboarding-after-continue", "onboardingStep": "features", "hotkeyBound": true, "launcherHotkey": "cmd+space", "hotkeyWaiting": "", "hud": "⌘Space Now Opens {brand}" } },
+    { "app": { "closeOnboarding": true, "settings": [] } },
+    { "app": { "pressHotkey": true } },
+    { "expect": { "visible": true } },
+    { "dismiss": true }
+  ]
+}

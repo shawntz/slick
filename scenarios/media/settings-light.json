@@ -39,7 +39,7 @@
           1880,
           1480
         ],
-        "caption": "Learning: what the launcher learned from your picks, kept on this Mac, with a way to forget it.",
+        "caption": "The Learning pane shows what the launcher learned from your picks on this Mac, and it can forget an item.",
         "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the Learning pane. A note says everything learned stays on this Mac. It reports 7 runs of 5 items and 11 queries, its size on disk in bytes and the day learning started, then a Pause learning switch. Most used lists Font Book and Calendar with 2 runs each and TextEdit, Maps and Notes with 1 run, each with its real icon and a delete button. The picks were made by the scenario. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
       },
       {
