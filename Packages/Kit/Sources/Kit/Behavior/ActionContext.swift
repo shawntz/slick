@@ -21,6 +21,12 @@ public struct ActionContext: Sendable {
     public let launch: LaunchSource
     /// The row the action belongs to, if any.
     public let row: Row?
+    /// True when a deep link started this run, or a run it handed off from, or when it runs in a
+    /// panel session a link opened. ``launch`` still says how the run itself started, such as
+    /// ``LaunchSource/tabFromRoot`` or ``LaunchSource/command``. The app in front may be the web
+    /// page that fired the link, so a command that would read the selection or the clipboard, or
+    /// send text somewhere, asks first.
+    public let startedByLink: Bool
 
     private let host: any ActionHost
 
@@ -31,7 +37,8 @@ public struct ActionContext: Sendable {
         query: String = "",
         arguments: CommandArguments = CommandArguments(),
         launch: LaunchSource = .root,
-        row: Row? = nil
+        row: Row? = nil,
+        startedByLink: Bool = false
     ) {
         self.feature = feature
         self.host = host
@@ -39,6 +46,7 @@ public struct ActionContext: Sendable {
         self.arguments = arguments
         self.launch = launch
         self.row = row
+        self.startedByLink = startedByLink
     }
 
     /// Reads a member of the feature's context, such as a service.
