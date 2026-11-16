@@ -49,6 +49,21 @@ struct RootSearchTests {
         #expect(harness.pageTitle == "lantern")
     }
 
+    /// Found by the app's self-test: "define word" looked up "word", so the Define Word command
+    /// could never be found by its title. While the text could still be the title, root search
+    /// shows the command, and the entry in its own section.
+    @Test(arguments: ["define w", "define wo", "Define Word", "define word ", "DEFINE WORD", "define  wor"])
+    func typingTheCommandsTitleLeavesTheQueryToRootSearch(query: String) async throws {
+        let provider = makeHarness().feature.provider
+        #expect(!provider.takesOver(query))
+        #expect(provider.sectionTitle(for: query) == "Definition")
+    }
+
+    @Test(arguments: ["define words", "define wordy", "define x", "define lantern", "define work"])
+    func anyOtherWordAfterTheKeywordIsStillClaimed(query: String) async throws {
+        #expect(makeHarness().feature.provider.takesOver(query))
+    }
+
     @Test func theSpellKeywordListsSpellings() async throws {
         let harness = makeHarness()
         let provider = harness.feature.provider

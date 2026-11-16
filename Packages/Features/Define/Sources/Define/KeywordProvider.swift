@@ -3,7 +3,9 @@ import Kit
 /// Root search's dictionary answers, as Alfred has them.
 ///
 /// - "define <term>" and "spell <word>" claim the query, so root search shows only the entry
-///   or the spellings. The settings can turn the keywords off.
+///   or the spellings. The settings can turn the keywords off. While the text after "define" could
+///   still be the rest of the Define Word command's title, as in "define wo", the query is not
+///   claimed: root search shows the command, and the entry in its own section.
 /// - With the single-word setting on, a query of one word gets its entry in a section of its own
 ///   under the other results, at most one row. Root search does not tell a provider what else
 ///   matched, so the row shows under other results rather than only when nothing else matched.
@@ -30,7 +32,11 @@ final class KeywordProvider: AsyncProvider {
     var maximumRows: Int { 1 }
 
     func takesOver(_ query: String) -> Bool {
-        keyword(in: query) != nil
+        switch keyword(in: query) {
+        case .define(let text): !RootQuery.couldBeCommandTitle(text)
+        case .spell: true
+        case nil: false
+        }
     }
 
     func sectionTitle(for query: String) -> String {

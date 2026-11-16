@@ -39,13 +39,8 @@ enum SelfTest {
     static let knownPendingIssues: [String: Set<String>] = [:]
 
     /// Commands whose own title a feature's keyword takes over in root search, by command, with the
-    /// query that finds them instead and the reason. Typing "define word" looks up the word "word",
-    /// as Alfred's keyword does, so the command answers to "define".
-    static let titlesTakenOver: [ItemID: (query: String, reason: String)] = [
-        ItemID.command(feature: "dictionary", command: "define"): (
-            "define", "\"define <term>\" is the Dictionary keyword, so the title looks up the word \"word\""
-        )
-    ]
+    /// query that finds them instead and the reason. Empty: no keyword claims a command's title.
+    static let titlesTakenOver: [ItemID: (query: String, reason: String)] = [:]
 
     /// Checks the Rust core and the bundle. `bundleIdentifier` is nil when the executable runs
     /// outside an app bundle, as it does under `swift run` and in tests.

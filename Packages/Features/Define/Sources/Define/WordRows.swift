@@ -120,6 +120,23 @@ nonisolated enum RootQuery: Hashable, Sendable {
         return prefix == define ? .define(String(rest)) : .spell(String(rest))
     }
 
+    /// The rest of the Define Word command's title after the keyword, in lower case: "word".
+    static let commandTitleRest: String = {
+        let title = DefineStrings.defineCommand.lowercased()
+        return title.hasPrefix("define ") ? String(title.dropFirst("define ".count)) : ""
+    }()
+
+    /// True when `text`, what follows "define ", could still be the rest of the Define Word
+    /// command's title, such as "w", "WOR" or "word". Typing the title then finds the command.
+    static func couldBeCommandTitle(_ text: String) -> Bool {
+        let rest = commandTitleRest
+        guard !rest.isEmpty, text.utf8.count <= rest.utf8.count + 8 else { return false }
+        var typed = Substring(text)
+        while typed.first == " " { typed = typed.dropFirst() }
+        while typed.last == " " { typed = typed.dropLast() }
+        return !typed.isEmpty && rest.hasPrefix(typed.lowercased())
+    }
+
     /// The shortest and longest single word root search looks up without a keyword.
     static let singleWordLengths = 3...40
 
