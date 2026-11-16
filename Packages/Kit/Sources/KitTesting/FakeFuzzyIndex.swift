@@ -20,27 +20,36 @@ public final class FakeFuzzyIndexService: FuzzyIndexService {
 
 /// A small, predictable stand-in for the engine's matcher. It folds case and diacritics, finds the
 /// strongest tier among the title and keywords (a keyword match counts one tier weaker), and orders
-/// by tier, then shorter title, then index, as the ranking contract asks. It has no typo tier and
-/// highlights only prefix and substring matches.
+/// as the engine does: by tier, then a title match before a keyword match, then shorter title, then
+/// index. It has no typo tier.
+///
+/// A match on the title carries the title's matched ranges; a match that only a keyword reaches
+/// carries none, as with the engine, so a host can tell the two apart. Ranges are UTF-16 offsets in
+/// the folded title, which equal the title's own for text without decomposed characters.
 public struct SimpleFuzzyIndex: FuzzyIndex {
     private struct Entry {
-        let title: String
-        let titleWords: [String]
+        let title: Text
         let titleLength: Int
-        let keywords: [(text: String, words: [String])]
+        let keywords: [Text]
+    }
+
+    /// Folded text with its words and where each word starts, in UTF-16 offsets.
+    private struct Text {
+        let folded: String
+        let words: [(text: String, start: Int)]
+
+        init(_ text: String) {
+            folded = SimpleFuzzyIndex.fold(text)
+            words = SimpleFuzzyIndex.words(folded)
+        }
     }
 
     private let entries: [Entry]
 
     public init(_ entries: [FuzzyEntry]) {
         self.entries = entries.map { entry in
-            let title = Self.fold(entry.title)
-            return Entry(
-                title: title, titleWords: Self.words(title), titleLength: entry.title.utf16.count,
-                keywords: entry.keywords.map { keyword in
-                    let folded = Self.fold(keyword)
-                    return (folded, Self.words(folded))
-                })
+            Entry(
+                title: Text(entry.title), titleLength: entry.title.utf16.count, keywords: entry.keywords.map(Text.init))
         }
     }
 
@@ -49,37 +58,54 @@ public struct SimpleFuzzyIndex: FuzzyIndex {
     public func search(_ query: String, limit: Int) -> [FuzzyMatch] {
         let folded = Self.fold(query).trimmingCharacters(in: .whitespaces)
         guard !folded.isEmpty, limit > 0 else { return [] }
-        let tokens = Self.words(folded)
+        let tokens = Self.words(folded).map(\.text)
         var matches: [FuzzyMatch] = []
         for (index, entry) in entries.enumerated() {
-            let titleTier = Self.tier(folded, tokens: tokens, text: entry.title, words: entry.titleWords)
-            let keywordTier = entry.keywords.compactMap {
-                Self.tier(folded, tokens: tokens, text: $0.text, words: $0.words)
-            }
-            .min().map(Self.weaker)
-            guard let tier = [titleTier, keywordTier].compactMap({ $0 }).min() else { continue }
-            let highlights: [Range<Int>]
-            if titleTier == tier, let range = entry.title.range(of: folded), tier <= .substring {
-                let start = entry.title.utf16.distance(from: entry.title.startIndex, to: range.lowerBound)
-                highlights = [start..<(start + folded.utf16.count)]
-            } else {
-                highlights = []
-            }
-            let score = (MatchTier.allCases.count - tier.rawValue) * 1_000_000 - min(entry.titleLength, 999_999)
+            let title = Self.match(folded, tokens: tokens, in: entry.title)
+            let keywordTier = entry.keywords.compactMap { Self.match(folded, tokens: tokens, in: $0)?.tier }
+                .min().map(Self.weaker)
+            guard let tier = [title?.tier, keywordTier].compactMap({ $0 }).min() else { continue }
+            // At equal tiers the title wins, as the engine's field bonus decides.
+            let isTitleMatch = title?.tier == tier
+            let highlights = isTitleMatch ? title?.ranges ?? [] : []
+            let tierScore = (MatchTier.allCases.count - tier.rawValue) * 2_000_000
+            let score = tierScore + (isTitleMatch ? 1_000_000 : 0) - min(entry.titleLength, 999_999)
             matches.append(FuzzyMatch(index: index, tier: tier, score: score, highlights: highlights))
         }
         matches.sort { $0.score != $1.score ? $0.score > $1.score : $0.index < $1.index }
         return Array(matches.prefix(limit))
     }
 
-    private static func tier(_ query: String, tokens: [String], text: String, words: [String]) -> MatchTier? {
-        if text == query { return .exact }
-        if text.hasPrefix(query) || coversLeadingWords(tokens, words) { return .prefix }
-        let initials = String(words.compactMap(\.first))
-        if tokens.count == 1, initials.hasPrefix(query) { return .wordPrefix }
-        if !tokens.isEmpty, tokens.allSatisfy({ token in words.contains { $0.hasPrefix(token) } }) { return .unordered }
-        if text.contains(query) { return .substring }
-        if isSubsequence(query.filter { !$0.isWhitespace }, of: text) { return .subsequence }
+    /// A tier with the ranges that matched in it.
+    private typealias TextMatch = (tier: MatchTier, ranges: [Range<Int>])
+
+    /// The tier a text matches the query at, with the matched ranges of that match.
+    private static func match(_ query: String, tokens: [String], in text: Text) -> TextMatch? {
+        let length = query.utf16.count
+        if text.folded == query { return (.exact, [0..<length]) }
+        if text.folded.hasPrefix(query) { return (.prefix, [0..<length]) }
+        if tokens.count > 1, tokens.count <= text.words.count,
+            zip(tokens, text.words).allSatisfy({ $1.text.hasPrefix($0) })
+        {
+            return (.prefix, zip(tokens, text.words).map { $1.start..<($1.start + $0.utf16.count) })
+        }
+        let initials = String(text.words.compactMap(\.text.first))
+        if tokens.count == 1, initials.hasPrefix(query) {
+            return (.wordPrefix, text.words.prefix(query.count).map { $0.start..<($0.start + 1) })
+        }
+        if !tokens.isEmpty {
+            let starts = tokens.map { token in
+                text.words.first { $0.text.hasPrefix(token) }.map { $0.start..<($0.start + token.utf16.count) }
+            }
+            if starts.allSatisfy({ $0 != nil }) { return (.unordered, merged(starts.compactMap { $0 })) }
+        }
+        if let range = text.folded.range(of: query) {
+            let start = text.folded.utf16.distance(from: text.folded.startIndex, to: range.lowerBound)
+            return (.substring, [start..<(start + length)])
+        }
+        if let positions = subsequence(query.filter { !$0.isWhitespace }, of: text.folded) {
+            return (.subsequence, merged(positions.map { $0..<($0 + 1) }))
+        }
         return nil
     }
 
@@ -92,26 +118,57 @@ public struct SimpleFuzzyIndex: FuzzyIndex {
         }
     }
 
-    /// True when each query token starts the matching word, in order, from the first word.
-    private static func coversLeadingWords(_ tokens: [String], _ words: [String]) -> Bool {
-        guard tokens.count > 1, tokens.count <= words.count else { return false }
-        return zip(tokens, words).allSatisfy { $1.hasPrefix($0) }
-    }
-
-    private static func isSubsequence(_ query: String, of text: String) -> Bool {
+    /// The UTF-16 offsets of the query's characters found in order in the text, or nil.
+    private static func subsequence(_ query: String, of text: String) -> [Int]? {
+        guard !query.isEmpty else { return nil }
         var remaining = query[...]
-        for character in text where remaining.first == character {
-            remaining = remaining.dropFirst()
-            if remaining.isEmpty { return true }
+        var positions: [Int] = []
+        var offset = 0
+        for character in text {
+            if remaining.first == character {
+                positions.append(offset)
+                remaining = remaining.dropFirst()
+                if remaining.isEmpty { return positions }
+            }
+            offset += character.utf16.count
         }
-        return remaining.isEmpty
+        return nil
     }
 
-    private static func fold(_ text: String) -> String {
+    /// Ranges sorted, with touching and overlapping ones joined.
+    private static func merged(_ ranges: [Range<Int>]) -> [Range<Int>] {
+        var result: [Range<Int>] = []
+        for range in ranges.sorted(by: { $0.lowerBound < $1.lowerBound }) {
+            if let last = result.last, range.lowerBound <= last.upperBound {
+                result[result.count - 1] = last.lowerBound..<max(last.upperBound, range.upperBound)
+            } else {
+                result.append(range)
+            }
+        }
+        return result
+    }
+
+    fileprivate static func fold(_ text: String) -> String {
         text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
     }
 
-    private static func words(_ text: String) -> [String] {
-        text.split { !$0.isLetter && !$0.isNumber }.map(String.init)
+    /// The words of a text: runs of letters and digits, each with its UTF-16 start.
+    fileprivate static func words(_ text: String) -> [(text: String, start: Int)] {
+        var words: [(text: String, start: Int)] = []
+        var current = ""
+        var start = 0
+        var offset = 0
+        for character in text {
+            if character.isLetter || character.isNumber {
+                if current.isEmpty { start = offset }
+                current.append(character)
+            } else if !current.isEmpty {
+                words.append((current, start))
+                current = ""
+            }
+            offset += character.utf16.count
+        }
+        if !current.isEmpty { words.append((current, start)) }
+        return words
     }
 }

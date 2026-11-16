@@ -50,6 +50,31 @@ import Testing
         #expect(fixture.runtime.workbench.shelf.requests.map(\.reason) == [.open])
     }
 
+    /// Inside a tier a title match beats a keyword match, whatever the rank hint says; the hint
+    /// orders title matches among themselves. As Emoji asks: "heart" finds Heart Suit before the
+    /// often used Red Heart, which only its keyword reaches.
+    @Test(arguments: [false, true])
+    func aTitleMatchBeatsAKeywordMatchAheadOfTheRankHint(grid: Bool) async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let rows = [
+            Row(id: ItemID("glyph", "red"), title: "Red Heart", keywords: ["heart", "love"], rankHint: 10),
+            Row(id: ItemID("glyph", "suit"), title: "Heart Suit", rankHint: 0),
+            Row(id: ItemID("glyph", "beat"), title: "Heartbeat", rankHint: 5),
+            Row(id: ItemID("glyph", "letter"), title: "Love Letter", rankHint: 1),
+        ]
+        let section = [ListSection("Symbols", id: "symbols", rows: rows)]
+        let page =
+            grid
+            ? fixture.open(.grid(GridPage(StaticRows(section), title: "Symbols", showsTitles: true)))
+            : fixture.open(.list(ListPage(StaticRows(section), title: "Symbols")))
+        #expect(await waitUntil { !page.isBusy && fixture.panel.shownTitles.count == 4 })
+        fixture.type("heart")
+        #expect(fixture.panel.shownTitles == ["Heartbeat", "Heart Suit", "Red Heart"])
+        fixture.type("love")
+        #expect(fixture.panel.shownTitles == ["Love Letter", "Red Heart"], "a title match even with a lower hint")
+    }
+
     @Test func theSelectionIsKeyedBySectionAndRow() async throws {
         let fixture = await PanelFixture.make()
         defer { fixture.close() }
@@ -134,4 +159,19 @@ import Testing
         _ = fixture.open(.detail(DetailPage(title: "About", detail: .markdown("Hello"))))
         #expect(fixture.panel.top is DetailPageController)
     }
+}
+
+/// A host-filtered source over fixed sections.
+@MainActor final class StaticRows: ListSource {
+    let sections: [Kit.ListSection]
+
+    init(_ sections: [Kit.ListSection]) {
+        self.sections = sections
+    }
+
+    func load(_ request: ListRequest) async throws -> ListResult {
+        ListResult(sections: sections)
+    }
+
+    func actions(for row: Row) -> [Action] { [] }
 }

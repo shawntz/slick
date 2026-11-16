@@ -3,8 +3,12 @@ import Kit
 /// Host filtering of a list or grid: the rules `ListSource` documents and `FeatureHarness` models.
 ///
 /// Sections keep their order. A section hidden by its ``SectionVisibility`` is left out, and so is a
-/// section with no match. Inside a section, rows order by match tier, then by ``Row/rankHint``,
-/// higher first, then by the index's own order, so a weaker tier never outranks a stronger one.
+/// section with no match. Inside a section, rows order by match tier, then a row whose title matched
+/// before a row that only a keyword reached, then by ``Row/rankHint``, higher first, then by the
+/// index's own order. So a weaker tier never outranks a stronger one, and inside a tier a title that
+/// starts with the query beats a keyword match whatever the hint. A match carries title ranges when
+/// its title matched and none when only a keyword did, as the engine's index and KitTesting's
+/// `SimpleFuzzyIndex` report it.
 ///
 /// The result names rows by position in the loaded sections and copies no row, so filtering
 /// thousands of rows per keystroke costs what the matches cost.
@@ -65,6 +69,7 @@ nonisolated struct HostFilter {
         for (section, rows) in found.enumerated() where !rows.isEmpty {
             let ordered = rows.sorted { lhs, rhs in
                 if lhs.tier != rhs.tier { return lhs.tier < rhs.tier }
+                if lhs.matchedTitle != rhs.matchedTitle { return lhs.matchedTitle }
                 if lhs.hint != rhs.hint { return lhs.hint > rhs.hint }
                 return lhs.order < rhs.order
             }
@@ -79,5 +84,8 @@ nonisolated struct HostFilter {
         var hint: Double
         var order: Int
         var highlights: [Range<Int>]
+
+        /// True when the title matched, not only a keyword.
+        var matchedTitle: Bool { !highlights.isEmpty }
     }
 }
