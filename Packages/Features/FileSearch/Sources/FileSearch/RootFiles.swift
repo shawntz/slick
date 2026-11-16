@@ -4,7 +4,8 @@ import Kit
 
 /// Files in root search: a Files section for queries of two characters or more, and a folder
 /// listing that takes over for a query starting with "/" or "~". Folder rows complete on Tab, so
-/// the user walks down a path by typing and pressing Tab.
+/// the user walks down a path by typing and pressing Tab. A folder the index does not hold, such as
+/// "/Applications", is listed from disk when ``BrowseGuard`` allows it.
 ///
 /// Everything a keystroke reaches on the main thread here is a field read and an `await`: the
 /// search, the paths, the highlights and the rows are made on the root search lane.
@@ -15,11 +16,13 @@ final class RootFiles: AsyncProvider, RememberedRowValidator {
 
     private let controller: IndexController
     private let lane: SearchLane
+    private let fileSystem: any FileSystem
     private let fileActions: FileActions
 
-    init(controller: IndexController, lane: SearchLane, actions: FileActions) {
+    init(controller: IndexController, lane: SearchLane, fileSystem: any FileSystem, actions: FileActions) {
         self.controller = controller
         self.lane = lane
+        self.fileSystem = fileSystem
         fileActions = actions
     }
 
@@ -43,7 +46,11 @@ final class RootFiles: AsyncProvider, RememberedRowValidator {
             query: query, limit: SearchLane.isBrowse(query) ? .max : maximumRows, kind: nil,
             includesHidden: plan.configuration.includeHidden, patterns: plan.patterns,
             style: FileRows.Style(home: plan.home))
-        return try await lane.search(request, in: index).rows
+        let result = try await lane.search(request, in: index)
+        guard result.notIndexed else { return result.rows }
+        let listed = await FolderBrowser.rows(for: request, scope: plan, fileSystem: fileSystem)
+        try Task.checkCancellation()
+        return listed ?? []
     }
 
     func actions(for row: Row) -> [Action] {

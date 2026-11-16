@@ -26,8 +26,7 @@ struct EventTests {
         #expect(try await fixture.rootPaths("parser") == ["Projects/app/src/parser.swift"])
         #expect(try await fixture.rootPaths("agenda") == ["Projects/agenda.txt"])
         try fixture.tree.remove("Projects/agenda.txt")
-        // The event names the folder: Kit's fake watcher cannot match a deleted file below /private.
-        fixture.fakes.fileWatcher.simulateChange([fixture.tree.url("Projects")])
+        fixture.fakes.fileWatcher.simulateEvents([FileChange(fixture.tree.url("Projects/agenda.txt"), flags: .removed)])
         try await fixture.idle()
         #expect(try await fixture.rootPaths("agenda").isEmpty)
         #expect(fixture.feature.controller.summary.count > 0)
@@ -119,7 +118,8 @@ struct EventTests {
         #expect(fixture.feature.status?.level == .info)
         #expect(try await fixture.rootPaths("notes") == ["notes.md"])
         // The damaged file was replaced by a good one.
-        let (_, opening) = try DiskIndexMaker().open(at: tree.indexFile, fixture.feature.controller.plan!.configuration)
+        let (_, opening) = try DiskIndexMaker().open(
+            at: tree.indexFile, fixture.feature.controller.plan!.configuration, cancellation: nil)
         #expect(opening.fromFile && opening.loadError == nil)
         // A rebuild clears the notice.
         try await fixture.harness.run("rebuild")
@@ -143,7 +143,8 @@ struct EventTests {
     /// The paths of the saved index file that match a query, relative to home.
     private func savedPaths(_ fixture: Fixture, matching query: String) throws -> [String] {
         let plan = fixture.feature.controller.plan ?? lastPlan(fixture)
-        let (index, opening) = try DiskIndexMaker().open(at: fixture.tree.indexFile, plan.configuration)
+        let (index, opening) = try DiskIndexMaker().open(
+            at: fixture.tree.indexFile, plan.configuration, cancellation: nil)
         #expect(opening.fromFile)
         let session = try FileSearchSession()
         let count = try session.search(query, in: index)

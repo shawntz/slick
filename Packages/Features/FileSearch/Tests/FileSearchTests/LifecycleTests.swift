@@ -14,12 +14,22 @@ struct LifecycleTests {
         #expect(
             Set(manifest.permissions.map(\.permission)) == [
                 .protectedFolder(.desktop), .protectedFolder(.documents), .protectedFolder(.downloads),
-                .protectedFolder(.removableVolumes), .protectedFolder(.networkVolumes), .fullDiskAccess,
+                .protectedFolder(.iCloudDrive), .protectedFolder(.removableVolumes), .protectedFolder(.networkVolumes),
+                .fullDiskAccess,
             ])
         for need in manifest.permissions {
             #expect(need.reason.hasPrefix("Search"), "\(need.reason)")
             #expect(need.reason.hasSuffix("."))
         }
+    }
+
+    /// Indexing the names in the home folder reads personal data, so it waits for the user's choice.
+    /// Onboarding offers it with its switch on.
+    @Test func theFeatureStartsOffAndOnboardingSuggestsIt() {
+        let manifest = FileSearchFeature.manifest
+        #expect(!manifest.isEnabledByDefault)
+        #expect(manifest.isSuggestedInOnboarding)
+        #expect(FeatureValidator.validate(manifest).isEmpty)
     }
 
     @Test func outsideTheAppTheIndexIsSyntheticAndNothingIsRead() async throws {

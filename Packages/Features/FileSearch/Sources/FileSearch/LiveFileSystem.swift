@@ -1,14 +1,15 @@
+import CoreBridge
 import Foundation
 
 /// The live file system service. Never run in tests.
 ///
 /// `mountedVolumes()` asks for each mounted volume's flags, as the permission center does before it
-/// probes a volume, and runs only after the user chose to search a kind of volume. `names(in:)`
-/// lists the home folder's Library and its Mobile Documents folder, only after iCloud Drive was
-/// chosen or Full Disk Access covers it: listing Mobile Documents is the read macOS guards for
-/// iCloud Drive. `facts(of:)` reads one item's resource values for the detail pane, and the
-/// feature calls it only for a path its scope allows, so it never touches a folder macOS guards
-/// before the user granted it.
+/// probes a volume, and runs only after the user chose to search a kind of volume. `listFolder`
+/// lists a folder the user typed only when ``BrowseGuard`` allows it: outside the home folder, on
+/// the startup volume, and away from the places that hold other volumes or other apps' data.
+/// `facts(of:)` reads one item's resource values for the detail pane, and the feature calls it only
+/// for a path its scope allows, so it never touches a folder macOS guards before the user granted
+/// it.
 nonisolated struct LiveFileSystem: FileSystem {
     @concurrent func mountedVolumes() async -> MountedVolumes {
         let keys: [URLResourceKey] = [.volumeIsRemovableKey, .volumeIsEjectableKey, .volumeIsLocalKey]
@@ -29,8 +30,11 @@ nonisolated struct LiveFileSystem: FileSystem {
         return found
     }
 
-    @concurrent func names(in folder: String) async -> [String]? {
-        try? FileManager.default.contentsOfDirectory(atPath: folder)
+    @concurrent func listFolder(_ folder: String, scope: ScopePlan) async -> FolderListing? {
+        guard let path = BrowseGuard.live(home: scope.home, blocked: scope.blocked).listablePath(folder) else {
+            return nil
+        }
+        return try? FileIndex.listFolder(path, rules: scope.configuration)
     }
 
     @concurrent func facts(of path: String) async -> FileFacts? {

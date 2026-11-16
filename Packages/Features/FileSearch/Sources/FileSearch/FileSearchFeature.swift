@@ -1,15 +1,20 @@
 import CoreBridge
 import Foundation
 import Kit
+import os
 
 /// File search over the launcher's own index of file names.
 ///
 /// - The index is the Rust core's file index, owned by ``IndexController``: opened or walked off
 ///   the main thread, fed batches of events from Kit's file watcher on one queue, and saved at
-///   quiet moments and when the feature stops.
+///   quiet moments and when the feature stops, with the mark the watcher resumes from at the next
+///   start. A walk stops when the feature stops.
+/// - The feature is off until the user turns it on, because indexing the names in the home folder
+///   reads personal data. Onboarding suggests it with its switch on.
 /// - Root search gets a Files section and folder browsing from ``RootFiles``. The Search Files page
 ///   is ``SearchFilesList``. Each searches on its own ``SearchLane`` at user-initiated priority, so
-///   a keystroke never waits for the main thread until its rows are ready.
+///   a keystroke never waits for the main thread until its rows are ready. A typed folder the index
+///   does not hold is listed from disk when ``BrowseGuard`` allows it.
 /// - The scope starts with the home folder, without Library and without the places macOS guards.
 ///   A protected place joins only after the user asks for it, one at a time or all at once. Full
 ///   Disk Access only spares the prompt. A place whose folder cannot be read is left out until the
@@ -23,10 +28,12 @@ public final class FileSearchFeature: Feature {
             PermissionNeed(.protectedFolder(.desktop), reason: Strings.Permissions.desktop),
             PermissionNeed(.protectedFolder(.documents), reason: Strings.Permissions.documents),
             PermissionNeed(.protectedFolder(.downloads), reason: Strings.Permissions.downloads),
+            PermissionNeed(.protectedFolder(.iCloudDrive), reason: Strings.Permissions.iCloudDrive),
             PermissionNeed(.protectedFolder(.removableVolumes), reason: Strings.Permissions.removableVolumes),
             PermissionNeed(.protectedFolder(.networkVolumes), reason: Strings.Permissions.networkVolumes),
             PermissionNeed(.fullDiskAccess, reason: Strings.Permissions.fullDiskAccess),
-        ])
+        ],
+        isEnabledByDefault: false, isSuggestedInOnboarding: true)
 
     /// The index file's name in the feature's data folder.
     nonisolated static let indexFileName = "file-index.bin"
@@ -40,7 +47,8 @@ public final class FileSearchFeature: Feature {
     /// Sent when a declaration changed: the status, the pane's text, the root search switch.
     let declarations = ChangeSignal()
 
-    private(set) lazy var rootFiles = RootFiles(controller: controller, lane: rootLane, actions: fileActions)
+    private(set) lazy var rootFiles = RootFiles(
+        controller: controller, lane: rootLane, fileSystem: fileSystem, actions: fileActions)
     private(set) lazy var searchList = SearchFilesList(feature: self)
     private(set) lazy var placesList = PlacesList(feature: self)
 
@@ -49,6 +57,10 @@ public final class FileSearchFeature: Feature {
     private var loadTask: Task<Void, Never>?
     private var watchTask: Task<Void, Never>?
     private(set) var watchedRoots: [String] = []
+    /// Moves on with every watch, so a watch that ended late cannot mark a newer one as stopped.
+    private var watchGeneration = 0
+    /// The watcher's stream ended by itself: macOS refused or stopped reporting changes.
+    private(set) var watchStopped = false
     private var scopeTask: Task<Void, Never>?
     private var scopeIsStale = false
     private var accessWaits: [ProtectedPlace: Task<Void, Never>] = [:]
@@ -62,8 +74,8 @@ public final class FileSearchFeature: Feature {
             file: context.storage.dataFile(Self.indexFileName).path(percentEncoded: false),
             maker: context.service(IndexMakerKey.self), clock: context.clock, log: context.log,
             mayRead: { place in
-                guard let permission = place.permission else { return true }
-                return permissions.isGranted(.fullDiskAccess) || permissions.isGranted(permission)
+                place.isReadable(
+                    isGranted: { permissions.isGranted($0) }, fullDiskAccess: permissions.isGranted(.fullDiskAccess))
             })
         rootLane = SearchLane(
             label: "files.search.root", clock: context.clock, searchCapacity: 24, browseCapacity: 1_000)
@@ -99,6 +111,9 @@ public final class FileSearchFeature: Feature {
                     waiting: blocked.filter { states[$0] == .waitingForAccess },
                     refused: blocked.filter { states[$0] == .accessDenied }),
                 requires: missing)
+        }
+        if watchStopped {
+            return FeatureStatus(.warning, Strings.Status.notFollowing, message: Strings.Status.notFollowingMessage)
         }
         if summary.phase == .building {
             return FeatureStatus(.info, Strings.Status.building, message: Strings.Status.buildingMessage)
@@ -217,11 +232,16 @@ public final class FileSearchFeature: Feature {
     private func start() async {
         let plan = await makePlan()
         guard isActive else { return }
-        startWatching(plan.roots)
         let outcome: LoadOutcome?
         if controller.index == nil {
-            outcome = await controller.load(plan)
+            // The watch starts before the index opens, so nothing that changes meanwhile is missed.
+            // With the saved mark it first replays what changed while the feature was off.
+            let mark = await controller.savedMark()
+            guard isActive else { return }
+            startWatching(plan.roots, since: mark)
+            outcome = await controller.load(plan, resuming: mark)
         } else {
+            startWatching(plan.roots)
             outcome = await controller.rescope(plan)
         }
         guard isActive else { return }
@@ -238,6 +258,7 @@ public final class FileSearchFeature: Feature {
         watchTask?.cancel()
         watchTask = nil
         watchedRoots = []
+        watchStopped = false
         scopeTask?.cancel()
         scopeTask = nil
         scopeIsStale = false
@@ -245,16 +266,34 @@ public final class FileSearchFeature: Feature {
         accessWaits = [:]
     }
 
-    /// Starts one watch over the roots. File events go straight to the index queue; the main
-    /// thread never sees them.
-    private func startWatching(_ roots: [String]) {
+    /// Starts one watch over the roots, from `mark` when given. File events go straight to the
+    /// index queue; the main thread never sees them.
+    private func startWatching(_ roots: [String], since mark: FileChangeMark? = nil) {
+        let directories = roots.map { URL(filePath: $0, directoryHint: .isDirectory) }
+        follow(context.fileWatcher.watchChanges(directories, since: mark), roots: roots)
+    }
+
+    /// Hands each batch of `changes` to the index. A stream that ends while the feature still
+    /// follows it means macOS stopped reporting changes, which the status then says.
+    func follow(_ changes: AsyncStream<FileChangeBatch>, roots: [String]) {
         watchTask?.cancel()
         watchedRoots = roots
-        let events = context.fileWatcher.watch(roots.map { URL(filePath: $0, directoryHint: .isDirectory) })
+        watchGeneration += 1
+        watchStopped = false
+        let generation = watchGeneration
         let controller = controller
-        watchTask = Task.detached(priority: .utility) {
-            for await urls in events { controller.submit(urls) }
+        watchTask = Task.detached(priority: .utility) { [weak self] in
+            for await batch in changes { controller.submit(batch) }
+            guard !Task.isCancelled else { return }
+            await self?.watchEnded(generation)
         }
+    }
+
+    private func watchEnded(_ generation: Int) {
+        guard isActive, generation == watchGeneration else { return }
+        context.log.error("The file watcher stopped; changes are no longer followed")
+        watchStopped = true
+        declarations.send()
     }
 
     /// Waits until the work started so far has finished: the first open, scope changes and
@@ -291,11 +330,6 @@ public final class FileSearchFeature: Feature {
         if states[.removableVolumes] == .searched || states[.networkVolumes] == .searched {
             input.volumes = await fileSystem.mountedVolumes()
         }
-        if states[.iCloudDrive] == .searched {
-            let library = home + "/Library"
-            input.libraryNames = await fileSystem.names(in: library)
-            input.mobileDocumentsNames = await fileSystem.names(in: library + "/" + ScopePlan.mobileDocuments)
-        }
         return ScopePlan(input)
     }
 
@@ -318,7 +352,7 @@ public final class FileSearchFeature: Feature {
     private func applyScope() async {
         let plan = await makePlan()
         guard isActive else { return }
-        if plan.roots != watchedRoots { startWatching(plan.roots) }
+        if plan.roots != watchedRoots || watchStopped { startWatching(plan.roots) }
         if let outcome = await controller.rescope(plan) { reconcile(outcome.unreadable) }
         syncAccessWaits()
         declarations.send()
@@ -364,10 +398,12 @@ public final class FileSearchFeature: Feature {
     }
 
     /// Opens a permission stream for each place the user asked for whose permission is missing,
-    /// and closes the others. A grant then brings the place in. Nothing is opened at idle.
+    /// and closes the others. A grant made in System Settings then brings the place in; a grant made
+    /// in the launcher arrives through ``permissionGranted(_:)``. Nothing is opened at idle, and
+    /// nothing for iCloud Drive, whose status changes only when the launcher asks.
     private func syncAccessWaits() {
         var wanted: [ProtectedPlace: Permission] = [:]
-        for place in blockedPlaces() {
+        for place in blockedPlaces() where place.fullDiskAccessCovers {
             guard let permission = place.permission, !context.permissions.isGranted(permission) else { continue }
             wanted[place] = permission
         }
@@ -398,6 +434,17 @@ public final class FileSearchFeature: Feature {
     /// The number of permission streams open now. For tests.
     var openAccessWaits: Int { accessWaits.count }
 
+    /// A grant made in the settings window, onboarding or the panel's permission card brings in the
+    /// places the user asked for that it covers, and reads again one whose read had failed.
+    public func permissionGranted(_ permission: Permission) async {
+        guard isActive else { return }
+        let covers = permission == .fullDiskAccess
+        let included = PlaceChoices(context.settings).included
+        for place in ProtectedPlace.allCases where included.contains(place) {
+            if place.permission == permission || (covers && place.fullDiskAccessCovers) { accessGranted(place) }
+        }
+    }
+
     // MARK: - Choosing places
 
     /// Records that the user asked to search these places and follows the new scope.
@@ -416,12 +463,16 @@ public final class FileSearchFeature: Feature {
         requestScopeRefresh()
     }
 
-    /// Asks macOS for each place's permission that is missing, one after another. Only an action
-    /// or a settings button calls this, right after the user pressed it.
+    /// Asks macOS for each place's permission that is missing, one after another. Full Disk Access
+    /// spares every prompt but iCloud Drive's. Only an action or a settings button calls this, right
+    /// after the user pressed it.
     func askForAccess(_ places: [ProtectedPlace], context actionContext: ActionContext) async {
-        guard !context.permissions.isGranted(.fullDiskAccess) else { return }
+        let permissions = context.permissions
+        let fullDiskAccess = permissions.isGranted(.fullDiskAccess)
         for place in places {
-            guard let permission = place.permission, !context.permissions.isGranted(permission) else { continue }
+            guard let permission = place.permission,
+                !place.isReadable(isGranted: { permissions.isGranted($0) }, fullDiskAccess: fullDiskAccess)
+            else { continue }
             _ = await actionContext.requestPermission(permission)
         }
     }
@@ -459,8 +510,7 @@ public final class FileSearchFeature: Feature {
         ]
     }
 
-    /// Asks for Desktop, Documents and Downloads in turn after one confirmation, and includes iCloud
-    /// Drive, whose prompt comes with the first read.
+    /// Asks for Desktop, Documents, Downloads and iCloud Drive in turn after one confirmation.
     func searchAllAction() -> Action {
         Action(
             Strings.Places.searchAll, id: "search-all", icon: .symbol("plus.circle"),
@@ -515,7 +565,7 @@ public final class FileSearchFeature: Feature {
         await waitUntilIdle()
         guard isActive else { return LoadOutcome(failed: true) }
         let plan = await makePlan()
-        if plan.roots != watchedRoots { startWatching(plan.roots) }
+        if plan.roots != watchedRoots || watchStopped { startWatching(plan.roots) }
         let outcome: LoadOutcome
         if let rescoped = await controller.rescope(plan) {
             outcome = rescoped

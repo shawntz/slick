@@ -42,7 +42,7 @@ struct Benchmark {
             let count = try index.count()
             let heap = try index.snapshot().info.heapBytes
             let file = folder.appending(path: "index-\(entries).bin").path(percentEncoded: false)
-            try DiskIndexMaker().save(index, to: file)
+            try DiskIndexMaker().save(index, to: file, mark: nil)
             let bytes = try FileManager.default.attributesOfItem(atPath: file)[.size] as? Int ?? 0
             let per = Double(100_000) / Double(count)
             print(

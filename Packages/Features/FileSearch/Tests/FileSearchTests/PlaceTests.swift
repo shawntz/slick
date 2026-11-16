@@ -9,6 +9,8 @@ import Testing
 @Suite("Scope and protected places", .timeLimit(.minutes(1)))
 @MainActor
 struct PlaceTests {
+    private let cloudDocs = "Library/Mobile Documents/com~apple~CloudDocs"
+
     @Test func activationIndexesHomeAndNothingThatPrompts() async throws {
         let fixture = try Fixture()
         try await fixture.start()
@@ -25,7 +27,7 @@ struct PlaceTests {
         #expect(fixture.fakes.permissions.requests.isEmpty, "nothing asks at activation")
         #expect(fixture.fakes.permissions.openStreamCount == 0, "no permission is followed at idle")
         #expect(fixture.fileSystem.volumeReads == 0, "volumes are not even listed until chosen")
-        #expect(fixture.fileSystem.listed.isEmpty, "Library is not listed until iCloud Drive is chosen")
+        #expect(fixture.fileSystem.listed.isEmpty, "no folder is listed from disk")
         #expect(
             fixture.fakes.fileWatcher.watchedDirectories == [
                 URL(filePath: fixture.tree.home, directoryHint: .isDirectory)
@@ -89,11 +91,15 @@ struct PlaceTests {
         #expect(
             fixture.fakes.permissions.requests == [
                 .protectedFolder(.desktop), .protectedFolder(.documents), .protectedFolder(.downloads),
+                .protectedFolder(.iCloudDrive),
             ])
+        #expect(
+            fixture.feature.watchedRoots == [fixture.tree.home, fixture.tree.path(cloudDocs)],
+            "iCloud Drive is watched as a root of its own")
         for (query, path) in [
             ("desktop-shot", "Desktop/desktop-shot.png"), ("letter", "Documents/letter.txt"),
             ("installer", "Downloads/installer.dmg"),
-            ("cloudnote", "Library/Mobile Documents/com~apple~CloudDocs/cloudnote.txt"),
+            ("cloudnote", cloudDocs + "/cloudnote.txt"),
         ] {
             #expect(try await fixture.rootPaths(query) == [path])
         }
@@ -108,16 +114,16 @@ struct PlaceTests {
         for name in ["letter", "cloudnote", "desktop-shot", "installer"] {
             #expect(try await fixture.rootPaths(name).isEmpty, "\(name)")
         }
-        #expect(fixture.fileSystem.listed.isEmpty, "Library is not listed")
+        #expect(fixture.fileSystem.listed.isEmpty, "nothing is listed")
         #expect(fixture.feature.placeStates()[.documents] == .notSearched)
         #expect(fixture.feature.placeStates()[.removableVolumes] == .notSearched)
         #expect(fixture.fileSystem.volumeReads == 0)
         #expect(fixture.feature.status == nil)
-        // Choosing them all is one question, and Full Disk Access spares every prompt.
+        // Choosing them all is one question, and Full Disk Access spares every prompt but iCloud Drive's.
         fixture.harness.confirmationAnswer = true
         try await fixture.harness.pressSettingsButton("Search All Protected Folders")
         try await fixture.idle()
-        #expect(fixture.fakes.permissions.requests.isEmpty)
+        #expect(fixture.fakes.permissions.requests == [.protectedFolder(.iCloudDrive)])
         #expect(try await fixture.rootPaths("letter") == ["Documents/letter.txt"])
         #expect(try await fixture.rootPaths("cloudnote").count == 1)
         // Turning one off holds even with Full Disk Access.
@@ -162,7 +168,9 @@ struct PlaceTests {
 
     @Test func aMissingICloudDriveIsReportedOnlyWhenAskedFor() async throws {
         let tree = try TestTree(files: ["notes.md"])
-        let asked = try Fixture(tree: tree) { $0[FileSearchSettings.includedPlaces] = ["icloud-drive"] }
+        let asked = try Fixture(tree: tree, granted: [.protectedFolder(.iCloudDrive)]) {
+            $0[FileSearchSettings.includedPlaces] = ["icloud-drive"]
+        }
         try await asked.start()
         #expect(asked.feature.placeStates()[.iCloudDrive] == .accessDenied)
         #expect(asked.feature.status?.title == "iCloud Drive Is Not Searched")
@@ -173,6 +181,24 @@ struct PlaceTests {
         #expect(unasked.feature.placeStates()[.iCloudDrive] == .notSearched, "Full Disk Access alone asks for nothing")
         #expect(unasked.feature.status == nil)
         #expect(unasked.fileSystem.listed.isEmpty)
+    }
+
+    @Test func iCloudDriveWaitsForItsOwnGrantEvenWithFullDiskAccess() async throws {
+        let fixture = try Fixture(granted: [.fullDiskAccess]) {
+            $0[FileSearchSettings.includedPlaces] = ["icloud-drive"]
+        }
+        try await fixture.start()
+        #expect(fixture.feature.placeStates()[.iCloudDrive] == .waitingForAccess)
+        #expect(fixture.feature.status?.requires == [.protectedFolder(.iCloudDrive)])
+        #expect(try await fixture.rootPaths("cloudnote").isEmpty)
+        #expect(fixture.fakes.permissions.openStreamCount == 0, "its status changes only when the launcher asks")
+        // The grant through the host's card reaches the feature, which brings iCloud Drive in.
+        try await fixture.harness.grantInSettings(.protectedFolder(.iCloudDrive))
+        try await fixture.idle()
+        #expect(fixture.feature.placeStates()[.iCloudDrive] == .searched)
+        #expect(try await fixture.rootPaths("cloudnote") == [cloudDocs + "/cloudnote.txt"])
+        #expect(try await fixture.rootPaths("cachefile").isEmpty, "the rest of Library stays out")
+        #expect(fixture.feature.status == nil)
     }
 
     @Test func aChosenVolumeKindListsVolumesAndWatchesThem() async throws {

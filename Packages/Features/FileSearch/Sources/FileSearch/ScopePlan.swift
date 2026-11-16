@@ -18,11 +18,6 @@ nonisolated struct ScopeInput: Hashable, Sendable {
     var excludedNames: [String] = []
     var includesHidden = false
     var volumes = MountedVolumes()
-    /// The names in the home folder's Library and in its Mobile Documents folder, listed only while
-    /// iCloud Drive is searched, so the walk can skip everything there but iCloud Drive. Nil when
-    /// not listed or not readable.
-    var libraryNames: [String]?
-    var mobileDocumentsNames: [String]?
 }
 
 /// What to index, what to watch and what never to read, worked out from a ``ScopeInput``. Pure: it
@@ -31,14 +26,12 @@ nonisolated struct ScopeInput: Hashable, Sendable {
 /// The home folder is always a root, without its Library folder, which the recommended rules skip.
 /// Desktop, Documents and Downloads join only when their place is searched; until then they are
 /// skipped paths, so the walker never opens them and events below them are dropped. iCloud Drive
-/// lives in Library, and the index drops a root nested in another, so while it is searched every
-/// other name in Library and in Mobile Documents becomes a skipped path instead. Volumes are roots
-/// of their own when their kind is searched. A folder the user added that lies inside a place not
-/// searched is left out until the place is searched.
+/// lives in the skipped Library folder. While it is searched its folder is a root of its own, which
+/// the index keeps because the home folder's walk never enters it, so nothing else in Library is
+/// listed. Volumes are roots of their own when their kind is searched. A folder the user added
+/// that lies inside a place not searched is left out until the place is searched, and one inside
+/// Library is left out, because Library holds other apps' data.
 nonisolated struct ScopePlan: Hashable, Sendable {
-    static let mobileDocuments = "Mobile Documents"
-    static let cloudDocs = "com~apple~CloudDocs"
-
     let home: String
     /// The roots, home first.
     let roots: [String]
@@ -62,29 +55,18 @@ nonisolated struct ScopePlan: Hashable, Sendable {
         var skipPaths: [String] = []
         var placeFolders: [ProtectedPlace: [String]] = [:]
         var expected: Set<String> = []
-        var indexesLibrary = false
         for place in ProtectedPlace.folders {
             guard let folder = place.folder(home: home) else { continue }
             if input.states[place]?.isSearched == true {
                 placeFolders[place] = [folder]
                 if place == .iCloudDrive {
-                    indexesLibrary = true
+                    roots.append(folder)
                     expected.insert(folder)
                 }
             } else {
                 blocked.append(folder)
                 if place != .iCloudDrive { skipPaths.append(folder) }
             }
-        }
-        if indexesLibrary {
-            if let names = input.libraryNames {
-                skipPaths += names.filter { $0 != Self.mobileDocuments && !$0.contains("/") }.map { library + "/" + $0 }
-            } else {
-                skipPaths.append(library)
-            }
-            let mobile = library + "/" + Self.mobileDocuments
-            skipPaths += (input.mobileDocumentsNames ?? []).filter { $0 != Self.cloudDocs && !$0.contains("/") }
-                .map { mobile + "/" + $0 }
         }
         for (place, volumes) in [
             (ProtectedPlace.removableVolumes, input.volumes.removable), (.networkVolumes, input.volumes.network),
@@ -102,7 +84,9 @@ nonisolated struct ScopePlan: Hashable, Sendable {
         blocked += excluded
         skipPaths += excluded
         for folder in input.extraFolders.compactMap({ Paths.normalized($0, home: home) })
-        where !blocked.contains(where: { Paths.isInside(folder, $0) }) && !roots.contains(folder) {
+        where !blocked.contains(where: { Paths.isInside(folder, $0) }) && !Paths.isInside(folder, library)
+            && !roots.contains(folder)
+        {
             roots.append(folder)
         }
         let names = NamePatterns(input.excludedNames)
@@ -112,17 +96,17 @@ nonisolated struct ScopePlan: Hashable, Sendable {
         self.placeFolders = placeFolders
         self.expected = expected
         self.patterns = names
-        // Without a home folder the recommended rules leave Library in; the skipped paths above
-        // keep all of it out but iCloud Drive.
+        // With the home folder named, the recommended rules skip its Library. A root the home
+        // folder's walk never enters, such as iCloud Drive's folder or an added folder behind a
+        // skipped name, is kept as a root of its own.
         configuration = FileIndexConfiguration(
-            roots: roots, home: indexesLibrary ? nil : home, useRecommendedRules: true,
-            includeHidden: input.includesHidden, oneFileSystem: true, skipNames: names.plainNames,
-            skipPaths: skipPaths)
+            roots: roots, home: home, useRecommendedRules: true, includeHidden: input.includesHidden,
+            oneFileSystem: true, skipNames: names.plainNames, skipPaths: skipPaths, keepsRootsInSkippedFolders: true)
     }
 
     /// True when `path` lies inside a root and outside every blocked folder: the index may read it,
     /// and its details and preview may be shown. In the home folder's Library only iCloud Drive is
-    /// allowed, and only while it is searched.
+    /// allowed, and only while it is searched, as its own root.
     func allows(_ path: String) -> Bool {
         guard let root = roots.filter({ Paths.isInside(path, $0) }).max(by: { $0.utf8.count < $1.utf8.count })
         else { return false }

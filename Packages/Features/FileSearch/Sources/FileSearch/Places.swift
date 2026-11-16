@@ -3,7 +3,8 @@ import Kit
 
 /// A place macOS guards with its own prompt on the first read. The feature reads one only after the
 /// user asked for it. Full Disk Access only spares the prompt: it never brings a place in by itself,
-/// because the user may have granted it for another feature, such as Safari bookmarks.
+/// because the user may have granted it for another feature, such as Safari bookmarks. It does not
+/// count for iCloud Drive, which needs its own grant.
 nonisolated enum ProtectedPlace: String, CaseIterable, Hashable, Sendable {
     case desktop
     case documents
@@ -15,17 +16,28 @@ nonisolated enum ProtectedPlace: String, CaseIterable, Hashable, Sendable {
     /// The folders in the home folder, which "all at once" includes.
     static let folders: [ProtectedPlace] = [.desktop, .documents, .downloads, .iCloudDrive]
 
-    /// The permission that stands for the place. iCloud Drive has none in Kit: macOS asks when the
-    /// folder is first read, and the read tells whether it was allowed.
+    /// The permission that stands for the place.
     var permission: Permission? {
         switch self {
         case .desktop: .protectedFolder(.desktop)
         case .documents: .protectedFolder(.documents)
         case .downloads: .protectedFolder(.downloads)
-        case .iCloudDrive: nil
+        case .iCloudDrive: .protectedFolder(.iCloudDrive)
         case .removableVolumes: .protectedFolder(.removableVolumes)
         case .networkVolumes: .protectedFolder(.networkVolumes)
         }
+    }
+
+    /// False for iCloud Drive: whether Full Disk Access spares its prompt is unknown, so it is read
+    /// only after its own grant.
+    var fullDiskAccessCovers: Bool {
+        self != .iCloudDrive
+    }
+
+    /// True when the place may be read with these permissions.
+    func isReadable(isGranted: (Permission) -> Bool, fullDiskAccess: Bool) -> Bool {
+        guard let permission else { return true }
+        return (fullDiskAccessCovers && fullDiskAccess) || isGranted(permission)
     }
 
     /// The place's folder below `home`, or nil for volumes.
@@ -123,8 +135,7 @@ nonisolated struct PlaceChoices: Hashable, Sendable {
         // another feature, and reading Documents because of it would read personal data no one
         // asked File Search to read.
         guard included.contains(place) else { return .notSearched }
-        guard let permission = place.permission else { return .searched }
-        return fullDiskAccess || isGranted(permission) ? .searched : .waitingForAccess
+        return place.isReadable(isGranted: isGranted, fullDiskAccess: fullDiskAccess) ? .searched : .waitingForAccess
     }
 
     /// Every place's state.

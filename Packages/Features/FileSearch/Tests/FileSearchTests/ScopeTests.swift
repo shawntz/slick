@@ -19,6 +19,7 @@ struct ScopeTests {
         #expect(plan.roots == [home])
         #expect(plan.configuration.useRecommendedRules && !plan.configuration.includeHidden)
         #expect(plan.configuration.home == home)
+        #expect(plan.configuration.keepsRootsInSkippedFolders)
         #expect(
             Set(plan.configuration.skipPaths) == [home + "/Desktop", home + "/Documents", home + "/Downloads"])
         #expect(plan.blocked.contains(home + "/Library/Mobile Documents/com~apple~CloudDocs"))
@@ -33,30 +34,23 @@ struct ScopeTests {
     }
 
     @Test func aSearchedPlaceJoinsTheScope() {
-        var input = ScopeInput(home: home, states: states([.desktop, .iCloudDrive]))
-        input.libraryNames = ["Caches", "Containers", "Mobile Documents", "Preferences"]
-        input.mobileDocumentsNames = ["com~apple~CloudDocs", "iCloud~com~example~app"]
-        let plan = ScopePlan(input)
+        let plan = ScopePlan(ScopeInput(home: home, states: states([.desktop, .iCloudDrive])))
         let cloud = home + "/Library/Mobile Documents/com~apple~CloudDocs"
-        #expect(plan.roots == [home], "the index drops a nested root, so iCloud Drive stays inside home")
-        #expect(plan.configuration.home == nil, "Library is not skipped whole")
+        #expect(plan.roots == [home, cloud], "iCloud Drive is a root of its own inside the skipped Library")
+        #expect(plan.configuration.home == home, "Library stays skipped whole")
+        #expect(plan.configuration.keepsRootsInSkippedFolders)
         let skipped = Set(plan.configuration.skipPaths)
         #expect(!skipped.contains(home + "/Desktop") && skipped.contains(home + "/Documents"))
-        for name in ["Caches", "Containers", "Preferences"] {
-            #expect(skipped.contains(home + "/Library/" + name), "\(name)")
-        }
-        #expect(skipped.contains(home + "/Library/Mobile Documents/iCloud~com~example~app"))
-        #expect(!skipped.contains(home + "/Library/Mobile Documents") && !skipped.contains(cloud))
+        #expect(!skipped.contains(cloud))
         #expect(plan.placeFolders[.desktop] == [home + "/Desktop"])
         #expect(plan.placeFolders[.iCloudDrive] == [cloud])
         #expect(plan.expected == [cloud])
         #expect(plan.allows(home + "/Desktop/shot.png"))
         #expect(plan.allows(cloud + "/note.txt"))
+        #expect(plan.isRoot(cloud))
         #expect(!plan.allows(home + "/Library/Preferences/x.plist"))
         #expect(!plan.allows(home + "/Library/Mobile Documents"))
-
-        input.libraryNames = nil
-        #expect(ScopePlan(input).configuration.skipPaths.contains(home + "/Library"), "an unlisted Library stays out")
+        #expect(!plan.allows(home + "/Library/Mobile Documents/iCloud~com~example~app/a.txt"))
     }
 
     @Test func volumesJoinOnlyWhenTheirKindIsSearched() {
@@ -73,11 +67,16 @@ struct ScopeTests {
     @Test func addedAndExcludedFoldersAndNames() {
         let input = ScopeInput(
             home: home, states: states(),
-            extraFolders: ["/Projects/", "~/Desktop/Work", "relative/folder", "/Projects", "/Data/./a/../b"],
+            extraFolders: [
+                "/Projects/", "~/Desktop/Work", "relative/folder", "/Projects", "/Data/./a/../b",
+                "~/Library/Containers",
+            ],
             excludedFolders: ["~/Archive", "/Projects/tmp"], excludedNames: ["  *.log ", "dist", "", "a/b", "dist"],
             includesHidden: true)
         let plan = ScopePlan(input)
-        #expect(plan.roots == [home, "/Projects", "/Data/b"], "a folder inside a place not searched waits for it")
+        #expect(
+            plan.roots == [home, "/Projects", "/Data/b"],
+            "a folder inside a place not searched waits for it, and one inside Library is left out")
         #expect(plan.configuration.skipPaths.contains(home + "/Archive"))
         #expect(plan.configuration.skipPaths.contains("/Projects/tmp"))
         #expect(!plan.allows("/Projects/tmp/x"))
@@ -120,7 +119,10 @@ struct ScopeTests {
             choices.state(of: .documents, isGranted: none, fullDiskAccess: true) == .searched,
             "a chosen place needs no prompt with Full Disk Access")
         #expect(choices.state(of: .documents, isGranted: all, fullDiskAccess: false) == .searched)
-        #expect(choices.state(of: .iCloudDrive, isGranted: none, fullDiskAccess: false) == .searched)
+        #expect(
+            choices.state(of: .iCloudDrive, isGranted: none, fullDiskAccess: true) == .waitingForAccess,
+            "Full Disk Access does not count for iCloud Drive")
+        #expect(choices.state(of: .iCloudDrive, isGranted: all, fullDiskAccess: false) == .searched)
         #expect(choices.state(of: .networkVolumes, isGranted: none, fullDiskAccess: true) == .searched)
         choices.turnOff(.downloads)
         #expect(choices.state(of: .downloads, isGranted: all, fullDiskAccess: true) == .turnedOff)

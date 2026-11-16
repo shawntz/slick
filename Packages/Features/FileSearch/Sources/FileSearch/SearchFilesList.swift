@@ -4,7 +4,8 @@ import Kit
 
 /// The Search Files page: the files and folders the user ran most recently while the query is
 /// empty, name search and folder listings as they type, a dropdown that filters by kind, and a
-/// preview with the selected item's size, dates and kind.
+/// preview with the selected item's size, dates and kind. A folder outside the index is listed
+/// from disk when ``BrowseGuard`` allows it, without a preview.
 ///
 /// The source filters by itself, on the page's own search lane, because the index lives in the
 /// Rust core. Rows carry their highlights. The page reloads when the index's state changes, such
@@ -58,8 +59,14 @@ final class SearchFilesList: ListSource {
         let search = SearchRequest(
             query: request.query, limit: Self.rowLimit, kind: kind, includesHidden: plan.configuration.includeHidden,
             patterns: plan.patterns, style: style)
-        let result = try await feature.pageLane.search(search, in: index)
+        var result = try await feature.pageLane.search(search, in: index)
         try Task.checkCancellation()
+        if result.notIndexed,
+            let listed = await FolderBrowser.rows(for: search, scope: plan, fileSystem: feature.fileSystem)
+        {
+            try Task.checkCancellation()
+            result = SearchResult(rows: listed)
+        }
         let browsing = SearchLane.isBrowse(request.query)
         return ListResult(
             sections: [

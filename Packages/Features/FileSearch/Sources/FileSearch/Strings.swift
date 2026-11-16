@@ -13,9 +13,11 @@ nonisolated enum Strings {
         static let desktop = "Search the files on your Desktop, once you choose to include it."
         static let documents = "Search the files in your Documents folder, once you choose to include it."
         static let downloads = "Search the files in your Downloads folder, once you choose to include it."
+        static let iCloudDrive = "Search the files in iCloud Drive, once you choose to include it."
         static let removableVolumes = "Search files on removable drives, once you choose to include them."
         static let networkVolumes = "Search files on network volumes, once you choose to include them."
-        static let fullDiskAccess = "Search the protected folders you choose without a prompt for each."
+        static let fullDiskAccess =
+            "Search the protected folders you choose without a prompt for each, except iCloud Drive."
     }
 
     enum Root {
@@ -30,7 +32,7 @@ nonisolated enum Strings {
         static let searchPlaceholder = "Search files by name, or type / or ~ to browse"
 
         static func fallback(_ text: String) -> String {
-            "Search Files for \"\(text)\""
+            "Search Files for \u{201C}\(text)\u{201D}"
         }
 
         static let rebuild = "Rebuild File Index"
@@ -105,7 +107,9 @@ nonisolated enum Strings {
             message: "No file or folder in the searched places has a name like that.")
         static let notIndexedState = EmptyState(
             icon: .symbol("folder.badge.questionmark"), title: "Folder Not Searched",
-            message: "This folder is outside the searched places. Add it in File Search settings to browse it here.")
+            message:
+                "This folder is outside the searched places, or is one that only its own app or volume should read. "
+                + "Add it in File Search settings to browse it here.")
 
         static let updatingTitle = "Updating the File Index"
         static let updatingMessage = "Results come from the earlier index until the walk of your folders ends."
@@ -190,13 +194,13 @@ nonisolated enum Strings {
 
         static let searchAllConfirmation = Confirmation(
             "Search All Protected Folders?",
-            message: "macOS asks once for each of Desktop, Documents and Downloads, and may ask for iCloud Drive. "
+            message: "macOS asks once for each of Desktop, Documents, Downloads and iCloud Drive. "
                 + "You can stop searching any of them later.",
             confirmTitle: "Search All")
         static let iCloudConfirmation = Confirmation(
             "Search iCloud Drive?",
-            message: "macOS may ask whether \(Brand.name) can read iCloud Drive. Files kept only in iCloud are "
-                + "listed by name and are not downloaded.",
+            message: "macOS asks whether \(Brand.name) can read iCloud Drive, even with Full Disk Access. Files "
+                + "kept only in iCloud are listed by name and are not downloaded.",
             confirmTitle: "Search iCloud Drive")
 
         static func name(_ place: ProtectedPlace) -> String {
@@ -242,7 +246,7 @@ nonisolated enum Strings {
                     ? "Searched. Volumes mounted later join at the next rebuild."
                     : "Searched. Changes appear as they happen."
             case .notSearched:
-                if place == .iCloudDrive { return "Not searched. macOS may ask once before \(Brand.name) reads it." }
+                if place == .iCloudDrive { return "Not searched. macOS asks once before \(Brand.name) reads it." }
                 return volumes
                     ? "Not searched. macOS asks once before \(Brand.name) reads them."
                     : "Not searched. macOS asks once before \(Brand.name) reads it."
@@ -263,6 +267,10 @@ nonisolated enum Strings {
         static let buildingMessage = "Search results appear once the first pass over your folders ends."
         static let damaged = "File Index Rebuilt"
         static let damagedMessage = "The saved index could not be read, so it was built again from your folders."
+        static let notFollowing = "Not Following File Changes"
+        static let notFollowingMessage =
+            "macOS stopped reporting changes to your files, so new and moved files may be missing. "
+            + "Run Rebuild File Index to read your folders again and follow changes once more."
 
         static func blockedTitle(_ places: [ProtectedPlace]) -> String {
             places.count == 1 ? "\(Places.name(places[0])) Is Not Searched" : "Some Places Are Not Searched"
@@ -296,11 +304,10 @@ nonisolated enum Strings {
         static let placesFooter =
             "macOS asks before any app reads these places. \(Brand.name) reads one only after you choose it here "
             + "or on the Search Files page."
-        static let searchAllInfo =
-            "Asks macOS once for each of Desktop, Documents and Downloads, and may ask for iCloud Drive."
+        static let searchAllInfo = "Asks macOS once for each of Desktop, Documents, Downloads and iCloud Drive."
         static let fullDiskAccessInfo =
-            "With Full Disk Access, choosing a protected place needs no prompt. Each place is still searched only "
-            + "once you choose it, even when another feature asked for Full Disk Access."
+            "With Full Disk Access, choosing a protected place needs no prompt, except iCloud Drive. Each place is "
+            + "still searched only once you choose it, even when another feature asked for Full Disk Access."
 
         static let foldersSection = "Folders and Names"
         static let extraFolders = "Also search these folders"

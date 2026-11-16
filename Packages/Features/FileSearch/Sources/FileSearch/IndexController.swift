@@ -38,6 +38,9 @@ nonisolated struct LoadOutcome: Hashable, Sendable {
     var opening: IndexOpening?
     var unreadable: Set<ProtectedPlace> = []
     var failed = false
+    /// The saved index matched the saved mark, so the watch replays what changed while the feature
+    /// was off and nothing is walked again.
+    var resumed = false
 }
 
 /// Owns the index: opens or walks it, applies file events in batches, walks again on request, and
@@ -45,19 +48,32 @@ nonisolated struct LoadOutcome: Hashable, Sendable {
 ///
 /// Every call that reads or writes the disk runs on one serial queue at utility priority, never on
 /// the main thread. Searches read the current ``index`` from any thread and never wait for this
-/// queue: the Rust index publishes immutable snapshots.
+/// queue: the Rust index publishes immutable snapshots. ``close()`` stops a walk that runs at its
+/// next folder, so turning the feature off or quitting never waits for a whole walk.
 ///
-/// Events arrive as paths from Kit's file watcher. Paths gather while a batch is applied and go in
-/// together as the next one. A path the scope does not allow is dropped before it reaches the
-/// index, so an event can never make it read a folder macOS guards. An event that names a root
-/// itself means FSEvents could not say what changed below it, as when it dropped events, so the
-/// whole root is listed again.
+/// Events arrive in batches from Kit's file watcher, with FSEvents' flags and the mark to save.
+/// Paths gather while a batch is applied and go in together as the next one. A path the scope does
+/// not allow is dropped before it reaches the index, so an event can never make it read a folder
+/// macOS guards. An event that asks for a rescan, or an event without flags that names a root,
+/// lists that folder again with everything below it.
+///
+/// The index is saved with the mark of the last batch it holds. The next start passes that mark to
+/// the watcher, which replays what changed while the feature was off, so the saved index is not
+/// walked again. A batch that failed, or event IDs that wrapped, drop the mark, and the next start
+/// walks again. A batch the close stopped keeps the mark from before it, so the next start replays
+/// it.
 nonisolated final class IndexController: Sendable {
     private struct State {
         var index: FileIndex?
         var plan: ScopePlan?
         var summary = IndexSummary()
+        /// Paths waiting to be applied, in order, and the FSEvents flags each gathered.
         var pending: [String] = []
+        var pendingFlags: [String: UInt32] = [:]
+        /// The mark of the newest batch that waits, applied with the paths before it.
+        var pendingMark: FileChangeMark?
+        /// The mark of the newest batch the index holds, saved with it.
+        var mark: FileChangeMark?
         var drainScheduled = false
         /// Changes not yet saved.
         var dirty = false
@@ -91,6 +107,9 @@ nonisolated final class IndexController: Sendable {
     private let mayRead: @Sendable (ProtectedPlace) -> Bool
     private let queue = DispatchQueue(label: "files.index", qos: .utility)
     private let state = Mutex(State())
+    /// Stops a walk when the feature stops. Nil only when the core could not make one; walks then
+    /// run to their end.
+    let cancellation = try? FileWalkCancellation()
 
     init(
         file: String, maker: any IndexMaker, clock: any ClockService, log: Logger,
@@ -113,11 +132,18 @@ nonisolated final class IndexController: Sendable {
 
     // MARK: - Opening and walking
 
-    /// Opens the saved index when it was saved for this scope, and walks the scope otherwise. After
-    /// opening a saved index it walks again in the background, because the events that happened
-    /// while the feature was off are unknown.
+    /// The mark saved with the index file, read on the index queue. Nil when there is none.
+    func savedMark() async -> FileChangeMark? {
+        await onQueue { [self] in maker.savedMark(for: file) }
+    }
+
+    /// Opens the saved index when it was saved for this scope, and walks the scope otherwise.
+    ///
+    /// A saved index that is current to `mark`, the mark the watch resumes from, is used as it is:
+    /// the watch replays what changed meanwhile. Any other saved index is walked again in the
+    /// background, because what changed while the feature was off is unknown.
     @discardableResult
-    func load(_ plan: ScopePlan) async -> LoadOutcome {
+    func load(_ plan: ScopePlan, resuming mark: FileChangeMark? = nil) async -> LoadOutcome {
         let generation = state.withLock { state in
             state.plan = plan
             if state.index == nil { state.summary.phase = .building }
@@ -125,8 +151,8 @@ nonisolated final class IndexController: Sendable {
             return state.generation
         }
         stateChanges.send()
-        let outcome = await onQueue { [self] in openNow(plan, generation: generation) }
-        if outcome.opening?.fromFile == true {
+        let outcome = await onQueue { [self] in openNow(plan, generation: generation, resuming: mark) }
+        if outcome.opening?.fromFile == true, !outcome.resumed {
             queue.async { [self] in _ = rebuildNow(generation: generation) }
         }
         scheduleDrain()
@@ -159,18 +185,28 @@ nonisolated final class IndexController: Sendable {
         return await onQueue { [self] in rebuildNow(generation: generation) }
     }
 
-    private func openNow(_ plan: ScopePlan, generation: Int) -> LoadOutcome {
+    /// Opens or walks, and takes `mark` as the index's own when the opened file is current to it.
+    /// That happens here on the queue, before any batch the watch sends can be applied.
+    private func openNow(_ plan: ScopePlan, generation: Int, resuming mark: FileChangeMark?) -> LoadOutcome {
         do {
-            let (index, opening) = try maker.open(at: file, plan.configuration)
+            let (index, opening) = try maker.open(at: file, plan.configuration, cancellation: cancellation)
             let unreadable = Self.unreadablePlaces(in: index, plan: plan)
             guard install(index, generation: generation, unreadable: unreadable, damaged: opening.wasDamaged) else {
                 return LoadOutcome(opening: opening)
+            }
+            var resumed = false
+            if let mark, opening.fromFile, opening.eventID != 0, opening.eventID == mark.eventID {
+                resumed = state.withLock { state in
+                    guard state.generation == generation else { return false }
+                    state.mark = mark
+                    return true
+                }
             }
             if opening.wasDamaged {
                 log.notice("The saved file index was damaged and was walked again")
             }
             if !opening.fromFile { saveNow() }
-            return LoadOutcome(opening: opening, unreadable: unreadable)
+            return LoadOutcome(opening: opening, unreadable: unreadable, resumed: resumed)
         } catch {
             return fail(error, generation: generation)
         }
@@ -178,7 +214,7 @@ nonisolated final class IndexController: Sendable {
 
     private func buildNow(_ plan: ScopePlan, generation: Int) -> LoadOutcome {
         do {
-            let index = try maker.build(plan.configuration)
+            let index = try maker.build(plan.configuration, cancellation: cancellation)
             let unreadable = Self.unreadablePlaces(in: index, plan: plan)
             guard install(index, generation: generation, unreadable: unreadable, damaged: false) else {
                 return LoadOutcome()
@@ -199,7 +235,7 @@ nonisolated final class IndexController: Sendable {
         guard let (index, plan) = current else { return LoadOutcome() }
         stateChanges.send()
         do {
-            try maker.rebuild(index)
+            try maker.rebuild(index, cancellation: cancellation)
             let unreadable = Self.unreadablePlaces(in: index, plan: plan)
             guard install(index, generation: generation, unreadable: unreadable, damaged: false) else {
                 return LoadOutcome()
@@ -233,7 +269,18 @@ nonisolated final class IndexController: Sendable {
         return true
     }
 
+    /// A walk that stopped because the feature stopped is not a failure: nothing changes and
+    /// nothing is logged as an error.
     private func fail(_ error: any Error, generation: Int) -> LoadOutcome {
+        if (error as? CoreError) == .cancelled {
+            log.notice("A walk of the file index stopped because File Search stopped")
+            state.withLock { state in
+                guard state.generation == generation else { return }
+                state.summary.isWalking = false
+            }
+            stateChanges.send()
+            return LoadOutcome()
+        }
         log.error("The file index could not be opened or walked: \(String(describing: error), privacy: .public)")
         state.withLock { state in
             guard state.generation == generation else { return }
@@ -250,30 +297,78 @@ nonisolated final class IndexController: Sendable {
     /// on the index queue together with any that arrive before it starts.
     ///
     /// A path the current scope does not allow, such as one in the home folder's Library, which
-    /// changes all the time, is dropped here, so it never waits in memory behind a walk.
-    func submit(_ urls: [URL]) {
+    /// changes all the time, is dropped here, so it never waits in memory behind a walk. Its mark
+    /// still counts: nothing below it needs applying. A change that only says the replay ended
+    /// changes nothing.
+    func submit(_ batch: FileChangeBatch) {
         let plan = state.withLock { $0.plan }
-        let paths = urls.compactMap { url -> String? in
-            guard let path = Paths.normalized(url.path(percentEncoded: false), home: nil) else { return nil }
-            if let plan, !plan.allows(path) { return nil }
-            return path
+        var forgetsMark = false
+        var changes: [(String, UInt32)] = []
+        for change in batch.events {
+            if change.flags.contains(.eventIDsWrapped) { forgetsMark = true }
+            if change.flags == .historyDone { continue }
+            guard let path = Paths.normalized(change.url.path(percentEncoded: false), home: nil) else { continue }
+            if let plan, !plan.allows(path) { continue }
+            changes.append((path, Self.eventFlags(change.flags, rescans: plan?.isRoot(path) == true)))
         }
-        guard !paths.isEmpty else { return }
         state.withLock { state in
-            state.pending.append(contentsOf: paths)
+            for (path, flags) in changes {
+                if let gathered = state.pendingFlags[path] {
+                    state.pendingFlags[path] = gathered | flags
+                } else {
+                    state.pending.append(path)
+                    state.pendingFlags[path] = flags
+                }
+            }
             if state.pending.count > Self.pendingLimit, let roots = state.plan?.roots {
                 state.pending = roots
+                state.pendingFlags = Dictionary(roots.map { ($0, Self.mustScanSubDirs) }, uniquingKeysWith: { $0 | $1 })
+            }
+            if forgetsMark {
+                // Every saved event ID means nothing now. Later batches bring marks on the new count.
+                state.mark = nil
+                state.pendingMark = nil
+                state.dirty = true
+            } else if let mark = batch.mark {
+                state.pendingMark = mark
             }
         }
         scheduleDrain()
     }
 
+    /// Queues paths without flags, as an action that moved a file does.
+    func submit(_ urls: [URL]) {
+        submit(FileChangeBatch(urls.map { FileChange($0) }))
+    }
+
+    /// FSEvents' flag bits for a change, which the index reads. A change that asks for a rescan, or
+    /// one without flags that names a root, lists the folder again with everything below it.
+    static func eventFlags(_ flags: FileChangeFlags, rescans isRoot: Bool) -> UInt32 {
+        var raw: UInt32 = 0
+        let table: [(FileChangeFlags, UInt32)] = [
+            (.mustScanSubdirectories, 0x0000_0001), (.userDropped, 0x0000_0002), (.kernelDropped, 0x0000_0004),
+            (.eventIDsWrapped, 0x0000_0008), (.historyDone, 0x0000_0010), (.rootChanged, 0x0000_0020),
+            (.mount, 0x0000_0040), (.unmount, 0x0000_0080), (.created, 0x0000_0100), (.removed, 0x0000_0200),
+            (.metadataModified, 0x0000_0400), (.renamed, 0x0000_0800), (.modified, 0x0000_1000),
+            (.isFile, 0x0001_0000), (.isDirectory, 0x0002_0000), (.isSymlink, 0x0004_0000),
+        ]
+        for (flag, bit) in table where flags.contains(flag) {
+            raw |= bit
+        }
+        if flags.requiresRescan || (flags.isEmpty && isRoot) { raw |= mustScanSubDirs }
+        return raw
+    }
+
     /// How many event paths wait to be applied. For tests.
     var pendingCount: Int { state.withLock { $0.pending.count } }
 
+    /// The mark of the newest batch the index holds. For tests.
+    var mark: FileChangeMark? { state.withLock { $0.mark } }
+
     private func scheduleDrain() {
         let schedule = state.withLock { state -> Bool in
-            guard !state.drainScheduled, state.index != nil, !state.pending.isEmpty else { return false }
+            guard !state.drainScheduled, state.index != nil, !state.pending.isEmpty || state.pendingMark != nil
+            else { return false }
             state.drainScheduled = true
             return true
         }
@@ -281,13 +376,19 @@ nonisolated final class IndexController: Sendable {
     }
 
     private func drain() {
-        let (paths, index, plan, generation, unreadable) = state.withLock { state in
-            let paths = state.pending
+        let (paths, flags, mark, index, plan, generation, unreadable) = state.withLock { state in
+            let taken = (state.pending, state.pendingFlags, state.pendingMark)
             state.pending = []
+            state.pendingFlags = [:]
+            state.pendingMark = nil
             state.drainScheduled = false
-            return (paths, state.index, state.plan, state.generation, state.summary.unreadable)
+            return (taken.0, taken.1, taken.2, state.index, state.plan, state.generation, state.summary.unreadable)
         }
-        guard let index, let plan, !paths.isEmpty else { return }
+        guard let index, let plan else { return }
+        guard !paths.isEmpty else {
+            hold(mark, generation: generation)
+            return
+        }
         // A place whose permission went away since the scope was made: reading below it now could
         // fail or raise a prompt, so its events wait for the feature to follow a new scope.
         let revoked = Set(plan.placeFolders.keys.filter { !mayRead($0) })
@@ -305,17 +406,31 @@ nonisolated final class IndexController: Sendable {
             }
         }
         let refused = (unreadable.union(revoked)).flatMap { plan.placeFolders[$0] ?? [] }
-        var seen = Set<String>()
         var events: [FileEvent] = []
-        for path in paths where seen.insert(path).inserted && plan.allows(path) {
+        for path in paths where plan.allows(path) {
             guard !refused.contains(where: { Paths.isInside(path, $0) }) else { continue }
-            events.append(FileEvent(path: path, flags: plan.isRoot(path) ? Self.mustScanSubDirs : 0))
+            events.append(FileEvent(path: path, flags: flags[path] ?? 0))
         }
-        guard !events.isEmpty else { return }
+        guard !events.isEmpty else {
+            hold(mark, generation: generation)
+            return
+        }
         do {
-            guard try maker.apply(events, to: index) else { return }
+            guard try maker.apply(events, to: index, cancellation: cancellation) else {
+                hold(mark, generation: generation)
+                return
+            }
         } catch {
+            // A batch the close stopped changed nothing, so the mark the index holds stays true and the
+            // next start replays this batch from it.
+            if (error as? CoreError) == .cancelled { return }
             log.error("A batch of file events could not be applied: \(String(describing: error), privacy: .public)")
+            // The index may miss this batch, so no saved mark may claim it. The next start walks again.
+            state.withLock { state in
+                guard state.generation == generation else { return }
+                state.mark = nil
+                state.dirty = true
+            }
             return
         }
         let found = Self.unreadablePlaces(in: index, plan: plan)
@@ -324,6 +439,7 @@ nonisolated final class IndexController: Sendable {
         let changed = state.withLock { state -> Bool? in
             guard state.generation == generation, state.index === index else { return nil }
             state.dirty = true
+            if let mark { state.mark = mark }
             state.summary.count = count
             state.summary.updatedAt = now
             let before = state.summary.unreadable
@@ -334,6 +450,14 @@ nonisolated final class IndexController: Sendable {
         contentChanges.send()
         if changed { stateChanges.send() }
         scheduleSave()
+    }
+
+    /// Records that the index holds everything up to `mark`, after a batch that changed nothing.
+    private func hold(_ mark: FileChangeMark?, generation: Int) {
+        guard let mark else { return }
+        state.withLock { state in
+            if state.generation == generation { state.mark = mark }
+        }
     }
 
     // MARK: - Saving
@@ -362,36 +486,43 @@ nonisolated final class IndexController: Sendable {
     }
 
     private func saveNow() {
-        let index = state.withLock { state -> FileIndex? in
+        let taken = state.withLock { state -> (FileIndex, FileChangeMark?)? in
             guard state.dirty, let index = state.index else { return nil }
             state.dirty = false
-            return index
+            return (index, state.mark)
         }
-        guard let index else { return }
+        guard let (index, mark) = taken else { return }
         do {
-            try maker.save(index, to: file)
+            try maker.save(index, to: file, mark: mark)
         } catch {
             state.withLock { $0.dirty = true }
             log.error("The file index could not be saved: \(String(describing: error), privacy: .public)")
         }
     }
 
-    /// Saves what changed, then lets the index go, so the memory returns while the feature is off.
+    /// Stops a walk that runs at its next folder, saves what changed, then lets the index go, so
+    /// the memory returns while the feature is off.
     func close() async {
         let task = state.withLock { state -> Task<Void, Never>? in
             defer { state.saveTask = nil }
             return state.saveTask
         }
         task?.cancel()
+        cancellation?.cancel()
         await save()
         state.withLock { state in
             state.generation += 1
             state.index = nil
             state.plan = nil
             state.pending = []
+            state.pendingFlags = [:]
+            state.pendingMark = nil
+            state.mark = nil
             state.dirty = false
             state.summary = IndexSummary()
         }
+        // Every walk queued before the close has ended, so the flag can stop the next one.
+        await onQueue { [self] in cancellation?.reset() }
         stateChanges.send()
     }
 
