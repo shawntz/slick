@@ -22,15 +22,26 @@ extension PanelController: RunPresenter {
         await confirm(confirmation, isDestructive: isDestructive, suppressionKey: nil)
     }
 
+    /// How long a destructive question in a session a link opened shows before its button works.
+    /// The same wait as the page that asks before a link runs a command.
+    public static let linkConfirmationHold: Duration = .seconds(1)
+
     /// The confirm card with a "Don't ask again" box when `suppressionKey` is set. Going ahead with
     /// the box checked stops the question for good, until settings asks it again.
+    ///
+    /// In a panel session a link opened, a destructive question starts on Cancel, so Return cancels
+    /// until Tab moves to the confirm button, and it holds that button for ``linkConfirmationHold``
+    /// on the services clock: a press or a click before then keeps the card and says to wait.
     public func confirm(_ confirmation: Confirmation, isDestructive: Bool, suppressionKey: String?) async -> Bool {
+        let destructive = isDestructive || confirmation.isDestructive
         var content = ConfirmContent(
             title: confirmation.title, message: confirmation.message, confirmTitle: confirmation.confirmTitle,
-            cancelTitle: HostStrings.cancel, isDestructive: isDestructive || confirmation.isDestructive)
+            cancelTitle: HostStrings.cancel, isDestructive: destructive)
         if suppressionKey != nil { content.suppressionTitle = HostStrings.dontAskAgain }
+        let holds = destructive && isPanelVisible && isLinkSession(sessionID)
+        content.startsOnCancel = holds
         var checked = false
-        let confirmed = await ask(content) { card in checked = card.isSuppressionChecked }
+        let confirmed = await ask(content, holdsConfirm: holds) { card in checked = card.isSuppressionChecked }
         if confirmed, checked, let suppressionKey {
             runtime.preferences.setConfirmationSuppressed(true, key: suppressionKey)
         }
@@ -51,13 +62,17 @@ extension PanelController: RunPresenter {
     /// answers false. A card asked while the panel was closed, as for a hotkey, a link or a keyword
     /// typed in another app, opens the panel for the question; when the user cancels it and nothing
     /// else changed, the panel closes again.
-    private func ask(_ content: ConfirmContent, onConfirm: ((ConfirmCardView) -> Void)? = nil) async -> Bool {
+    private func ask(
+        _ content: ConfirmContent, holdsConfirm: Bool = false, onConfirm: ((ConfirmCardView) -> Void)? = nil
+    ) async -> Bool {
         let opensPanel = !isPanelVisible
         if opensPanel { summon() }
         let session = sessionID
         let page = top
         pendingAnswer?.answer(false)
-        let answer = await present(content, onConfirm: onConfirm)
+        let hold =
+            holdsConfirm ? runtime.services.clock.now.addingTimeInterval(Self.seconds(Self.linkConfirmationHold)) : nil
+        let answer = await present(content, holdUntil: hold, onConfirm: onConfirm)
         if opensPanel, !answer, pendingAnswer == nil, surface.overlay == nil, isPanelVisible, sessionID == session,
             top === page
         {
@@ -66,11 +81,24 @@ extension PanelController: RunPresenter {
         return answer
     }
 
-    private func present(_ content: ConfirmContent, onConfirm: ((ConfirmCardView) -> Void)?) async -> Bool {
+    /// Shows the card and waits for its answer. Before `holdUntil` on the services clock, the
+    /// confirm button does not answer: the card shows again and a toast says to wait.
+    private func present(
+        _ content: ConfirmContent, holdUntil: Date?, onConfirm: ((ConfirmCardView) -> Void)?
+    ) async -> Bool {
         await withCheckedContinuation { continuation in
             let pending = PendingAnswer(continuation)
             let card = ConfirmCardView(content: content)
             card.onConfirm = { [weak self, weak card, pending] in
+                if let self, let holdUntil, runtime.services.clock.now < holdUntil {
+                    // The card took itself down: put it back, still waiting for the same answer.
+                    if let card, pendingAnswer === pending, surface.overlay == nil { surface.present(card) }
+                    showToast(
+                        .failure(
+                            HostStrings.waitAMoment, message: HostStrings.waitBeforeConfirming(content.confirmTitle)),
+                        id: runtime.pipeline.makeToastID(), origin: nil)
+                    return
+                }
                 if let card { onConfirm?(card) }
                 pending.answer(true)
                 if self?.pendingAnswer === pending { self?.pendingAnswer = nil }
@@ -85,6 +113,10 @@ extension PanelController: RunPresenter {
         }
     }
 
+    nonisolated static func seconds(_ duration: Duration) -> TimeInterval {
+        Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18
+    }
+
     /// The card waiting for an answer now, if any. For tests and captures.
     public var pendingCard: ConfirmCardView? { pendingAnswer?.card as? ConfirmCardView }
 
@@ -93,6 +125,8 @@ extension PanelController: RunPresenter {
         // on from. A close still shows its HUD.
         if let session = origin.session, session != sessionID || !isPanelVisible {
             if case .close(let hud?) = outcome { self.hud.show(hud) }
+            // Like a HUD, Large Type still shows, unless the user is in the panel again.
+            if case .showLargeType(let text) = outcome, !isPanelVisible { showLargeType(text) }
             return
         }
         switch outcome {
@@ -113,8 +147,10 @@ extension PanelController: RunPresenter {
             pop()
         case .popToRoot:
             popToRoot()
+        case .showLargeType(let text):
+            showLargeType(text)
         case .showRoot(let query):
-            popToRoot()
+            popAll()
             if !isPanelVisible { summon() }
             if origin.startedByLink { noteLinkSession() }
             setQueryText(query)

@@ -19,9 +19,10 @@ import Testing
         #expect(fixture.panel.surface.overlay === fixture.panel.actionCard)
         #expect(
             fixture.panel.actionEntries.map(\.title) == [
-                "Open", "Copy", "Reveal", "Shout", "Add to Favorites", "Set Alias", "Set Hotkey", "Reset Ranking",
+                "Open", "Copy", "Reveal", "Show in Large Type", "Shout", "Add to Favorites", "Set Alias", "Set Hotkey",
+                "Reset Ranking",
             ])
-        let shout = fixture.panel.actionEntries[3]
+        let shout = fixture.panel.actionEntries[4]
         guard case .action(let action, let featureID, _) = shout.kind else {
             Issue.record("Shout is not an action")
             return
@@ -34,7 +35,9 @@ import Testing
         #expect(card.content.sections[0].items[0].keys == ["↩"])
         #expect(card.content.sections[0].items[2].keys == ["⌘", "R"])
 
-        card.selectItem(at: 3)
+        #expect(card.content.sections[0].items[3].keys == ["⌘", "L"], "the row stands for text")
+
+        card.selectItem(at: 4)
         let selected = try #require(card.selectedItem)
         card.onActivate?(selected)
         #expect(await waitUntil { fixture.runtime.relay.shouted == ["notes"] }, "the query is the selection as text")

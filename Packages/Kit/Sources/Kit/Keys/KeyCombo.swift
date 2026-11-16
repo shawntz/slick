@@ -117,4 +117,6 @@ extension KeyCombo {
     public static let pin = KeyCombo(.period, .command)
     /// Command-R.
     public static let refresh = KeyCombo(.r, .command)
+    /// Command-L: Show in Large Type.
+    public static let largeType = KeyCombo(.l, .command)
 }

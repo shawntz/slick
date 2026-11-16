@@ -48,6 +48,9 @@ import LauncherUI
     /// The last panel session a link opened or reached. Runs that start in it copy instead of
     /// pasting: see ``RunOrigin/startedByLink``.
     public private(set) var linkSession: Int?
+    /// The page a link pushed last, such as the page that asks before a link runs a command. While
+    /// it is on top, going back to root returns to the page under it.
+    public private(set) weak var linkPage: (any PageController)?
 
     /// The entries the action panel shows now, in order.
     public internal(set) var actionEntries: [ActionEntry] = []
@@ -55,6 +58,10 @@ import LauncherUI
     public internal(set) var actionTarget: ActionTarget?
 
     let hud: any HUDDisplay
+    /// Where Large Type goes: a window in the live launcher, a record everywhere else.
+    public let largeType: any LargeTypeDisplay
+    /// The text Large Type showed last, for scenarios and tests.
+    public private(set) var lastLargeType: String?
     let toasts: ToastController
     let general: FeatureSettings
     private let themes: ThemeStore?
@@ -75,9 +82,12 @@ import LauncherUI
     ///   - themes: The theme store; nil keeps the standard theme.
     ///   - surface: The surface to drive. Tests pass one placed off screen.
     ///   - hud: Where HUDs go. Tests pass a recorder.
+    ///   - largeType: Where Large Type goes. By default a window in the live environment, and a
+    ///     ``RecordingLargeType`` in every other, so nothing shows in a scenario, the self-test or
+    ///     a benchmark.
     public init(
         runtime: FeatureRuntime, rootSource: any RootSource, icons: any IconProvider, themes: ThemeStore? = nil,
-        surface: LauncherSurface? = nil, hud: (any HUDDisplay)? = nil
+        surface: LauncherSurface? = nil, hud: (any HUDDisplay)? = nil, largeType: (any LargeTypeDisplay)? = nil
     ) {
         self.runtime = runtime
         self.rootSource = rootSource
@@ -91,6 +101,10 @@ import LauncherUI
         shareSheet = runtime.environment.touchesRealSystem ? SystemShareSheet() : nil
         let hud = hud ?? HUDWindowDisplay(theme: baseTheme)
         self.hud = hud
+        self.largeType =
+            largeType
+            ?? (runtime.environment.touchesRealSystem
+                ? LargeTypeWindowDisplay(theme: baseTheme) : RecordingLargeType())
         toasts = ToastController(actionBar: surface.actionBar, hud: hud)
         rootPage = RootPageController(source: rootSource, runtime: runtime)
         stack = [rootPage]
@@ -188,7 +202,7 @@ import LauncherUI
     /// user types, moves the selection or clicks a row, so Return and Command-1 to 9 run nothing
     /// the link chose. The session counts as a link session.
     public func showRootForLink(query: String) {
-        popToRoot()
+        popAll()
         summon()
         noteLinkSession()
         surface.queryField.text = query
@@ -197,13 +211,43 @@ import LauncherUI
         probe.markApplied()
     }
 
-    /// Opens the panel on a page a link asked for, over root search, such as the page that asks
-    /// before a link runs a command. The session counts as a link session.
+    /// Shows a page a link asked for, such as the page that asks before a link runs a command. The
+    /// session counts as a link session.
+    ///
+    /// While the user works in the panel, the page goes over the page they have open, which keeps
+    /// its query and selection: Back, Cancel and the run the page starts all return to it, because
+    /// going back to root from a link's page stops at the page under it. A card or the action
+    /// panel showing is closed, and a question waiting in it is answered no. A second link's page
+    /// replaces the first. While the panel is hidden, it opens on the page over root search.
     public func pushForLink(_ page: any PageController) {
-        popToRoot()
-        summon()
-        noteLinkSession()
-        push(page)
+        if isPanelVisible {
+            pendingAnswer?.answer(false)
+            pendingAnswer = nil
+            if surface.overlay != nil { surface.dismissOverlay() }
+            noteLinkSession()
+            if let linkPage, top === linkPage { replaceTop(with: page) } else { push(page) }
+        } else {
+            popAll()
+            summon()
+            noteLinkSession()
+            push(page)
+        }
+        linkPage = page
+    }
+
+    // MARK: Large Type
+
+    /// Closes the panel, then shows the text in very large letters across the screen with the
+    /// pointer, as Show in Large Type and Command-L do. Spaces and line breaks around the text are
+    /// left out; nothing shows for text that is only those.
+    public func showLargeType(_ text: String) {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        // The panel gives the keyboard to Large Type, not back to the app in front, so the next
+        // key reaches Large Type. Large Type gives it back when it hides.
+        if isPanelVisible { summoner.dismiss(returnFocus: false) }
+        lastLargeType = text
+        largeType.show(text)
     }
 
     /// Runs the action of the toast showing, as its button in the action bar does.
@@ -303,8 +347,18 @@ import LauncherUI
         revealTop()
     }
 
-    /// Goes back to root search.
+    /// Goes back to root search. While a page a link pushed is on top, goes back to the page under
+    /// it instead, so a link never costs the user the page they had open: see
+    /// ``pushForLink(_:)``.
     public func popToRoot() {
+        guard let linkPage, top === linkPage, let index = stack.firstIndex(where: { $0 === linkPage }), index > 1
+        else { return popAll() }
+        while stack.count > index { stack.removeLast().pageWillClose() }
+        revealTop()
+    }
+
+    /// Pops every page down to root search.
+    func popAll() {
         guard stack.count > 1 else { return }
         while stack.count > 1 { stack.removeLast().pageWillClose() }
         revealTop()
@@ -367,6 +421,7 @@ import LauncherUI
         theme.list.maxVisibleRows = max(1, general[HostSettings.visibleRows])
         surface.theme = theme
         hud.apply(theme)
+        largeType.apply(theme)
         let scale = Double(surface.panel.backingScaleFactor)
         rowMapper.rowIconSize = IconSize(points: theme.list.iconSize, scale: scale)
         rowMapper.accessoryIconSize = IconSize(points: theme.list.accessoryIconSize, scale: scale)

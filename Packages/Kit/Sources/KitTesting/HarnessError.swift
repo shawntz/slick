@@ -77,6 +77,7 @@ public enum OutcomeKind: Hashable, Sendable {
     case showRoot(query: String)
     case run(ItemID, arguments: [String: String])
     case needsPermission(Permission)
+    case showLargeType(String)
 }
 
 extension ActionOutcome {
@@ -92,6 +93,7 @@ extension ActionOutcome {
         case .showRoot(let query): .showRoot(query: query)
         case .run(let id, let arguments): .run(id, arguments: arguments)
         case .needsPermission(let permission): .needsPermission(permission)
+        case .showLargeType(let text): .showLargeType(text)
         }
     }
 }

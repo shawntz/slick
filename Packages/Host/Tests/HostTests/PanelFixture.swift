@@ -100,6 +100,13 @@ import LauncherUI
             characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
     }
 
+    /// A Tab key event for a card, made locally and never posted to the system.
+    static func tabKey() -> NSEvent {
+        NSEvent.keyEvent(
+            with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+            characters: "\t", charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48)!
+    }
+
     func close() {
         panel.summoner.dismiss(returnFocus: false)
         panel.surface.panel.close()

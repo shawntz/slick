@@ -43,6 +43,10 @@ import Kit
     /// Commands the host would report unavailable, such as another feature's that is off. Actions
     /// whose ``Action/requiresCommand`` is here are hidden, and running one shows a failure toast.
     public var unavailableCommands: Set<ItemID> = []
+    /// When true, every run counts as one in a panel session a deep link opened, whatever its
+    /// launch: ``ActionContext/startedByLink`` is true. A run launched by ``LaunchSource/deeplink``
+    /// counts so either way. Default false.
+    public var inLinkSession = false
 
     /// Every toast shown or updated while the panel was visible, in order.
     public internal(set) var toasts: [Toast] = []
@@ -62,6 +66,8 @@ import Kit
     public internal(set) var commandRuns: [CommandRun] = []
     /// The query of every ``ActionOutcome/showRoot(query:)``.
     public internal(set) var rootQueries: [String] = []
+    /// The text of every ``ActionOutcome/showLargeType(_:)``, which also closes the panel.
+    public internal(set) var largeTypeTexts: [String] = []
     /// Errors handlers threw while ``throwsActionErrors`` was false.
     public internal(set) var actionErrors: [any Error] = []
     /// Runs ignored under ``RunPolicy/dropWhileRunning``, as `command.<id>` or `action.<id>`.

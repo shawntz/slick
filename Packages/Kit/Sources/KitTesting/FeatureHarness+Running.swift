@@ -6,7 +6,9 @@ extension FeatureHarness {
     func makeContext(
         query: String, arguments: CommandArguments = CommandArguments(), launch: LaunchSource, row: Row?
     ) -> ActionContext {
-        ActionContext(feature: context, host: self, query: query, arguments: arguments, launch: launch, row: row)
+        ActionContext(
+            feature: context, host: self, query: query, arguments: arguments, launch: launch, row: row,
+            startedByLink: inLinkSession || launch == .deeplink)
     }
 
     func action(_ idOrTitle: String, in actions: [Action]) throws -> Action {
@@ -143,6 +145,12 @@ extension FeatureHarness {
             }
         case .needsPermission(let permission):
             throw HarnessError.permissionRequired([permission])
+        case .showLargeType(let text):
+            let wasOpen = !isClosed
+            isClosed = true
+            visibleToast = nil
+            if wasOpen { tellPagesThePanelClosed() }
+            largeTypeTexts.append(text)
         }
         guard let state = page else {
             reloadRequested = false

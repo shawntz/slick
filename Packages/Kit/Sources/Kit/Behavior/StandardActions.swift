@@ -55,6 +55,15 @@ extension Action {
         }
     }
 
+    /// Closes the panel and shows the text in very large letters across the screen. The host
+    /// already offers this for a row or detail whose `represents` is text; use it for other text,
+    /// such as one field of a contact.
+    public static func showInLargeType(_ text: String, title: String = "Show in Large Type") -> Action {
+        Action(title, id: "large-type", icon: .symbol("textformat.size"), shortcut: .largeType) { _ in
+            .showLargeType(text)
+        }
+    }
+
     /// Copies text, then closes the panel with a HUD.
     public static func copy(
         _ text: String, title: String = "Copy to Clipboard", hud: String = "Copied to Clipboard",

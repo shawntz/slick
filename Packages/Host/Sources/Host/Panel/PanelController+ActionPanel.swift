@@ -6,9 +6,10 @@ import LauncherUI
 /// The action panel on Command-K and the host's own entries for root rows.
 extension PanelController {
     /// Opens the action panel for the top page's target: the toast's button when one shows, the
-    /// row's entries, universal actions for what the row stands for that the row does not already
-    /// offer under the same title, the host's own entries for a root row, then the page's extras,
-    /// such as a notice's button, unless an entry above has the same title.
+    /// row's entries, Show in Large Type for a row or detail that stands for text, universal
+    /// actions for what the row stands for that the row does not already offer under the same
+    /// title, the host's own entries for a root row, then the page's extras, such as a notice's
+    /// button, unless an entry above has the same title.
     public func openActionPanel() {
         guard let target = top.target else { return }
         let entries = actionPanelEntries(for: target)
@@ -23,19 +24,36 @@ extension PanelController {
             entries.append(ActionEntry(title: action.title, kind: .toast(action, origin)))
         }
         let split = min(target.universalInsertIndex, target.entries.count)
+        let largeType = largeTypeEntry(for: target)
         entries += target.entries[..<split]
-        if let selection = target.row?.represents {
+        // After the row's own entries: before universal actions, or after a command's row actions.
+        if split == target.entries.count, let largeType { entries.append(largeType) }
+        if let selection = target.represents {
             // The row's own source knows its item best: a universal action with the title of one of
             // the row's entries would show the same choice twice.
-            let own = Set(target.entries.map(\.title))
+            let own = Set(target.entries.map(\.title) + (largeType.map { [$0.title] } ?? []))
             entries += universalEntries(for: selection, target: target).filter { !own.contains($0.title) }
         }
         entries += target.entries[split...]
+        if split < target.entries.count, let largeType { entries.append(largeType) }
         if target.isRoot, let row = target.row { entries += hostEntries(for: row) }
         // A notice and an empty state often carry the same action, such as an import: show it once.
         var titles = Set(entries.map(\.title))
         entries += target.panelExtras.filter { titles.insert($0.title).inserted }
         return entries
+    }
+
+    /// Show in Large Type, with Command-L, for a target that stands for text. Nil when it stands
+    /// for none, or its own entries already offer an entry with that title. When one of its own
+    /// entries takes Command-L, this entry shows without the shortcut.
+    func largeTypeEntry(for target: ActionTarget) -> ActionEntry? {
+        guard let text = target.largeTypeText,
+            !target.entries.contains(where: { $0.title == HostStrings.showInLargeType })
+        else { return nil }
+        let shortcut: KeyCombo? = target.entries.contains { $0.shortcut == .largeType } ? nil : .largeType
+        return ActionEntry(
+            title: HostStrings.showInLargeType, icon: .symbol("textformat.size"), shortcut: shortcut,
+            kind: .custom { [weak self] in self?.showLargeType(text) })
     }
 
     /// Universal actions from every feature that is on, with IDs prefixed by the feature ID.

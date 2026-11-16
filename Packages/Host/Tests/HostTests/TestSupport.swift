@@ -57,6 +57,7 @@ import LauncherUI
         case .pop: outcomes.append("pop")
         case .popToRoot: outcomes.append("popToRoot")
         case .showRoot(let query): outcomes.append("showRoot:" + query)
+        case .showLargeType(let text): outcomes.append("largeType:" + text)
         case .keepOpen, .run, .needsPermission: outcomes.append("unexpected")
         }
     }
@@ -320,6 +321,8 @@ final class Relay: Feature {
     static let manifest = FeatureManifest(id: "relay", name: "Relay", icon: .glyph("R"))
     private(set) var received: [CommandArguments] = []
     private(set) var launches: [LaunchSource] = []
+    /// What each run's context said about a link starting it.
+    private(set) var startedByLink: [Bool] = []
     private(set) var shouted: [String] = []
 
     init(context: FeatureContext) {}
@@ -329,6 +332,7 @@ final class Relay: Feature {
             Command(id: "receive", title: "Receive", arguments: [CommandArgument("text")]) { context in
                 self.received.append(context.arguments)
                 self.launches.append(context.launch)
+                self.startedByLink.append(context.startedByLink)
                 return .keepOpen
             }
         ]

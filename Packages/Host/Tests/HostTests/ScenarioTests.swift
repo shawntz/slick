@@ -93,7 +93,7 @@ import Testing
                     .type("Notes"), .press("cmd+k"),
                     .expect(
                         .init(actions: [
-                            "Open", "Copy", "Reveal", "Shout", "Add to Favorites", "Set Alias",
+                            "Open", "Copy", "Reveal", "Show in Large Type", "Shout", "Add to Favorites", "Set Alias",
                             "Set Hotkey", "Reset Ranking",
                         ])),
                     .type("cop"), .press("return"), .waitUntilIdle(2), .expect(.init(visible: true)),

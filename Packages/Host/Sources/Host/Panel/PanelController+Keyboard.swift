@@ -89,14 +89,15 @@ extension PanelController: QueryFieldDelegate {
 
     /// Tab at root: the selected row's completion, then the ghost completion, then the Tab command
     /// Root put in the snapshot with the typed text. Root checks that the command is on and takes
-    /// the root query.
+    /// the root query. While a link's text waits with no row selected, Tab runs no command, as
+    /// Return runs nothing: the text is the web page's, not the user's.
     private func complete() -> Bool {
         guard top === rootPage else { return false }
         if let completion = rootPage.selectedRow?.row.completion {
             setQueryText(completion)
         } else if let completion = rootPage.snapshot.completion, !rootPage.ghostText.isEmpty {
             setQueryText(completion.text)
-        } else if !rootPage.query.isEmpty, let id = rootPage.snapshot.tabCommand {
+        } else if !rootPage.query.isEmpty, !rootPage.holdsSelection, let id = rootPage.snapshot.tabCommand {
             runtime.pipeline.runCommand(id, typedText: rootPage.query, launch: .tabFromRoot)
         }
         return true
@@ -135,19 +136,25 @@ extension PanelController: QueryFieldDelegate {
         }
     }
 
-    /// Runs the selected row's entry whose shortcut is this chord, without opening the panel.
+    /// Runs the selected row's entry whose shortcut is this chord, without opening the panel, or
+    /// Show in Large Type for Command-L on a row or detail that stands for text.
     private func runShortcut(_ chord: KeyChord) -> Bool {
-        guard let combo = Self.keyCombo(chord), let target = top.target,
-            let entry = target.entries.first(where: { $0.shortcut == combo })
-        else { return false }
+        guard let combo = Self.keyCombo(chord), let target = top.target else { return false }
+        if let entry = target.entries.first(where: { $0.shortcut == combo }) {
+            run(entry, target: target)
+            return true
+        }
+        guard combo == .largeType, let entry = largeTypeEntry(for: target) else { return false }
         run(entry, target: target)
         return true
     }
 
     /// Command-1 to 9: runs the Nth row's primary entry. While a link's text waits with no row
-    /// selected, it runs nothing.
+    /// selected, it runs nothing. On a page a link pushed, such as the page that asks before a link
+    /// runs a command, it runs nothing either: the row that runs must be the one the user selected.
     func runRow(at index: Int) {
         if top === rootPage, rootPage.holdsSelection { return }
+        if let linkPage, top === linkPage { return }
         guard let target = top.target(at: index), let entry = target.primary else { return }
         run(entry, target: target)
     }

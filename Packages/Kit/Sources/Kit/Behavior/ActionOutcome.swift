@@ -25,4 +25,10 @@ public enum ActionOutcome: Sendable {
     /// frontmost. The host shows its permission card, with the reason from the manifest, and runs
     /// the action or command again once the user grants it.
     case needsPermission(Permission)
+    /// Closes the panel, then shows the text in very large letters across the screen, to read a
+    /// phone number or a code from across the room. Any key, any click or a switch to another app
+    /// hides it. Outside the live launcher it is recorded instead of shown. The host offers this
+    /// itself, as Show in Large Type, for every row and detail that represents text; return it
+    /// for text that nothing on screen represents. See ``Action/showInLargeType(_:title:)``.
+    case showLargeType(String)
 }
