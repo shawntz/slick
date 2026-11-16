@@ -4,7 +4,7 @@ import Testing
 
 @testable import SlickApp
 
-@Suite("Deep link parsing")
+@Suite("Deep link parsing", .timeLimit(.minutes(1)))
 struct DeepLinkTests {
     /// A link in the app's scheme.
     static func link(_ rest: String) -> String {
@@ -25,6 +25,9 @@ struct DeepLinkTests {
         #expect(try DeepLink.parse(Self.link("search?q=caf%C3%A9")) == .open(query: "café"))
         #expect(try DeepLink.parse(Self.link("search?q=%20%20padded%20")) == .open(query: "padded"))
         #expect(try DeepLink.parse(Self.link("SEARCH?q=x")) == .open(query: "x"))
+        // Three spaces in a row are fine, and padding at either end is dropped, not refused.
+        #expect(try DeepLink.parse(Self.link("search?q=a%20%20%20b")) == .open(query: "a   b"))
+        #expect(try DeepLink.parse(Self.link("search?q=x" + String(repeating: "%20", count: 40))) == .open(query: "x"))
     }
 
     @Test func acceptsTheSchemeInAnyCase() throws {
@@ -63,6 +66,19 @@ struct DeepLinkTests {
         (link("search?q=tab%09"), .forbiddenCharacter),
         (link("search?q=%E2%80%AEevil"), .forbiddenCharacter),
         (link("search?q=%E2%81%A6isolate"), .forbiddenCharacter),
+        // Invisible format characters: zero-width space, word joiner, Arabic letter mark, a tag
+        // character and the soft hyphen.
+        (link("search?q=zero%E2%80%8Bwidth"), .forbiddenCharacter),
+        (link("search?q=word%E2%81%A0joiner"), .forbiddenCharacter),
+        (link("search?q=%D8%9Cmark"), .forbiddenCharacter),
+        (link("search?q=tag%F3%A0%81%81"), .forbiddenCharacter),
+        (link("search?q=soft%C2%ADhyphen"), .forbiddenCharacter),
+        (link("commands/apps/running?q=notes%E2%80%8B"), .forbiddenCharacter),
+        // Padding that pushes the rest of a value out of sight.
+        (link("search?q=a%20%20%20%20b"), .tooManySpaces),
+        (link("search?q=a++++b"), .tooManySpaces),
+        (link("search?q=a%C2%A0%C2%A0%20%E3%80%80b"), .tooManySpaces),
+        (link("commands/apps/running?q=notes" + String(repeating: "%20", count: 300) + "payload"), .tooManySpaces),
         (link("search?q=%zz"), .malformed),
         (link("search?q=100%"), .malformed),
         (link("search?q=%2"), .malformed),
@@ -112,6 +128,37 @@ struct DeepLinkTests {
         }
         #expect(throws: (any Error).self) { try DeepLink.parse("") }
         #expect(throws: (any Error).self) { try DeepLink.parse("not a url at all") }
+    }
+
+    /// Found in the second review: blank characters that are neither spaces nor format characters,
+    /// such as the braille blank and the Hangul filler, padded an argument past what the page that
+    /// asks shows at a glance. Emoji keep their presentation selector.
+    @Test func refusesBlankCharactersThatAreNotSpaces() throws {
+        let blanks = [
+            "%E2%A0%80",  // U+2800 BRAILLE PATTERN BLANK
+            "%E3%85%A4",  // U+3164 HANGUL FILLER
+            "%EF%BE%A0",  // U+FFA0 HALFWIDTH HANGUL FILLER
+            "%E1%85%9F",  // U+115F HANGUL CHOSEONG FILLER
+            "%CD%8F",  // U+034F COMBINING GRAPHEME JOINER
+            "%E1%A0%8B",  // U+180B MONGOLIAN FREE VARIATION SELECTOR ONE
+            "%F3%A0%84%80",  // U+E0100 VARIATION SELECTOR-17
+        ]
+        for blank in blanks {
+            #expect(throws: DeepLinkError.forbiddenCharacter, "\(blank)") {
+                try DeepLink.parse(Self.link("commands/dictionary/define?word=notes" + blank + "payload"))
+            }
+        }
+        let heart = try DeepLink.parse(Self.link("search?q=%E2%9D%A4%EF%B8%8F"))
+        #expect(heart == .open(query: "\u{2764}\u{FE0F}"))
+        let text = try DeepLink.parse(Self.link("search?q=%E2%98%BA%EF%B8%8E"))
+        #expect(text == .open(query: "\u{263A}\u{FE0E}"))
+    }
+
+    @Test func countsEveryKindOfSpaceInARun() {
+        #expect(DeepLink.longestSpaceRun("") == 0)
+        #expect(DeepLink.longestSpaceRun("a b  c") == 2)
+        #expect(DeepLink.longestSpaceRun("a\u{A0} \u{3000}b") == 3)
+        #expect(DeepLink.longestSpaceRun("a\u{200B}\u{200B}b") == 0, "a format character is refused, not counted")
     }
 
     @Test func checksIDsTheWayKitDoes() {

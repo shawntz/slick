@@ -1,5 +1,5 @@
 {
-  "name": "More hostile links are refused, a command kept out of links never asks, and a destructive command asks twice after a wait",
+  "name": "More hostile links are refused, padded or hidden text too, a command kept out of links never asks, and a destructive command asks twice after a wait",
   "timeLimit": 30,
   "steps": [
     { "app": { "link": "{scheme}://search?q=a&q=b", "linkOutcome": "refused" } },
@@ -13,6 +13,8 @@
     { "app": { "link": "{scheme}://commands/system/set-volume?volume=40", "linkOutcome": "refused" } },
     { "app": { "link": "{scheme}://commands/system/set-volume?level=%E2%80%AE04", "linkOutcome": "refused" } },
     { "app": { "link": "{scheme}://commands/system/set-volume?level=40&level=50", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://commands/system/set-volume?level=4%20%20%20%200", "linkOutcome": "refused" } },
+    { "app": { "link": "{scheme}://search?q=zero%E2%80%8Bwidth", "linkOutcome": "refused" } },
     { "app": { "link": "{scheme}://commands/nosuchfeature/run", "linkOutcome": "refused" } },
     { "app": { "link": "{scheme}://commands/snippets/fill", "linkOutcome": "refused" } },
     { "expect": { "visible": false } },
@@ -24,7 +26,7 @@
     { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 2 },
-    { "expect": { "card": "Shut down your Mac now?" } },
+    { "expect": { "card": "Shut Down Your Mac Now?" } },
     { "capture": { "name": "asks-twice", "key": true } },
     { "press": "escape" },
     { "expect": { "card": "" } },

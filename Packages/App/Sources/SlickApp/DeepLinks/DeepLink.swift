@@ -22,6 +22,9 @@ nonisolated enum DeepLink: Equatable, Sendable {
     static let maximumLength = 2048
     /// The longest search text or argument value, in characters.
     static let maximumText = 500
+    /// The longest run of spaces inside a search text or argument value. A longer run could push
+    /// the rest of a value out of sight on the page that asks.
+    static let maximumSpaceRun = 3
     /// The most arguments a command takes.
     static let maximumArguments = 3
 
@@ -141,22 +144,47 @@ nonisolated enum DeepLink: Equatable, Sendable {
         if let extra = items.keys.sorted().first(where: { !names.contains($0) }) { throw .unexpectedItem(extra) }
     }
 
-    /// Text a user will see or that becomes an argument: no control or direction-override
-    /// characters, and not too long. Leading and trailing whitespace is dropped.
+    /// Text a user will see or that becomes an argument: no control, format or direction-override
+    /// characters, no run of more than ``maximumSpaceRun`` spaces, and not too long. Leading and
+    /// trailing whitespace is dropped.
     private static func checkedText(_ text: String) throws(DeepLinkError) -> String {
         guard !text.unicodeScalars.contains(where: isForbidden) else { throw .forbiddenCharacter }
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard trimmed.count <= maximumText else { throw .tooLong }
+        guard longestSpaceRun(trimmed) <= maximumSpaceRun else { throw .tooManySpaces }
         return trimmed
     }
 
-    /// Control characters, line and paragraph separators, and the bidirectional controls that
-    /// can make text read differently from what it is.
+    /// The most space characters in a row in the text, counting every kind of space, such as the
+    /// no-break space.
+    static func longestSpaceRun(_ text: String) -> Int {
+        var longest = 0
+        var run = 0
+        for scalar in text.unicodeScalars {
+            if scalar.properties.generalCategory == .spaceSeparator {
+                run += 1
+                longest = max(longest, run)
+            } else {
+                run = 0
+            }
+        }
+        return longest
+    }
+
+    /// Control characters, invisible format characters such as the zero-width space and the tag
+    /// characters, line and paragraph separators, the bidirectional controls that can make text
+    /// read differently from what it is, and blanks that are not spaces: every character Unicode
+    /// lets text draw as nothing, such as the Hangul filler, and the braille blank. The text and
+    /// emoji presentation selectors stay, so a link can search for an emoji.
     static func isForbidden(_ scalar: Unicode.Scalar) -> Bool {
-        if scalar.properties.generalCategory == .control { return true }
+        switch scalar.properties.generalCategory {
+        case .control, .format: return true
+        default: break
+        }
         switch scalar.value {
-        case 0x2028, 0x2029, 0x200E, 0x200F, 0x202A...0x202E, 0x2066...0x2069, 0xFEFF: return true
-        default: return false
+        case 0x2028, 0x2029, 0x200E, 0x200F, 0x202A...0x202E, 0x2066...0x2069, 0xFEFF, 0x2800: return true
+        case 0xFE0E, 0xFE0F: return false
+        default: return scalar.properties.isDefaultIgnorableCodePoint
         }
     }
 
@@ -201,6 +229,8 @@ nonisolated enum DeepLinkError: Error, Equatable, Sendable {
     case malformed
     case wrongScheme
     case forbiddenCharacter
+    /// A search text or argument value holds more than ``DeepLink/maximumSpaceRun`` spaces in a row.
+    case tooManySpaces
     case hasCredentials
     case hasPort
     case hasFragment

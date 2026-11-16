@@ -159,7 +159,8 @@ import os
             }
         }
         let origin = RunOrigin(featureID: HostSettings.namespace, feature: runtime.hostContext, launch: .deeplink)
-        let page = panel.makePage(.list(ListPage(source, title: AppStrings.linkPageTitle)), origin: origin)
+        let list = ListPage(source, title: AppStrings.linkPageTitle, showsDetail: source.shownInFull != nil)
+        let page = panel.makePage(.list(list), origin: origin)
         (page as? ListPageController)?.preferredSelection = LinkConsentSource.cancelID
         panel.pushForLink(page)
     }

@@ -59,6 +59,16 @@ import Testing
             press(.submit([]))
         }
 
+        /// Types into the search field one keystroke at a time, as the field reports typing.
+        func type(_ text: String) {
+            let field = panel.surface.queryField
+            for character in text {
+                let now = field.text + String(character)
+                field.text = now
+                panel.queryField(field, didChangeText: now)
+            }
+        }
+
         /// Waits until the panel has nothing loading or running, ten seconds at most.
         func settle() async {
             for _ in 0..<5 { await Task.yield() }
@@ -138,6 +148,8 @@ import Testing
         await launcher.until { panel.shownTitles == Self.askRows }
         #expect(panel.selectedTitle == "Cancel")
         #expect(launcher.inLinkSession)
+        // A link without arguments has nothing to show beside the rows.
+        #expect((panel.top as? ListPageController)?.split == nil)
 
         // Run and Always Allow do nothing before the page has shown for a second.
         launcher.press(.moveUp)
@@ -162,6 +174,48 @@ import Testing
         await launcher.close()
     }
 
+    @Test func thePageShowsEveryArgumentInFull() async throws {
+        let launcher = try await Launcher.make()
+        let panel = launcher.panel
+        let define = ItemID.command(feature: "dictionary", command: "define")
+        // Far longer than one line of the list can show.
+        let word = (0..<60).map { "part\($0)" }.joined(separator: " ")
+        #expect(word.count > 300 && word.count <= DeepLink.maximumText)
+        let encoded = try #require(word.addingPercentEncoding(withAllowedCharacters: .alphanumerics))
+        #expect(try launcher.link("commands/dictionary/define?word=" + encoded) == .asked(define))
+        await launcher.until { panel.shownTitles == ["Run Define Word", "Always Allow", "Cancel", "word"] }
+        #expect(panel.selectedTitle == "Cancel")
+        let page = try #require(panel.top as? ListPageController)
+        #expect(page.split != nil, "the page shows a detail pane")
+        #expect(page.sections.first?.rows.first?.subtitle == "With the argument listed below")
+        #expect(page.sections.last?.title == "Arguments")
+        #expect(page.sections.last?.rows.map(\.subtitle) == [word])
+
+        // With Cancel selected, the pane already shows the whole value.
+        await launcher.until { page.shownDetail != nil }
+        let expected = "Define Word gets exactly these arguments.\n\nword: " + word
+        #expect(page.shownDetail?.body == .text(expected, monospaced: false))
+
+        // The argument's own row shows the same, and Return there runs nothing.
+        launcher.press(.moveDown)
+        #expect(panel.selectedTitle == "word")
+        launcher.clock.advance(by: .seconds(1))
+        launcher.pressReturn()
+        await launcher.settle()
+        #expect(launcher.topTitle == "Open Link")
+        #expect(page.shownDetail?.body == .text(expected, monospaced: false))
+        await launcher.close()
+    }
+
+    @Test func paddedOrHiddenTextInALinkIsRefusedBeforeThePage() async throws {
+        let launcher = try await Launcher.make()
+        let padded = "commands/dictionary/define?word=notes" + String(repeating: "%20", count: 300) + "payload"
+        #expect(try launcher.link(padded) == .refused(.tooManySpaces))
+        #expect(try launcher.link("commands/dictionary/define?word=no%E2%80%8Btes") == .refused(.forbiddenCharacter))
+        #expect(!launcher.visible)
+        await launcher.close()
+    }
+
     @Test func cancelWorksAtOnce() async throws {
         let launcher = try await Launcher.make()
         let panel = launcher.panel
@@ -170,6 +224,33 @@ import Testing
         launcher.pressReturn()
         await launcher.settle()
         #expect(launcher.atRoot)
+        await launcher.close()
+    }
+
+    /// A link that arrives while the user works in a list asks over that list, and Cancel brings
+    /// them back to it with the query they typed.
+    @Test func cancelReturnsToTheListTheUserHadOpen() async throws {
+        let launcher = try await Launcher.make()
+        let panel = launcher.panel
+        panel.summon()
+        launcher.type("running applications")
+        await launcher.settle()
+        #expect(panel.selectedTitle == "Running Applications")
+        launcher.pressReturn()
+        await launcher.settle()
+        launcher.type("no")
+        await launcher.settle()
+        #expect(launcher.topTitle == "Running Applications" && panel.shownTitles == ["Notes"])
+
+        try launcher.link("commands/apps/running")
+        await launcher.until { launcher.topTitle == "Open Link" && panel.shownTitles == Self.askRows }
+        #expect(panel.selectedTitle == "Cancel")
+        launcher.pressReturn()
+        await launcher.settle()
+        #expect(launcher.topTitle == "Running Applications")
+        #expect(panel.surface.queryField.text == "no")
+        #expect(panel.shownTitles == ["Notes"])
+        #expect(launcher.launched.isEmpty)
         await launcher.close()
     }
 

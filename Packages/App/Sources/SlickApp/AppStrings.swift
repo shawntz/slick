@@ -24,11 +24,30 @@ enum AppStrings {
     static let linkWait = "Wait a Moment"
     static let linkWaitMessage = "Run and Always Allow work once this page has been open for a second."
 
-    /// The arguments a link passes, as one line, or a note that it passes none.
-    static func linkArguments(_ arguments: [String: String]) -> String {
-        guard !arguments.isEmpty else { return "With no arguments" }
-        let parts = arguments.keys.sorted().map { "\($0): \(arguments[$0] ?? "")" }
-        return "With " + parts.joined(separator: ", ")
+    static let linkArgumentsSection = "Arguments"
+
+    /// Under Run: how many arguments the link passes. Each has a row of its own below.
+    static func linkArgumentCount(_ count: Int) -> String {
+        switch count {
+        case 0: "With no arguments"
+        case 1: "With the argument listed below"
+        default: "With the \(count) arguments listed below"
+        }
+    }
+
+    /// An argument row's subtitle: its value, or a note that it is empty.
+    static func linkArgumentValue(_ value: String) -> String {
+        value.isEmpty ? "Empty" : value
+    }
+
+    /// The detail pane beside the page: every argument the command will get, in full, one
+    /// paragraph each, ordered by name.
+    static func linkArgumentsInFull(_ title: String, arguments: [String: String]) -> String {
+        let parts = arguments.keys.sorted().map { name in
+            let value = arguments[name] ?? ""
+            return value.isEmpty ? "\(name) is empty." : "\(name): \(value)"
+        }
+        return (["\(title) gets exactly these arguments."] + parts).joined(separator: "\n\n")
     }
 
     // MARK: Problems
