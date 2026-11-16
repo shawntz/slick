@@ -60,6 +60,7 @@ Packages/                     one SwiftPM package per module
   Host                        the feature runtime, and Kit views on LauncherUI: navigation, action panel, forms, scenario runner
   Root                        root search: engine queries, live providers, suggestions, favorites, aliases, fallbacks, learning
   SettingsUI                  settings window, onboarding, hotkey recorder
+  Updates                     the updater: Sparkle, behind KitHosting's UpdateControl
   Features/<Name>             one package per feature
   App                         the executable: wiring, feature list, status item, deeplinks, entry points
 support/                      Info.plist, entitlements, app icon source
@@ -77,6 +78,7 @@ Platform    ->  Kit
 SettingsUI  ->  Kit, LauncherUI
 Host        ->  Kit, LauncherUI
 Root        ->  Kit, CoreBridge
+Updates     ->  Kit, and Sparkle 2.9.6, the only remote dependency
 App         ->  everything
 Kit         ->  nothing
 LauncherUI  ->  nothing
@@ -85,6 +87,7 @@ CoreBridge  ->  nothing in Swift, links libslick_ffi.a
 
 - A feature never imports another feature, `Host`, `Root`, `Platform` or `App`. Features talk to each other through Kit contracts.
 - `Host`, `Root`, `Platform` and `SettingsUI` never import each other. They meet through the protocols in `KitHosting`, and `App` connects them. A feature never imports `KitHosting`.
+- Only `Updates` imports Sparkle. Its manifest pins Sparkle to one exact version from github.com/sparkle-project/Sparkle, and its `Package.resolved`, like `App`'s, is committed, so every build links the same revision. `scripts/check-manifests.sh` fails on any other remote dependency.
 - Only `CoreBridge` sees the C header. Only `slick-ffi` exports symbols.
 - `LauncherUITesting` is for tests, demos and captures. The one product use is the recording build of Host, compiled only when `SCENARIO_RECORDING=1`, so the app links none of it.
 - `Kit` and `LauncherUI` stay small, because every package that depends on them compiles its own copy.
@@ -178,6 +181,7 @@ Exact signatures live in the code. `docs/FEATURES.md` walks through writing a fe
 - `IconProvider`: icon lookups that never read the disk or decode on the main thread. Nil means not ready; the provider loads off the main thread and signals. Platform implements it. Host and SettingsUI draw with it.
 - `SystemContextService`: the frontmost app, power, displays, audio route and Focus, with a stream of changes and one of session starts. Platform implements it. Root feeds the engine with it.
 - `LoginItemControl`: whether the app opens at login. Platform implements it. SettingsUI shows it.
+- `UpdateControl`: whether this build updates itself, whether it checks automatically with a setter for the person's switch, the time of the last check, the version a scheduled check found that waits, and a check now. `NoUpdates` beside it is the do-nothing implementation every run but one uses. Updates implements the real one. SettingsUI shows it in the General pane and onboarding, and App's menu bar item offers it.
 - `HostSettings`: the typed keys of the general settings that more than one package reads, stored under the `app.general` namespace.
 - `LinkAllowances`: the commands links may run without asking, each with its exact arguments and title, under `app.links`. App's router writes it. SettingsUI lists and removes it.
 
@@ -273,7 +277,19 @@ Root search is a list like any other to the panel, with a special data source. R
 
 ### SettingsUI
 
-A separate SwiftUI window with eight panes: general, appearance with a live theme editor, root search, features with per-command alias, hotkey and enable switch, permissions, learning inspector, advanced, with the commands links may run without asking, and about. Theme edits apply when saved. Onboarding has six steps: welcome, the hotkey, optional features, permissions, a theme, done. The hotkey step walks the user through turning off Spotlight's shortcut when Spotlight holds the launcher hotkey, with the system's own words for each control, and confirms the moment the combination is free. Optional features lists every feature that is off by default, which is how clipboard history gets switched on. The permissions step shows only what the enabled features need and asks macOS for nothing until the user presses Allow. App tells settings whether the launcher hotkey is bound or waiting through `LauncherHotkeyStatus`. Features contribute panes declaratively.
+A separate SwiftUI window with eight panes: general, with the update switch, an update that waits, the last check and Check Now, appearance with a live theme editor, root search, features with per-command alias, hotkey and enable switch, permissions, learning inspector, advanced, with the commands links may run without asking, and about. Theme edits apply when saved. Onboarding has six steps: welcome, the hotkey, optional features, permissions, a theme, done. In a build that updates itself, the done step has Check for Updates Automatically, which starts on and is stored only when the person finishes. The hotkey step walks the user through turning off Spotlight's shortcut when Spotlight holds the launcher hotkey, with the system's own words for each control, and confirms the moment the combination is free. Optional features lists every feature that is off by default, which is how clipboard history gets switched on. The permissions step shows only what the enabled features need and asks macOS for nothing until the user presses Allow. App tells settings whether the launcher hotkey is bound or waiting through `LauncherHotkeyStatus`. Features contribute panes declaratively.
+
+### Updates
+
+The `Updates` package is the one place that knows Sparkle. The rest of the app sees `KitHosting.UpdateControl`.
+
+- **One case.** Sparkle's updater exists only in the live launcher started from a bundle whose `Info.plist` carries a feed address, `SUFeedURL`, and a public key, `SUPublicEDKey`. `Updates.make(environment:bundle:remindsInMenu:)` decides, and every other run, the scenario, selftest and bench modes, every test and every build without a feed, gets `NoUpdates` and never makes a Sparkle object. `scripts/bundle.sh` writes the feed only for release packaging, so a build from source never offers to replace itself with a release.
+- **The feed** is `appcast.xml` attached to the latest GitHub release of `BRAND_REPOSITORY` in `support/brand.env`: `<repository>/releases/latest/download/appcast.xml`. `ProjectLinks.repository` holds the same address, and `scripts/check-brand.sh` fails when they differ. GitHub's latest release skips pre-releases, so no release is marked as one. `make release` writes the appcast, and `make release-publish` uploads it with the zip. The updater's delegate hands Sparkle the address from `Info.plist`, so Sparkle ignores one written into the app's user defaults. The feed is not signed: whoever can publish a release can change what the update window shows, but cannot get code installed. `SECURITY.md` says what that allows. CI's token may only read the repository.
+- **The key.** Each update is the release zip signed with an EdDSA key. The public half is `BRAND_UPDATE_PUBLIC_KEY` in `support/brand.env`, which `scripts/info-plist.sh` writes as `SUPublicEDKey`. The private half lives in the owner's login keychain under the account named after the bundle ID, and only `make release` uses it, through Sparkle's `sign_update`. `make release` then checks the signature against the public key with `scripts/update-signature.swift`, which needs no keychain. The dry run signs with a throwaway key it makes in memory. `docs/RELEASING.md` says how to make, back up and import the key, and what a lost key means.
+- **Each release follows the last.** Sparkle installs only a higher build number, which is the commit count. `make release` refuses when `HEAD`'s count is not higher than the last release tag's, as after a rewritten history, and when `support/brand.env` names another key than that tag did, unless `UPDATE_KEY_ROTATION=1` says the key was replaced on purpose.
+- **What the app sends.** Nothing until the person agrees. `Info.plist` sets `SUEnableAutomaticChecks` to false, so Sparkle never asks its own question. Onboarding's last step and the General pane have the switch. With it on, Sparkle asks for the feed once a day, `SUScheduledCheckInterval`. The request carries Sparkle's user agent, the names and versions of the app and of Sparkle, and nothing else: no system profile key is allowed and no feed parameter is added. Release notes come inside the appcast, so showing them sends nothing. The zip downloads only when the person installs: `Info.plist` sets `SUAllowsAutomaticUpdates` to false, so Sparkle never offers to download and install updates on its own.
+- **What the person sees.** A check the person asks for, from the menu or Check Now, shows Sparkle's standard window. While the menu bar item is shown, a scheduled check opens no window and takes no focus: through Sparkle's gentle reminders the update waits, and the menu bar menu leads with an item that names it until the person looks, or the update session ends. While the item is hidden, no menu can remind, and an update nobody sees would keep the session open and stop every later scheduled check. So Sparkle then shows its window as it does for any background app: behind other apps' windows, or in front just after launch. The General pane names a waiting update in both cases, with a Show Update… button beside it.
+- **Signing.** `scripts/bundle.sh` copies `Sparkle.framework` from the Updates package's SwiftPM artifact into `Contents/Frameworks` with its links, and the App package's manifest gives the executable the runpath `@executable_path/../Frameworks`. Every build signs the framework and each helper inside it, two XPC services, the Updater app and Autoupdate, with the app's identity, deepest first, with the hardened runtime. Library validation then loads only code with the app's Team ID. Ad hoc code has none, so an ad hoc build also carries `com.apple.security.cs.disable-library-validation`, and a Developer ID release never does. `--version` costs 0.3 ms more with the framework linked, measured as the median of twenty runs.
 
 ### Features
 
@@ -292,9 +308,11 @@ The executable. `Packages/App/Sources/Slick/main.swift` is one line; everything 
 5. The forwarders point at Root. Then the `ThemeStore` over `<data>/Themes` with the stored theme name, the `PanelController` over Root and Platform's icons, the settings window's dependencies, the deep link router and the launcher hotkey.
 6. Hooks: the pasteboard closes the panel before a paste, reads clipboard history from the feature that provides it while that feature is on, and text expansion runs its commands through the pipeline with launch `.textExpansion`.
 
+The updater comes from `Updates.make(environment:bundle:remindsInMenu:)` in step 6. See "Updates" above.
+
 `start()` registers the features from `Features.swift`, one line each, activates them and binds the launcher hotkey from `HostSettings.launcherHotkey`, again whenever the setting changes. `shutdown()` unbinds it, deactivates the features, flushes Root, lets the engine go and stops Platform.
 
-**The launcher**, with no arguments: an accessory app with no Dock icon. One copy runs per data folder: the live launcher holds a lock on `launcher.lock` there, which the kernel frees when the process ends, and a second copy asks the first to open its panel and quits. Selftests, benches and scenarios use temporary folders and never take the lock. A menu bar item with a bolt opens the launcher, settings and quit, and follows `HostSettings.showStatusItem`. It appears before the features activate, because it is the only way in while the hotkey waits. Command-comma opens settings. Onboarding shows on the first launch, also before the features activate. Quitting waits for `shutdown()`, for 5 seconds at most. On the first launch only, Root asks App for light priors: the Dock's apps, the running apps and Spotlight use counts for apps in the system's app folders, gathered off the main thread with no prompt.
+**The launcher**, with no arguments: an accessory app with no Dock icon. One copy runs per data folder: the live launcher holds a lock on `launcher.lock` there, which the kernel frees when the process ends, and a second copy asks the first to open its panel and quits. Selftests, benches and scenarios use temporary folders and never take the lock. A menu bar item with a bolt opens the launcher, settings and quit, and follows `HostSettings.showStatusItem`. In a build that updates itself it also has Check for Updates… above Quit, and leads with an item that names an update a scheduled check found. While the item is hidden, Sparkle shows such an update in its own window instead. It appears before the features activate, because it is the only way in while the hotkey waits. Command-comma opens settings. Onboarding shows on the first launch, also before the features activate. Quitting waits for `shutdown()`, for 5 seconds at most. On the first launch only, Root asks App for light priors: the Dock's apps, the running apps and Spotlight use counts for apps in the system's app folders, gathered off the main thread with no prompt.
 
 **The launcher hotkey** is `HostSettings.launcherHotkey`, Command-Space by default. Spotlight holds that combination on a new Mac. While an enabled macOS shortcut holds the combination, the launcher hotkey waits: nothing is bound, no error shows, and onboarding, the General pane and the menu bar menu each say who holds it and offer to open Keyboard settings. The moment the combination is free, App binds it and shows a HUD. A refusal by one of the launcher's own bindings is different: the last working combination stays bound and a failure HUD shows.
 
@@ -313,6 +331,7 @@ Any web page can fire such a URL. Every part is checked and anything unexpected 
 - `--selftest`: checks the Rust ABI and the bundle ID, then builds the launcher in `selftest` with an in-memory engine, checks that every feature registered and activated with no validator issue outside a short known list, and queries the real `RootSource` for every command and three rows of every catalog source. Shows nothing.
 - `--bench [name]`: the real Root and features over synthetic catalogs of 3,000 and 10,000 items. Root's own lines first, then Host's `HostBench` on the real panel. The panel shows in a corner without key status. `name` is `root` or one of Host's benches. `--bench summon-key` summons with key status and runs only when named, because it takes the keyboard for a moment.
 - `--scenario <file> [--output <folder>]`: Host's `ScenarioRunner` on the real panel, with the real Root and features against inert services and the Apps feature's synthetic tree. The workspace and HUDs record instead of acting, and settings records what it would open. Scenario files live in `scenarios/`. Besides Host's steps they take `{ "app": { ... } }` steps for what only the app can see or do: the launcher hotkey, deep links, what the workspace launched, what settings opened, aliases, favorites, the last HUD and the private pasteboard. `ScenarioRunTests` runs every file headless and off screen on each `make test-App`. A scenario waits for each feature's own loading before its first step unless the file sets `startsBeforeReady`. Its clock is in UTC and moves only by `setTime`. App steps set the app in front, start a session, select a row by title, wait for a row, set fallbacks, walk onboarding, write made-up files in the run's home folder and hand them to the next open dialog, and open, capture and close the settings window and the onboarding window on a named step. Host's steps click a link a detail shows, and an `expect` step's `largeType` reads the text Large Type showed. The file key `systemApps` shows Apple's own apps from `/System/Applications` with their real icons, and nothing from the user's folders. A `still` step pictures the whole recorded area during a clip, such as the settings window over the wallpaper.
+- `--version`: prints the name, the version and the build number, such as `Slick 0.1.0 (412)`, and exits before the app makes any folder, window, menu bar item or hotkey. dyld loads every linked framework before `main`, so a bundle whose framework is missing or wrongly signed fails at once. `scripts/check-release.sh` and CI start bundles this way. It is the one way an agent may start a bundle, and only one a dry run made in a temporary folder.
 - `--data-dir <folder>` or `SLICK_DATA_DIR` picks the data folder in any mode.
 
 ## Latency rules
@@ -375,7 +394,7 @@ Rules that keep it that way:
 - Settings live in `UserDefaults` behind typed keys.
 - Clipboard history uses SQLite in WAL mode. Small collections such as snippets and quicklinks are JSON files written atomically.
 - Every SQLite database overwrites what it deletes. A clipboard delete rewrites the full-text index and empties the write-ahead log, and the clipboard folder is left out of backups.
-- Slick makes no network request unless a feature the user invoked needs one: currency rates, a web search, an AI provider the user configured.
+- Slick makes no network request unless a feature the user invoked needs one: currency rates, a web search, an AI provider the user configured. The one other request is the update check of a release build, and only once the person turned it on: once a day, to the GitHub release feed, carrying nothing but the versions of Slick and Sparkle.
 - There is no telemetry. The learning inspector in settings shows what was learned and can delete a row, forget an item, pause learning or erase everything.
 - Concealed, transient and auto-generated pasteboard items are never stored.
 
@@ -383,7 +402,7 @@ Rules that keep it that way:
 
 Developers and agents build and test Slick on the machine they are using. These rules protect that machine.
 
-1. Run the launcher only through `--selftest`, `--bench` or `--scenario` unless the person at the keyboard asked for the real app.
+1. Run the launcher only through `--selftest`, `--bench` or `--scenario` unless the person at the keyboard asked for the real app. `--version` starts nothing and may run any time.
 2. In those modes hardware key events are ignored, side effects go to inert services or fakes, and data lives in a temporary directory. A scenario can never sleep the Mac, empty the Trash, move someone's windows or paste into their document.
 3. Tests never read the general pasteboard. They use a private named pasteboard.
 4. Tests never call an API that can raise a permission prompt. Use the fake permission center.
@@ -430,6 +449,8 @@ make ui-record               # LauncherUI clip in motion, then MP4 and GIF copie
 make media                   # record every storyboard in scenarios/media over Apple's own apps and publish to site/media
 make install                 # the release app into /Applications or INSTALL_DIR, for people only
 make uninstall               # remove it
+make release-dry-run         # the release pipeline signed ad hoc in a temporary folder, every artifact checked
+make update-key              # make the key that signs updates in the login keychain, for people only
 ```
 
 Release builds move their symbols into `build/Slick.app.dSYM` beside the bundle and strip the executable. Debug builds keep the symbols in place. `STRIP=0` or `STRIP=1` overrides either. With sixteen features the bundle is 16 MB: the executable is 12.4 MB, about 0.9 MB of it the Rust core, and the compiled icon, `Assets.car`, is 3.7 MB. The dSYM is 42 MB.
