@@ -137,8 +137,9 @@ extension AIFeature {
         }
     }
 
-    /// Runs a command on text: the given text, or else the selection. From a deep link it shows a
-    /// form instead, so nothing is read or sent until the user presses the button.
+    /// Runs a command on text: the given text, or else the selection. For a run a link stands behind,
+    /// a deep link launch or ``ActionContext/startedByLink``, it shows a form instead, so nothing is
+    /// read or sent until the user presses the button.
     func runText(
         _ kind: TextCommandKind, context: ActionContext, given: String?, tone: String?, language: String?
     ) async throws -> ActionOutcome {
@@ -146,7 +147,7 @@ extension AIFeature {
         let languageValue = language.flatMap { $0.isEmpty ? nil : $0 } ?? settings[AISettings.translateLanguage]
         let instruction = Prompts.instruction(for: kind, tone: toneValue, language: languageValue)
         let services = services
-        if context.launch == .deeplink {
+        if context.launch == .deeplink || context.startedByLink {
             return .push(
                 .form(
                     typedTextForm(title: kind.title) { text in
@@ -214,7 +215,7 @@ extension AIFeature {
             title: title, services: services)
     }
 
-    /// A form with one text field for a command started by a deep link. Nothing is read or sent until
+    /// A form with one text field for a command a link stands behind. Nothing is read or sent until
     /// the user presses the button.
     func typedTextForm(
         title: String, field: String = Strings.Forms.text, initial: String = "",

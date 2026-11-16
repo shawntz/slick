@@ -202,13 +202,14 @@ extension AIFeature {
     }
 
     /// Runs a custom command. The prompt is rendered with Kit's templates in the prompt style, which
-    /// quotes the selection and arguments. From a deep link the rendered prompt shows in a form first,
-    /// and the selection and clipboard are not read.
+    /// quotes the selection and arguments. For a run a link stands behind, a deep link launch or
+    /// ``ActionContext/startedByLink``, the rendered prompt shows in a form first, and the selection
+    /// and clipboard are not read.
     func runCustom(_ command: CustomCommand, context: ActionContext, given: String?) async throws -> ActionOutcome {
         let template = command.template
         let clock = context.clock
         let services = services
-        if context.launch == .deeplink {
+        if context.launch == .deeplink || context.startedByLink {
             let environment = TemplateEnvironment(
                 now: clock.now, timeZone: clock.timeZone, locale: clock.locale, arguments: context.arguments.values)
             let preview = await template.render(in: environment, style: .prompt).text
