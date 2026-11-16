@@ -14,6 +14,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# CI builds third-party code, so its token may only read the repository. Whoever can write releases
+# controls the update feed, which is the latest release's appcast.xml.
+permissions:
+  contents: read
+
 jobs:
   build-test:
     runs-on: xcode-27
@@ -47,8 +52,8 @@ jobs:
           path: |
             Packages/*/.build
             Packages/Features/*/.build
-          key: spm-${{ hashFiles('.xcode-version', 'Packages/**/Package.swift') }}-${{ github.sha }}
-          restore-keys: spm-${{ hashFiles('.xcode-version', 'Packages/**/Package.swift') }}-
+          key: spm-${{ hashFiles('.xcode-version', 'Packages/**/Package.swift', 'Packages/**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: spm-${{ hashFiles('.xcode-version', 'Packages/**/Package.swift', 'Packages/**/Package.resolved') }}-
 
       - name: Bootstrap
         run: make bootstrap
@@ -62,8 +67,9 @@ jobs:
         run: make -k -j2 test
 
       # The release pipeline from a clean build, signed ad hoc and without the notary service, into
-      # a temporary folder, then every artifact checked: the bundle, its notices, the zips, the dSYM
-      # and the cask. It needs no secret and publishes nothing.
+      # a temporary folder, then every artifact checked: the bundle, its notices, the zips, the dSYM,
+      # the update feed signed with a throwaway key, the cask, and the shipped executable started
+      # with --version. It needs no secret and publishes nothing.
       - name: Release dry run
         run: make release-dry-run
 
@@ -72,6 +78,13 @@ jobs:
 
       - name: Build, bundle (ad hoc) and selftest
         run: make selftest SIGN_IDENTITY=-
+
+      # dyld loads Sparkle.framework before main runs, so a bundle whose framework is missing or
+      # wrongly signed fails here. --version prints and exits before the app makes any window.
+      - name: The bundle starts and loads its frameworks
+        run: |
+          . support/brand.env
+          "build/$BRAND_NAME.app/Contents/MacOS/$BRAND_NAME" --version
 
       - uses: actions/upload-artifact@v7
         with:
