@@ -18,6 +18,10 @@ public struct RunOrigin: Sendable {
     /// The title of the command the run started from, when it started from one. A page the run
     /// pushes without a title of its own shows it in the breadcrumb.
     public var commandTitle: String?
+    /// True for a run a link started, or one that started while the panel showed a session a link
+    /// opened. Its handler's pasteboard copies instead of pasting, because the app in front may be
+    /// the web page that fired the link. The pipeline sets it.
+    public var startedByLink = false
 
     public init(
         featureID: String, feature: FeatureContext, query: String = "",
@@ -41,6 +45,9 @@ public struct RunOrigin: Sendable {
     /// Changes every time the panel opens. A run that started in one session and ends after the
     /// panel closed, or in a later session, does not move the panel: see ``apply(_:origin:)``.
     var sessionID: Int { get }
+    /// True when a link opened the panel session `session` or reached it while it showed. Runs
+    /// that start in such a session copy instead of pasting. The default is false.
+    func isLinkSession(_ session: Int) -> Bool
     /// Shows a toast, or replaces the one showing. `origin` is the run that showed it.
     func showToast(_ toast: Toast, id: ToastID, origin: RunOrigin?)
     func dismissToast(_ id: ToastID)
@@ -78,6 +85,8 @@ public struct RunOrigin: Sendable {
 }
 
 extension RunPresenter {
+    public func isLinkSession(_ session: Int) -> Bool { false }
+
     public func confirm(_ confirmation: Confirmation, isDestructive: Bool, suppressionKey: String?) async -> Bool {
         await confirm(confirmation, isDestructive: isDestructive)
     }

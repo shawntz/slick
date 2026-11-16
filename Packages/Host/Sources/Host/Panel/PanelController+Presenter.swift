@@ -104,9 +104,11 @@ extension PanelController: RunPresenter {
         case .push(let page):
             push(makePage(page, origin: origin))
             if !isPanelVisible { summon() }
+            if origin.startedByLink { noteLinkSession() }
         case .replace(let page):
             replaceTop(with: makePage(page, origin: origin))
             if !isPanelVisible { summon() }
+            if origin.startedByLink { noteLinkSession() }
         case .pop:
             pop()
         case .popToRoot:
@@ -114,6 +116,7 @@ extension PanelController: RunPresenter {
         case .showRoot(let query):
             popToRoot()
             if !isPanelVisible { summon() }
+            if origin.startedByLink { noteLinkSession() }
             setQueryText(query)
         }
     }
@@ -179,6 +182,7 @@ extension PanelController: RunPresenter {
             context: runtime.context(for: command.featureID))
         if top is ArgumentsPageController { replaceTop(with: page) } else { push(page) }
         if !isPanelVisible { summon() }
+        if launch == .deeplink { noteLinkSession() }
         return true
     }
 }

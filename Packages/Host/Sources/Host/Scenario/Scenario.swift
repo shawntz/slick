@@ -77,6 +77,9 @@ public enum ScenarioStep: Sendable, Decodable, Equatable {
     case record(ScenarioRecording)
     /// Ends the clip and writes its files.
     case stopRecording(ScenarioClipOutput)
+    /// During a clip, writes a PNG named after this text of the clip's whole recorded area: the
+    /// wallpaper and every window of this app over it, such as a settings window, without loss.
+    case still(String)
 
     private struct Key: CodingKey {
         var stringValue: String
@@ -131,6 +134,15 @@ public enum ScenarioStep: Sendable, Decodable, Equatable {
             } else {
                 self = .stopRecording(try container.decode(ScenarioClipOutput.self, forKey: key))
             }
+        case "still":
+            let name = try container.decode(String.self, forKey: key)
+            guard ScenarioRecording.isFileName(name) else {
+                throw DecodingError.dataCorrupted(
+                    .init(
+                        codingPath: decoder.codingPath,
+                        debugDescription: "a still's name uses letters, digits, - and _ only"))
+            }
+            self = .still(name)
         default:
             throw DecodingError.dataCorrupted(
                 .init(codingPath: decoder.codingPath, debugDescription: "unknown step \"\(key.stringValue)\""))
@@ -151,6 +163,7 @@ public enum ScenarioStep: Sendable, Decodable, Equatable {
         case .dismiss: "dismiss"
         case .record: "record"
         case .stopRecording: "stopRecording"
+        case .still: "still"
         }
     }
 }
@@ -162,7 +175,7 @@ public struct ScenarioExpectation: Sendable, Decodable, Equatable {
     /// Titles that must be among the shown rows or cells.
     public var rowsInclude: [String]?
     public var rowCount: Int?
-    /// The selected row's or cell's title.
+    /// The selected row's or cell's title; empty when nothing is selected.
     public var selection: String?
     /// The toast's text, as the action bar shows it.
     public var toast: String?

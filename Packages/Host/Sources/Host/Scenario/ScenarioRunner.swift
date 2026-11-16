@@ -200,6 +200,8 @@ import LauncherUI
             return await startRecording(recording)
         case .stopRecording(let output):
             return await stopRecording(output)
+        case .still(let name):
+            return await still(name)
         }
     }
 
@@ -264,6 +266,26 @@ import LauncherUI
         case .failure(let failure):
             return failure.description
         }
+    }
+
+    /// Writes `captures/<name>.png` of the clip's whole recorded area, during a clip. The panel
+    /// may be hidden, as when the clip shows a settings window.
+    private func still(_ name: String) async -> String? {
+        guard recording != nil, let canvas = recorder?.canvas else {
+            return "a still is taken during a clip; put a record step before it"
+        }
+        guard let image = await captureWithin(canvas, seconds: min(5, remainingSeconds)) else {
+            return "the capture failed or timed out"
+        }
+        if let problem = interruption() { return problem }
+        let file = output.appending(path: "captures/\(name).png")
+        do {
+            try PanelSnapshot.writePNG(image, to: file)
+        } catch {
+            return "cannot write \(file.path): \(error)"
+        }
+        captures.append(file.path)
+        return nil
     }
 
     // MARK: Keys
@@ -461,7 +483,7 @@ import LauncherUI
         if let count = expected.rowCount, count != titles.count {
             problems.append("\(titles.count) rows, expected \(count)")
         }
-        if let selection = expected.selection, panel.selectedTitle != selection {
+        if let selection = expected.selection, (panel.selectedTitle ?? "") != selection {
             problems.append("selection was \(Self.quoted(panel.selectedTitle)), expected \"\(selection)\"")
         }
         let toast = panel.surface.actionBar.toast?.text
