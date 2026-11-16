@@ -18,13 +18,14 @@ public final class FakeFuzzyIndexService: FuzzyIndexService {
     }
 }
 
-/// A small, predictable stand-in for the engine's matcher. It folds case and diacritics, finds the
-/// strongest tier among the title and keywords (a keyword match counts one tier weaker), and orders
-/// as the engine does: by tier, then a title match before a keyword match, then shorter title, then
-/// index. It has no typo tier.
+/// A small, predictable stand-in for the engine's matcher over a feature's list. It folds case and
+/// diacritics and finds the strongest tier among the title and keywords. A keyword equal to the
+/// whole query counts as exact, as a title equal to it does; any other keyword match counts one tier
+/// weaker than the same match on the title. It orders as the engine does: by tier, then a title
+/// match before a keyword match, then shorter title, then index. It has no typo tier.
 ///
-/// A match on the title carries the title's matched ranges; a match that only a keyword reaches
-/// carries none, as with the engine, so a host can tell the two apart. Ranges are UTF-16 offsets in
+/// A match the title made has ``FuzzyMatch/matchesTitle`` set and carries the title's matched
+/// ranges. A match a keyword made carries none, as with the engine. Ranges are UTF-16 offsets in
 /// the folded title, which equal the title's own for text without decomposed characters.
 public struct SimpleFuzzyIndex: FuzzyIndex {
     private struct Entry {
@@ -62,15 +63,17 @@ public struct SimpleFuzzyIndex: FuzzyIndex {
         var matches: [FuzzyMatch] = []
         for (index, entry) in entries.enumerated() {
             let title = Self.match(folded, tokens: tokens, in: entry.title)
-            let keywordTier = entry.keywords.compactMap { Self.match(folded, tokens: tokens, in: $0)?.tier }
-                .min().map(Self.weaker)
-            guard let tier = [title?.tier, keywordTier].compactMap({ $0 }).min() else { continue }
+            let keyword = entry.keywords.compactMap { Self.match(folded, tokens: tokens, in: $0)?.tier }
+                .min().map(Self.keywordTier)
+            guard let tier = [title?.tier, keyword].compactMap({ $0 }).min() else { continue }
             // At equal tiers the title wins, as the engine's field bonus decides.
             let isTitleMatch = title?.tier == tier
             let highlights = isTitleMatch ? title?.ranges ?? [] : []
             let tierScore = (MatchTier.allCases.count - tier.rawValue) * 2_000_000
             let score = tierScore + (isTitleMatch ? 1_000_000 : 0) - min(entry.titleLength, 999_999)
-            matches.append(FuzzyMatch(index: index, tier: tier, score: score, highlights: highlights))
+            matches.append(
+                FuzzyMatch(
+                    index: index, tier: tier, score: score, highlights: highlights, matchesTitle: isTitleMatch))
         }
         matches.sort { $0.score != $1.score ? $0.score > $1.score : $0.index < $1.index }
         return Array(matches.prefix(limit))
@@ -109,10 +112,12 @@ public struct SimpleFuzzyIndex: FuzzyIndex {
         return nil
     }
 
-    /// The tier a keyword match counts as: one weaker than the same match on the title. The fake has
-    /// no typo tier, so a keyword substring counts as a subsequence.
-    private static func weaker(_ tier: MatchTier) -> MatchTier {
+    /// The tier a keyword match counts as: exact when the keyword equals the query, otherwise one
+    /// weaker than the same match on the title. The fake has no typo tier, so a keyword substring
+    /// counts as a subsequence.
+    private static func keywordTier(_ tier: MatchTier) -> MatchTier {
         switch tier {
+        case .exact: .exact
         case .substring, .typo, .subsequence: .subsequence
         default: MatchTier(rawValue: tier.rawValue + 1) ?? .subsequence
         }

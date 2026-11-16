@@ -77,30 +77,30 @@ import Kit
         }
     }
 
-    /// Applies host filtering: sections hidden by their visibility, matching rows by tier and then
-    /// rank hint inside their section, empty sections hidden.
+    /// Applies host filtering as the host does: sections hidden by their visibility, and inside a
+    /// section the matching rows by tier, then a title match before a keyword match, then rank hint,
+    /// then the index's order. Empty sections are hidden.
     func filterLoadedSections() {
         let shown = loadedSections.map { $0.isVisible(forQuery: query) }
         guard !query.isEmpty, let index else {
             sections = zip(loadedSections, shown).filter { $0.1 && !$0.0.rows.isEmpty }.map(\.0)
             return
         }
-        var matchesBySection = [[(row: Row, tier: MatchTier)]](repeating: [], count: loadedSections.count)
+        var matchesBySection = [[(row: Row, match: FuzzyMatch)]](repeating: [], count: loadedSections.count)
         for match in index.search(query, limit: Int.max) {
             let position = positions[match.index]
             guard shown[position.section] else { continue }
-            matchesBySection[position.section].append(
-                (loadedSections[position.section].rows[position.row], match.tier))
+            matchesBySection[position.section].append((loadedSections[position.section].rows[position.row], match))
         }
         sections = zip(loadedSections, matchesBySection).compactMap { section, matches in
             guard !matches.isEmpty else { return nil }
             var filtered = section
-            // Stable: equal tier and hint keep the engine's order.
+            // Stable: equal tier, field and hint keep the index's order.
             filtered.rows = matches.enumerated().sorted { lhs, rhs in
-                if lhs.element.tier != rhs.element.tier { return lhs.element.tier < rhs.element.tier }
-                if lhs.element.row.rankHint != rhs.element.row.rankHint {
-                    return lhs.element.row.rankHint > rhs.element.row.rankHint
-                }
+                let (left, right) = (lhs.element, rhs.element)
+                if left.match.tier != right.match.tier { return left.match.tier < right.match.tier }
+                if left.match.matchesTitle != right.match.matchesTitle { return left.match.matchesTitle }
+                if left.row.rankHint != right.row.rankHint { return left.row.rankHint > right.row.rankHint }
                 return lhs.offset < rhs.offset
             }.map(\.element.row)
             return filtered

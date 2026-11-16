@@ -13,8 +13,11 @@ public protocol FuzzyIndex: Sendable {
     var count: Int { get }
 
     /// Entries that match the query, best first, at most `limit`. Ranking follows the engine's text
-    /// tiers: a weaker tier never outranks a stronger one; ties go to the shorter title, then to the
-    /// lower index.
+    /// tiers, and a weaker tier never outranks a stronger one. A keyword that equals the whole
+    /// query, after the folding titles get, ranks in the exact tier, as a title that equals the
+    /// query does. Any other keyword match ranks one tier below the same match on the title. Inside
+    /// a tier, ties go to a title match before a keyword match, then to the shorter title, then to
+    /// the lower index.
     func search(_ query: String, limit: Int) -> [FuzzyMatch]
 }
 
@@ -36,20 +39,25 @@ public struct FuzzyMatch: Hashable, Sendable {
     public var tier: MatchTier
     /// Higher is better. Only comparable within one search.
     public var score: Int
-    /// Matched ranges of the title in UTF-16 offsets, for highlighting.
+    /// Matched ranges of the title in UTF-16 offsets, for highlighting. Empty when a keyword made
+    /// the match, even if the title also matches in a weaker tier.
     public var highlights: [Range<Int>]
+    /// True when the title made the match, false when a keyword did. Inside a tier, a host lists
+    /// title matches before keyword matches, then by rank hint.
+    public var matchesTitle: Bool
 
-    public init(index: Int, tier: MatchTier, score: Int, highlights: [Range<Int>] = []) {
+    public init(index: Int, tier: MatchTier, score: Int, highlights: [Range<Int>] = [], matchesTitle: Bool = true) {
         self.index = index
         self.tier = tier
         self.score = score
         self.highlights = highlights
+        self.matchesTitle = matchesTitle
     }
 }
 
 /// How a query matched, strongest first. See "Matching" in docs/ARCHITECTURE.md.
 public enum MatchTier: Int, Hashable, Sendable, Comparable, CaseIterable {
-    /// The title equals the query.
+    /// The title equals the query. In a feature's index a keyword that equals the query counts too.
     case exact
     /// The title starts with the query, or the query covers leading words in order.
     case prefix

@@ -1,9 +1,9 @@
 import Kit
 
 /// How emoji rank against each other when they match a query in the same tier and alike, both by
-/// name or both by keyword only: pins first, then recent use, then the emoji people use most. The
-/// host puts a match on the name before a match on a keyword alone inside a tier, so "grinning"
-/// lists the emoji named Grinning before Beaming Face with Smiling Eyes, which only has the keyword.
+/// name or both by keyword only: pins first, then recent use, then the emoji people use most. In
+/// the grid a keyword equal to the query is an exact match, so "heart" leads with Red Heart, the
+/// most used emoji with that keyword, and "grinning" with Beaming Face with Smiling Eyes.
 nonisolated enum EmojiRanking {
     /// A use counts this much more than the whole static score, so any recent use wins.
     static let usageWeight = 1_000.0

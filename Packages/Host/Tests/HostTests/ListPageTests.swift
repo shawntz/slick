@@ -62,17 +62,22 @@ import Testing
             Row(id: ItemID("glyph", "suit"), title: "Heart Suit", rankHint: 0),
             Row(id: ItemID("glyph", "beat"), title: "Heartbeat", rankHint: 5),
             Row(id: ItemID("glyph", "letter"), title: "Love Letter", rankHint: 1),
+            Row(id: ItemID("glyph", "plain"), title: "Heart", rankHint: 0),
         ]
         let section = [ListSection("Symbols", id: "symbols", rows: rows)]
         let page =
             grid
             ? fixture.open(.grid(GridPage(StaticRows(section), title: "Symbols", showsTitles: true)))
             : fixture.open(.list(ListPage(StaticRows(section), title: "Symbols")))
-        #expect(await waitUntil { !page.isBusy && fixture.panel.shownTitles.count == 4 })
+        #expect(await waitUntil { !page.isBusy && fixture.panel.shownTitles.count == 5 })
         fixture.type("heart")
-        #expect(fixture.panel.shownTitles == ["Heartbeat", "Heart Suit", "Red Heart"])
+        #expect(
+            fixture.panel.shownTitles == ["Heart", "Red Heart", "Heartbeat", "Heart Suit"],
+            "the exact title before the exact keyword with a higher hint, then the prefixes by hint")
         fixture.type("love")
-        #expect(fixture.panel.shownTitles == ["Love Letter", "Red Heart"], "a title match even with a lower hint")
+        #expect(
+            fixture.panel.shownTitles == ["Red Heart", "Love Letter"],
+            "a keyword equal to the query before a title that only starts with it")
     }
 
     @Test func theSelectionIsKeyedBySectionAndRow() async throws {

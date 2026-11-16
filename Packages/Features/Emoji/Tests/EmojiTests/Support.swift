@@ -39,38 +39,22 @@ extension FeatureHarness {
     }
 }
 
-/// The grid's search rows with default options, and KitTesting's index over them twice: titles and
-/// keywords, and titles alone. Built once, because the catalog is large.
-private let searchGrid: (rows: [Row], index: SimpleFuzzyIndex, titles: SimpleFuzzyIndex) = {
-    let rows = EmojiRows.build(bundledCatalog, EmojiRows.Options()).last?.rows ?? []
-    return (
-        rows, SimpleFuzzyIndex(rows.map { FuzzyEntry(title: $0.title, keywords: $0.keywords) }),
-        SimpleFuzzyIndex(rows.map { FuzzyEntry(title: $0.title, keywords: []) })
-    )
-}()
-
-/// The grid's rows for a query in the order the host shows them, over KitTesting's index: by tier,
-/// then a title match before a match that only a keyword reaches, then rank hint, then the index's
-/// own order. A row matches by title when its title alone reaches the tier of its best match.
-func gridOrder(_ query: String) -> [Row] {
-    let (results, index, titles) = searchGrid
-    var titleTiers: [Int: MatchTier] = [:]
-    for match in titles.search(query, limit: .max) { titleTiers[match.index] = match.tier }
-    return index.search(query, limit: .max).enumerated().sorted { lhs, rhs in
-        if lhs.element.tier != rhs.element.tier { return lhs.element.tier < rhs.element.tier }
-        let lhsTitle = titleTiers[lhs.element.index] == lhs.element.tier
-        let rhsTitle = titleTiers[rhs.element.index] == rhs.element.tier
-        if lhsTitle != rhsTitle { return lhsTitle }
-        let lhsHint = results[lhs.element.index].rankHint
-        let rhsHint = results[rhs.element.index].rankHint
-        if lhsHint != rhsHint { return lhsHint > rhsHint }
-        return lhs.offset < rhs.offset
-    }.map { results[$0.element.index] }
+/// The grid's rows for a query, in the order the host shows them: KitTesting's harness filters as
+/// the host does.
+func gridRows(_ query: String) async throws -> [Row] {
+    let harness = await loadedHarness()
+    try await harness.run("search")
+    try await harness.setQuery(query)
+    return harness.rows
 }
 
-/// True when the row's title alone matches the query as well as the row does.
+/// The titles of ``gridRows(_:)``.
+func gridTitles(_ query: String) async throws -> [String] {
+    try await gridRows(query).map(\.title)
+}
+
+/// True when the row's title made its best match, rather than a keyword alone.
 func matchesByTitle(_ row: Row, _ query: String) -> Bool {
-    let full = SimpleFuzzyIndex([FuzzyEntry(title: row.title, keywords: row.keywords)]).search(query, limit: 1)
-    let title = SimpleFuzzyIndex([FuzzyEntry(title: row.title, keywords: [])]).search(query, limit: 1)
-    return !title.isEmpty && title.first?.tier == full.first?.tier
+    let entry = FuzzyEntry(title: row.title, keywords: row.keywords)
+    return SimpleFuzzyIndex([entry]).search(query, limit: 1).first?.matchesTitle ?? false
 }

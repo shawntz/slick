@@ -9,7 +9,9 @@ import Foundation
 nonisolated struct ColonIndex: Sendable {
     /// How a query matched an entry, strongest first. The tiers follow root search's contract: a
     /// weaker tier never outranks a stronger one. Inside a tier the score decides, then a match on
-    /// the name beats a keyword, then the shorter name wins, as the matcher orders the grid.
+    /// the name beats a keyword, then the shorter name wins. The grid differs in one rule: there a
+    /// keyword equal to the query is exact, so "thumbs" leads with Thumbs Down, which has that
+    /// keyword, while the colon search leads with Thumbs Up.
     enum Tier: UInt8, Comparable {
         /// The query is the whole name.
         case exact
