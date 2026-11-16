@@ -318,7 +318,11 @@ fn fuzzy_indexes_through_the_c_abi() {
     let mut out = [SlickHit::default(); 4];
     let q = "smile";
     let n = index::slick_index_query(ix, s, q.as_ptr(), q.len(), out.as_mut_ptr(), out.len());
-    assert_eq!((n, out[0].key, out[0].field), (1, batch.items[1].key, 2));
+    // A keyword equal to the query ranks in the exact tier of a feature's index.
+    assert_eq!(
+        (n, out[0].key, out[0].tier, out[0].field),
+        (1, batch.items[1].key, 6, 2)
+    );
     let q = "party";
     index::slick_index_query(ix, s, q.as_ptr(), q.len(), out.as_mut_ptr(), out.len());
     let mut ranges = [SlickRange::default(); 2];

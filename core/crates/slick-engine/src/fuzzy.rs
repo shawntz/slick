@@ -5,8 +5,17 @@ use crate::catalog::Item;
 use crate::engine::EngineError;
 use crate::index::Index;
 use crate::rank::RankParams;
-use crate::session::{Hit, Session};
+use crate::session::{Hit, Session, TextRules};
 use std::sync::{Arc, RwLock};
+
+/// How feature lists rank text. A later whole word stays below literal prefixes, which only root
+/// search promotes. A keyword equal to the whole query ranks in the exact tier, so "love" lists
+/// what a feature tagged love above a title that only starts with it. Inside a tier a title match
+/// still ranks first: its field bonus, 2,000, is larger than any prior's lift, 1,000.
+const FEATURE_LISTS: TextRules = TextRules {
+    whole_words: false,
+    exact_keywords: true,
+};
 
 /// A searchable list of items owned by one feature.
 ///
@@ -56,8 +65,7 @@ impl FuzzyIndex {
     /// The best `k` items for `text`.
     pub fn query<'s>(&self, session: &'s mut Session, text: &str, k: usize) -> Result<&'s [Hit], EngineError> {
         let ix = self.current()?;
-        // Feature lists keep literal prefixes above later words; only root search promotes them.
-        session.begin(&ix, text, false);
+        session.begin(&ix, text, FEATURE_LISTS);
         session.run(&ix, k, Some(&ix.static_lift), &ix.static_seeds);
         Ok(&session.hits)
     }

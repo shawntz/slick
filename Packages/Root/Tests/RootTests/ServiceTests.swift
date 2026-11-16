@@ -57,17 +57,17 @@ import Testing
 @Suite(.timeLimit(.minutes(1))) struct FuzzyIndexServiceTests {
     /// Inside a tier a title match comes first, and only a title match carries ranges, so a host
     /// can put title matches ahead of its rank hints.
-    @Test func aKeywordMatchCarriesNoRangesAndFollowsTitleMatches() async throws {
+    @Test func aKeywordMatchCarriesNoRangesAndAnExactKeywordIsExact() async throws {
         let service = EngineFuzzyIndexService()
         let index = await service.makeIndex([
             FuzzyEntry(title: "Red Heart", keywords: ["heart", "love"]),
             FuzzyEntry(title: "Heart Suit"),
         ])
         let matches = index.search("heart", limit: 10)
-        #expect(matches.map(\.index) == [1, 0])
-        #expect(matches.map(\.tier) == [.prefix, .prefix], "an exact keyword counts one tier lower")
-        #expect(matches[0].highlights == [0..<5])
-        #expect(matches[1].highlights.isEmpty, "Red Heart's title matched only more weakly than its keyword")
+        #expect(matches.map(\.index) == [0, 1], "a keyword equal to the query is exact in a feature's index")
+        #expect(matches.map(\.tier) == [.exact, .prefix])
+        #expect(matches[0].highlights.isEmpty && !matches[0].matchesTitle, "the keyword made Red Heart's match")
+        #expect(matches[1].highlights == [0..<5] && matches[1].matchesTitle)
         let love = try #require(index.search("love", limit: 1).first)
         #expect(love.index == 0 && love.highlights.isEmpty)
         let red = try #require(index.search("red", limit: 1).first)

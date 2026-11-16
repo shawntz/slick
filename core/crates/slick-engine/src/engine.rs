@@ -4,7 +4,7 @@ use crate::catalog::{Catalog, Item, flags};
 use crate::context::Context;
 use crate::index::{Index, top_positions};
 use crate::rank::{self, RankParams, TIER_ALIAS_EXACT, TIER_ALIAS_PREFIX, TIER_LEARNED};
-use crate::session::{FIELD_NONE, FIELD_USER_ALIAS, Hit, Session, Special, hit_flags, is_band};
+use crate::session::{FIELD_NONE, FIELD_USER_ALIAS, Hit, Session, Special, TextRules, hit_flags, is_band};
 use crate::store::Store;
 use slick_match::Query;
 use slick_predict::affinity;
@@ -15,6 +15,14 @@ use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// How many suggestions are kept ready.
 pub const SUGGESTIONS: usize = 16;
+
+/// How root search ranks text. A one-token query equal to a whole later word of a title ranks with
+/// literal prefixes, so "code" finds Visual Studio Code. A keyword equal to the whole query stays
+/// one tier below an exact title, as every other keyword match does.
+const ROOT_SEARCH: TextRules = TextRules {
+    whole_words: true,
+    exact_keywords: false,
+};
 
 /// Why an engine call failed.
 #[derive(Debug)]
@@ -349,8 +357,7 @@ impl Engine {
     pub fn query<'s>(&self, session: &'s mut Session, text: &str, k: usize) -> Result<&'s [Hit], EngineError> {
         let st = self.read()?;
         let ix = &*st.index;
-        // Root search ranks a query equal to a whole later word with literal prefixes.
-        session.begin(ix, text, true);
+        session.begin(ix, text, ROOT_SEARCH);
         if session.query.is_empty() || k == 0 {
             return Ok(&session.hits);
         }

@@ -55,6 +55,12 @@ pub struct Query {
     /// keeps it. A query with an ideograph, kana or hangul syllable is never promoted: each of
     /// those starts a word, so a run of them is not one word.
     pub whole_words: bool,
+    /// A keyword equal to the whole folded query ranks in the exact tier, as a title equal to the
+    /// query does, and below such a title by the field bonus. Every other keyword match stays one
+    /// tier below the same match on a title. Off by default; feature indexes turn it on, so "love"
+    /// lists what a feature tagged love above a title that only starts with it. [`Query::set`]
+    /// keeps it. See `rank::effective_tier`.
+    pub exact_keywords: bool,
     /// True when the folded query holds an ideograph, kana or hangul syllable.
     ideographic: bool,
     /// The whole-word span bit of the query (see `arena::span_bit`) when it is ASCII letters and
@@ -171,6 +177,7 @@ impl Query {
         self.link_same = other.link_same;
         self.links = other.links;
         self.whole_words = other.whole_words;
+        self.exact_keywords = other.exact_keywords;
         self.ideographic = other.ideographic;
         self.span = other.span;
     }

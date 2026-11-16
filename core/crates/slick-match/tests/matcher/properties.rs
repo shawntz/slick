@@ -1,7 +1,8 @@
 //! Property tests on random synthetic corpora:
 //!
 //! - narrowing returns exactly what a full scan returns, for random typing with backspaces;
-//! - the bounded top k equals a full sort of every item's best rank;
+//! - the bounded top k equals a full sort of every item's best rank, with exact keywords in the
+//!   exact tier or one tier down;
 //! - nothing panics on arbitrary UTF-8, including empty strings, emoji, CJK and combining marks,
 //!   and highlight ranges always fall inside the original text.
 
@@ -135,13 +136,14 @@ fn target(rng: &mut Rng, c: &Corpus) -> String {
     }
 }
 
-/// A query as file search folds it (`whole` false) or as root search does (`whole` true).
-fn query(typed: &str, whole: bool) -> Query {
-    if whole {
-        Query::with_whole_words(typed)
-    } else {
-        Query::new(typed)
-    }
+/// A query as file search folds it (`whole` false) or as root search does (`whole` true), with a
+/// keyword equal to the query in the exact tier, as feature indexes rank it, when `exact_keywords`.
+fn query(typed: &str, whole: bool, exact_keywords: bool) -> Query {
+    let mut q = Query::default();
+    q.whole_words = whole;
+    q.exact_keywords = exact_keywords;
+    q.set(typed);
+    q
 }
 
 fn full_scan(a: &Arena, q: &Query, opts: &Opts, lift: Option<&[i32]>) -> Vec<Hit> {
@@ -167,8 +169,9 @@ fn narrowing_equals_a_full_scan() {
         for round in 0..40 {
             let goal = target(&mut rng, &c);
             let mut typed = String::new();
-            // The session narrows the same way whether the promotion is on or not.
+            // The session narrows the same way whether the promotions are on or not.
             q.whole_words = round % 2 == 1;
+            q.exact_keywords = round % 4 >= 2;
             for ch in goal.chars().take(14) {
                 typed.push(ch);
                 if rng.below(6) == 0 {
@@ -180,8 +183,9 @@ fn narrowing_equals_a_full_scan() {
                 assert_eq!(
                     narrowed,
                     full_scan(&c.arena, &q, &opts, use_lift),
-                    "seed {seed} query {typed:?} whole words {}",
-                    q.whole_words
+                    "seed {seed} query {typed:?} whole words {} exact keywords {}",
+                    q.whole_words,
+                    q.exact_keywords
                 );
             }
             if rng.below(3) == 0 {
@@ -199,7 +203,8 @@ fn reference(a: &Arena, q: &Query, opts: &Opts, lift: &[i32]) -> Vec<Hit> {
     for (i, slot) in best.iter_mut().enumerate() {
         for e in a.entry_range(i) {
             let field = a.field(e);
-            if let Some(r) = score_entry(a, e, q, opts, false, &mut chars).and_then(|t| rank::rank(t, field, lift[i]))
+            if let Some(r) = score_entry(a, e, q, opts, false, &mut chars)
+                .and_then(|t| rank::rank(t, field, lift[i], q.exact_keywords))
                 && slot.is_none_or(|(b, _)| r > b)
             {
                 *slot = Some((r, field));
@@ -214,8 +219,8 @@ fn reference(a: &Arena, q: &Query, opts: &Opts, lift: &[i32]) -> Vec<Hit> {
         for (i, slot) in best.iter_mut().enumerate() {
             for e in a.entry_range(i).filter(|&e| a.field(e) != Field::Keyword) {
                 let field = a.field(e);
-                if let Some(r) =
-                    score_entry(a, e, q, opts, true, &mut chars).and_then(|t| rank::rank(t, field, lift[i]))
+                if let Some(r) = score_entry(a, e, q, opts, true, &mut chars)
+                    .and_then(|t| rank::rank(t, field, lift[i], q.exact_keywords))
                     && slot.is_none_or(|(b, _)| r > b)
                 {
                     *slot = Some((r, field));
@@ -249,7 +254,7 @@ fn top_k_equals_a_full_sort() {
             let goal = target(&mut rng, &c);
             let len = 1 + rng.below(goal.chars().count().clamp(1, 12));
             let typed: String = goal.chars().take(len).collect();
-            let q = query(&typed, round % 2 == 1);
+            let q = query(&typed, round % 2 == 1, round % 4 >= 2);
             let opts = Opts {
                 k: 1 + rng.below(80),
                 ..Opts::default()
@@ -258,8 +263,9 @@ fn top_k_equals_a_full_sort() {
             assert_eq!(
                 got,
                 reference(&c.arena, &q, &opts, &lift),
-                "seed {seed} query {typed:?} whole words {}",
-                q.whole_words
+                "seed {seed} query {typed:?} whole words {} exact keywords {}",
+                q.whole_words,
+                q.exact_keywords
             );
         }
     }
@@ -286,7 +292,7 @@ fn arbitrary_unicode_never_panics() {
             let mut session = Session::default();
             let mut out = Vec::new();
             for i in 0..20 {
-                let q = query(&random_text(&mut rng, 10), i % 2 == 1);
+                let q = query(&random_text(&mut rng, 10), i % 2 == 1, i % 4 >= 2);
                 let opts = Opts {
                     path_fallback: round % 2 == 0,
                     ..Opts::default()
@@ -377,7 +383,7 @@ fn seeds_and_the_bound_never_change_a_result() {
             let len = 1 + rng.below(goal.chars().count().clamp(1, 4));
             let typed: String = goal.chars().take(len).collect();
             let whole = round % 2 == 1;
-            let q = query(&typed, whole);
+            let q = query(&typed, whole, round % 4 >= 2);
             let opts = Opts {
                 k: [1, 10, 50, 80][rng.below(4)],
                 ..Opts::default()
@@ -422,7 +428,7 @@ fn seeds_and_the_bound_never_change_a_result() {
             let mut typed = String::new();
             for ch in goal.chars().take(8) {
                 typed.push(ch);
-                let q = query(&typed, round % 2 == 1);
+                let q = query(&typed, round % 2 == 1, round % 4 >= 2);
                 session.search_seeded(&c.arena, &q, &opts, Some(&lift), &seeds, &mut narrowed);
                 assert_eq!(
                     narrowed,
@@ -432,6 +438,90 @@ fn seeds_and_the_bound_never_change_a_result() {
                 );
             }
             session.reset();
+        }
+    }
+}
+
+/// Feature indexes rank a keyword equal to the query in the exact tier. Over items whose keywords
+/// are words of the corpus's titles, so a typed word often equals a keyword and also starts or
+/// ends titles, the bound, the seeds and narrowing return exactly what the scalar reference does.
+#[test]
+fn exact_keywords_never_change_a_result() {
+    for seed in 30..34u64 {
+        let mut rng = Rng::new(seed);
+        let titles = corpus::titles(2_500, seed);
+        let mut words: Vec<String> = titles
+            .iter()
+            .flat_map(|t| t.split_whitespace())
+            .map(str::to_lowercase)
+            .filter(|w| w.chars().count() >= 2)
+            .collect();
+        words.sort();
+        words.dedup();
+        let mut arena = Arena::new(false);
+        for t in &titles {
+            let keywords: Vec<&str> = (0..rng.below(4))
+                .map(|_| words[rng.below(words.len())].as_str())
+                .collect();
+            arena.push_item(t, [], keywords);
+        }
+        let n = arena.len();
+        let lift = learned_lift(&mut rng, n);
+        let seeds: Vec<u32> = (0..n as u32).filter(|&i| lift[i as usize] >= 1_000).collect();
+        let mut exact_keyword_tops = 0;
+        for round in 0..120 {
+            let word = &words[rng.below(words.len())];
+            let len = match rng.below(3) {
+                0 => 1 + rng.below(word.chars().count()),
+                _ => word.chars().count(),
+            };
+            let typed: String = word.chars().take(len).collect();
+            let q = query(&typed, round % 2 == 1, true);
+            let opts = Opts {
+                k: [1, 5, 20, 50][rng.below(4)],
+                ..Opts::default()
+            };
+            let want = reference(&arena, &q, &opts, &lift);
+            exact_keyword_tops += want.first().is_some_and(|h| h.field == Field::Keyword && h.tier() == 6) as usize;
+            let unbounded = Opts { bound: false, ..opts };
+            assert_eq!(
+                full_scan(&arena, &q, &unbounded, Some(&lift)),
+                want,
+                "seed {seed} {typed:?} no bound"
+            );
+            assert_eq!(
+                full_scan(&arena, &q, &opts, Some(&lift)),
+                want,
+                "seed {seed} {typed:?} bound"
+            );
+            let mut scratch = Scratch::default();
+            let mut out = Vec::new();
+            search_seeded(&arena, &q, &opts, None, Some(&lift), &seeds, &mut scratch, &mut out);
+            assert_eq!(out, want, "seed {seed} {typed:?} seeded");
+        }
+        assert!(
+            exact_keyword_tops > 10,
+            "seed {seed}: {exact_keyword_tops} exact keywords on top"
+        );
+        let mut session = Session::default();
+        let mut narrowed = Vec::new();
+        let opts = Opts::default();
+        for round in 0..30 {
+            let word = &words[rng.below(words.len())];
+            let mut typed = String::new();
+            for ch in word.chars() {
+                typed.push(ch);
+                let q = query(&typed, round % 2 == 1, true);
+                session.search_seeded(&arena, &q, &opts, Some(&lift), &seeds, &mut narrowed);
+                assert_eq!(
+                    narrowed,
+                    reference(&arena, &q, &opts, &lift),
+                    "seed {seed} typed {typed:?}"
+                );
+            }
+            if rng.below(2) == 0 {
+                session.reset();
+            }
         }
     }
 }

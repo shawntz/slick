@@ -156,4 +156,23 @@ struct FuzzyIndexTests {
         try index.query("party", into: buffer)
         #expect(try index.highlightRanges(for: party.key, in: buffer) == [HighlightRange(location: 0, length: 5)])
     }
+
+    /// A keyword equal to the query is in the exact tier of a feature's index, above a title that
+    /// only starts with the query and below a title equal to it.
+    @Test func aKeywordEqualToTheQueryIsExact() throws {
+        let index = try FuzzyIndex()
+        let tagged = CatalogItem(key: ItemKey(id: "glyph:tagged"), title: "Twin Rings", keywords: ["love"])
+        let starts = CatalogItem(key: ItemKey(id: "glyph:starts"), title: "Love Pavilion")
+        let equals = CatalogItem(key: ItemKey(id: "glyph:equals"), title: "Love")
+        try index.setItems([starts, tagged])
+        let buffer = try QueryBuffer(capacity: 10)
+        try index.query("Love", into: buffer)
+        let hits = (0..<buffer.count).map { buffer[$0] }
+        #expect(hits.map(\.key) == [tagged.key, starts.key])
+        #expect(hits.map(\.tier) == [6, 5])
+        #expect(hits.map(\.field) == [.keyword, .title])
+        try index.setItems([starts, tagged, equals])
+        try index.query("love", into: buffer)
+        #expect(keys(buffer) == [equals.key, tagged.key, starts.key])
+    }
 }

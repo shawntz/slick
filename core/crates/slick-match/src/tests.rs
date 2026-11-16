@@ -1,7 +1,7 @@
 use super::*;
 use crate::bits::{Bound, Sc};
 use crate::rank::{FIELD_BONUS, MAX_QUALITY};
-use crate::score::{PREFIX, WORD_PREFIX};
+use crate::score::{EXACT, PREFIX, WORD_PREFIX};
 
 mod bounds;
 mod corpus;
@@ -292,7 +292,7 @@ fn a_title_without_the_first_char_at_a_word_start_is_skipped_only_when_it_cannot
     // The highest lift there is, on the title whose s is mid-word.
     let mut lift = vec![0; a.len()];
     lift[mesa] = MAX_LIFT;
-    let best_substring = rank::rank(TextScore::new(score::SUBSTRING, 999), Field::Title, MAX_LIFT);
+    let best_substring = rank::rank(TextScore::new(score::SUBSTRING, 999), Field::Title, MAX_LIFT, false);
     assert!(best_substring.is_some_and(|r| r < rank::TIER_GAP * score::UNORDERED as i32));
     for (q, k) in [("sa", 50), ("sa", 70), ("s", 50), ("sm", 10), ("vt", 1), ("es", 50)] {
         for whole in [false, true] {
@@ -351,6 +351,87 @@ fn title_beats_alias_beats_keyword() {
     let hits = run(&a, "wifi", None);
     assert_eq!(hits[0].idx, 1);
     assert_eq!((hits[1].field, hits[1].tier()), (Field::Keyword, PREFIX));
+}
+
+/// The query's `exact_keywords` puts a keyword equal to the whole folded query in the exact tier,
+/// below an exact title whatever the lifts a feature index gives, and leaves every other keyword
+/// match one tier down. The bound and the floors keep such a keyword when the threshold is high.
+#[test]
+fn an_exact_keyword_ranks_exact_when_the_query_asks() {
+    let search_with = |a: &Arena, raw: &str, exact_keywords: bool, k: usize, lift: Option<&[i32]>, bound: bool| {
+        let mut q = Query::new(raw);
+        q.exact_keywords = exact_keywords;
+        let opts = Opts {
+            k,
+            bound,
+            ..Opts::default()
+        };
+        let mut hits = Vec::new();
+        search(a, &q, &opts, None, lift, &mut Scratch::default(), &mut hits);
+        hits
+    };
+    let mut a = Arena::new(false);
+    a.push_item("Network", [], ["wifi"]);
+    a.push_item("Wifi Tools", [], []);
+    a.push_item("Wifi", [], []);
+    a.push_item("Router", [], ["wifis"]);
+    let tiers = |a: &Arena, raw: &str, exact_keywords: bool| -> Vec<(u32, u8, Field)> {
+        search_with(a, raw, exact_keywords, 10, None, true)
+            .iter()
+            .map(|h| (h.idx, h.tier(), h.field))
+            .collect()
+    };
+    assert_eq!(
+        tiers(&a, "wifi", true),
+        vec![
+            (2, EXACT, Field::Title),
+            (0, EXACT, Field::Keyword),
+            (1, PREFIX, Field::Title),
+            (3, WORD_PREFIX, Field::Keyword),
+        ],
+        "a keyword that only starts with the query stays one tier down"
+    );
+    assert_eq!(
+        tiers(&a, "wifi", false),
+        vec![
+            (2, EXACT, Field::Title),
+            (1, PREFIX, Field::Title),
+            (0, PREFIX, Field::Keyword),
+            (3, WORD_PREFIX, Field::Keyword),
+        ]
+    );
+    // The keyword folds as a title does: case, diacritics, and the query's runs of spaces.
+    let mut c = Arena::new(false);
+    c.push_item("Thumbs Up Sign", [], []);
+    c.push_item("Hotspot", [], ["Wi-Fi", "Thumbs Up", "Café"]);
+    c.push_item("Cafeteria", [], []);
+    for raw in ["WI-FI", "thumbs   up", "CAFE", "café"] {
+        assert_eq!(
+            tiers(&c, raw, true).first(),
+            Some(&(1, EXACT, Field::Keyword)),
+            "{raw:?}"
+        );
+        assert_ne!(tiers(&c, raw, false).first().map(|h| h.1), Some(EXACT), "{raw:?}");
+    }
+    // An exact title stays first over an exact keyword with a feature's full prior.
+    let mut lift = vec![0; a.len()];
+    lift[0] = 1_000;
+    let hits = search_with(&a, "wifi", true, 10, Some(&lift), true);
+    assert_eq!((hits[0].idx, hits[1].idx), (2, 0));
+    // Under a high threshold the bound and the floors keep the exact keyword, which comes last
+    // in the arena, and the result equals the unbounded one.
+    let mut b = Arena::new(false);
+    for i in 0..200 {
+        b.push_item(&format!("Wifi Tool {i}"), [], []);
+    }
+    b.push_item("Network", [], ["wifi"]);
+    b.push_item("Bridge", [], ["wifi bridge"]);
+    for k in [1, 3, 50] {
+        let bounded = search_with(&b, "wifi", true, k, None, true);
+        assert_eq!(bounded[0].idx, 200, "k {k}");
+        assert_eq!(bounded, search_with(&b, "wifi", true, k, None, false), "k {k}");
+        assert_ne!(search_with(&b, "wifi", false, k, None, true)[0].idx, 200, "k {k}");
+    }
 }
 
 #[test]
@@ -523,6 +604,10 @@ fn bit_path_matches_scalar_reference() {
     for t in titles.iter().take(2_000) {
         keyword_arena.push_item("x", [], [*t]);
     }
+    // Keywords equal to queries, so the exact-keyword floors and bounds are exercised.
+    for k in ["code", "Notes", "in", "S", "dark", "half", "settings", "vs code", "aaa"] {
+        keyword_arena.push_item("x", [], [k]);
+    }
     for (arena, label) in [
         (Arena::from_titles(titles.iter().copied()), "titles"),
         (Arena::from_paths(paths.iter().copied()), "paths"),
@@ -557,27 +642,34 @@ fn bit_path_matches_scalar_reference() {
                         ),
                     }
                 }
-                // Rank-level bound: Below only when the true rank is under the threshold.
-                for (thresh, lift) in [
+                // Rank-level bound: Below only when the true rank is under the threshold, with
+                // exact keywords in the exact tier or one below it.
+                for ((thresh, lift), exact_keywords) in [
                     (52_000, 0),
                     (53_850, 0),
                     (53_850, 4_000),
                     (56_200, 2_000),
                     (40_000, MAX_LIFT),
-                ] {
-                    let floor = rank::floor_tier(thresh, field, lift);
+                    (60_500, 0),
+                    (61_000, 1_000),
+                    (62_500, 0),
+                ]
+                .into_iter()
+                .flat_map(|t| [(t, false), (t, true)])
+                {
+                    let floor = rank::floor_tier(thresh, field, lift, exact_keywords);
                     let bound = Bound {
                         thresh,
                         word_prefix_base: rank::word_prefix_base(field, lift),
                     };
                     let got = bits::score_bits(&nd, &q.bn, block, w.len(), arena.ws[e], floor, bound);
-                    let true_rank = reference.and_then(|t| rank::rank(t, field, lift));
+                    let true_rank = reference.and_then(|t| rank::rank(t, field, lift, exact_keywords));
                     match (reference, got) {
                         (None, Sc::No) => {}
                         (Some(t), Sc::Yes(g)) if t == g => {}
                         (Some(_), Sc::Below) if true_rank.is_none_or(|r| r < thresh) => {}
                         (r, _) => panic!(
-                            "{label} q={qs:?} whole={whole} thresh={thresh} item={:?} ref={r:?}",
+                            "{label} q={qs:?} whole={whole} thresh={thresh} exact keywords={exact_keywords} item={:?} ref={r:?}",
                             String::from_utf8_lossy(w)
                         ),
                     }

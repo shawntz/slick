@@ -3,10 +3,11 @@ import Kit
 import Synchronization
 import os
 
-/// ``FuzzyIndexService`` over the engine's matcher, so host-filtered lists rank exactly like root
-/// search, by the same text tiers and without learning. Inside a tier the engine puts a title match
-/// before a keyword match. A keyword match carries no highlights, which is how the host tells it
-/// from a title match.
+/// ``FuzzyIndexService`` over the engine's matcher, so host-filtered lists rank by the same text
+/// tiers as root search, without learning. Unlike root search, a feature's index ranks a keyword
+/// equal to the whole query in the exact tier, and a later whole word of a title stays below
+/// literal prefixes. Inside a tier the engine puts a title match before a keyword match. A keyword
+/// match has ``FuzzyMatch/matchesTitle`` false and carries no highlights.
 nonisolated final class EngineFuzzyIndexService: FuzzyIndexService {
     @concurrent func makeIndex(_ entries: [FuzzyEntry]) async -> any Kit.FuzzyIndex {
         EngineFuzzyIndex(entries)
@@ -58,13 +59,14 @@ nonisolated final class EngineFuzzyIndex: Kit.FuzzyIndex {
             while i < n {
                 let hit = buffer[i]
                 // Only a match on the title has title ranges. A keyword match reports none, even
-                // when the title matches more weakly, so the host can put title matches first.
-                let ranges =
-                    hit.field == .keyword ? [] : (try? index.highlightRanges(for: hit.key, in: buffer)) ?? []
+                // when the title matches more weakly, which also spares the work per keystroke.
+                let matchesTitle = hit.field != .keyword
+                let ranges = matchesTitle ? (try? index.highlightRanges(for: hit.key, in: buffer)) ?? [] : []
                 matches.append(
                     FuzzyMatch(
                         index: Int(hit.key.rawValue - 1), tier: Self.tier(hit.tier), score: Int(hit.rank),
-                        highlights: ranges.map { $0.location..<($0.location + $0.length) }))
+                        highlights: ranges.map { $0.location..<($0.location + $0.length) },
+                        matchesTitle: matchesTitle))
                 i += 1
             }
             return matches

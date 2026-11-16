@@ -20,6 +20,18 @@ pub const FIELD_USER_ALIAS: u8 = 3;
 /// The field value of a hit that matched no text (a learned-band item).
 pub const FIELD_NONE: u8 = 255;
 
+/// How a list ranks text beyond the tiers every list shares. Root search and feature indexes
+/// differ here, and nowhere else in the matcher.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TextRules {
+    /// A one-token query equal to a whole later word of a title ranks with literal prefixes, so
+    /// "code" finds Visual Studio Code. See `slick_match::Query::whole_words`.
+    pub whole_words: bool,
+    /// A keyword equal to the whole query ranks in the exact tier, below an exact title; see
+    /// `slick_match::Query::exact_keywords`.
+    pub exact_keywords: bool,
+}
+
 /// One ranked result.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Hit {
@@ -95,15 +107,15 @@ impl Session {
         &self.hits
     }
 
-    /// Prepares a query against `index`: binds the session to it and folds `text`. With
-    /// `whole_words`, a query equal to a whole later word of a title ranks with literal prefixes
-    /// ("code" finds Visual Studio Code); see `slick_match::Query::whole_words`.
-    pub(crate) fn begin(&mut self, index: &Index, text: &str, whole_words: bool) {
+    /// Prepares a query against `index`: binds the session to it and folds `text`, ranked by
+    /// `rules`.
+    pub(crate) fn begin(&mut self, index: &Index, text: &str, rules: TextRules) {
         if self.target != index.generation {
             self.matcher.reset();
             self.target = index.generation;
         }
-        self.query.whole_words = whole_words;
+        self.query.whole_words = rules.whole_words;
+        self.query.exact_keywords = rules.exact_keywords;
         self.query.set(text);
         self.hits.clear();
         self.specials.clear();
@@ -235,9 +247,10 @@ fn text_rank(index: &Index, q: &Query, pos: u32, lift: i32, typo: bool, chars: &
     let mut best: Option<(i32, Field)> = None;
     for e in a.entry_range(pos as usize) {
         let field = a.field(e);
-        let strict = score_entry(a, e, q, &opts, false, chars).and_then(|t| rank::rank(t, field, lift));
+        let strict =
+            score_entry(a, e, q, &opts, false, chars).and_then(|t| rank::rank(t, field, lift, q.exact_keywords));
         let typo = if typo && field != Field::Keyword {
-            score_entry(a, e, q, &opts, true, chars).and_then(|t| rank::rank(t, field, lift))
+            score_entry(a, e, q, &opts, true, chars).and_then(|t| rank::rank(t, field, lift, q.exact_keywords))
         } else {
             None
         };

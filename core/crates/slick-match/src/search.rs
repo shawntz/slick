@@ -219,7 +219,8 @@ fn eval_entry(
 /// from what the arena keeps per entry, without the bit path. It walks the tiers from the top and
 /// stops at the first one the entry could reach. Each tier needs:
 ///
-/// - exact or a literal prefix: the window starts with the query;
+/// - exact or a literal prefix: the window starts with the query, and an exact keyword counts as
+///   exact when the query asks for it;
 /// - prefix by a complete word cover: the first word starts with the query's first char and the
 ///   window has at most as many words as the query has chars;
 /// - prefix by a whole word, when the query asks for it: the query's first char starts a word,
@@ -237,7 +238,7 @@ fn cannot_reach(a: &Arena, e: usize, q: &Query, lift: i32, thresh: i32) -> bool 
     let field = a.field(e);
     // The text score (tier * TIER_GAP + quality, on the effective tier) the entry would need.
     let need = thresh - rank::FIELD_BONUS[field as usize] - lift.clamp(0, MAX_LIFT);
-    let score = |tier: u8, quality: i32| match rank::effective_tier(tier, field) {
+    let score = |tier: u8, quality: i32| match rank::effective_tier(tier, field, q.exact_keywords) {
         Some(t) => rank::TIER_GAP * t as i32 + quality,
         None => i32::MIN,
     };
@@ -398,21 +399,28 @@ fn links_hold(a: &Arena, e: usize, q: &Query) -> bool {
 fn typo_bound(a: &Arena, e: usize, q: &Query, lift: i32) -> Option<i32> {
     let n = a.len[e] as i32 - a.win[e] as i32;
     let extra = (n - q.len_chars() as i32).clamp(0, 60);
-    rank::rank(TextScore::new(TYPO, 600 - 3 * extra), a.field(e), lift)
+    rank::rank(
+        TextScore::new(TYPO, 600 - 3 * extra),
+        a.field(e),
+        lift,
+        q.exact_keywords,
+    )
 }
 
 /// The tier floor and rank bound of the last entry, reused while the threshold, field and lift
-/// stay the same (they usually do from one item to the next).
+/// stay the same (they usually do from one item to the next). `exact_keywords` is the query's.
 struct Bounds {
     key: (i32, Field, i32),
     value: (u8, Bound),
+    exact_keywords: bool,
 }
 
 impl Bounds {
-    fn new() -> Bounds {
+    fn new(q: &Query) -> Bounds {
         Bounds {
             key: (i32::MIN, Field::Title, 0),
             value: (0, Bound::NONE),
+            exact_keywords: q.exact_keywords,
         }
     }
 
@@ -424,7 +432,7 @@ impl Bounds {
                 word_prefix_base: rank::word_prefix_base(field, lift),
             };
             self.key = (thresh, field, lift);
-            self.value = (rank::floor_tier(thresh, field, lift), bound);
+            self.value = (rank::floor_tier(thresh, field, lift, self.exact_keywords), bound);
         }
         self.value
     }
@@ -542,7 +550,7 @@ fn eval_item(
             Eval::Skipped => ItemEval::Gated,
             Eval::Hit(t) => {
                 let field = a.field(e);
-                match rank::rank(t, field, lift) {
+                match rank::rank(t, field, lift, q.exact_keywords) {
                     Some(r) => ItemEval::Hit(r, field),
                     None => ItemEval::Gated,
                 }
@@ -558,7 +566,7 @@ fn eval_item(
             Eval::Skipped => gated = true,
             Eval::Hit(t) => {
                 let field = a.field(e);
-                match rank::rank(t, field, lift) {
+                match rank::rank(t, field, lift, q.exact_keywords) {
                     Some(r) if r > best => {
                         best = r;
                         best_field = field;
@@ -598,7 +606,7 @@ fn typo_entry(
         return None;
     }
     score_entry(a, e, q, opts, true, chars)
-        .and_then(|t| rank::rank(t, field, lift))
+        .and_then(|t| rank::rank(t, field, lift, q.exact_keywords))
         .map(|r| (r, field))
 }
 
@@ -704,7 +712,7 @@ pub fn search_seeded(
     let k = opts.k.max(1);
     let mut top = TopK::new(keys, k);
     let mut best = i32::MIN;
-    let mut bounds = Bounds::new();
+    let mut bounds = Bounds::new(q);
     let bounded = opts.bound && q.bounded && !a.paths;
     // The plain mask prefilter applies: no path fallback to a wider mask.
     let plain_mask = opts.prefilter && !(a.paths && opts.path_fallback);
@@ -948,7 +956,7 @@ pub fn search_par(a: &Arena, q: &Query, opts: &Opts, chunk: usize, lift: Option<
         .map(|c| {
             let mut keys = Vec::with_capacity(8 * k);
             let mut chars = Vec::new();
-            let mut bounds = Bounds::new();
+            let mut bounds = Bounds::new(q);
             let mut top = TopK::new(&mut keys, k);
             let mut best = i32::MIN;
             for i in c * chunk..((c + 1) * chunk).min(n) {
