@@ -15,7 +15,6 @@
     { "app": { "openDialogs": 0 } },
     { "dismiss": true },
     { "summon": true },
-    { "press": "escape" },
     { "expect": { "query": "", "visible": true } },
     { "type": "import snippets" },
     { "waitUntilIdle": 3 },

@@ -281,7 +281,9 @@ import Testing
         await launcher.close()
     }
 
-    @Test func thePageWaitsAgainWhenThePanelOpensOnIt() async throws {
+    /// Closing the panel takes a link's page away, so the next summon, which is the user's own,
+    /// never opens on a page a link put there, and the link has to ask again.
+    @Test func closingThePanelTakesTheLinksPageAway() async throws {
         let launcher = try await Launcher.make()
         let panel = launcher.panel
         try launcher.link("commands/apps/running")
@@ -289,13 +291,11 @@ import Testing
         launcher.clock.advance(by: .seconds(5))
         panel.dismiss()
         panel.summon()
-        await launcher.until { launcher.topTitle == "Open Link" }
-        for _ in 0..<5 { await Task.yield() }
-        launcher.press(.moveUp)
-        launcher.press(.moveUp)
-        launcher.pressReturn()
         await launcher.settle()
-        #expect(launcher.topTitle == "Open Link")
+        #expect(launcher.atRoot)
+        #expect(!launcher.inLinkSession)
+        #expect(panel.surface.queryField.text.isEmpty)
+        #expect(launcher.launched.isEmpty)
         await launcher.close()
     }
 

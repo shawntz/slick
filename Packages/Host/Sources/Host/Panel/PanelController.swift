@@ -271,6 +271,11 @@ import LauncherUI
         top.panelDidHide()
         for page in stack.reversed() where page !== rootPage { page.panelDidClose() }
         if summoner.strategy != Self.strategy(general) { replaceSummoner() }
+        // The next session is the user's own, so nothing a link typed or opened may wait for it.
+        if isLinkSession(sessionID) {
+            resetToRoot()
+            return
+        }
         guard let delay = HostSettings.resetToRootDelay(general[HostSettings.resetToRootAfter]) else { return }
         if delay == .zero {
             resetToRoot()
