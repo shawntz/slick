@@ -1,7 +1,7 @@
 //! The store: a log that stays bounded through compaction, recovery from a crash at every step of
 //! a compaction, and forgetting one query's row across restarts.
 
-use crate::fixtures::{T0, app, context, key, temp_dir};
+use crate::fixtures::{T0, app, context, key, open_engine, temp_dir};
 use slick_engine::{Engine, EngineParams, Item, Session, Source, StoreParams, hit_flags};
 use std::fs;
 use std::path::Path;
@@ -72,7 +72,7 @@ fn history(e: &Engine, n: usize) {
 }
 
 fn open(dir: &Path, params: EngineParams) -> Engine {
-    let e = Engine::open(dir, params).expect("open");
+    let e = open_engine(dir, params);
     e.replace_source(1, items()).expect("catalog");
     e
 }

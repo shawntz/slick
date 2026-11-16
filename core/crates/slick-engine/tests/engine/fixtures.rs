@@ -1,8 +1,10 @@
 //! Synthetic catalogs and helpers shared by the engine tests.
 
-use slick_engine::{Context, Engine, EngineParams, Item, Session, Source, key_of, kind};
-use std::path::PathBuf;
+use slick_engine::{Context, Engine, EngineError, EngineParams, Item, Session, Source, key_of, kind};
+use std::io::ErrorKind;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::{Duration, Instant};
 
 /// Unix time of a fixed Monday morning in 2026.
 pub const T0: f64 = 1_780_000_000.0;
@@ -65,6 +67,27 @@ pub fn pick(e: &Engine, item: &Item, q: &str, n: usize, t: &mut f64) {
     for _ in 0..n {
         *t += 60.0;
         e.record(item.key, q, Source::Typed, 0, *t).expect("record");
+    }
+}
+
+/// Opens an engine on `dir`, waiting while the directory's lock is still held.
+///
+/// A test that reopens a directory right after dropping its engine can meet the lock held for a
+/// moment longer. The tests of this binary run together, and one of them starts a child process. A
+/// child holds a copy of every descriptor open in this process, the lock file's among them, until
+/// its exec closes them, and the lock is released only then. On a machine that has never run this
+/// binary the exec takes long enough to see. So `WouldBlock` is tried again until the lock is free,
+/// for ten seconds at most, and any other error fails at once.
+pub fn open_engine(dir: &Path, params: EngineParams) -> Engine {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        match Engine::open(dir, params.clone()) {
+            Ok(engine) => return engine,
+            Err(EngineError::Io(e)) if e.kind() == ErrorKind::WouldBlock && Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            Err(e) => panic!("open: {e:?}"),
+        }
     }
 }
 

@@ -2,7 +2,7 @@
 //! record, damaged snapshots, two engines on one directory, and startup time over a long history.
 //! Opening must never fail on damaged data and must always rebuild a consistent state.
 
-use crate::fixtures::{T0, app, context, key, temp_dir};
+use crate::fixtures::{T0, app, context, key, open_engine, temp_dir};
 use slick_engine::{Engine, EngineParams, Item, Session, Source};
 use std::fs;
 use std::path::Path;
@@ -14,7 +14,8 @@ const SNAPSHOT: &str = "snapshot.bin";
 const SNAPSHOT_PREV: &str = "snapshot.prev.bin";
 
 fn open(dir: &Path) -> Engine {
-    Engine::open(dir, EngineParams::default()).expect("open never fails on damaged data")
+    // Damaged data never fails an open. A lock that another test's child still holds is waited out.
+    open_engine(dir, EngineParams::default())
 }
 
 fn items() -> Vec<Item> {
@@ -270,7 +271,7 @@ fn startup_with_fifty_thousand_events_stays_short() {
     let mut t = T0;
     let mut params = EngineParams::default();
     params.store.compact_after = u64::MAX;
-    let open = |dir: &Path| Engine::open(dir, params.clone()).expect("open");
+    let open = |dir: &Path| open_engine(dir, params.clone());
     {
         let e = open(&dir);
         e.replace_source(1, items()).expect("catalog");

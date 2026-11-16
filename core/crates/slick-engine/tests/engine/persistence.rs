@@ -1,14 +1,14 @@
 //! Persistence: the log and the snapshot survive a restart, a corrupt tail is truncated, and a bad
 //! snapshot is ignored.
 
-use crate::fixtures::{T0, app, context, pick, temp_dir, titles};
+use crate::fixtures::{T0, app, context, open_engine, pick, temp_dir, titles};
 use slick_engine::{Engine, EngineParams, Item, Session};
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 
 fn open(dir: &Path, items: &[Item]) -> Engine {
-    let e = Engine::open(dir, EngineParams::default()).expect("open");
+    let e = open_engine(dir, EngineParams::default());
     e.replace_source(1, items.to_vec()).expect("catalog");
     e.set_context(context(T0 + 86_400.0, 0)).expect("context");
     e

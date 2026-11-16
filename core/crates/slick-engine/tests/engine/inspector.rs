@@ -1,7 +1,7 @@
 //! What the learning inspector reads: the summary numbers, and the text of shorter learned
 //! queries after a longer one is forgotten, live and after a restart.
 
-use crate::fixtures::{T0, app, context, engine, pick, temp_dir};
+use crate::fixtures::{T0, app, context, engine, open_engine, pick, temp_dir};
 use slick_engine::{Engine, EngineParams, StoreParams};
 
 /// The query texts of the affinity rows in the statistics, in order.
@@ -54,7 +54,7 @@ fn the_names_survive_a_restart_from_the_log_and_from_a_snapshot() {
         };
         let term = app("Terminal");
         let before = {
-            let e = Engine::open(&dir, params()).expect("open");
+            let e = open_engine(&dir, params());
             e.replace_source(1, vec![term.clone()]).expect("catalog");
             e.set_context(context(T0, 0)).expect("context");
             let mut t = T0;
@@ -65,7 +65,7 @@ fn the_names_survive_a_restart_from_the_log_and_from_a_snapshot() {
             (rows(&e), e.summary().expect("summary"))
         };
         assert_eq!(before.0, ["t", "te", "ter", "term", "termi", "termin", "termina", "x"]);
-        let e = Engine::open(&dir, params()).expect("reopen");
+        let e = open_engine(&dir, params());
         assert_eq!(
             (rows(&e), e.summary().expect("summary")),
             before,
