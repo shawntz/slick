@@ -209,8 +209,8 @@
   <div class="wrap">
     <header class="section-head section-head--wide">
       <p class="kicker">Built in</p>
-      <h2 id="built-in-title">Sixteen features in one glass panel</h2>
-      <p class="lede">The window is one system NSGlassEffectView. Each of the sixteen built-in features is its own Swift package, and its lists, grids and detail panes draw inside that one panel. Pick a clip to see four of them.</p>
+      <h2 id="built-in-title">Twenty-one features in one glass panel</h2>
+      <p class="lede">The panel is real system glass, an NSGlassEffectView. Each of the twenty-one built-in features is its own Swift package, and its lists, grids and detail panes draw inside that panel. Pick a clip to see four of them.</p>
     </header>
     <figure class="shot viewer" id="tour">
       <div class="views">
@@ -362,13 +362,13 @@
     <header class="section-head section-head--wide">
       <p class="kicker">Status</p>
       <h2 id="status-title">What it does, and where each part stands</h2>
-      <p class="lede">The app registers sixteen built-in features. The list below comes from one file in the repository, <a href="https://github.com/shawntz/slick/blob/main/support/features.json">support/features.json</a>, and the site calls a feature available only when that file does.</p>
+      <p class="lede">The app registers twenty-one built-in features. The list below comes from one file in the repository, <a href="https://github.com/shawntz/slick/blob/main/support/features.json">support/features.json</a>, and the site calls a feature available only when that file does.</p>
     </header>
     <ol class="stages" aria-label="Where the project stands">
       <li class="stage" data-stage="done">
         <p class="stage-state"><span class="status-mark" aria-hidden="true"></span>Done</p>
-        <h3>One app with sixteen features</h3>
-        <p>The engine, the glass panel, the settings window and sixteen features run as one app. All 44 scripted scenarios pass, headless and on screen, and so do 271 Rust tests and the tests of 25 Swift packages.</p>
+        <h3>One app with twenty-one features</h3>
+        <p>The engine, the glass panel, the settings window and twenty-one features run as one app. All 65 scripted scenarios pass headless, and so do 278 Rust tests and the tests of 30 Swift packages.</p>
       </li>
       <li class="stage" data-stage="now" aria-current="step">
         <p class="stage-state"><span class="status-mark" aria-hidden="true"></span>Now</p>
@@ -386,7 +386,7 @@
 <p class="status-updated">Updated <time datetime="2026-11-15">15 November 2026</time></p>
 <div class="feature-groups">
 <section class="feature-group" data-status="available" aria-labelledby="fs-available">
-<header class="feature-group-head"><h3 id="fs-available"><span class="status-mark" aria-hidden="true"></span>Available</h3><p>11 features</p></header>
+<header class="feature-group-head"><h3 id="fs-available"><span class="status-mark" aria-hidden="true"></span>Available</h3><p>12 features</p></header>
 <p class="feature-group-def">Works in the app today.</p>
 <ul class="feature-list">
 <li class="feature"><h4>Liquid Glass panel</h4><p>A real system glass panel, not a blur imitation, with a selection lens that glides between rows.</p></li>
@@ -400,10 +400,11 @@
 <li class="feature"><h4>Clipboard history</h4><p>Search text, links, images and files you copied, and paste them back.</p></li>
 <li class="feature"><h4>Quicklinks and web search</h4><p>Open sites and searches with a keyword, and fall back to the web when nothing local matches.</p></li>
 <li class="feature"><h4>Emoji picker</h4><p>Search emoji and symbols by name and paste them.</p></li>
+<li class="feature"><h4>Notes</h4><p>Quick notes kept as Markdown files that any editor opens: save one from root search, search titles and text, append, pin, tag, rename and paste them. Proven in the launcher on real files in its own folder; a notes folder you choose in Documents or another folder macOS guards has not been read on a Mac yet, and a floating note window is not part of it.</p></li>
 </ul>
 </section>
 <section class="feature-group" data-status="in-progress" aria-labelledby="fs-in-progress">
-<header class="feature-group-head"><h3 id="fs-in-progress"><span class="status-mark" aria-hidden="true"></span>In progress</h3><p>14 features</p></header>
+<header class="feature-group-head"><h3 id="fs-in-progress"><span class="status-mark" aria-hidden="true"></span>In progress</h3><p>18 features</p></header>
 <p class="feature-group-def">Code exists or is being written. Not usable in the app yet.</p>
 <ul class="feature-list">
 <li class="feature"><h4>Themes</h4><p>Seven built-in themes, including Beam, modeled on the search panel of macOS 27, and Clear, the system&#x27;s clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher; the editor and sharing are not tested in the app yet.</p></li>
@@ -420,6 +421,10 @@
 <li class="feature"><h4>Browser bookmarks</h4><p>Search the bookmarks of Safari, Chrome, Firefox and other browsers and open them. Proven with sample bookmarks; reading a real browser&#x27;s files has not run on a Mac yet.</p></li>
 <li class="feature"><h4>Menu items</h4><p>Search and run any menu command of the app in front. Proven with a sample app&#x27;s menus; reading a real app&#x27;s menus has not run on a Mac yet.</p></li>
 <li class="feature"><h4>AI, with your own key</h4><p>Ask questions with Apple&#x27;s on-device model or a provider you configure. Nothing is sent unless you ask. Proven in the launcher with a simulated model; a real model has not answered yet.</p></li>
+<li class="feature"><h4>Shell commands</h4><p>Type &gt; and a command to run it in your login shell and see its output, with a history of past commands. Proven in the launcher against a simulated shell; running a real command has not been tested in the app.</p></li>
+<li class="feature"><h4>Color picker</h4><p>Pick a color on screen, keep the colors you use, and convert hex, RGB, HSL, HWB and OKLCH as you type, with WCAG contrast. Conversions, contrast and the history work in the launcher; picking from the screen has not run on a Mac yet.</p></li>
+<li class="feature"><h4>Translate</h4><p>Translate typed or selected text with the languages installed on the Mac, on a page or with tr in root search. Translate sends nothing over the network itself. Proven in the launcher with a simulated engine; Apple&#x27;s Translation framework has not run in the app yet.</p></li>
+<li class="feature"><h4>Media controls</h4><p>Play, pause and skip tracks in Music and Spotify, and see what is playing. Proven in the launcher against a simulated player; controlling the real apps has not run on a Mac yet.</p></li>
 </ul>
 </section>
 </div>

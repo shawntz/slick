@@ -150,7 +150,7 @@ A clip of one feature carries a status chip, so the clip never suggests more tha
 
 The script rewrites every chip's `data-status` and label from the feature with that id, `--check` fails when one is stale, and `main.js` updates them from `data/features.json` too. Today the page has seven: the four clips in Built in, and the themes, Beam and Clear clips in Themes. All three in Themes name the `themes` feature.
 
-Above the list, the three-step track headed Done, Now and Not yet is hand-written. It follows where the whole project stands, not the JSON file. Today it reads: done, one app with sixteen features; now, first runs on a real Mac, because nobody has started the live launcher; not yet, a download. When a step is reached, move the `data-stage` values along: `done`, `now`, `next`. The step marked `now` also carries `aria-current="step"`. The Now step and the "You would be early" note in Try it both say that nobody has started the live launcher. Change them together once someone has.
+Above the list, the three-step track headed Done, Now and Not yet is hand-written. It follows where the whole project stands, not the JSON file. Today it reads: done, one app with twenty-one features; now, first runs on a real Mac, because nobody has started the live launcher; not yet, a download. When a step is reached, move the `data-stage` values along: `done`, `now`, `next`. The step marked `now` also carries `aria-current="step"`. The Now step and the "You would be early" note in Try it both say that nobody has started the live launcher. Change them together once someone has.
 
 ### Turning on the download button
 
