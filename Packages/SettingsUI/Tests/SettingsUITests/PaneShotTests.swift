@@ -89,7 +89,7 @@ import Testing
             }
             rows.append(row)
             if step == .permissions { model.skip(.accessibility) }
-            model.next()
+            await model.next()
         }
         if let folder = Self.folder, let sheet = SheetComposer.compose(title: "Onboarding", rows: rows, scale: 0.5) {
             try SheetComposer.writePNG(sheet, to: folder.appending(path: "onboarding.png"))

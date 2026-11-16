@@ -8,9 +8,12 @@ import Observation
 /// The hotkey step leads with the recorder. When a macOS shortcut holds the launcher hotkey, as
 /// Spotlight holds Command-Space on a new Mac, it shows how to turn that shortcut off and a line
 /// that turns green the moment the app binds the hotkey. The optional features step lists every
-/// feature that is off until the user turns it on, and the permissions step shows only what the
-/// features that are on need. It never asks the system for a permission the user did not press
-/// Allow for. Finishing sets ``HostSettings/onboardingDone``.
+/// feature that is off until the user turns it on. A feature whose manifest suggests it starts with
+/// its switch on, and the switches take effect when the user continues past the step. The
+/// permissions step shows only what the features that are on need. It never asks the system for a
+/// permission the user did not press Allow for. Finishing sets ``HostSettings/onboardingDone``.
+/// Closing the window before that is finishing later: onboarding opens again at the next launch,
+/// and switches the user did not continue past are not applied.
 @Observable final class OnboardingModel {
     enum Step: Int, CaseIterable, Comparable {
         case welcome
@@ -71,6 +74,8 @@ import Observation
     /// The launcher hotkey's recorder.
     let hotkey: HotkeyRecorderModel
     private var skipped: Set<String> = []
+    /// The user's switch for each optional feature, until the step applies them.
+    private var featureChoices: [String: Bool] = [:]
     /// The last wait the app reported, so the step can confirm when it ends.
     private var seenWait: LauncherHotkeyWait?
 
@@ -98,7 +103,10 @@ import Observation
 
     var canGoBack: Bool { step != .welcome && step != .done }
 
-    func next() {
+    /// Goes to the next step that has something to show. Leaving the optional features step turns
+    /// each feature on or off as its switch shows, so the permissions step lists what they need.
+    func next() async {
+        if step == .features { await applyFeatureChoices() }
         guard let following = nearest(from: step.rawValue + 1, by: 1) else { return }
         step = following
         hotkey.endRecording()
@@ -159,24 +167,47 @@ import Observation
 
     // MARK: Optional features
 
-    /// Every registered feature that is off until the user turns it on, in registration order. A
-    /// feature stays listed after the user turns it on here, so the switch can turn it off again.
+    /// Every registered feature that is off until the user turns it on, in registration order,
+    /// each with its switch as the step shows it. A feature stays listed after the user turns it on
+    /// here, so the switch can turn it off again.
     var optionalFeatures: [OptionalFeature] {
         revision.track()
-        return context.directory.features.filter { !$0.manifest.isEnabledByDefault }.map { entry in
+        return optionalEntries.map { entry in
             OptionalFeature(
                 id: entry.id, name: entry.manifest.name, summary: entry.manifest.summary, icon: entry.manifest.icon,
-                isEnabled: context.preferences.isEnabled(feature: entry.id))
+                isEnabled: choice(for: entry))
         }
+    }
+
+    private var optionalEntries: [FeatureEntry] {
+        context.directory.features.filter { !$0.manifest.isEnabledByDefault }
+    }
+
+    /// The switch the step shows for a feature: the user's choice here, or on for a feature the
+    /// manifest suggests, or whether it is on now.
+    private func choice(for entry: FeatureEntry) -> Bool {
+        featureChoices[entry.id]
+            ?? (entry.manifest.isSuggestedInOnboarding || context.preferences.isEnabled(feature: entry.id))
     }
 
     /// Draws feature icons.
     var icons: IconResolver { context.icons }
 
-    /// Turns an optional feature on or off through the user's preferences, as the features pane
-    /// does. The permissions step then lists what it needs.
-    func setEnabled(_ enabled: Bool, feature featureID: String) async {
-        await context.preferences.setEnabled(enabled, feature: featureID)
+    /// Sets an optional feature's switch. It takes effect when the user continues past the step.
+    func setEnabled(_ enabled: Bool, feature featureID: String) {
+        featureChoices[featureID] = enabled
+        revision.bump()
+    }
+
+    /// Turns each optional feature on or off as its switch shows, through the user's preferences,
+    /// as the features pane does. A feature whose switch matches its state is left alone.
+    func applyFeatureChoices() async {
+        for entry in optionalEntries {
+            let wanted = choice(for: entry)
+            if wanted != context.preferences.isEnabled(feature: entry.id) {
+                await context.preferences.setEnabled(wanted, feature: entry.id)
+            }
+        }
         revision.bump()
     }
 

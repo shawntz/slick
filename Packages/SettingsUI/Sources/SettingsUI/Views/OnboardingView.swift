@@ -7,6 +7,9 @@ struct OnboardingView: View {
     let model: OnboardingModel
     let toasts: ToastCenter
 
+    /// What closing the window does, shown on every step.
+    static let closeNote = "If you close this window, it opens again the next time \(Brand.name) starts."
+
     var body: some View {
         VStack(spacing: 0) {
             Group {
@@ -25,6 +28,11 @@ struct OnboardingView: View {
             Divider()
             HStack {
                 StepDots(current: model.step)
+                Text(OnboardingView.closeNote)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 8)
                 Spacer()
                 if model.canGoBack {
                     Button("Back") { model.back() }
@@ -35,7 +43,7 @@ struct OnboardingView: View {
                         .keyboardShortcut(.defaultAction)
                         .buttonStyle(.borderedProminent)
                 } else {
-                    Button(model.step == .welcome ? "Get Started" : "Continue") { model.next() }
+                    Button(model.step == .welcome ? "Get Started" : "Continue") { Task { await model.next() } }
                         .keyboardShortcut(.defaultAction)
                         .buttonStyle(.borderedProminent)
                 }
@@ -158,16 +166,18 @@ private struct FeaturesStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Optional Features").font(.title).fontWeight(.semibold)
-            Text("These stay off until you turn them on. You can change this later in Settings, under Features.")
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Turn on the ones you want. They take effect when you continue. You can change this later in Settings, under Features."
+            )
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
             ScrollView {
                 VStack(spacing: 10) {
                     ForEach(model.optionalFeatures) { feature in
                         Toggle(
                             isOn: Binding(
                                 get: { feature.isEnabled },
-                                set: { enabled in Task { await model.setEnabled(enabled, feature: feature.id) } })
+                                set: { model.setEnabled($0, feature: feature.id) })
                         ) {
                             HStack(alignment: .top, spacing: 12) {
                                 IconView(icon: feature.icon, size: 22, resolver: model.icons)

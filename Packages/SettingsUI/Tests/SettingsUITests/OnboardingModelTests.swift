@@ -8,24 +8,24 @@ import Testing
 @testable import SettingsUI
 
 @MainActor @Suite(.timeLimit(.minutes(1))) struct OnboardingModelTests {
-    @Test func walksEveryStepAndFinishes() {
+    @Test func walksEveryStepAndFinishes() async {
         let bed = TestBed(permissions: .notDetermined)
         var finished = 0
         let model = OnboardingModel(context: bed.context()) { finished += 1 }
         #expect(model.step == .welcome)
         #expect(!model.canGoBack)
-        model.next()
+        await model.next()
         #expect(model.step == .hotkey)
-        model.next()
+        await model.next()
         #expect(model.step == .features)
-        model.next()
+        await model.next()
         #expect(model.step == .permissions)
         model.back()
         #expect(model.step == .features)
-        model.next()
-        model.next()
+        await model.next()
+        await model.next()
         #expect(model.step == .theme)
-        model.next()
+        await model.next()
         #expect(model.step == .done)
         #expect(!bed.general[HostSettings.onboardingDone])
         model.finish()
@@ -39,22 +39,22 @@ import Testing
         await bed.preferences.setEnabled(false, feature: "sample")
         let model = OnboardingModel(context: bed.context()) {}
         #expect(model.permissionItems.isEmpty)
-        model.next()
-        model.next()
+        await model.next()
+        await model.next()
         #expect(model.step == .features)
-        model.next()
+        await model.next()
         #expect(model.step == .theme)
         model.back()
         #expect(model.step == .features)
     }
 
-    @Test func skipsTheFeaturesStepWhenEveryFeatureIsOnByDefault() {
+    @Test func skipsTheFeaturesStepWhenEveryFeatureIsOnByDefault() async {
         let bed = TestBed(permissions: .notDetermined)
         bed.directory.entries.removeAll { $0.id == "helper" }
         let model = OnboardingModel(context: bed.context()) {}
         #expect(model.optionalFeatures.isEmpty)
-        model.next()
-        model.next()
+        await model.next()
+        await model.next()
         #expect(model.step == .permissions)
         model.back()
         #expect(model.step == .hotkey)
@@ -63,8 +63,8 @@ import Testing
     @Test func listsOnlyEnabledFeaturesPermissionsAndNeverAsksUnasked() async {
         let bed = TestBed(permissions: .notDetermined)
         let model = OnboardingModel(context: bed.context()) {}
-        model.next()
-        model.next()
+        await model.next()
+        await model.next()
         let items = model.permissionItems
         #expect(items.map(\.permission) == [.accessibility, .inputMonitoring])
         #expect(items[0].reasons.map(\.feature) == ["Sample Tools"])
@@ -77,8 +77,8 @@ import Testing
         await model.allow(.inputMonitoring)
         #expect(bed.fakes.permissions.requests == [.inputMonitoring])
         #expect(model.permissionItems[1].status == .granted)
-        model.next()
-        model.next()
+        await model.next()
+        await model.next()
         model.finish()
         #expect(bed.fakes.permissions.requests == [.inputMonitoring])
     }
@@ -140,11 +140,11 @@ import Testing
         }
     }
 
-    @Test func listsFeaturesThatAreOffByDefaultAndSwitchesThemOn() async {
+    @Test func listsFeaturesThatAreOffByDefaultAndSwitchesThemOnWhenTheUserContinues() async {
         let bed = TestBed(permissions: .notDetermined)
         let model = OnboardingModel(context: bed.context()) {}
-        model.next()
-        model.next()
+        await model.next()
+        await model.next()
         #expect(model.step == .features)
         #expect(
             model.optionalFeatures == [
@@ -154,20 +154,81 @@ import Testing
             ])
         #expect(model.permissionItems.map(\.permission) == [.accessibility, .inputMonitoring])
 
-        await model.setEnabled(true, feature: "helper")
+        // The switch moves at once; the feature turns on only when the user continues.
+        model.setEnabled(true, feature: "helper")
         #expect(model.optionalFeatures.map(\.isEnabled) == [true])
+        #expect(!bed.preferences.isEnabled(feature: "helper"))
+        await model.next()
+        #expect(model.step == .permissions)
         #expect(bed.preferences.isEnabled(feature: "helper"))
         #expect(bed.directory.feature("helper")?.isEnabled == true)
         #expect(model.permissionItems.map(\.permission) == [.accessibility, .inputMonitoring, .screenRecording])
         #expect(bed.fakes.permissions.requests.isEmpty)
-        model.next()
-        #expect(model.step == .permissions)
+
         model.back()
         #expect(model.step == .features)
-
-        await model.setEnabled(false, feature: "helper")
-        #expect(model.optionalFeatures.map(\.isEnabled) == [false])
+        model.setEnabled(false, feature: "helper")
+        #expect(bed.preferences.isEnabled(feature: "helper"))
+        await model.next()
+        #expect(!bed.preferences.isEnabled(feature: "helper"))
         #expect(model.permissionItems.map(\.permission) == [.accessibility, .inputMonitoring])
+    }
+
+    @Test func aSuggestedFeatureStartsOnAndTurnsOnWhenTheUserContinues() async {
+        let bed = TestBed(permissions: .notDetermined)
+        bed.directory.register(SuggestedFeature.self, fakes: bed.fakes)
+        let model = OnboardingModel(context: bed.context()) {}
+        await model.next()
+        await model.next()
+        #expect(model.step == .features)
+        #expect(model.optionalFeatures.map(\.id) == ["helper", "suggested"])
+        #expect(model.optionalFeatures.map(\.isEnabled) == [false, true])
+        #expect(!bed.preferences.isEnabled(feature: "suggested"))
+        await model.next()
+        #expect(bed.preferences.isEnabled(feature: "suggested"))
+        #expect(!bed.preferences.isEnabled(feature: "helper"))
+    }
+
+    /// Scenarios play the step through the same model: a suggested feature switched off stays off,
+    /// another switched on turns on, and onboarding is not marked done.
+    @Test func aRehearsalOfTheFeaturesStepAppliesTheSwitchesAsTheWindowWould() async {
+        let bed = TestBed(permissions: .notDetermined)
+        bed.directory.register(SuggestedFeature.self, fakes: bed.fakes)
+        let problems = await OnboardingRehearsal.chooseOptionalFeatures(
+            ["suggested": false, "helper": true, "nothing": true], dependencies: bed.dependencies)
+        #expect(problems.count == 1)
+        #expect(problems.first?.contains("nothing") == true)
+        #expect(!bed.preferences.isEnabled(feature: "suggested"))
+        #expect(bed.preferences.isEnabled(feature: "helper"))
+        #expect(OnboardingController.isNeeded(bed.fakes.settings))
+    }
+
+    @Test func closingBeforeContinuingAppliesNothingAndOnboardingOpensAgain() async {
+        let bed = TestBed(permissions: .notDetermined)
+        bed.directory.register(SuggestedFeature.self, fakes: bed.fakes)
+        let model = OnboardingModel(context: bed.context()) {}
+        await model.next()
+        await model.next()
+        model.setEnabled(true, feature: "helper")
+        // The window closes here: nothing calls next or finish.
+        #expect(!bed.preferences.isEnabled(feature: "helper"))
+        #expect(!bed.preferences.isEnabled(feature: "suggested"))
+        #expect(OnboardingController.isNeeded(bed.fakes.settings))
+        #expect(OnboardingView.closeNote.contains("opens again the next time \(Brand.name) starts"))
+    }
+
+    @Test func anAllowedPermissionIsAnnouncedToTheFeaturesOnce() async {
+        let bed = TestBed(permissions: .notDetermined)
+        let model = OnboardingModel(context: bed.context()) {}
+        await model.allow(.inputMonitoring)
+        #expect(bed.directory.announcedGrants == [.inputMonitoring])
+        // Granted already: pressing again announces nothing new.
+        await model.allow(.inputMonitoring)
+        #expect(bed.directory.announcedGrants == [.inputMonitoring])
+        // Refused: nothing is announced.
+        bed.fakes.permissions.answer = .denied
+        await model.allow(.accessibility)
+        #expect(bed.directory.announcedGrants == [.inputMonitoring])
     }
 
     @Test func picksATheme() {
