@@ -7,7 +7,7 @@ import Testing
 
 @testable import Root
 
-@Suite struct UsageServiceTests {
+@Suite(.timeLimit(.minutes(1))) struct UsageServiceTests {
     @Test func usesOrderByRecencyAndFrecencyHalvesEveryWeek() async throws {
         let fixture = await RootFixture.ready()
         let usage = fixture.root.usage
@@ -54,7 +54,26 @@ import Testing
     }
 }
 
-@Suite struct FuzzyIndexServiceTests {
+@Suite(.timeLimit(.minutes(1))) struct FuzzyIndexServiceTests {
+    /// Inside a tier a title match comes first, and only a title match carries ranges, so a host
+    /// can put title matches ahead of its rank hints.
+    @Test func aKeywordMatchCarriesNoRangesAndFollowsTitleMatches() async throws {
+        let service = EngineFuzzyIndexService()
+        let index = await service.makeIndex([
+            FuzzyEntry(title: "Red Heart", keywords: ["heart", "love"]),
+            FuzzyEntry(title: "Heart Suit"),
+        ])
+        let matches = index.search("heart", limit: 10)
+        #expect(matches.map(\.index) == [1, 0])
+        #expect(matches.map(\.tier) == [.prefix, .prefix], "an exact keyword counts one tier lower")
+        #expect(matches[0].highlights == [0..<5])
+        #expect(matches[1].highlights.isEmpty, "Red Heart's title matched only more weakly than its keyword")
+        let love = try #require(index.search("love", limit: 1).first)
+        #expect(love.index == 0 && love.highlights.isEmpty)
+        let red = try #require(index.search("red", limit: 1).first)
+        #expect(red.index == 0 && red.highlights == [0..<3], "a title match keeps its ranges")
+    }
+
     @Test func tiersOrderAndHighlightsFollowTheEngine() async throws {
         let service = EngineFuzzyIndexService()
         let index = await service.makeIndex([

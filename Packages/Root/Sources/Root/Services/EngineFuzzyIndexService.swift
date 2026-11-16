@@ -4,7 +4,9 @@ import Synchronization
 import os
 
 /// ``FuzzyIndexService`` over the engine's matcher, so host-filtered lists rank exactly like root
-/// search, by the same text tiers and without learning.
+/// search, by the same text tiers and without learning. Inside a tier the engine puts a title match
+/// before a keyword match. A keyword match carries no highlights, which is how the host tells it
+/// from a title match.
 nonisolated final class EngineFuzzyIndexService: FuzzyIndexService {
     @concurrent func makeIndex(_ entries: [FuzzyEntry]) async -> any Kit.FuzzyIndex {
         EngineFuzzyIndex(entries)
@@ -55,7 +57,10 @@ nonisolated final class EngineFuzzyIndex: Kit.FuzzyIndex {
             var i = 0
             while i < n {
                 let hit = buffer[i]
-                let ranges = (try? index.highlightRanges(for: hit.key, in: buffer)) ?? []
+                // Only a match on the title has title ranges. A keyword match reports none, even
+                // when the title matches more weakly, so the host can put title matches first.
+                let ranges =
+                    hit.field == .keyword ? [] : (try? index.highlightRanges(for: hit.key, in: buffer)) ?? []
                 matches.append(
                     FuzzyMatch(
                         index: Int(hit.key.rawValue - 1), tier: Self.tier(hit.tier), score: Int(hit.rank),
