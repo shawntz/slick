@@ -22,13 +22,13 @@ struct SearchTests {
         #expect(harness.issues.isEmpty)
     }
 
+    /// Words whose first emoji is the same whether or not the host puts a name match before a
+    /// keyword match inside a tier, so the harness shows them as the app does.
     @Test(arguments: [
-        ("heart", "Red Heart"),
         ("thumbs", "Thumbs Up"),
         ("cat", "Cat"),
         ("fire", "Fire"),
         ("laugh", "Face with Tears of Joy"),
-        ("love", "Red Heart"),
         ("party", "Party Popper"),
         ("check", "Check Mark Button"),
         ("euro", "Euro"),
@@ -42,10 +42,9 @@ struct SearchTests {
         #expect(harness.titles(1) == [expected], "\(query): \(harness.titles(5))")
     }
 
-    /// The name of a common emoji, or the start of it, finds that emoji first: a name that starts
-    /// with the query beats an emoji that only has the query as a keyword.
+    /// The name of an emoji, or the start of it, finds that emoji first when it is the most used of
+    /// the emoji with that name. A name match comes before a keyword match inside a tier.
     nonisolated static let names: [(String, String)] = [
-        ("grinning", "Grinning Face"),
         ("unamused", "Unamused Face"),
         ("expressionless", "Expressionless Face"),
         ("disappointed", "Disappointed Face"),
@@ -59,6 +58,7 @@ struct SearchTests {
         ("birthday", "Birthday Cake"),
         ("red heart", "Red Heart"),
         ("party", "Party Popper"),
+        ("crying", "Crying Face"),
     ]
 
     @Test(arguments: names)
@@ -74,29 +74,51 @@ struct SearchTests {
         #expect(rows.first?.title == expected, "\(query): \(rows.map(\.title))")
     }
 
+    /// Every emoji named Grinning comes before Beaming Face with Smiling Eyes, which only has the
+    /// keyword, and the most used of them comes first.
     @Test func grinningListsTheGrinningFacesBeforeKeywordMatches() async throws {
         let titles = gridOrder("grinning").map(\.title)
         let beaming = try #require(titles.firstIndex(of: "Beaming Face with Smiling Eyes"))
-        for name in [
-            "Grinning Face", "Grinning Face with Big Eyes", "Grinning Squinting Face", "Grinning Face with Sweat",
-        ] {
-            #expect(try #require(titles.firstIndex(of: name)) < beaming, "\(titles.prefix(8))")
-        }
+        let named = [
+            "Grinning Face with Sweat", "Grinning Squinting Face", "Grinning Face with Big Eyes",
+            "Grinning Face with Smiling Eyes", "Grinning Face",
+        ]
+        #expect(Array(titles.prefix(named.count)) == named, "the most used first: \(titles.prefix(6))")
+        #expect(beaming > named.count)
         let harness = await loadedHarness()
         let colon = harness.instantAnswers(for: ":grinning").first?.rows.map(\.title) ?? []
-        #expect(colon.prefix(5).allSatisfy { $0.hasPrefix("Grinning") }, "\(colon)")
+        #expect(colon.prefix(named.count) == named[...], "\(colon)")
     }
 
-    /// The ten most used emoji keep their keywords on top, so the words people type for them still
-    /// work.
-    @Test(arguments: [
-        ("heart", "Red Heart"), ("love", "Red Heart"), ("pray", "Folded Hands"), ("laugh", "Face with Tears of Joy"),
-    ])
-    func theMostUsedEmojiKeepTheirKeywords(query: String, expected: String) {
-        #expect(gridOrder(query).first?.title == expected)
+    /// A match on the name beats a match on a keyword alone in the same tier, even for the emoji
+    /// people use most: the host's rule for every list it filters.
+    @Test(arguments: [("heart", "Red Heart"), ("pray", "Folded Hands"), ("sad", "Loudly Crying Face")])
+    func aNameMatchBeatsTheMostUsedKeywordMatch(query: String, keywordOnly: String) throws {
+        let rows = gridOrder(query)
+        let first = try #require(rows.first)
+        #expect(matchesByTitle(first, query), "\(query): \(first.title)")
+        let keyword = try #require(rows.firstIndex { $0.title == keywordOnly })
+        #expect(!matchesByTitle(rows[keyword], query))
+        #expect(rows.prefix(keyword).allSatisfy { matchesByTitle($0, query) }, "\(query)")
     }
 
-    @Test func theScoreRanksTheMostUsedThenCommonThenTheRest() throws {
+    /// Among keyword matches the emoji people use most comes first.
+    @Test(arguments: [("laugh", "Face with Tears of Joy"), ("lol", "Face with Tears of Joy")])
+    func theMostUsedEmojiLeadTheKeywordMatches(query: String, expected: String) {
+        let keywordOnly = gridOrder(query).filter { !matchesByTitle($0, query) }
+        #expect(keywordOnly.first?.title == expected, "\(query): \(keywordOnly.prefix(4).map(\.title))")
+    }
+
+    /// The colon search orders as the grid does: by tier, then a name before a keyword, then use.
+    @Test(arguments: ["grinning", "heart", "love", "laugh", "party", "smile", "cat", "sad"])
+    func theColonSearchOrdersAsTheGridDoes(query: String) async throws {
+        let harness = await loadedHarness()
+        let colon = harness.instantAnswers(for: ":" + query).first?.rows.map(\.title) ?? []
+        #expect(!colon.isEmpty)
+        #expect(Array(gridOrder(query).prefix(colon.count).map(\.title)) == colon, "\(query)")
+    }
+
+    @Test func theScoreFollowsUse() throws {
         let joy = try entry("😂")
         let heart = try entry("❤️")
         let grinning = try entry("😀")
@@ -104,8 +126,9 @@ struct SearchTests {
         let grinningCat = try entry("😺")
         #expect(EmojiRanking.staticScore(joy) > EmojiRanking.staticScore(heart))
         #expect(EmojiRanking.staticScore(heart) > EmojiRanking.staticScore(beaming))
-        #expect(EmojiRanking.staticScore(grinning) == EmojiRanking.staticScore(beaming), "the matcher decides")
-        #expect(EmojiRanking.staticScore(beaming) > EmojiRanking.staticScore(grinningCat))
+        #expect(EmojiRanking.staticScore(beaming) > EmojiRanking.staticScore(grinning))
+        #expect(EmojiRanking.staticScore(grinning) > EmojiRanking.staticScore(grinningCat))
+        #expect(EmojiRanking.staticScore(grinningCat) == 0, "an emoji outside the common list")
         #expect(EmojiRanking.score(grinningCat, frecency: 1) > EmojiRanking.staticScore(joy), "a use wins")
     }
 
@@ -173,7 +196,7 @@ struct SearchTests {
     }
 
     @Test(arguments: [
-        (":heart", "Red Heart"),
+        (":red heart", "Red Heart"),
         (":thumbs up", "Thumbs Up"),
         (":thumbs", "Thumbs Up"),
         (":thu", "Thumbs Up"),
@@ -192,7 +215,8 @@ struct SearchTests {
         #expect(rows.first?.title == expected, "\(query): \(rows.map(\.title))")
     }
 
-    @Test(arguments: ["heart", "thumbs", "smile", "laugh", "cat", "party", "check", "euro", "command"])
+    /// Words whose best match does not depend on the host's name-first rule, through the harness.
+    @Test(arguments: ["thumbs", "smile", "laugh", "cat", "party", "check", "euro", "command"])
     func colonSearchAndTheGridAgreeOnTheBestMatch(word: String) async throws {
         let harness = await loadedHarness()
         try await harness.run("search")

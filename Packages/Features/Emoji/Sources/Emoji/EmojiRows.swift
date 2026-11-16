@@ -1,28 +1,18 @@
 import Kit
 
-/// How emoji rank against each other when they match a query in the same tier: pins first, then
-/// recent use, then the ten most used emoji in their order. Every other common emoji shares one
-/// score and the rest share another, so the matcher orders each group: a name that starts with the
-/// query comes before a keyword match, and a shorter name comes first. "grinning" finds Grinning
-/// Face before Beaming Face with Smiling Eyes, which only has the keyword, and "heart" still finds
-/// Red Heart, one of the ten.
+/// How emoji rank against each other when they match a query in the same tier and alike, both by
+/// name or both by keyword only: pins first, then recent use, then the emoji people use most. The
+/// host puts a match on the name before a match on a keyword alone inside a tier, so "grinning"
+/// lists the emoji named Grinning before Beaming Face with Smiling Eyes, which only has the keyword.
 nonisolated enum EmojiRanking {
     /// A use counts this much more than the whole static score, so any recent use wins.
     static let usageWeight = 1_000.0
     /// A pin outweighs any amount of use.
     static let pinWeight = 1_000_000_000.0
-    /// How many of the most used emoji keep their own order inside a tier.
-    static let leadingCount = 10
-    /// The score every common emoji below the leading ones shares.
-    static let commonScore = 100.0
 
-    /// The score without usage.
+    /// The score without usage: a common emoji gets 200 minus its rank, the rest nothing.
     static func staticScore(_ entry: EmojiEntry) -> Double {
-        switch entry.commonRank {
-        case 1...leadingCount: commonScore + Double(leadingCount + 1 - entry.commonRank)
-        case (leadingCount + 1)...: commonScore
-        default: 0
-        }
+        entry.commonRank > 0 ? Double(max(1, 200 - entry.commonRank)) : 0
     }
 
     /// The full score, given the item's frecency from the usage service.

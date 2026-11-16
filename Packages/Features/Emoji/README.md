@@ -31,7 +31,7 @@ Pins are kept in the `pinned` setting as keys, in the order they were pinned. Th
 
 ## Ranking
 
-Inside one match tier, pins come first, then recent use, then the ten most used emoji in their order. Every other common emoji shares one score and the rest share another, so the matcher's own order decides among them: a name that starts with the query comes before a keyword match, and a shorter name comes first. So "grinning" finds Grinning Face before Beaming Face with Smiling Eyes, which only has the keyword, and "heart" still finds Red Heart. Colon search applies the same order itself. In the grid the host filters, and KitTesting's fake index orders equal tiers by title length alone, so `gridOrder` in the tests applies the engine's title-first rule.
+Inside one match tier, a match on the name comes before a match on a keyword alone, as the host orders every list it filters. Then pins come first, then recent use, then the emoji people use most. So "grinning" lists every emoji named Grinning, the most used first, before Beaming Face with Smiling Eyes, which only has the keyword, and "laugh", which no name starts with, finds Face with Tears of Joy. "heart" finds Heart Suit before Red Heart, because the name wins. Colon search applies the same order itself. KitTesting's harness does not put name matches first yet, so `gridOrder` in the tests models the host's order over KitTesting's index.
 
 ## The data
 

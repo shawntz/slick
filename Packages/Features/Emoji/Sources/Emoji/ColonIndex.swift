@@ -253,8 +253,8 @@ nonisolated struct ColonIndex: Sendable {
 
     private static func ranks(_ lhs: Candidate, before rhs: Candidate) -> Bool {
         if lhs.match.tier != rhs.match.tier { return lhs.match.tier < rhs.match.tier }
-        if lhs.score != rhs.score { return lhs.score > rhs.score }
         if lhs.fromName != rhs.fromName { return lhs.fromName }
+        if lhs.score != rhs.score { return lhs.score > rhs.score }
         if lhs.nameLength != rhs.nameLength { return lhs.nameLength < rhs.nameLength }
         return lhs.match.position < rhs.match.position
     }

@@ -39,25 +39,38 @@ extension FeatureHarness {
     }
 }
 
-/// The grid's rows for a query in the order the app shows them. Host filtering orders by tier, then
-/// rank hint, then the matcher's own order. Inside one tier the engine's matcher puts a title match
-/// before a keyword match; KitTesting's fake index orders by title length alone, so this applies the
-/// engine's rule on top of it.
-func gridOrder(_ query: String, options: EmojiRows.Options = EmojiRows.Options()) -> [Row] {
-    guard let results = EmojiRows.build(bundledCatalog, options).last?.rows else { return [] }
-    let index = SimpleFuzzyIndex(results.map { FuzzyEntry(title: $0.title, keywords: $0.keywords) })
-    let matcher = index.search(query, limit: .max).enumerated().sorted { lhs, rhs in
+/// The grid's search rows with default options, and KitTesting's index over them twice: titles and
+/// keywords, and titles alone. Built once, because the catalog is large.
+private let searchGrid: (rows: [Row], index: SimpleFuzzyIndex, titles: SimpleFuzzyIndex) = {
+    let rows = EmojiRows.build(bundledCatalog, EmojiRows.Options()).last?.rows ?? []
+    return (
+        rows, SimpleFuzzyIndex(rows.map { FuzzyEntry(title: $0.title, keywords: $0.keywords) }),
+        SimpleFuzzyIndex(rows.map { FuzzyEntry(title: $0.title, keywords: []) })
+    )
+}()
+
+/// The grid's rows for a query in the order the host shows them, over KitTesting's index: by tier,
+/// then a title match before a match that only a keyword reaches, then rank hint, then the index's
+/// own order. A row matches by title when its title alone reaches the tier of its best match.
+func gridOrder(_ query: String) -> [Row] {
+    let (results, index, titles) = searchGrid
+    var titleTiers: [Int: MatchTier] = [:]
+    for match in titles.search(query, limit: .max) { titleTiers[match.index] = match.tier }
+    return index.search(query, limit: .max).enumerated().sorted { lhs, rhs in
         if lhs.element.tier != rhs.element.tier { return lhs.element.tier < rhs.element.tier }
-        let lhsTitle = !lhs.element.highlights.isEmpty
-        let rhsTitle = !rhs.element.highlights.isEmpty
+        let lhsTitle = titleTiers[lhs.element.index] == lhs.element.tier
+        let rhsTitle = titleTiers[rhs.element.index] == rhs.element.tier
         if lhsTitle != rhsTitle { return lhsTitle }
-        return lhs.offset < rhs.offset
-    }.map(\.element)
-    return matcher.enumerated().sorted { lhs, rhs in
-        if lhs.element.tier != rhs.element.tier { return lhs.element.tier < rhs.element.tier }
         let lhsHint = results[lhs.element.index].rankHint
         let rhsHint = results[rhs.element.index].rankHint
         if lhsHint != rhsHint { return lhsHint > rhsHint }
         return lhs.offset < rhs.offset
     }.map { results[$0.element.index] }
+}
+
+/// True when the row's title alone matches the query as well as the row does.
+func matchesByTitle(_ row: Row, _ query: String) -> Bool {
+    let full = SimpleFuzzyIndex([FuzzyEntry(title: row.title, keywords: row.keywords)]).search(query, limit: 1)
+    let title = SimpleFuzzyIndex([FuzzyEntry(title: row.title, keywords: [])]).search(query, limit: 1)
+    return !title.isEmpty && title.first?.tier == full.first?.tier
 }
