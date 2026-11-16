@@ -17,8 +17,9 @@ enum BenchMode {
     static let sizes = [3_000, 10_000]
     /// Host benches that root search changes, run at every size after the first.
     static let rootSensitive: Set<String> = ["typing", "summon", "actions"]
-    /// Every name `--bench` takes.
-    static var names: [String] { ["root"] + HostBench.names }
+    /// Every name `--bench` takes. Host's benches that take key status run only when named, at the
+    /// first size.
+    static var names: [String] { ["root"] + HostBench.names + HostBench.keyNames }
 
     /// One measured path, printed like Host's table.
     struct Line: Equatable {
@@ -55,7 +56,7 @@ enum BenchMode {
                     builtInSources: [SyntheticCatalog(count: size)]))
             await assembly.start(prewarm: true)
             let root = assembly.root
-            guard await SelfTest.within(.seconds(60), { await root.ready() }), root.catalogCount >= size else {
+            guard await SelfTest.within(.seconds(60), { await assembly.ready() }), root.catalogCount >= size else {
                 print("bench FAIL: root search did not load the \(size)-item catalog")
                 await assembly.shutdown()
                 folders.removeIfTemporary()
@@ -70,7 +71,9 @@ enum BenchMode {
             }
             let hostNames: Set<String>
             if let name {
-                hostNames = HostBench.names.contains(name) ? [name] : []
+                let runs =
+                    HostBench.names.contains(name) || (HostBench.keyNames.contains(name) && size == sizes[0])
+                hostNames = runs ? [name] : []
             } else {
                 hostNames = size == sizes[0] ? Set(HostBench.names) : rootSensitive
             }

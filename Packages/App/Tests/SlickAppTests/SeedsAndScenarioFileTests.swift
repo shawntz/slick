@@ -154,6 +154,9 @@ struct BenchCatalogTests {
     @Test func benchNamesCoverRootAndHost() {
         #expect(BenchMode.names.first == "root")
         #expect(BenchMode.names.contains("typing"))
+        // The bench that takes key status runs only when named.
+        #expect(BenchMode.names.contains("summon-key"))
+        #expect(!HostBench.names.contains("summon-key"))
         #expect(BenchMode.sizes == [3_000, 10_000])
     }
 }

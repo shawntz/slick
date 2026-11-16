@@ -17,6 +17,8 @@ import QuartzCore
 /// - `grid`: filtering a grid of 3,000 image cells per keystroke: the host's work and the grid's
 ///   apply, without the fuzzy index search. Budget 2 ms p50, 4.5 ms p99.
 /// - `detail`: one streamed append drawn into a detail page. Budget 1 ms p50.
+/// - `summon-key`: only when named. Summons with key status, as the live launcher does, in the
+///   summoner's order. See ``keySummons()``.
 ///
 /// The panel shows in the bottom-left corner without key status, for under two seconds per batch,
 /// and is hidden between batches.
@@ -43,6 +45,8 @@ import QuartzCore
 
     /// Every bench, in the order they run.
     public static let names = ["typing", "summon", "actions", "push", "grid", "detail"]
+    /// Benches that take key status. They run only when named, and only while nobody types.
+    public static let keyNames = ["summon-key"]
 
     public let panel: PanelController
     /// Multiplies every budget, for slower machines. `LATENCY_BUDGET_SCALE` sets it by default.
@@ -72,7 +76,8 @@ import QuartzCore
         lines = []
         let load = Self.loadAverage()
         log(String(format: "host bench, 1-minute load average %.2f", load))
-        for name in Self.names where only?.contains(name) ?? true {
+        let keyNames = Self.keyNames.filter { only?.contains($0) == true }
+        for name in Self.names + keyNames where only?.contains(name) ?? true {
             switch name {
             case "typing": await typing()
             case "summon": summons()
@@ -80,6 +85,7 @@ import QuartzCore
             case "push": await pushes()
             case "grid": await grid()
             case "detail": await detail()
+            case "summon-key": await keySummons()
             default: break
             }
             await pause(300)
@@ -309,7 +315,7 @@ import QuartzCore
         CATransaction.flush()
     }
 
-    private func add(_ name: String, _ samples: [Double], budget: LatencyBudget?, note: String? = nil) {
+    func add(_ name: String, _ samples: [Double], budget: LatencyBudget?, note: String? = nil) {
         let summary = LatencySummary(samples)
         let scale = budgetScale
         lines.append(
@@ -336,7 +342,7 @@ import QuartzCore
         return text.joined(separator: "\n")
     }
 
-    private func pause(_ milliseconds: Int) async {
+    func pause(_ milliseconds: Int) async {
         try? await Task.sleep(for: .milliseconds(milliseconds))
     }
 
