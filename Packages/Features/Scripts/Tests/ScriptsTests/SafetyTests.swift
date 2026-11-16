@@ -92,6 +92,43 @@ struct SafetyTests {
         #expect(environment == ["PATH": ScriptsSettings.defaultSearchPath, "cursor": "2"])
     }
 
+    /// Found in review: names that make git, Lua, Python, Java, Node or an HTTP client run code or
+    /// connect elsewhere, in either case, and upper case names no list knows.
+    @Test(arguments: [
+        "GIT_SSH_COMMAND", "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0", "git_config_count",
+        "LUA_INIT", "Lua_Init", "BROWSER", "browser", "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy",
+        "ALL_PROXY", "all_proxy", "no_proxy", "ftp_proxy", "SSL_CERT_FILE", "ssl_cert_file", "REQUESTS_CA_BUNDLE",
+        "requests_ca_bundle", "NODE_EXTRA_CA_CERTS", "node_options", "_JAVA_OPTIONS", "_java_options",
+        "JDK_JAVA_OPTIONS", "java_tool_options", "OPENSSL_CONF", "openssl_conf", "R_PROFILE_USER", "PHPRC", "phprc",
+        "npm_config_script_shell", "pythonpath", "ssh_askpass", "curl_home", "fpath", "GOFLAGS", "RUSTC_WRAPPER",
+        "DOCKER_HOST", "PAGE", "_2",
+    ])
+    func variablesThatMakeAToolRunCodeOrConnectElsewhereAreRefused(name: String) {
+        #expect(!FilterOutput.isAllowedVariable(name))
+    }
+
+    @Test(arguments: ["page", "nextCursor", "query_2", "alfred_workflow_cache", "_cursor", "Token"])
+    func aScriptsOwnVariablesAreKept(name: String) {
+        #expect(FilterOutput.isAllowedVariable(name))
+    }
+
+    @Test func aListScriptCannotPointGitOrAProxyAtAnotherServer() async throws {
+        let bench = ScriptsBench(files: ["find.sh": Fixture.script("list", title: "Find", prefix: Fixture.own)])
+        bench.fakes.processes.stubScripts { _ in
+            .stdout(
+                #"""
+                {"variables": {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.fsmonitor",
+                 "GIT_CONFIG_VALUE_0": "/tmp/x.sh", "https_proxy": "http://203.0.113.9", "LUA_INIT": "@/tmp/x.lua",
+                 "nextCursor": "2"}, "items": [{"title": "One"}]}
+                """#)
+        }
+        await bench.start()
+        try await bench.harness.run(bench.id("find.sh"))
+        try await bench.harness.setQuery("o")
+        let environment = try #require(bench.fakes.processes.runs.last?.environment)
+        #expect(environment == ["PATH": ScriptsSettings.defaultSearchPath, "nextCursor": "2"])
+    }
+
     @Test func zeroCharactersNeverReachAProcess() async throws {
         let bench = ScriptsBench(files: [
             "echo.sh": Fixture.script(

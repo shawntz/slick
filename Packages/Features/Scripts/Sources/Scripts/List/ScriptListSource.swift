@@ -66,7 +66,7 @@ final class ScriptListSource: ListSource {
         var actions: [Action] = []
         var primaryCopies: String?
         if item.isValid {
-            let (action, copied) = argumentAction(item.arguments, fallback: item.title)
+            let (action, copied) = argumentAction(item.arguments, fallback: item.title, isFile: item.isFile)
             actions.append(action)
             primaryCopies = copied
         } else if let completion = item.autocomplete {
@@ -79,7 +79,8 @@ final class ScriptListSource: ListSource {
         for modifier in item.modifiers.sorted(by: { $0.modifiers.rawValue < $1.modifiers.rawValue })
         where modifier.isValid {
             let shortcut = KeyCombo(.return, modifier.modifiers)
-            let (action, _) = argumentAction(modifier.arguments ?? item.arguments, fallback: item.title)
+            let (action, _) = argumentAction(
+                modifier.arguments ?? item.arguments, fallback: item.title, isFile: item.isFile)
             actions.append(
                 action.with(title: Strings.withModifiers(action.title, modifier.modifiers))
                     .with(id: "modifier." + shortcut.description).with(shortcut: shortcut))
@@ -96,8 +97,13 @@ final class ScriptListSource: ListSource {
     }
 
     /// The action for an argument under the script's filter action, and the text it copies, if it
-    /// copies.
-    private func argumentAction(_ arguments: [String], fallback: String) -> (Action, String?) {
+    /// copies. `isFile` is true when the item says its `type` is `file`.
+    ///
+    /// `auto` opens only `http` and `https` links. It shows paths in Finder, and opens them only
+    /// when the item says they are files, and then only files that ``SafeOpen`` lets open. A list
+    /// script often prints what a web service sent, so its output must not choose a program to
+    /// start. `open` opens any path and any scheme, because the script's author asked for that.
+    private func argumentAction(_ arguments: [String], fallback: String, isFile: Bool) -> (Action, String?) {
         let values = arguments.isEmpty ? [fallback] : arguments
         let text = values.joined(separator: "\n")
         switch script.metadata.filterAction {
@@ -106,25 +112,52 @@ final class ScriptListSource: ListSource {
         case .paste:
             return (.paste(text, title: Strings.pasteArgument), nil)
         case .open:
-            let urls = values.compactMap { openableURL($0, strict: false) }
+            let urls = values.compactMap { anyURL($0) }
             guard !urls.isEmpty else { return (.copy(text, title: Strings.copyArgument), text) }
             return (.open(urls, title: Strings.openArgument), nil)
         case .auto:
-            let urls = values.compactMap { openableURL($0, strict: true) }
-            guard !urls.isEmpty, urls.count == values.count else {
-                return (.copy(text, title: Strings.copyArgument), text)
+            if let links = Self.every(values, Self.webURL) {
+                return (.open(links, title: Strings.openArgument), nil)
             }
-            return (.open(urls, title: Strings.openArgument), nil)
+            if let files = Self.every(values, { FilterOutput.fileURL($0, home: self.home) }) {
+                return (isFile ? Self.openFiles(files) : .reveal(files), nil)
+            }
+            return (.copy(text, title: Strings.copyArgument), text)
         }
     }
 
-    /// A path, or a URL. Strict accepts only `http` and `https` among URLs, so `auto` never hands
-    /// an unusual scheme to another app; `open` accepts any scheme.
-    private func openableURL(_ text: String, strict: Bool) -> URL? {
+    /// A path, or a URL with any scheme. Only `filterAction open` uses it.
+    private func anyURL(_ text: String) -> URL? {
         if let file = FilterOutput.fileURL(text, home: home) { return file }
-        guard let url = URL(string: text.trimmed), let scheme = url.scheme?.lowercased() else { return nil }
-        if strict { return ["http", "https"].contains(scheme) && url.host() != nil ? url : nil }
+        guard let url = URL(string: text.trimmed), let scheme = url.scheme else { return nil }
         return scheme.count > 1 ? url : nil
+    }
+
+    /// An `http` or `https` URL with a host.
+    private static func webURL(_ text: String) -> URL? {
+        guard let url = URL(string: text.trimmed), let scheme = url.scheme?.lowercased(),
+            ["http", "https"].contains(scheme), url.host() != nil
+        else { return nil }
+        return url
+    }
+
+    /// Every value made into a URL, or nil when any one cannot be.
+    private static func every(_ values: [String], _ make: (String) -> URL?) -> [URL]? {
+        let urls = values.compactMap(make)
+        return urls.count == values.count ? urls : nil
+    }
+
+    /// Opens files a row says are files. When any of them is an app, a program or a file that runs
+    /// or opens something else, it opens none and shows them all in Finder instead.
+    private static func openFiles(_ urls: [URL]) -> Action {
+        Action(Strings.openArgument, id: "open", icon: .symbol("arrow.up.forward.app")) { context in
+            guard await SafeOpen.mayOpenAll(urls) else {
+                await context.workspace.reveal(urls)
+                return .close(hud: HUD(Strings.shownInFinder))
+            }
+            for url in urls { try await context.workspace.open(url) }
+            return .close()
+        }
     }
 
     private func failed(_ title: String, message: String?, output: CapturedOutput?) -> ListResult {

@@ -51,8 +51,8 @@ nonisolated struct FilterPage: Sendable {
 /// The output is not trusted. Empty output, invalid JSON, nesting deeper than
 /// ``maximumDepth`` and a missing `items` list are errors the page shows. An item without a title
 /// is left out. Values of the wrong type are ignored. Text is cut to fixed lengths, at most
-/// ``maximumItems`` rows are shown, and variables that could change how programs load or find
-/// commands are dropped.
+/// ``maximumItems`` rows are shown, and only variables in the names ``isAllowedVariable(_:)``
+/// allows come back on the next run.
 nonisolated enum FilterOutput {
     static let maximumDepth = 16
     static let maximumItems = 1000
@@ -60,17 +60,27 @@ nonisolated enum FilterOutput {
     static let maximumArgumentLength = 64 * 1024
     static let maximumVariables = 64
     static let rerunRange = 0.1...5.0
-    /// Variables a script may not set for its next run: the clean environment's own, and those that
-    /// make a shell or an interpreter read or run other code when it starts. Output can carry text
-    /// from anywhere, so it must not be able to choose the code that runs next.
+    /// Names a script may never set for its next run, compared without case: the clean
+    /// environment's own, and those that make a shell, an interpreter or a common tool run other
+    /// code or send traffic elsewhere. Output can carry text from anywhere, so it must not be able
+    /// to choose the code that runs next. Most of these are upper case, which
+    /// ``isAllowedVariable(_:)`` refuses anyway; the list keeps their lower case spellings out too.
     static let reservedVariables: Set<String> = [
-        "PATH", "HOME", "LANG", "TMPDIR", "SHELL", "IFS", "ENV", "ZDOTDIR", "CDPATH", "PS4", "PROMPT_COMMAND",
-        "SHELLOPTS", "BASHOPTS", "GLOBIGNORE", "NODE_OPTIONS", "NODE_PATH", "PYTHONPATH", "PYTHONHOME",
-        "PYTHONSTARTUP", "PYTHONINSPECT", "PERL5LIB", "PERL5OPT", "PERLLIB", "RUBYOPT", "RUBYLIB", "GEM_HOME",
-        "GEM_PATH", "JAVA_TOOL_OPTIONS", "OSA_LIBRARY_PATH",
+        "PATH", "HOME", "LANG", "TMPDIR", "SHELL", "IFS", "ENV", "ZDOTDIR", "CDPATH", "FPATH", "MODULE_PATH", "PS4",
+        "PROMPT_COMMAND", "SHELLOPTS", "BASHOPTS", "GLOBIGNORE", "PERL5LIB", "PERL5OPT", "PERLLIB", "RUBYOPT",
+        "RUBYLIB", "GEM_HOME", "GEM_PATH", "OSA_LIBRARY_PATH", "BROWSER", "REQUESTS_CA_BUNDLE", "OPENSSL_CONF",
+        "R_PROFILE_USER", "PHPRC",
     ]
-    /// Prefixes of reserved names: the loader's, and the shell's own such as `BASH_ENV`.
-    static let reservedPrefixes = ["DYLD_", "LD_", "BASH_", "LC_"]
+    /// Prefixes of reserved names: the loader's, the shell's own such as `BASH_ENV`, and families
+    /// that tools read to run commands or choose where to connect, such as `GIT_SSH_COMMAND`,
+    /// `GIT_CONFIG_KEY_0`, `LUA_INIT`, `_JAVA_OPTIONS`, `NODE_EXTRA_CA_CERTS` and `SSL_CERT_FILE`.
+    static let reservedPrefixes = [
+        "DYLD_", "LD_", "BASH_", "LC_", "GIT_", "LUA_", "JAVA_", "_JAVA_", "JDK_", "NODE_", "NPM_CONFIG_", "PYTHON",
+        "SSL_", "SSH_", "CURL_",
+    ]
+    /// Suffixes of reserved names: `http_proxy`, `HTTPS_PROXY`, `all_proxy` and the other proxy
+    /// settings, which curl, git and most HTTP libraries read in lower case too.
+    static let reservedSuffixes = ["_PROXY"]
 
     /// Why the output could not be read.
     nonisolated enum Failure: Error, Hashable, Sendable {
@@ -218,17 +228,27 @@ nonisolated enum FilterOutput {
         return result
     }
 
-    /// A name a shell can read, `[A-Za-z_][A-Za-z0-9_]*`, that is not reserved and does not start
-    /// with a reserved prefix. Case is ignored, so `bash_env` is refused too.
+    /// A name a shell can read, `[A-Za-z_][A-Za-z0-9_]*`, with at least one lower case letter, that
+    /// is not reserved and has no reserved prefix or suffix. The reserved lists ignore case, so
+    /// `bash_env` and `http_proxy` are refused too.
+    ///
+    /// The lower case letter is the main rule. POSIX leaves names with a lower case letter to
+    /// applications and keeps the standard tools to upper case names, and tools that read a
+    /// variable to run code or to connect somewhere almost always read an upper case one. So this
+    /// rule also refuses names no list here knows, such as a tool's next `*_OPTIONS`. Script
+    /// Filter variables are a script's own state, such as `page` or `cursor`, which are lower case
+    /// in Alfred's documentation and in most workflows.
     static func isAllowedVariable(_ name: String) -> Bool {
         guard let first = name.unicodeScalars.first, name.unicodeScalars.count <= 128,
             first == "_" || (first.isASCII && first.properties.isAlphabetic),
             name.unicodeScalars.allSatisfy({
                 $0 == "_" || ($0.isASCII && $0.properties.isAlphabetic) || ("0"..."9").contains($0)
-            })
+            }),
+            name.unicodeScalars.contains(where: { ("a"..."z").contains($0) })
         else { return false }
         let upper = name.uppercased()
         return !reservedVariables.contains(upper) && !reservedPrefixes.contains { upper.hasPrefix($0) }
+            && !reservedSuffixes.contains { upper.hasSuffix($0) }
     }
 
     private static func icon(_ value: JSONValue?, source: Source) -> Icon? {

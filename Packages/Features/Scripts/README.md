@@ -49,9 +49,9 @@ A script that fails shows the last line of its error output, with a Show Output 
 
 ## List scripts
 
-List scripts print JSON in the Script Filter format documented at <https://www.alfredapp.com/help/workflows/inputs/script-filter/json/>. The query arrives as `$1`, the script runs again 120 ms after typing stops, and again after `rerun` seconds. Read: `items` with `uid`, `title`, `subtitle`, `arg`, `icon`, `valid`, `autocomplete`, `type`, `mods`, `text.copy`, `quicklookurl` and `variables`, and top-level `rerun` and `variables`. Top-level variables come back as environment variables on the next run, except names that could change how programs load or find commands. Output is not trusted: depth, item count and text length are capped, and wrong types are ignored.
+List scripts print JSON in the Script Filter format documented at <https://www.alfredapp.com/help/workflows/inputs/script-filter/json/>. The query arrives as `$1`, the script runs again 120 ms after typing stops, and again after `rerun` seconds. Read: `items` with `uid`, `title`, `subtitle`, `arg`, `icon`, `valid`, `autocomplete`, `type`, `mods`, `text.copy`, `quicklookurl` and `variables`, and top-level `rerun` and `variables`. Top-level variables come back as environment variables on the next run, but only names with a lower case letter, such as `page` or `nextCursor`, and never names that make a shell or a common tool run other code or connect elsewhere, such as `bash_env` or `http_proxy`. POSIX leaves names with a lower case letter to applications, and the tools such variables could steer read upper case names. Output is not trusted: depth, item count and text length are capped, and wrong types are ignored.
 
-Return acts on the row's `arg` by `filterAction`. `auto` opens `http` and `https` links and paths, and copies anything else. Return with modifiers acts on that modifier's `arg`.
+Return acts on the row's `arg` by `filterAction`. `auto` opens `http` and `https` links and copies text that is neither a link nor a path. It shows a path in Finder. It opens a path only when the item's `type` is `file` and the target is a plain file or folder: an app or other bundle, an executable file, or a file that runs commands or opens another target, such as a `.terminal`, `.webloc` or `.jar` file, is shown in Finder instead. Script output often comes from a web service, so it must not choose a program to start. `open` opens any path or URL. Return with modifiers acts on that modifier's `arg`.
 
 ## Safety
 
@@ -59,7 +59,7 @@ A script is the user's own code and runs with their rights. The settings pane sa
 
 An icon named by an `https` URL is never downloaded until the user turns on Show icons from the web in settings, because a download tells that server when the script shows. Until then the script shows its mode's symbol.
 
-A script with `needsConfirmation` asks before every run and never refreshes by itself, whatever the settings hold. A `needsConfirmation` value other than `true` or `false` asks too, with a warning. A list script's variables never set names that make a shell or an interpreter load other code, such as `BASH_ENV`, `ENV`, `ZDOTDIR`, `NODE_OPTIONS` or `PYTHONPATH`. Zero characters never reach a process.
+A script with `needsConfirmation` asks before every run and never refreshes by itself, whatever the settings hold. A `needsConfirmation` value other than `true` or `false` asks too, with a warning. A list script's variables never set a name without a lower case letter, so never `BASH_ENV`, `NODE_OPTIONS`, `GIT_SSH_COMMAND` or `HTTPS_PROXY`, nor a lower case spelling of such a name, such as `http_proxy`. Zero characters never reach a process.
 
 ## Where to look
 

@@ -34,7 +34,7 @@ nonisolated enum Strings {
     }
 
     static func runFallback(_ title: String, text: String) -> String {
-        "\(title) with \"\(text)\""
+        "\(title) with \u{201C}\(text)\u{201D}"
     }
 
     static func confirmRun(_ title: String) -> String {
@@ -128,6 +128,9 @@ nonisolated enum Strings {
     static let copyArgument = "Copy"
     static let openArgument = "Open"
     static let pasteArgument = "Paste"
+    /// The HUD when Return showed a script's files in Finder because one of them could start a
+    /// program.
+    static let shownInFinder = "Shown in Finder Instead"
     static let noResults = "No Results"
     static let notJSON = "The script printed something other than Script Filter JSON."
     static let emptyOutput = "The script printed nothing."
@@ -165,7 +168,7 @@ nonisolated enum Strings {
     static let tagWarning = "Warning"
 
     static func turnOnFolderQuestion(_ folder: String) -> String {
-        "Run scripts from \(folder)?"
+        "Run Scripts from \(folder)?"
     }
 
     static let turnOnFolderMessage =
@@ -203,21 +206,22 @@ nonisolated enum Strings {
     // MARK: - Status
 
     static func problemsStatus(_ count: Int) -> String {
-        count == 1 ? "1 script has a problem" : "\(count) scripts have problems"
+        count == 1 ? "1 Script Has a Problem" : "\(count) Scripts Have Problems"
     }
 
     static let problemsStatusMessage = "Open Manage Script Commands to see what to fix."
 
     static func offStatus(_ count: Int) -> String {
-        count == 1
-            ? "1 script is off until you turn on its folder"
-            : "\(count) scripts are off until you turn on their folders"
+        count == 1 ? "1 Script Is Off" : "\(count) Scripts Are Off"
     }
 
-    static let offStatusMessage = "Turn folders on below, under Folders allowed to run."
+    static let offStatusMessage =
+        "A script stays off until you turn on its folder. Turn folders on below, under Folders allowed to run."
 
-    static func missingFolderStatus(_ path: String) -> String {
-        "The script folder \(path) was not found"
+    static let missingFolderStatus = "Script Folder Not Found"
+
+    static func missingFolderMessage(_ path: String) -> String {
+        "The script folder \(path) was not found. Its scripts do not show until it is back."
     }
 
     // MARK: - Create Script Command

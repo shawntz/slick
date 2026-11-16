@@ -52,8 +52,10 @@ nonisolated enum ScriptMode: String, Hashable, Sendable, Codable, CaseIterable {
 
 /// What Return does with the argument of a row a list script printed.
 nonisolated enum FilterAction: String, Hashable, Sendable, Codable, CaseIterable {
-    /// Opens a URL or a path, and copies anything else.
+    /// Opens an `http` or `https` link and shows a path in Finder. A path the row says is a file
+    /// opens when it is a plain file or folder that cannot start a program. Copies anything else.
     case auto
+    /// Opens any path and any URL.
     case open
     case copy
     /// Pastes into the frontmost app. Needs Accessibility.
