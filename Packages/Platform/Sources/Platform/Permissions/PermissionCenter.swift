@@ -89,9 +89,11 @@ nonisolated public final class PermissionCenter: PermissionService {
     public static let namespace = "app.permissions"
 
     /// The permissions whose checks the app warms at launch: every one with a check that does not
-    /// depend on another app.
+    /// depend on another app, except Location. No feature asks for Location, the app has neither its
+    /// entitlement nor its usage text, and its check makes a location manager on the main thread,
+    /// so launch leaves it alone. A read of its status still checks it when something asks.
     public static let checkedAtLaunch: [Permission] = [
-        .accessibility, .inputMonitoring, .screenRecording, .calendars, .reminders, .contacts, .location, .pasteboard,
+        .accessibility, .inputMonitoring, .screenRecording, .calendars, .reminders, .contacts, .pasteboard,
     ]
 
     /// How often open ``changes(of:)`` streams check while the app is active or the user just

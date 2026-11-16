@@ -145,6 +145,8 @@ import Testing
             #expect(center.status(of: permission) == .granted)
         }
         #expect(system.checkCount == checks)
+        // Launch never makes a location manager: no feature asks for Location.
+        #expect(!PermissionCenter.checkedAtLaunch.contains(.location))
     }
 
     @Test func aGrantedPermissionIsNeverRequestedAgain() async {
