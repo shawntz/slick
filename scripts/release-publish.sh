@@ -5,19 +5,22 @@
 #
 # Run it after you have checked dist/. It:
 #   1 checks dist/ again: a finished real release of this version, built from HEAD, every
-#     artifact intact
+#     artifact intact, appcast.xml among them
 #   2 checks that HEAD is on origin/main and that gh is signed in
 #   3 writes the Homebrew cask for this version to dist/<token>.rb
 #   4 tags HEAD vX.Y.Z and pushes the tag
-#   5 creates the GitHub release as a draft, with the zip, the dSYM zip and SHA256SUMS.txt
+#   5 creates the GitHub release as a draft, with the zip, the dSYM zip, SHA256SUMS.txt and
+#     appcast.xml
 #   6 prints how to publish the draft and how to put the cask in the tap, once the public download
 #     matches dist/
 # It never touches the tap and never publishes the draft. Run it again after a failure: a tag or
 # draft that already matches is reused. A release that is already published is never replaced.
 #
+# No release is marked as a pre-release. The app's update feed is the appcast.xml of the latest
+# release, and GitHub's latest release skips pre-releases, so a pre-release would never reach the
+# people who have the app. The release notes say instead that the software is early.
+#
 # Env:
-#   RELEASE_PRERELEASE  1 marks the release as a pre-release, 0 does not. Default: 1 while the major
-#                       version is 0.
 #   RELEASE_REPO        owner/name on GitHub. Default: the origin remote.
 #   HOMEBREW_TAP        owner/name of the tap. Default: <owner>/homebrew-tap.
 set -euo pipefail
@@ -46,6 +49,10 @@ COMMIT=$(git rev-parse HEAD)
 [ "${RELEASE_COMMIT:-}" = "$COMMIT" ] || fail "dist/ was built from ${RELEASE_COMMIT:-unknown}, but HEAD is $COMMIT. Run make release again."
 [ -z "$(git status --porcelain)" ] || fail "the tree has changes. Publish from the clean tree the release was built from."
 "$ROOT/scripts/check-release.sh" "$DIST"
+# Without appcast.xml the copies people have would never hear of this release.
+FILES=()
+while IFS= read -r file; do FILES+=("$file"); done < <(release_assets "$DIST")
+[ "${#FILES[@]}" -eq 4 ] || fail "dist/ is missing a file to upload. Run make release VERSION=$VERSION again."
 
 # 2. The commit is on origin/main, and gh can reach the repository.
 say "== 2/6 check the repository"
@@ -63,14 +70,6 @@ if [ -n "$HIGHEST" ] && version_gt "$HIGHEST" "$VERSION"; then
     fail "version $VERSION is not higher than the last release tag, v$HIGHEST."
 fi
 PREVIOUS=$(tagged_version_below "$VERSION") || fail "could not list the tags."
-PRERELEASE=${RELEASE_PRERELEASE:-}
-if [ -z "$PRERELEASE" ]; then
-    if [ "${VERSION%%.*}" = 0 ]; then PRERELEASE=1; else PRERELEASE=0; fi
-fi
-case $PRERELEASE in
-    0 | 1) ;;
-    *) fail "RELEASE_PRERELEASE must be 0 or 1, not '$PRERELEASE'." ;;
-esac
 
 # 3. The cask, written before anything is published so a problem stops the script early.
 say "== 3/6 write the cask"
@@ -98,16 +97,14 @@ fi
 
 # 5. The draft release with its files.
 say "== 5/6 draft the GitHub release"
-FILES=("$DIST/$RELEASE_ZIP" "$DIST/$RELEASE_DSYM_ZIP" "$DIST/SHA256SUMS.txt")
 if [ "$RELEASE_STATE" = draft ]; then
-    if [ "$PRERELEASE" = 1 ]; then IS_PRERELEASE=true; else IS_PRERELEASE=false; fi
-    gh release edit "$TAG" --repo "$REPO" --notes-file "$DIST/release-notes.md" --prerelease="$IS_PRERELEASE" \
+    # A draft an older run made may carry the pre-release mark. Take it off.
+    gh release edit "$TAG" --repo "$REPO" --notes-file "$DIST/release-notes.md" --prerelease=false \
         || fail "could not update the draft $TAG."
     gh release upload "$TAG" --repo "$REPO" --clobber "${FILES[@]}" || fail "could not upload the files to the draft $TAG."
 else
-    FLAGS=(--repo "$REPO" --verify-tag --draft --title "$BRAND_NAME $VERSION" --notes-file "$DIST/release-notes.md")
-    [ "$PRERELEASE" = 0 ] || FLAGS+=(--prerelease)
-    gh release create "$TAG" "${FLAGS[@]}" "${FILES[@]}" \
+    gh release create "$TAG" --repo "$REPO" --verify-tag --draft --title "$BRAND_NAME $VERSION" \
+        --notes-file "$DIST/release-notes.md" "${FILES[@]}" \
         || fail "could not create the draft. Run make release-publish VERSION=$VERSION again; the tag is reused."
 fi
 
@@ -121,20 +118,19 @@ if [ -n "$PREVIOUS" ]; then
 else
     MESSAGE="Add $TOKEN $VERSION"
 fi
-KIND="a draft"
-[ "$PRERELEASE" = 0 ] || KIND="a draft pre-release"
 # The address the cask downloads from. The first tap command checks that it serves the zip in
 # dist/, so the cask cannot reach the tap while the release is still a draft.
 DOWNLOAD="https://github.com/$REPO/releases/download/$TAG/$RELEASE_ZIP"
 cat >&2 << EOF
 
-[release-publish] $TAG is $KIND on GitHub. Nothing is public yet.
+[release-publish] $TAG is a draft on GitHub. Nothing is public yet.
 
 Next:
-  1. Look at the draft, its notes and its three files:
+  1. Look at the draft, its notes and its four files:
        gh release view $TAG --repo $REPO --web
-  2. Publish it. The cask's download only works once the release is public:
-       gh release edit $TAG --repo $REPO --draft=false
+  2. Publish it as the latest release. From then on the feed, $RELEASE_FEED,
+     offers it to every copy that checks, and the cask's download works:
+       gh release edit $TAG --repo $REPO --draft=false --latest
   3. Put the cask in the tap with these two commands. The first downloads the public zip and
      goes on only when its SHA-256 matches dist/. It prints the tap's pending change.
 
