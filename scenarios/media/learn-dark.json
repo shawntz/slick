@@ -1,0 +1,148 @@
+{
+  "name": "Picking the second result twice makes it first",
+  "timeLimit": 110,
+  "systemApps": true,
+  "media": {
+    "file": "clip-learn-dark",
+    "appearance": "dark",
+    "caption": "Pick a lower result twice for the same query, and it becomes the first.",
+    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in dark mode with “bo” typed. Font Book is the first result and Books the second. A frame from a recording of the assembled app with Apple's own apps."
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "record": {
+        "name": "clip-learn-dark",
+        "appearance": "dark",
+        "pace": 0.85,
+        "lead": 0.2
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "expect": {
+        "query": ""
+      }
+    },
+    {
+      "type": "bo"
+    },
+    {
+      "expect": {
+        "selection": "Books"
+      }
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "app": {
+        "select": "Font Book"
+      }
+    },
+    {
+      "expect": {
+        "selection": "Font Book"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "expect": {
+        "query": ""
+      }
+    },
+    {
+      "type": "bo"
+    },
+    {
+      "expect": {
+        "selection": "Books"
+      }
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "app": {
+        "select": "Font Book"
+      }
+    },
+    {
+      "expect": {
+        "selection": "Font Book"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "bo"
+    },
+    {
+      "expect": {
+        "selection": "Font Book",
+        "rowsInclude": [
+          "Books"
+        ]
+      }
+    },
+    {
+      "wait": 1.5
+    },
+    {
+      "stopRecording": {
+        "tail": 0.3
+      }
+    }
+  ]
+}

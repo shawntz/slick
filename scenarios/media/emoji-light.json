@@ -1,0 +1,187 @@
+{
+  "name": "The emoji grid fills as a name is typed",
+  "timeLimit": 110,
+  "systemApps": true,
+  "media": {
+    "file": "clip-emoji-light",
+    "appearance": "light",
+    "caption": "Search Emoji and Symbols opens a grid that filters as you type.",
+    "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “emoji” selects Search Emoji and Symbols, and Return opens a grid of smileys. Typing “heart” fills the grid with hearts and heart-themed emoji, four rows of eight. The selection moves right two cells and down one, and the bar at the bottom names the selected emoji, Two Hearts, with Paste on Return. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “emoji” selects Search Emoji and Symbols, and Return opens a grid of smileys. Typing “heart” fills the grid with hearts and heart-themed emoji, four rows of eight. The selection moves right two cells and down one, and the bar at the bottom names the selected emoji, Two Hearts, with Paste on Return. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's emoji grid in light mode with “heart” typed: four rows of hearts and heart-themed emoji, with one selected and its name in the bar at the bottom. A frame from a recording of the assembled app."
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Mail",
+          "Calendar",
+          "Music"
+        ]
+      }
+    },
+    {
+      "record": {
+        "name": "clip-emoji-light",
+        "appearance": "light"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "type": "emoji"
+    },
+    {
+      "expect": {
+        "selection": "Search Emoji and Symbols"
+      }
+    },
+    {
+      "wait": 0.4
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "page": "grid"
+      }
+    },
+    {
+      "wait": 1.0
+    },
+    {
+      "type": "heart"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "press": "right"
+    },
+    {
+      "press": "right"
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 1.2
+    },
+    {
+      "stopRecording": {
+        "tail": 0.3,
+        "poster": 5.6
+      }
+    }
+  ]
+}

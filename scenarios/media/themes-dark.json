@@ -1,17 +1,27 @@
 {
-  "name": "Switching themes restyles the open panel in place",
+  "name": "Switching themes restyles the open panel at once",
   "timeLimit": 110,
+  "systemApps": true,
   "media": {
     "file": "clip-themes-dark",
     "appearance": "dark",
     "caption": "Switching themes restyles the open panel at once.",
-    "alt": "A recording of Slick's search panel in dark mode with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm with a red fill and Violet uses a purple lens. The themes were switched through the theme setting. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
-    "posterAlt": "Slick's search panel in dark mode with “ca” typed, in the Ocean theme: blue-tinted glass with the second row selected under a blue lens. A frame from a recording of the assembled app over made-up sample apps.",
-    "gifAlt": "A recording of Slick's search panel in dark mode with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm with a red fill and Violet uses a purple lens. The themes were switched through the theme setting. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper, with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm red and Violet uses a purple lens. The themes were switched through the theme setting, not the settings window. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper, with “ca” typed. The theme changes from Standard to Graphite, Ocean, Ember, Violet and back to Standard while the panel stays open, and the selection moves down a row after each change. Graphite marks the row with a flat grey fill, Ocean tints the glass blue, Ember tints it warm red and Violet uses a purple lens. The themes were switched through the theme setting, not the settings window. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in dark mode with “ca” typed, in the Ocean theme: blue-tinted glass with the second row, Calculator, selected under a blue lens. A frame from a recording of the assembled app with Apple's own apps."
   },
   "steps": [
     {
       "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
         "setSettings": {
           "visibleRows": 7,
           "app.general.resetToRootAfter": 0
@@ -22,7 +32,15 @@
       "summon": true
     },
     {
-      "type": "aur"
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
     },
     {
       "press": "return"
@@ -39,7 +57,15 @@
       "summon": true
     },
     {
-      "type": "juni"
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
     },
     {
       "press": "return"
@@ -56,7 +82,15 @@
       "summon": true
     },
     {
-      "type": "cas"
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
     },
     {
       "press": "return"
@@ -73,15 +107,15 @@
       "summon": true
     },
     {
-      "waitUntilIdle": 2
+      "waitUntilIdle": 3
     },
     {
       "expect": {
         "query": "",
         "rowsInclude": [
-          "Cascade Mail",
-          "Juniper Tasks",
-          "Aurora Notes"
+          "Mail",
+          "Calendar",
+          "Music"
         ]
       }
     },

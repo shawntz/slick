@@ -1,17 +1,27 @@
 {
-  "name": "Two letters find the app, the field completes its name, and Return opens it",
+  "name": "The panel opens, two typed letters find the app, and Return opens it",
   "timeLimit": 110,
+  "systemApps": true,
   "media": {
     "file": "hero-dark",
     "appearance": "dark",
-    "caption": "Two typed letters find the app, the field completes its name, and Return opens it.",
-    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel shows three suggested apps. Typing “d” lists results and completes the field to “drift Browser”, with the rest of the name in grey. Typing “r” narrows the list to Drift Browser, Search Docs.rs, Eject All Disks, Cadence Calendar and three commands. Return opens Drift Browser and the panel closes. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
-    "posterAlt": "Slick's search panel in dark mode with “dr” typed and the rest of “Drift Browser” in grey after the cursor. Drift Browser is selected above six more results. A frame from a recording of the assembled app over made-up sample apps.",
-    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel shows three suggested apps. Typing “d” lists results and completes the field to “drift Browser”, with the rest of the name in grey. Typing “r” narrows the list to Drift Browser, Search Docs.rs, Eject All Disks, Cadence Calendar and three commands. Return opens Drift Browser and the panel closes. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+    "caption": "The panel opens, two typed letters find the app, the field completes its name, and Return opens it.",
+    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens and suggests Mail, Calendar and Music. Typing “n” lists News, Notes, a window command, two web searches, TextEdit and Sleep. Typing “o” selects Notes and completes the field to “notes”, with the rest of the name in grey, above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information. Return picks Notes and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens and suggests Mail, Calendar and Music. Typing “n” lists News, Notes, a window command, two web searches, TextEdit and Sleep. Typing “o” selects Notes and completes the field to “notes”, with the rest of the name in grey, above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information. Return picks Notes and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in dark mode with “no” typed and the rest of “notes” in grey after the cursor. Notes is selected above six more apps. A frame from a recording of the assembled app with Apple's own apps."
   },
   "steps": [
     {
       "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
         "setSettings": {
           "visibleRows": 7,
           "app.general.resetToRootAfter": 0
@@ -22,7 +32,15 @@
       "summon": true
     },
     {
-      "type": "aur"
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
     },
     {
       "press": "return"
@@ -39,7 +57,15 @@
       "summon": true
     },
     {
-      "type": "juni"
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
     },
     {
       "press": "return"
@@ -56,7 +82,15 @@
       "summon": true
     },
     {
-      "type": "cas"
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
     },
     {
       "press": "return"
@@ -67,6 +101,13 @@
     {
       "expect": {
         "visible": false
+      }
+    },
+    {
+      "record": {
+        "name": "hero-dark",
+        "appearance": "dark",
+        "lead": 0.3
       }
     },
     {
@@ -79,38 +120,32 @@
       "expect": {
         "query": "",
         "rowsInclude": [
-          "Cascade Mail",
-          "Juniper Tasks",
-          "Aurora Notes"
+          "Mail",
+          "Calendar",
+          "Music"
         ]
       }
     },
     {
-      "record": {
-        "name": "hero-dark",
-        "appearance": "dark"
-      }
+      "wait": 0.7
+    },
+    {
+      "type": "n"
     },
     {
       "wait": 0.4
     },
     {
-      "type": "d"
-    },
-    {
-      "wait": 0.45
-    },
-    {
-      "type": "r"
+      "type": "o"
     },
     {
       "expect": {
-        "selection": "Drift Browser",
-        "ghost": "ift Browser"
+        "selection": "Notes",
+        "ghost": "tes"
       }
     },
     {
-      "wait": 1.6
+      "wait": 1.5
     },
     {
       "press": "return"
@@ -128,8 +163,18 @@
     },
     {
       "stopRecording": {
-        "tail": 0.6,
-        "poster": 3.0
+        "tail": 0.5,
+        "poster": 2.8
+      }
+    },
+    {
+      "app": {
+        "launched": [
+          "com.apple.mail",
+          "com.apple.iCal",
+          "com.apple.Music",
+          "com.apple.Notes"
+        ]
       }
     }
   ]

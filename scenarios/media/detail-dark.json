@@ -1,20 +1,36 @@
 {
   "name": "A command pushes its list with a detail pane beside it",
   "timeLimit": 110,
+  "systemApps": true,
   "media": {
     "file": "clip-detail-dark",
     "appearance": "dark",
     "caption": "Clipboard History opens as a list with a detail pane beside it.",
-    "alt": "A recording of Slick's search panel in dark mode. Typing “clip” selects Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, over made-up sample apps and copied text.",
-    "posterAlt": "Slick's Clipboard History in dark mode: four copied items on the left and the selected note's text, type, word count and size on the right. A frame from a recording of the assembled app over made-up sample data.",
-    "gifAlt": "A recording of Slick's search panel in dark mode. Typing “clip” selects Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, over made-up sample apps and copied text."
+    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its character and word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip.",
+    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane. Moving down the list shows each item in the pane: a note with its character and word count, a link, a color as a purple swatch and a line of code. Typing “hand” filters the list to the link. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip.",
+    "posterAlt": "Slick's Clipboard History in dark mode: four copied items on the left, and the selected note's text, type, character and word count, size and copy time on the right. A frame from a recording of the assembled app with made-up copied items."
   },
   "steps": [
     {
       "app": {
         "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false,
           "clipboard": true
         },
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "app": {
         "featuresActive": {
           "clipboard": true
         }
@@ -31,18 +47,18 @@
       }
     },
     {
+      "summon": true
+    },
+    {
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
       "app": {
-        "setSettings": {
-          "visibleRows": 7,
-          "app.general.resetToRootAfter": 0
-        }
+        "select": "Mail"
       }
-    },
-    {
-      "summon": true
-    },
-    {
-      "type": "aur"
     },
     {
       "press": "return"
@@ -59,7 +75,15 @@
       "summon": true
     },
     {
-      "type": "juni"
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
     },
     {
       "press": "return"
@@ -76,7 +100,15 @@
       "summon": true
     },
     {
-      "type": "cas"
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
     },
     {
       "press": "return"
@@ -93,15 +125,15 @@
       "summon": true
     },
     {
-      "waitUntilIdle": 2
+      "waitUntilIdle": 3
     },
     {
       "expect": {
         "query": "",
         "rowsInclude": [
-          "Cascade Mail",
-          "Juniper Tasks",
-          "Aurora Notes"
+          "Mail",
+          "Calendar",
+          "Music"
         ]
       }
     },

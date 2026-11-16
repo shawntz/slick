@@ -1,17 +1,27 @@
 {
-  "name": "The list narrows as the query grows, and the lens glides between rows",
+  "name": "The list narrows as the query grows, and the selection glides between rows",
   "timeLimit": 110,
+  "systemApps": true,
   "media": {
     "file": "clip-narrow-dark",
     "appearance": "dark",
     "caption": "The list narrows as the query grows, and the selection glides between rows.",
-    "alt": "A recording of Slick's search panel in dark mode. Typing “c” lists seven apps and “ca” narrows the list. The selection glides down three rows and back up one. Typing “me” leaves Cameo Photos at the top, with the rest of its name in grey, above a documentation search and three fallback searches for “came”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
-    "posterAlt": "Slick's search panel in dark mode with “ca” typed and the fourth result, Canvas Sketch, selected. A frame from a recording of the assembled app over made-up sample apps.",
-    "gifAlt": "A recording of Slick's search panel in dark mode. Typing “c” lists seven apps and “ca” narrows the list. The selection glides down three rows and back up one. Typing “me” leaves Cameo Photos at the top, with the rest of its name in grey, above a documentation search and three fallback searches for “came”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “c” lists seven apps, from Calendar to ColorSync Utility, and completes the field to “calendar”. Typing “a” narrows the list to Calendar, Calculator, Calculator History, Image Capture, Photo Booth, a crates.io search and Quit All Applications. The selection glides down three rows to Image Capture and back up one. Typing “lc” leaves Calculator at the top, above Calculator History and three web searches for “calc”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “c” lists seven apps, from Calendar to ColorSync Utility, and completes the field to “calendar”. Typing “a” narrows the list to Calendar, Calculator, Calculator History, Image Capture, Photo Booth, a crates.io search and Quit All Applications. The selection glides down three rows to Image Capture and back up one. Typing “lc” leaves Calculator at the top, above Calculator History and three web searches for “calc”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in dark mode with “ca” typed and the fourth result, Image Capture, selected. A frame from a recording of the assembled app with Apple's own apps."
   },
   "steps": [
     {
       "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
         "setSettings": {
           "visibleRows": 7,
           "app.general.resetToRootAfter": 0
@@ -22,7 +32,15 @@
       "summon": true
     },
     {
-      "type": "aur"
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
     },
     {
       "press": "return"
@@ -39,7 +57,15 @@
       "summon": true
     },
     {
-      "type": "juni"
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
     },
     {
       "press": "return"
@@ -56,7 +82,15 @@
       "summon": true
     },
     {
-      "type": "cas"
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
     },
     {
       "press": "return"
@@ -73,15 +107,15 @@
       "summon": true
     },
     {
-      "waitUntilIdle": 2
+      "waitUntilIdle": 3
     },
     {
       "expect": {
         "query": "",
         "rowsInclude": [
-          "Cascade Mail",
-          "Juniper Tasks",
-          "Aurora Notes"
+          "Mail",
+          "Calendar",
+          "Music"
         ]
       }
     },
@@ -125,11 +159,11 @@
       "wait": 0.5
     },
     {
-      "type": "me"
+      "type": "lc"
     },
     {
       "expect": {
-        "selection": "Cameo Photos"
+        "selection": "Calculator"
       }
     },
     {

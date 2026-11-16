@@ -1,0 +1,198 @@
+{
+  "name": "File search lists matching files beside a detail pane",
+  "timeLimit": 110,
+  "systemApps": true,
+  "media": {
+    "file": "clip-files-light",
+    "appearance": "light",
+    "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
+    "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress: it is proven over a sample index, and indexing real folders has not run on a Mac yet.",
+    "gifAlt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress: it is proven over a sample index, and indexing real folders has not run on a Mac yet.",
+    "posterAlt": "Slick's Search Files page in light mode with “budget” typed: matching files on the left and the selected file's kind, size, date and folder on the right. A frame from a recording of the assembled app over a made-up file index."
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false,
+          "files": true
+        },
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "app": {
+        "featuresActive": {
+          "files": true
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Mail",
+          "Calendar",
+          "Music"
+        ]
+      }
+    },
+    {
+      "record": {
+        "name": "clip-files-light",
+        "appearance": "light"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "type": "files"
+    },
+    {
+      "expect": {
+        "selection": "Search Files"
+      }
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "page": "list",
+        "title": "Search Files"
+      }
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "type": "budget"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "selection": "budget8636.html"
+      }
+    },
+    {
+      "wait": 1.1
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 1.0
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 1.0
+    },
+    {
+      "stopRecording": {
+        "tail": 0.3,
+        "poster": 4.2
+      }
+    }
+  ]
+}

@@ -1,0 +1,225 @@
+{
+  "name": "Clipboard history lists what was copied, shows each item and pastes it back",
+  "timeLimit": 110,
+  "systemApps": true,
+  "media": {
+    "file": "clip-clipboard-light",
+    "appearance": "light",
+    "caption": "Clipboard history keeps what you copy, shows each item, and pastes it back.",
+    "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane: a note with its character and word count, a link, a color and a line of code. Moving down shows the link, then the color as a purple swatch with its hex value. Command-K opens the item's actions: Paste, Copy to Clipboard, Pin, Delete, Delete All, Search the Web, Search With and Define Word. Escape closes them, and Return pastes the color and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip.",
+    "gifAlt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “clip” completes to Clipboard History, and Return opens it as a list of four copied items with a detail pane: a note with its character and word count, a link, a color and a line of code. Moving down shows the link, then the color as a purple swatch with its hex value. Command-K opens the item's actions: Paste, Copy to Clipboard, Pin, Delete, Delete All, Search the Web, Search With and Define Word. Escape closes them, and Return pastes the color and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. The copied items are made up for the clip.",
+    "posterAlt": "Slick's Clipboard History in light mode with the action panel open over a purple color swatch, listing Paste, Copy to Clipboard, Pin, Delete and more. A frame from a recording of the assembled app with made-up copied items."
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false,
+          "clipboard": true
+        },
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "app": {
+        "featuresActive": {
+          "clipboard": true
+        }
+      }
+    },
+    {
+      "app": {
+        "copyAsOtherApp": [
+          "let greeting = \"Hello, world\"",
+          "#8743FA",
+          "https://example.com/handbook/keyboard-shortcuts",
+          "Planning notes: ship the onboarding flow first, then polish the settings window."
+        ]
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Mail",
+          "Calendar",
+          "Music"
+        ]
+      }
+    },
+    {
+      "record": {
+        "name": "clip-clipboard-light",
+        "appearance": "light"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "type": "clip"
+    },
+    {
+      "expect": {
+        "selection": "Clipboard History"
+      }
+    },
+    {
+      "wait": 0.4
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "page": "list",
+        "title": "Clipboard History"
+      }
+    },
+    {
+      "wait": 0.8
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "press": "down"
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "wait": 1.3
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "wait": 0.4
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "stopRecording": {
+        "tail": 0.4,
+        "poster": 6.6
+      }
+    },
+    {
+      "app": {
+        "pasteboardText": "#8743FA"
+      }
+    }
+  ]
+}

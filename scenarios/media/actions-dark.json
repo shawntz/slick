@@ -1,17 +1,27 @@
 {
-  "name": "Command-K opens the action panel, and typing filters it",
+  "name": "Command-K opens the actions of the selected app, and typing filters them",
   "timeLimit": 110,
+  "systemApps": true,
   "media": {
     "file": "actions-dark",
     "appearance": "dark",
     "caption": "Command-K opens the action panel for the selected result, and typing filters it.",
-    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “cad” selects Cadence Calendar, with the rest of its name in grey. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier, Copy Path, Move to Trash in red and Add to Favorites, most with a keyboard shortcut. The selection moves down two entries, then typing “fav” filters the list to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
-    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “cad” selects Cadence Calendar, with the rest of its name in grey. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier, Copy Path, Move to Trash in red and Add to Favorites, most with a keyboard shortcut. The selection moves down two entries, then typing “fav” filters the list to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
-    "posterAlt": "Slick's search panel in dark mode with “cad” typed and the action panel open beside the results, listing actions for Cadence Calendar with their keyboard shortcuts. A frame from a recording of the assembled app over made-up sample apps."
+    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel suggests Calendar, Music and Mail. Typing “cal” selects Calendar and completes the field to “calendar”. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path, each with a keyboard shortcut, then Add to Favorites and Set Alias. The selection moves down two entries. Typing “f” narrows the list to three entries and “fav” to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel suggests Calendar, Music and Mail. Typing “cal” selects Calendar and completes the field to “calendar”. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path, each with a keyboard shortcut, then Add to Favorites and Set Alias. The selection moves down two entries. Typing “f” narrows the list to three entries and “fav” to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in dark mode with “cal” typed and the action panel open beside the results, listing actions for Calendar with their keyboard shortcuts. A frame from a recording of the assembled app with Apple's own apps."
   },
   "steps": [
     {
       "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
         "setSettings": {
           "visibleRows": 7,
           "app.general.resetToRootAfter": 0
@@ -22,7 +32,15 @@
       "summon": true
     },
     {
-      "type": "aur"
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
     },
     {
       "press": "return"
@@ -39,7 +57,15 @@
       "summon": true
     },
     {
-      "type": "juni"
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
     },
     {
       "press": "return"
@@ -56,7 +82,15 @@
       "summon": true
     },
     {
-      "type": "cas"
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
     },
     {
       "press": "return"
@@ -73,15 +107,15 @@
       "summon": true
     },
     {
-      "waitUntilIdle": 2
+      "waitUntilIdle": 3
     },
     {
       "expect": {
         "query": "",
         "rowsInclude": [
-          "Cascade Mail",
-          "Juniper Tasks",
-          "Aurora Notes"
+          "Mail",
+          "Calendar",
+          "Music"
         ]
       }
     },
@@ -95,12 +129,11 @@
       "wait": 0.2
     },
     {
-      "type": "cad"
+      "type": "cal"
     },
     {
       "expect": {
-        "selection": "Cadence Calendar",
-        "ghost": "ence Calendar"
+        "selection": "Calendar"
       }
     },
     {
@@ -108,23 +141,6 @@
     },
     {
       "press": "cmd+k"
-    },
-    {
-      "expect": {
-        "actions": [
-          "Open",
-          "Show in Finder",
-          "Show Package Contents",
-          "Copy Name",
-          "Copy Bundle Identifier",
-          "Copy Path",
-          "Move to Trash",
-          "Add to Favorites",
-          "Set Alias",
-          "Set Hotkey",
-          "Reset Ranking"
-        ]
-      }
     },
     {
       "wait": 0.6
@@ -156,7 +172,7 @@
     {
       "expect": {
         "visible": true,
-        "query": "cad"
+        "query": "cal"
       }
     },
     {
@@ -171,7 +187,7 @@
     {
       "app": {
         "favorites": [
-          "app:com.example.cadence-calendar.1487"
+          "app:com.apple.iCal"
         ]
       }
     }

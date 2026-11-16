@@ -1,0 +1,190 @@
+{
+  "name": "The calculator answers as the query is typed",
+  "timeLimit": 110,
+  "systemApps": true,
+  "media": {
+    "file": "clip-calc-dark",
+    "appearance": "dark",
+    "caption": "The calculator answers as you type, and Return copies the answer.",
+    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “1250 * 1.08” shows only web searches until the expression is complete, then the answer 1,350 at the top. Escape clears the field. Typing “5 km in mi” shows “5 km” on the way, then the answer 3.10686 mi. Return copies the answer and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “1250 * 1.08” shows only web searches until the expression is complete, then the answer 1,350 at the top. Escape clears the field. Typing “5 km in mi” shows “5 km” on the way, then the answer 3.10686 mi. Return copies the answer and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in dark mode with “1250 * 1.08” typed and the answer 1,350 selected at the top, above searches on Google and Wikipedia. A frame from a recording of the assembled app."
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Mail",
+          "Calendar",
+          "Music"
+        ]
+      }
+    },
+    {
+      "record": {
+        "name": "clip-calc-dark",
+        "appearance": "dark"
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "type": "1250 * 1.08"
+    },
+    {
+      "expect": {
+        "selection": "1,350"
+      }
+    },
+    {
+      "wait": 1.4
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "expect": {
+        "query": ""
+      }
+    },
+    {
+      "wait": 0.4
+    },
+    {
+      "type": "5 km in mi"
+    },
+    {
+      "expect": {
+        "selection": "3.10686 mi"
+      }
+    },
+    {
+      "wait": 1.4
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "stopRecording": {
+        "tail": 0.4,
+        "poster": 2.6
+      }
+    },
+    {
+      "app": {
+        "pasteboardText": "3.10686 mi"
+      }
+    }
+  ]
+}

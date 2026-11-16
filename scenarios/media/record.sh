@@ -5,8 +5,9 @@
 #
 # 1. Builds the app with SCENARIO_RECORDING=1 in build/media/swiftpm, so the scenario runner has its
 #    recorder, and bundles it as build/media/<name>.app. The release app in build/ is not touched.
-# 2. For each storyboard: seeds a fresh data folder with the sample apps (seed.py), waits until
-#    nobody has touched the Mac for `idle` seconds, and runs it through LaunchServices. A clip holds
+# 2. For each storyboard: waits until nobody has touched the Mac for `idle` seconds, and runs it
+#    through LaunchServices with a fresh data folder. Every storyboard sets "systemApps", so the
+#    panel lists Apple's own apps from /System/Applications with their real icons. A clip holds
 #    key status for its whole length, so the recorder throws it out the moment input arrives; then
 #    this script waits for the next idle moment and tries again, up to `attempts` times. It gives up
 #    waiting once `budget` seconds have passed since it started.
@@ -33,7 +34,10 @@ done
 # SwiftPM's name for the executable, as the Makefile has it; bundle.sh renames it from brand.env.
 EXECUTABLE=${EXECUTABLE:-$(sed -n 's/^EXECUTABLE := //p' "$ROOT/Makefile")}
 log() { printf '[media] %s\n' "$*" >&2; }
-idle_seconds() { ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000); exit}'; }
+# awk reads to the end: with pipefail, an early exit would end ioreg with SIGPIPE and fail the read.
+idle_seconds() {
+    ioreg -c IOHIDSystem | awk '/HIDIdleTime/ && !seen {v = int($NF / 1000000000); seen = 1} END {print v + 0}'
+}
 
 log "building the app with the scenario recorder"
 SCENARIO_RECORDING=1 SWIFT_FLAGS="${SWIFT_FLAGS:-} --scratch-path $OUT/swiftpm" \
@@ -63,7 +67,6 @@ for file in "$HERE"/*.json; do
         data="$OUT/data/$name"
         rm -rf "$data" "$OUT/out/$name"
         mkdir -p "$OUT/out/$name"
-        python3 -I "$HERE/seed.py" "$data" > /dev/null
         log "$name: take $attempt after $idle s idle"
         status=0
         LAUNCH_TIMEOUT=200 "$ROOT/scripts/launch.sh" "$APP" scenario --scenario "$file" \

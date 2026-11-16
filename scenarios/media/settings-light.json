@@ -1,0 +1,332 @@
+{
+  "name": "The settings window's Appearance, Features, Learning and General panes, light",
+  "timeLimit": 110,
+  "systemApps": true,
+  "media": {
+    "appearance": "light",
+    "clip": false,
+    "stills": [
+      {
+        "capture": "settings-appearance-light",
+        "file": "settings-appearance-light.png",
+        "crop": [
+          0,
+          120,
+          1880,
+          1480
+        ],
+        "caption": "Appearance: a live preview of the panel above the theme and its settings. The theme editor is still in progress.",
+        "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the Appearance pane. At the top, a preview draws the search panel with “cal” typed and five sample rows over colored shapes, with Match System, Light and Dark buttons under it. Below are the Theme section, set to Standard, with Save as New Theme, Revert and More, and the start of the Glass section. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+      },
+      {
+        "capture": "settings-features-light",
+        "file": "settings-features-light.png",
+        "crop": [
+          0,
+          120,
+          1880,
+          1480
+        ],
+        "caption": "Features: every built-in feature, each with a switch and its own page.",
+        "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the Features pane. It lists Applications, Clipboard History, Snippets, Quicklinks, Emoji and Symbols, Window Management, System, Script Commands, Calculator and File Search, each with a one-line summary and a switch. Clipboard History, Snippets, Script Commands and File Search are off. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+      },
+      {
+        "capture": "settings-learning-light",
+        "file": "settings-learning-light.png",
+        "crop": [
+          0,
+          120,
+          1880,
+          1480
+        ],
+        "caption": "Learning: what the launcher learned from your picks, kept on this Mac, with a way to forget it.",
+        "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the Learning pane. A note says everything learned stays on this Mac. It reports 7 runs of 5 items and 11 queries, its size on disk in bytes and the day learning started, then a Pause learning switch. Most used lists Font Book and Calendar with 2 runs each and TextEdit, Maps and Notes with 1 run, each with its real icon and a delete button. The picks were made by the scenario. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+      },
+      {
+        "capture": "settings-general-light",
+        "file": "settings-general-light.png",
+        "crop": [
+          0,
+          120,
+          1880,
+          1480
+        ],
+        "caption": "General: while Spotlight holds ⌘Space, the pane says so and opens Keyboard settings.",
+        "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the General pane. The hotkey is ⌘Space. Under it a note reads “Spotlight holds ⌘Space, so it does not open Slick yet. Turn off Spotlight's shortcut in System Settings, and it will.” with an Open Keyboard Settings button. Below are Open at login, off, Show in the menu bar, on, and the Panel settings. The scenario played Spotlight holding the shortcut. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
+      }
+    ]
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "cal"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "cal"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "no"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Notes"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "ma"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Maps"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "bo"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Font Book"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "bo"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Font Book"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "te"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "TextEdit"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "app": {
+        "systemShortcuts": [
+          "cmd+space"
+        ],
+        "setSettings": {
+          "launcherHotkey": "ctrl+opt+k"
+        }
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "launcherHotkey": "cmd+space"
+        },
+        "hotkeyWaiting": "Spotlight"
+      }
+    },
+    {
+      "app": {
+        "openSettings": "appearance"
+      }
+    },
+    {
+      "record": {
+        "name": "settings-light",
+        "appearance": "light",
+        "lead": 0.8
+      }
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "still": "settings-appearance-light"
+    },
+    {
+      "app": {
+        "openSettings": "features"
+      }
+    },
+    {
+      "wait": 1.0
+    },
+    {
+      "still": "settings-features-light"
+    },
+    {
+      "app": {
+        "openSettings": "learning"
+      }
+    },
+    {
+      "wait": 1.0
+    },
+    {
+      "still": "settings-learning-light"
+    },
+    {
+      "app": {
+        "openSettings": "general"
+      }
+    },
+    {
+      "wait": 1.0
+    },
+    {
+      "still": "settings-general-light"
+    },
+    {
+      "stopRecording": {
+        "tail": 0.2
+      }
+    },
+    {
+      "app": {
+        "closeSettings": true
+      }
+    }
+  ]
+}
