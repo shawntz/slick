@@ -3,12 +3,12 @@ import Kit
 /// Host filtering of a list or grid: the rules `ListSource` documents and `FeatureHarness` models.
 ///
 /// Sections keep their order. A section hidden by its ``SectionVisibility`` is left out, and so is a
-/// section with no match. Inside a section, rows order by match tier, then a row whose title matched
-/// before a row that only a keyword reached, then by ``Row/rankHint``, higher first, then by the
-/// index's own order. So a weaker tier never outranks a stronger one, and inside a tier a title that
-/// starts with the query beats a keyword match whatever the hint. A match carries title ranges when
-/// its title matched and none when only a keyword did, as the engine's index and KitTesting's
-/// `SimpleFuzzyIndex` report it.
+/// section with no match. Inside a section, rows order by match tier, then a row whose title made
+/// the match before a row a keyword reached, then by ``Row/rankHint``, higher first, then by the
+/// index's own order. So a weaker tier never outranks a stronger one, and inside a tier a title
+/// match beats a keyword match whatever the hint. A keyword equal to the query is in the exact
+/// tier, so it beats a title that only starts with the query. ``FuzzyMatch/matchesTitle`` says
+/// which field made the match, as the engine's index and KitTesting's `SimpleFuzzyIndex` set it.
 ///
 /// The result names rows by position in the loaded sections and copies no row, so filtering
 /// thousands of rows per keystroke costs what the matches cost.
@@ -61,7 +61,7 @@ nonisolated struct HostFilter {
             }
             found[position.section].append(
                 Found(
-                    row: position.row, tier: match.tier,
+                    row: position.row, tier: match.tier, matchedTitle: match.matchesTitle,
                     hint: loaded[position.section].rows[position.row].rankHint, order: order,
                     highlights: match.highlights))
         }
@@ -81,11 +81,10 @@ nonisolated struct HostFilter {
     private struct Found {
         var row: Int
         var tier: MatchTier
+        /// True when the title made the match, false when a keyword did.
+        var matchedTitle: Bool
         var hint: Double
         var order: Int
         var highlights: [Range<Int>]
-
-        /// True when the title matched, not only a keyword.
-        var matchedTitle: Bool { !highlights.isEmpty }
     }
 }
