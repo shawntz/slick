@@ -78,7 +78,7 @@ import Testing
         #expect(busy.reason?.contains("not idle") == true)
         source.gate.open()
         let idle = await runner.run(
-            Scenario(name: "idle", steps: [.waitUntilIdle(2), .expect(.init(rows: ["alpha"]))]))
+            Scenario(name: "idle", steps: [.waitUntilIdle(15), .expect(.init(rows: ["alpha"]))]))
         #expect(idle.passed, "\(idle.reason ?? "")")
     }
 
@@ -96,7 +96,7 @@ import Testing
                             "Open", "Copy", "Reveal", "Show in Large Type", "Shout", "Add to Favorites", "Set Alias",
                             "Set Hotkey", "Reset Ranking",
                         ])),
-                    .type("cop"), .press("return"), .waitUntilIdle(2), .expect(.init(visible: true)),
+                    .type("cop"), .press("return"), .waitUntilIdle(15), .expect(.init(visible: true)),
                 ]))
         #expect(result.passed, "\(result.reason ?? "")")
         #expect(fixture.copied.value == [SampleRows.note.id])

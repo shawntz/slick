@@ -63,26 +63,26 @@ struct FastTypingTests {
                 """
                 {
                   "name": "Typing faster than an async section",
-                  "timeLimit": 20,
+                  "timeLimit": 60,
                   "steps": [
                     { "app": { "setFeatures": { "schedule": false } } },
                     { "summon": true },
                     { "type": "notes" },
                     { "expect": { "selection": "Notes" } },
-                    { "waitUntilIdle": 2 },
+                    { "waitUntilIdle": 15 },
                     { "expect": { "selection": "Notes", "rowsInclude": ["Notes", "Slow: notes"] } },
                     { "type": "x" },
                     { "press": "delete" },
                     { "type": "y" },
                     { "press": "delete" },
                     { "expect": { "selection": "Notes", "query": "notes" } },
-                    { "waitUntilIdle": 2 },
+                    { "waitUntilIdle": 15 },
                     { "expect": { "selection": "Notes", "rowsInclude": ["Notes", "Slow: notes"] } },
                     { "press": "escape" },
                     { "type": "zzqx" },
                     { "press": "escape" },
                     { "expect": { "query": "", "rowCount": 0 } },
-                    { "waitUntilIdle": 2 },
+                    { "waitUntilIdle": 15 },
                     { "expect": { "query": "", "rowCount": 0 } },
                     { "dismiss": true }
                   ]

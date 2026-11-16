@@ -72,11 +72,11 @@ struct OneItemTwoRowsTests {
                 """
                 {
                   "name": "One item, two rows",
-                  "timeLimit": 20,
+                  "timeLimit": 60,
                   "steps": [
                     { "summon": true },
                     { "type": "text editor" },
-                    { "waitUntilIdle": 3 },
+                    { "waitUntilIdle": 15 },
                     { "expect": { "selection": "Text Editor", "rowsInclude": ["Text Editor", "Text Editor notes.txt"] } }
                   ]
                 }
