@@ -74,27 +74,49 @@ self_test() {
     expect 1 "call before a comment" 'let s = FileManager.default.displayName(atPath: p) // do not'
 
     # The unregister helper: a stub stands in for lsregister, so nothing reaches LaunchServices.
-    # The subshell keeps this checkout and bundle name to itself.
+    # The subshell keeps this checkout, bundle name, bundle ID and install folder to itself. The
+    # sample bundles are plain folders with a made-up ID, and nothing hands them to the system.
     # shellcheck disable=SC2030,SC2034
     (
         ROOT="$dir/checkout"
         APP_BUNDLE="Sample.app"
+        BRAND_BUNDLE_ID="org.example.sample"
+        INSTALL_DIR="$dir/Applications"
         . "$(dirname "$0")/lib/launchservices.sh"
         LSREGISTER="$dir/lsregister"
         printf '#!/bin/bash\necho "$@" >> "%s/calls"\n' "$dir" > "$LSREGISTER"
         chmod +x "$LSREGISTER"
         mkdir -p "$ROOT/build/Sample.app" "$ROOT/build/media/Sample.app" "$dir/mirror/build/Sample.app"
+        expect_calls() { # <what> <expected calls>
+            local calls
+            calls=$(cat "$dir/calls" 2> /dev/null || true)
+            rm -f "$dir/calls"
+            [ "$calls" = "$2" ] || {
+                echo "self-test: unregister $1: expected"$'\n'"$2"$'\n'"got"$'\n'"$calls" >&2
+                exit 1
+            }
+        }
+
+        # Nothing installed: build's copy is the one the system keeps.
         unregister_unless_canonical "$ROOT/build/Sample.app"
         unregister_unless_canonical "$ROOT/build/media/Sample.app"
         unregister_unless_canonical "$dir/mirror/build/Sample.app"
         unregister_unless_canonical "$dir/missing.app"
-        calls=$(cat "$dir/calls" 2> /dev/null || true)
-        expected="-u $(cd "$ROOT/build/media/Sample.app" && pwd -P)
+        expect_calls "with nothing installed" "-u $(cd "$ROOT/build/media/Sample.app" && pwd -P)
 -u $(cd "$dir/mirror/build/Sample.app" && pwd -P)"
-        [ "$calls" = "$expected" ] || {
-            echo "self-test: unregister: expected"$'\n'"$expected"$'\n'"got"$'\n'"$calls" >&2
-            exit 1
-        }
+
+        # A bundle in INSTALL_DIR with another ID is not an installed copy of this app.
+        mkdir -p "$INSTALL_DIR/Sample.app/Contents"
+        plutil -create xml1 "$INSTALL_DIR/Sample.app/Contents/Info.plist"
+        plutil -insert CFBundleIdentifier -string org.example.other "$INSTALL_DIR/Sample.app/Contents/Info.plist"
+        unregister_unless_canonical "$ROOT/build/Sample.app"
+        expect_calls "with another app installed" ""
+
+        # An installed copy: build's copy goes after its run, and the installed one stays.
+        plutil -replace CFBundleIdentifier -string "$BRAND_BUNDLE_ID" "$INSTALL_DIR/Sample.app/Contents/Info.plist"
+        unregister_unless_canonical "$ROOT/build/Sample.app"
+        unregister_unless_canonical "$INSTALL_DIR/Sample.app"
+        expect_calls "with an installed copy" "-u $(cd "$ROOT/build/Sample.app" && pwd -P)"
     ) || failures=$((failures + 1))
 
     if [ "$failures" -gt 0 ]; then

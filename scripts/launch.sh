@@ -8,8 +8,10 @@
 # "<mode> FAIL ...". LaunchServices does not hand back the exit status, so this script succeeds
 # only when the PASS line appears.
 #
-# A bundle other than build/<name>.app, such as a copy in a mirror or the recording build in
-# build/media, is unregistered from LaunchServices after its run, so the system knows one launcher.
+# The bundle is unregistered from LaunchServices after its run unless it is the copy the system
+# should know, so the system knows one launcher: the copy make install put in INSTALL_DIR when
+# there is one, and build/<name>.app when there is none. A copy in a mirror, the recording build
+# in build/media, and build's copy while an installed copy exists are all unregistered.
 #
 # Env: LAUNCH_TIMEOUT is the number of seconds to wait before giving up (default 120).
 set -euo pipefail
