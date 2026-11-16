@@ -1,7 +1,8 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
 # Writes THIRD-PARTY-NOTICES.md at the repository root: the license of every third-party Rust crate
-# linked into the app, of the Rust standard library, and of the emoji data.
+# linked into the app, of the Rust standard library, of the emoji data, and of Sparkle, the update
+# framework the bundle carries, with the licenses of the code Sparkle carries.
 #   scripts/third-party-notices.sh            rewrite THIRD-PARTY-NOTICES.md
 #   scripts/third-party-notices.sh --check    fail when the committed file is out of date
 #   scripts/third-party-notices.sh --stdout   print the notices instead of writing them
@@ -12,6 +13,12 @@
 # from the crate's folder in the local cargo registry, which a build fills. When a crate offers a
 # choice, as in "MIT OR Apache-2.0", the notice uses the first license in PREFERENCE below that the
 # crate offers. A crate without a license file for its license fails the script.
+#
+# Sparkle's version is the one Packages/Updates/Package.resolved pins, and its LICENSE file, which
+# also holds the licenses of the code it carries, comes from Sparkle's SwiftPM artifact. So --check
+# fails when the pin moves and the file still names the old version. The artifact is found under
+# Packages/Updates/.build, or wherever SPARKLE_ARTIFACTS points, and must be the pinned version.
+# Resolve the package once to fill it: scripts/swiftpm.sh Packages/Updates package resolve
 #
 # The output names no path, date or user, so the same lockfile gives the same file on every Mac.
 set -euo pipefail
@@ -34,6 +41,19 @@ EMOJI_LICENSE="$ROOT/Packages/Features/Emoji/DATA-LICENSE.txt"
 RUST_VERSION=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$ROOT/rust-toolchain.toml")
 [ -n "$RUST_VERSION" ] || fail "rust-toolchain.toml names no channel."
 
+# Sparkle: the pinned version, and the license from the artifact of that version.
+SPARKLE_VERSION=$(python3 -I -c 'import json, sys
+pins = json.load(open(sys.argv[1], encoding="utf-8"))["pins"]
+print(next(p["state"]["version"] for p in pins if p["identity"] == "sparkle"))' "$ROOT/Packages/Updates/Package.resolved" 2> /dev/null) \
+    || fail "Packages/Updates/Package.resolved pins no Sparkle version."
+grep -q "exact: \"$SPARKLE_VERSION\"" "$ROOT/Packages/Updates/Package.swift" \
+    || fail "Packages/Updates/Package.resolved pins Sparkle $SPARKLE_VERSION, but Package.swift asks for another version. Resolve the package again."
+SPARKLE_DIR=${SPARKLE_ARTIFACTS:-$ROOT/Packages/Updates/.build/artifacts/sparkle/Sparkle}
+[ -f "$SPARKLE_DIR/LICENSE" ] \
+    || fail "Sparkle's LICENSE is not in $SPARKLE_DIR. Resolve the package once with: scripts/swiftpm.sh Packages/Updates package resolve"
+[ "$(sed -n '1s/^# //p' "$SPARKLE_DIR/CHANGELOG" 2> /dev/null)" = "$SPARKLE_VERSION" ] \
+    || fail "the Sparkle artifact in $SPARKLE_DIR is not version $SPARKLE_VERSION. Resolve the package again."
+
 TMP=$(temp_dir third-party-notices)
 trap 'rm -rf "$TMP"' EXIT
 CARGO="$ROOT/scripts/cargo.sh"
@@ -47,13 +67,13 @@ HOST=$("$CARGO" -vV | sed -n 's/^host: //p')
     || { cat "$TMP/cargo.log" >&2; fail "cargo metadata failed offline. Run make core once so the local registry holds every crate."; }
 
 python3 -I - "$TMP/tree.txt" "$TMP/metadata.json" "$EMOJI_LICENSE" "$RUST_VERSION" "$BRAND_NAME" \
-    > "$TMP/notices.md" << 'PY'
+    "$SPARKLE_VERSION" "$SPARKLE_DIR/LICENSE" > "$TMP/notices.md" << 'PY'
 import json
 import os
 import re
 import sys
 
-tree_path, metadata_path, emoji_license_path, rust_version, product = sys.argv[1:6]
+tree_path, metadata_path, emoji_license_path, rust_version, product, sparkle_version, sparkle_license_path = sys.argv[1:8]
 
 # When a crate offers a choice, the first of these that it offers wins.
 PREFERENCE = ["MIT", "Apache-2.0", "Zlib", "BSD-3-Clause", "BSD-2-Clause", "ISC", "Unicode-3.0",
@@ -226,8 +246,9 @@ out.append("%s is open source under the MIT license, in LICENSE. The app also co
 out.append("data below, each under its own license. Each entry names the license that applies and gives")
 out.append("its text. Where a crate offers a choice of licenses, the entry uses the one named.")
 out.append("")
-out.append("scripts/third-party-notices.sh writes this file from the Rust crates linked into the app.")
-out.append("Do not edit it by hand. Run `make notices` and commit the result.")
+out.append("scripts/third-party-notices.sh writes this file from the Rust crates linked into the app")
+out.append("and the Sparkle framework the app carries. Do not edit it by hand. Run `make notices` and")
+out.append("commit the result.")
 out.append("")
 out.append("## Contents")
 out.append("")
@@ -235,6 +256,7 @@ for package, expression, chosen, _, _ in entries:
     out.append("- %s %s, under %s" % (package["name"], package["version"], " and ".join(chosen)))
 out.append("- The Rust standard library, under MIT")
 out.append("- Emoji and symbol data from Unicode, under the Unicode License v3")
+out.append("- Sparkle %s, under MIT, with the code it carries under its own licenses" % sparkle_version)
 out.append("")
 out.append("## Rust crates")
 for package, expression, chosen, texts, notices in entries:
@@ -278,6 +300,18 @@ out.append("")
 out.append("Unicode-3.0:")
 out.append("")
 out.append(fenced(read(emoji_license_path)))
+out.append("")
+out.append("## Sparkle")
+out.append("")
+out.append("The app carries Sparkle %s in Contents/Frameworks. It checks for new versions and installs" % sparkle_version)
+out.append("them. Sparkle is under the MIT license. Its LICENSE file, given whole below, also holds the")
+out.append("licenses of the code it carries: bsdiff and SUSignatureVerifier.m under BSD-style licenses,")
+out.append("sais-lite under the MIT license and the Ed25519 implementation under the zlib license.")
+out.append("Source: https://github.com/sparkle-project/Sparkle")
+out.append("")
+out.append("LICENSE:")
+out.append("")
+out.append(fenced(read(sparkle_license_path)))
 print("\n".join(out))
 PY
 
