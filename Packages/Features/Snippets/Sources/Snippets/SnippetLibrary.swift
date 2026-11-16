@@ -102,7 +102,7 @@ final class SnippetLibrary {
                 do {
                     try await store.save(SnippetFile(snippets: starters))
                 } catch {
-                    log.error("Could not save the starter snippets: \(String(describing: error), privacy: .public)")
+                    log.error("Could not save the starter snippets: \(String(describing: error), privacy: .private)")
                 }
                 setState(.ready)
                 await apply(starters)
@@ -158,14 +158,16 @@ final class SnippetLibrary {
         }
     }
 
-    /// Adds imported entries, decided against the snippets as they are when the import runs.
-    func importEntries(_ entries: [TransferEntry], rules: SnippetValidation.Rules) async throws -> ImportSummary {
+    /// Adds imported entries, decided again against the snippets as they are when the import runs,
+    /// so nothing the user has is overwritten.
+    func importEntries(_ entries: [ImportedEntry], rules: SnippetValidation.Rules) async throws -> ImportSummary {
         try await serially {
             try self.requireWritable()
-            let now = self.clock.now
-            let merge = SnippetImport.merge(entries, into: self.index.snippets, at: now, rules: rules)
-            if merge.summary.added > 0 { try await self.commit(merge.snippets) }
-            return merge.summary
+            let existing = self.index.snippets
+            let plan = await SnippetImport.planInBackground(
+                entries, existing: existing, at: self.clock.now, rules: rules)
+            if plan.summary.added > 0 { try await self.commit(existing + plan.snippets) }
+            return plan.summary
         }
     }
 
@@ -188,7 +190,8 @@ final class SnippetLibrary {
         }
     }
 
-    private func requireWritable() throws {
+    /// Throws an ``ActionFailure`` that says why when changes cannot be saved now.
+    func requireWritable() throws {
         switch state {
         case .ready: return
         case .newerVersion: throw ActionFailure(Strings.readOnlyTitle, message: Strings.newerFileReadOnlyMessage)

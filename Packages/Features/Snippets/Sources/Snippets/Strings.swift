@@ -84,6 +84,7 @@ nonisolated enum Strings {
 
     static let pasteAction = "Paste Snippet"
     static let copyAction = "Copy to Clipboard"
+    static let largeTypeAction = "Show in Large Type"
     static let copiedHUD = "Copied to Clipboard"
     static let editAction = "Edit Snippet"
     static let duplicateAction = "Duplicate Snippet"
@@ -190,30 +191,111 @@ nonisolated enum Strings {
     // MARK: Import and export
 
     static let importDialog = "Import Snippets"
+    static let importSubtitle = "From Raycast, Alfred or an export"
+    static let importKeywords = ["raycast", "alfred", "alfredsnippets", "json", "migrate"]
+    static let exportKeywords = ["raycast", "json", "backup"]
     static let exportDialog = "Export Snippets"
     static let exportFileName = "Snippets.json"
     static func importFailed(_ fileName: String) -> String { "Could Not Import \(fileName)" }
-    static let importFailedMessage = "It is not a snippets file. Nothing was imported."
+    static func importFailedMessage(_ failure: SnippetImportFile.Failure) -> String {
+        switch failure {
+        case .unreadable:
+            "The file could not be read. Nothing was imported."
+        case .tooLarge:
+            "The file is larger than 50 MB. Nothing was imported."
+        case .notSnippets:
+            "It is not a snippets file. Nothing was imported."
+        case .tooManyEntries:
+            "It holds more than 10,000 entries. Nothing was imported."
+        case .archive(.unsafeEntry(let name)):
+            "The archive holds \u{201C}\(DisplayText.fileName(name, limit: 40))\u{201D}, which is a folder, a link or "
+                + "a file inside a folder. Nothing was imported."
+        case .archive(.tooManyEntries):
+            "The archive holds more than 5,000 files. Nothing was imported."
+        case .archive(.tooLarge):
+            "The archive holds a file larger than 1 MB, or more than 50 MB in all. Nothing was imported."
+        case .archive(.unsupported):
+            "The archive is encrypted or compressed in a way that cannot be read here. Nothing was imported."
+        case .archive(.notAnArchive), .archive(.damaged), .archive(.contentsDoNotMatch):
+            "The archive is damaged. Nothing was imported."
+        }
+    }
     static func imported(_ count: Int) -> String {
         count == 0 ? "No New Snippets to Import" : "Imported \(snippetsTitle(count))"
     }
-    static func importNotes(
-        duplicates: Int, keywordClashes: Int, incomplete: Int, renamed: Int, keywordsLeftOut: Int
-    ) -> String? {
+    /// What an import added and skipped: a success toast, or a plain one when nothing was new.
+    static func importToast(_ summary: ImportSummary) -> Toast {
+        Toast(summary.added > 0 ? .success : .info, imported(summary.added), message: importNotes(summary))
+    }
+    static func importNotes(_ summary: ImportSummary) -> String? {
         var notes: [String] = []
-        if duplicates > 0 { notes.append("Skipped \(snippets(duplicates)) you already have.") }
-        if keywordClashes > 0 {
-            notes.append("Skipped \(snippets(keywordClashes)) whose keyword another snippet uses.")
-        }
-        if incomplete > 0 { notes.append("Skipped \(entries(incomplete)) without a name or text.") }
-        if renamed > 0 { notes.append("Renamed \(snippets(renamed)) whose name was taken.") }
-        if keywordsLeftOut > 0 {
+        if summary.withoutKeyword > 0 {
             notes.append(
-                "Imported \(snippets(keywordsLeftOut)) without a keyword, because it was too short, "
-                    + "had a space or would stop another keyword from expanding.")
+                summary.withoutKeyword == 1
+                    ? "Imported 1 snippet without its keyword."
+                    : "Imported \(summary.withoutKeyword) snippets without their keywords.")
+        }
+        if summary.duplicates > 0 { notes.append("Skipped \(snippets(summary.duplicates)) you already have.") }
+        if summary.notValid > 0 {
+            notes.append(
+                "Skipped \(entries(summary.notValid)) that \(summary.notValid == 1 ? "was" : "were") not valid.")
+        }
+        if summary.renamed > 0 { notes.append("Renamed \(snippets(summary.renamed)) whose name was taken.") }
+        if summary.flagged > 0 {
+            notes.append(
+                summary.flagged == 1
+                    ? "1 snippet has placeholders that work differently here."
+                    : "\(summary.flagged) snippets have placeholders that work differently here.")
         }
         return notes.isEmpty ? nil : notes.joined(separator: " ")
     }
+    static func importQuestion(_ count: Int) -> String { "Import \(snippetsTitle(count))?" }
+    static let importConfirm = "Import"
+    static func importAction(_ count: Int) -> String { "Import \(snippetsTitle(count))" }
+    static let importPageTitle = "Import Snippets"
+    static let importSearchPlaceholder = "Search what will be imported"
+    static let importNoticeTitle = "Nothing Is Saved Until You Import"
+    static func importNoticeMessage(_ count: Int) -> String {
+        "Choose Import \(snippetsTitle(count)) to add them, or go back to cancel."
+    }
+    static let importAddSection = "To Add"
+    static let importWithoutKeywordSection = "To Add Without Their Keywords"
+    static let importDuplicateSection = "Skipped as Duplicates"
+    static let importNotValidSection = "Skipped as Not Valid"
+    static func entryTitle(_ position: Int) -> String { "Entry \(position)" }
+    static func importKeywordTaken(_ keyword: String, by name: String) -> String {
+        "\u{201C}\(keyword)\u{201D} is already the keyword of \u{201C}\(name)\u{201D}, so this one is added without it."
+    }
+    static func importKeywordRefused(_ keyword: String, reason: String) -> String {
+        "Added without \u{201C}\(keyword)\u{201D}. \(reason)"
+    }
+    static let keywordNotTypeable = "The keyword holds a character nobody types."
+    static func importDuplicate(of name: String) -> String {
+        "\u{201C}\(name)\u{201D} already has this keyword and text."
+    }
+    static func importNotValid(_ reason: ImportPlan.NotValid) -> String {
+        switch reason {
+        case .noName: "It has no name."
+        case .noText: "It has no text."
+        case .nameTooLong: "Its name is longer than \(SnippetImport.maximumNameLength) characters."
+        case .textTooLong: "Its text is longer than \(SnippetValidation.maximumLength) characters."
+        }
+    }
+    static func importKeptAsTyped(_ token: String) -> String {
+        "\(DisplayText.fileName(token, limit: 40)) stays as typed, because nothing here fills it in."
+    }
+    static func importNowFilled(_ token: String) -> String {
+        "\(DisplayText.fileName(token, limit: 40)) fills in here, where it was plain text before."
+    }
+    static func importRenamed(_ original: String) -> String {
+        "Renamed, because a snippet is already called \u{201C}\(original)\u{201D}."
+    }
+    static let importPlaceholdersDiffer = "Placeholders work differently here"
+    static let importOutcomeLabel = "Import"
+    static let importKeywordInFileLabel = "Keyword in File"
+    static let importNameInFileLabel = "Name in File"
+    static let importKeptAsTypedLabel = "Stays as Typed"
+    static let importNowFilledLabel = "Fills In Here"
     static func exported(_ count: Int) -> String { "Exported \(snippetsTitle(count))" }
     static let nothingToExport = "No Snippets to Export"
 

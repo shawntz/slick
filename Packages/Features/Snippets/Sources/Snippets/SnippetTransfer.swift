@@ -1,9 +1,10 @@
 import Foundation
+import Kit
 
 /// One snippet in an import or export file.
 ///
 /// The file is a JSON array of objects with `name`, `text` and an optional `keyword`, the shape
-/// other launchers export, so files move both ways. This feature also writes `collection`,
+/// Raycast exports and imports, so files move both ways. This feature also writes `collection`,
 /// `expands` and `pinned`, and reads them when present. An object `{"snippets": [...]}`, such as
 /// a copy of the feature's own data file, imports too.
 nonisolated struct TransferEntry: Hashable, Sendable {
@@ -26,10 +27,12 @@ nonisolated struct TransferEntry: Hashable, Sendable {
         self.isPinned = isPinned
     }
 
-    init(_ snippet: Snippet) {
+    /// The snippet as an export writes it. The keyword is written as it is typed, with the shared
+    /// prefix, because other apps have no prefix of their own.
+    init(_ snippet: Snippet, prefix: String = "") {
         self.init(
-            name: snippet.name, text: snippet.text, keyword: snippet.keyword, collection: snippet.collection,
-            expands: snippet.expands, isPinned: snippet.isPinned)
+            name: snippet.name, text: snippet.text, keyword: snippet.typedKeyword(prefix: prefix),
+            collection: snippet.collection, expands: snippet.expands, isPinned: snippet.isPinned)
     }
 }
 
@@ -62,86 +65,242 @@ extension TransferEntry: Codable {
     }
 }
 
-/// What an import did, for the toast.
-nonisolated struct ImportSummary: Hashable, Sendable {
-    var added = 0
-    /// Entries equal to a snippet the user already has, by name, text and keyword.
-    var duplicates = 0
-    /// Entries whose keyword another snippet already uses. Nothing is overwritten.
-    var keywordClashes = 0
-    /// Entries without a name or text, or that are not objects at all.
-    var incomplete = 0
-    /// Entries added under a new name because theirs was taken.
-    var renamed = 0
-    /// Entries added without their keyword, because the editor would refuse it: too short, with a
-    /// space, or one that would keep another keyword from expanding.
-    var keywordsLeftOut = 0
-}
+/// An entry read from an import file, with what the reader noticed about its placeholders.
+nonisolated struct ImportedEntry: Hashable, Sendable {
+    var entry: TransferEntry
+    /// Placeholders the other app fills that stay as typed here, such as `{browser-tab}`.
+    var keptAsTyped: [String] = []
+    /// Braces the other app kept as typed that fill in here, such as `{selection}` from Alfred.
+    var nowFilled: [String] = []
 
-/// Reading import files and merging them into the library.
-nonisolated enum SnippetImport {
-    /// The entries in a file. Throws when the file cannot be read or is not JSON of the right shape.
-    @concurrent static func read(_ url: URL) async throws -> [TransferEntry] {
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(ImportFile.self, from: data).entries
+    init(_ entry: TransferEntry, keptAsTyped: [String] = [], nowFilled: [String] = []) {
+        self.entry = entry
+        self.keptAsTyped = keptAsTyped
+        self.nowFilled = nowFilled
     }
 
-    /// The library with the entries added, and what happened to each.
+    /// True when a placeholder behaves differently here than in the app the file came from.
+    var isFlagged: Bool { !keptAsTyped.isEmpty || !nowFilled.isEmpty }
+}
+
+/// What an import does, entry by entry, decided against the snippets the user has.
+nonisolated struct ImportPlan: Hashable, Sendable {
+    enum Outcome: Hashable, Sendable {
+        /// Added as it is.
+        case add
+        /// Added, but without the keyword the file gives it.
+        case addWithoutKeyword(KeywordLeftOut)
+        /// Skipped: a snippet with the same keyword and text exists, by this name.
+        case duplicate(of: String)
+        /// Skipped: the entry cannot be a snippet.
+        case notValid(NotValid)
+    }
+
+    enum KeywordLeftOut: Hashable, Sendable {
+        /// Another snippet, with different text, has the keyword.
+        case taken(keyword: String, by: String)
+        /// The editor would refuse the keyword, for this reason.
+        case refused(keyword: String, reason: String)
+    }
+
+    enum NotValid: Hashable, Sendable {
+        case noName
+        case noText
+        case nameTooLong
+        case textTooLong
+    }
+
+    struct Item: Hashable, Sendable {
+        var outcome: Outcome
+        /// The snippet as it will be saved, when the outcome adds one.
+        var snippet: Snippet?
+        /// The saved name, else the name in the file, else the entry's place in the file.
+        var title: String
+        /// The name in the file, when the snippet is saved under another because that one is taken.
+        var renamedFrom: String?
+        /// The text and keyword as the file gives them, after mapping, for the detail.
+        var text: String
+        var keyword: String?
+        var keptAsTyped: [String]
+        var nowFilled: [String]
+    }
+
+    var items: [Item]
+    var summary: ImportSummary
+
+    /// The snippets to add, in file order.
+    var snippets: [Snippet] { items.compactMap(\.snippet) }
+}
+
+/// What an import did, for the toast.
+nonisolated struct ImportSummary: Hashable, Sendable {
+    /// Every snippet added, with or without its keyword.
+    var added = 0
+    /// Snippets added without the keyword the file gives them.
+    var withoutKeyword = 0
+    /// Entries with the same keyword and text as a snippet the user already has, or as one earlier
+    /// in the file.
+    var duplicates = 0
+    /// Entries without a name or text, too long, or not objects at all.
+    var notValid = 0
+    /// Snippets added under a new name because theirs was taken.
+    var renamed = 0
+    /// Snippets added whose placeholders behave differently here.
+    var flagged = 0
+}
+
+/// Planning an import and merging it into the library.
+nonisolated enum SnippetImport {
+    /// The longest name an imported snippet may have.
+    static let maximumNameLength = 256
+
+    /// ``plan(_:existing:at:rules:)`` off the main thread: a file can hold ten thousand entries.
+    @concurrent static func planInBackground(
+        _ entries: [ImportedEntry], existing: [Snippet], at date: Date, rules: SnippetValidation.Rules
+    ) async -> ImportPlan {
+        plan(entries, existing: existing, at: date, rules: rules)
+    }
+
+    /// What each entry becomes. Nothing the user has is changed.
     ///
-    /// Rules: an entry needs a name and text. An entry equal to an existing snippet is skipped. An
-    /// entry whose keyword is taken is skipped, so nothing the user has is changed. An entry whose
-    /// keyword the editor would refuse is added without it. An entry whose name is taken is added
-    /// with a number after its name.
-    static func merge(
-        _ entries: [TransferEntry], into existing: [Snippet], at date: Date, rules: SnippetValidation.Rules
-    ) -> (snippets: [Snippet], summary: ImportSummary) {
-        struct Identity: Hashable {
-            var name: String
-            var text: String
-            var keyword: String?
+    /// Rules, in order: an entry needs a name and text within the editor's limits. An entry with the
+    /// same keyword and text as a snippet the user has, or as one added earlier in the file, is a
+    /// duplicate. So is one whose keyword is taken while a snippet without a keyword has its name and
+    /// text, which is how an earlier import of it was saved. An entry whose keyword another snippet
+    /// has is added without it, and so is one whose keyword the editor would refuse. An entry whose
+    /// name is taken is added with a number after its name. A keyword that starts with the shared
+    /// prefix loses it, so it is typed as before.
+    static func plan(_ entries: [ImportedEntry], existing: [Snippet], at date: Date, rules: SnippetValidation.Rules)
+        -> ImportPlan
+    {
+        var byText: [String: [Snippet]] = [:]
+        var byKeyword: [String: String] = [:]
+        var expanding = ExpandingKeywords()
+        for snippet in existing {
+            byText[snippet.text, default: []].append(snippet)
+            if let keyword = snippet.keyword, byKeyword[keyword] == nil { byKeyword[keyword] = snippet.name }
+            if snippet.expands, let typed = snippet.typedKeyword(prefix: rules.prefix) {
+                expanding.insert(typed, name: snippet.name)
+            }
         }
-        var snippets = existing
-        var identities = Set(existing.map { Identity(name: $0.name, text: $0.text, keyword: $0.keyword) })
         var names = Set(existing.map(\.name))
-        var keywords = Set(existing.compactMap(\.keyword))
-        var summary = ImportSummary()
-        for entry in entries {
-            guard let name = Snippet.clean(entry.name), let text = entry.text,
-                !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            else {
-                summary.incomplete += 1
+        var plan = ImportPlan(items: [], summary: ImportSummary())
+        for (position, imported) in entries.enumerated() {
+            let entry = imported.entry
+            let name = ImportText.line(entry.name)
+            let text = entry.text.map(ImportText.text) ?? ""
+            let keyword = fileKeyword(entry.keyword, prefix: rules.prefix)
+            var item = ImportPlan.Item(
+                outcome: .add, snippet: nil, title: name ?? Strings.entryTitle(position + 1), renamedFrom: nil,
+                text: text, keyword: keyword, keptAsTyped: imported.keptAsTyped, nowFilled: imported.nowFilled)
+            if let problem = problem(name: name, text: text) {
+                item.outcome = .notValid(problem)
+                plan.summary.notValid += 1
+                plan.items.append(item)
                 continue
             }
-            var keyword = Snippet.clean(entry.keyword)
-            guard identities.insert(Identity(name: name, text: text, keyword: keyword)).inserted else {
-                summary.duplicates += 1
-                continue
-            }
-            if let typed = keyword, keywords.contains(typed) {
-                summary.keywordClashes += 1
+            guard let name else { continue }
+            if let earlier = duplicate(name: name, text: text, keyword: keyword, among: byText[text] ?? []) {
+                item.outcome = .duplicate(of: earlier)
+                plan.summary.duplicates += 1
+                plan.items.append(item)
                 continue
             }
             let expands = entry.expands ?? true
-            if let typed = keyword,
-                SnippetValidation.keywordProblem(typed, expands: expands, others: snippets, rules: rules) != nil
-            {
-                keyword = nil
-                summary.keywordsLeftOut += 1
+            var savedKeyword = keyword
+            if let typed = keyword {
+                if let holder = byKeyword[typed] {
+                    item.outcome = .addWithoutKeyword(.taken(keyword: typed, by: holder))
+                } else if !ImportText.isTypeable(typed) {
+                    item.outcome = .addWithoutKeyword(.refused(keyword: typed, reason: Strings.keywordNotTypeable))
+                } else if let problem = SnippetValidation.keywordProblem(
+                    typed, expands: expands, others: [], rules: rules)
+                    ?? (rules.trigger == .immediately && expands ? expanding.problem(rules.prefix + typed) : nil)
+                {
+                    item.outcome = .addWithoutKeyword(.refused(keyword: typed, reason: problem.message))
+                }
+                if case .addWithoutKeyword = item.outcome { savedKeyword = nil }
             }
-            var finalName = name
+            var savedName = name
             if names.contains(name) {
-                finalName = uniqueName(name, taken: names)
-                summary.renamed += 1
+                savedName = uniqueName(name, taken: names)
+                item.renamedFrom = name
+                plan.summary.renamed += 1
             }
-            names.insert(finalName)
-            if let keyword { keywords.insert(keyword) }
-            snippets.append(
-                Snippet(
-                    id: UUID().uuidString, name: finalName, text: text, keyword: keyword, collection: entry.collection,
-                    expands: expands, isPinned: entry.isPinned ?? false, created: date, modified: date))
-            summary.added += 1
+            names.insert(savedName)
+            let snippet = Snippet(
+                id: UUID().uuidString, name: savedName, text: text, keyword: savedKeyword,
+                collection: ImportText.line(entry.collection), expands: expands, isPinned: entry.isPinned ?? false,
+                created: date, modified: date)
+            item.snippet = snippet
+            item.title = savedName
+            if expands, let typed = snippet.typedKeyword(prefix: rules.prefix) {
+                expanding.insert(typed, name: savedName)
+            }
+            // Later entries count this one: by its keyword in the file for duplicates, and by the
+            // keyword it is saved with for clashes.
+            var recorded = snippet
+            recorded.keyword = keyword
+            byText[text, default: []].append(recorded)
+            if let savedKeyword { byKeyword[savedKeyword] = savedName }
+            plan.summary.added += 1
+            if case .addWithoutKeyword = item.outcome { plan.summary.withoutKeyword += 1 }
+            if imported.isFlagged { plan.summary.flagged += 1 }
+            plan.items.append(item)
         }
-        return (snippets, summary)
+        return plan
+    }
+
+    /// The keywords that expand, as typed, and every shorter start of each, so a new keyword is
+    /// checked against all of them in time that grows with its own length rather than with the
+    /// library. It finds what ``SnippetValidation/keywordProblem(_:expands:others:rules:)`` finds
+    /// when keywords expand at once: one keyword that starts another.
+    private struct ExpandingKeywords {
+        private var keywords: [String: String] = [:]
+        private var starts: [String: (keyword: String, name: String)] = [:]
+
+        mutating func insert(_ typed: String, name: String) {
+            if keywords[typed] == nil { keywords[typed] = name }
+            var start = ""
+            for character in typed.dropLast() {
+                start.append(character)
+                if starts[start] == nil { starts[start] = (typed, name) }
+            }
+        }
+
+        func problem(_ typed: String) -> FieldError? {
+            var start = ""
+            for character in typed.dropLast() {
+                start.append(character)
+                if let name = keywords[start] { return FieldError(Strings.keywordShadowed(by: name, keyword: start)) }
+            }
+            guard let owner = starts[typed] else { return nil }
+            return FieldError(Strings.keywordShadows(owner.name, keyword: owner.keyword))
+        }
+    }
+
+    /// The keyword as the file gives it, trimmed, without the shared prefix when it starts with it.
+    static func fileKeyword(_ keyword: String?, prefix: String) -> String? {
+        guard let keyword = Snippet.clean(keyword) else { return nil }
+        guard !prefix.isEmpty, keyword.hasPrefix(prefix), keyword.count > prefix.count else { return keyword }
+        return String(keyword.dropFirst(prefix.count))
+    }
+
+    private static func problem(name: String?, text: String) -> ImportPlan.NotValid? {
+        guard let name else { return .noName }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return .noText }
+        if name.count > maximumNameLength { return .nameTooLong }
+        if text.count > SnippetValidation.maximumLength { return .textTooLong }
+        return nil
+    }
+
+    /// The name of a snippet this entry duplicates, among those with the same text.
+    private static func duplicate(name: String, text: String, keyword: String?, among sameText: [Snippet])
+        -> String?
+    {
+        if let match = sameText.first(where: { $0.keyword == keyword }) { return match.name }
+        guard keyword != nil else { return nil }
+        return sameText.first { $0.keyword == nil && $0.name == name }?.name
     }
 
     /// "Name 2", "Name 3" and so on: the first that is free.
@@ -152,34 +311,41 @@ nonisolated enum SnippetImport {
     }
 }
 
-/// An import file: an array of entries, or an object holding one under `snippets`.
-private nonisolated struct ImportFile: Decodable {
-    private enum CodingKeys: String, CodingKey {
-        case snippets
+/// Cleaning for text that comes from a file the user picked.
+nonisolated enum ImportText {
+    /// A name or collection on one line: line breaks and other controls become spaces, direction
+    /// overrides become U+FFFD, runs of white space become one space and the ends are trimmed. Nil
+    /// when nothing is left.
+    static func line(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let collapsed = DisplayText.oneLine(value).split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return collapsed.isEmpty ? nil : collapsed
     }
 
-    /// Decodes nothing, so an entry that is not an object can be stepped over.
-    private struct Skip: Decodable {
-        init(from decoder: any Decoder) throws {}
-    }
-
-    var entries: [TransferEntry] = []
-
-    init(from decoder: any Decoder) throws {
-        var array: any UnkeyedDecodingContainer
-        if let top = try? decoder.unkeyedContainer() {
-            array = top
-        } else {
-            array = try decoder.container(keyedBy: CodingKeys.self).nestedUnkeyedContainer(forKey: .snippets)
+    /// The text without control characters other than tab and line breaks, so a pasted snippet can
+    /// never carry an escape sequence into a terminal.
+    static func text(_ value: String) -> String {
+        guard value.unicodeScalars.contains(where: isDropped) else { return value }
+        var scalars = String.UnicodeScalarView()
+        for scalar in value.unicodeScalars where !isDropped(scalar) {
+            scalars.append(scalar)
         }
-        while !array.isAtEnd {
-            if let entry = try? array.decode(TransferEntry.self) {
-                entries.append(entry)
-            } else {
-                // Not an object: step over it and count it as incomplete.
-                _ = try array.decode(Skip.self)
-                entries.append(TransferEntry())
+        return String(scalars)
+    }
+
+    /// False for a keyword with a character nobody types: a control or format character, such as a
+    /// direction override, or a line or paragraph separator.
+    static func isTypeable(_ keyword: String) -> Bool {
+        !keyword.unicodeScalars.contains { scalar in
+            switch scalar.properties.generalCategory {
+            case .control, .format, .lineSeparator, .paragraphSeparator: true
+            default: false
             }
         }
+    }
+
+    private static func isDropped(_ scalar: Unicode.Scalar) -> Bool {
+        guard scalar.properties.generalCategory == .control else { return false }
+        return scalar != "\t" && scalar != "\n" && scalar != "\r"
     }
 }

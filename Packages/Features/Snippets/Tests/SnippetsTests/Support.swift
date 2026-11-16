@@ -68,6 +68,26 @@ extension FeatureHarness where F == SnippetsFeature {
         try await run(SnippetIDs.searchCommand)
     }
 
+    /// The import page on top, when Import Snippets showed one.
+    var importPage: SnippetImportPage? {
+        guard case .list(let list)? = page?.page else { return nil }
+        return list.source as? SnippetImportPage
+    }
+
+    /// Runs Import Snippets on these files and, when it shows its page, presses Return on it, as a
+    /// person who agrees with the page would.
+    func importAndConfirm(_ files: [URL]) async throws {
+        fakes.fileDialogs.filesToChoose = files
+        try await run(SnippetIDs.importCommand)
+        guard importPage != nil else { return }
+        try await performPrimary()
+    }
+
+    /// Titles of the import page's rows, by section ID.
+    var importSections: [String: [String]] {
+        Dictionary(uniqueKeysWithValues: sections.map { ($0.id, $0.rows.map(\.title)) })
+    }
+
     /// Selects a row by title and returns its actions' IDs.
     func actionIDs(of title: String) throws -> [String] {
         try select(title: title)

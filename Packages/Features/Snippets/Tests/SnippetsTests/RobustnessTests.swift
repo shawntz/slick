@@ -90,14 +90,10 @@ struct RobustnessTests {
               {"name": "Fine", "text": "fine text", "keyword": "fine"}
             ]
             """, to: file)
-        harness.fakes.fileDialogs.filesToChoose = [file]
-        try await harness.run(SnippetIDs.importCommand)
+        try await harness.importAndConfirm([file])
 
         #expect(harness.toasts.last?.title == "Imported 4 Snippets")
-        #expect(
-            harness.toasts.last?.message
-                == Strings.importNotes(
-                    duplicates: 0, keywordClashes: 0, incomplete: 0, renamed: 0, keywordsLeftOut: 3))
+        #expect(harness.toasts.last?.message == "Imported 3 snippets without their keywords.")
         #expect(harness.snippet(named: "One Letter")?.keyword == nil)
         #expect(harness.snippet(named: "Spaced")?.keyword == nil)
         #expect(harness.snippet(named: "Shadow")?.keyword == nil)
@@ -109,15 +105,22 @@ struct RobustnessTests {
         let harness = try await FeatureHarness.loaded([])
         let file = harness.fakes.storage.root.appending(path: "deep.json")
         try write(String(repeating: "[", count: 10_000) + String(repeating: "]", count: 10_000), to: file)
-        harness.fakes.fileDialogs.filesToChoose = [file]
-        try await harness.run(SnippetIDs.importCommand)
+        try await harness.importAndConfirm([file])
         #expect(harness.library.index.isEmpty)
+        #expect(harness.toasts.last?.message == "It is not a snippets file. Nothing was imported.")
 
         let entries = (0..<2_000).map { #"{"name": "Bulk \#($0)", "text": "text \#($0)"}"# }
         try write("[" + entries.joined(separator: ",") + "]", to: file)
-        try await harness.run(SnippetIDs.importCommand)
+        try await harness.importAndConfirm([file])
         #expect(harness.library.index.snippets.count == 2_000)
         #expect(harness.toasts.last?.title == "Imported 2000 Snippets")
+
+        // More than 10,000 entries are refused before any is looked at.
+        let tooMany = (0...10_000).map { _ in "{}" }
+        try write("[" + tooMany.joined(separator: ",") + "]", to: file)
+        try await harness.importAndConfirm([file])
+        #expect(harness.toasts.last?.message == "It holds more than 10,000 entries. Nothing was imported.")
+        #expect(harness.library.index.snippets.count == 2_000)
     }
 
     // MARK: Unicode

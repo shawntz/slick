@@ -122,6 +122,12 @@ public final class SnippetsFeature: Feature {
         await activation?.value
     }
 
+    /// The keyword answer in root search reads the snippets that activation loads in the
+    /// background, so scenarios and the self-test wait for that load.
+    public func waitUntilReady() async {
+        await ready()
+    }
+
     // MARK: Declarations
 
     public var commands: [Command] {
@@ -168,14 +174,18 @@ public final class SnippetsFeature: Feature {
                 try await context.pasteboard.paste(try await self.render(id: snippet.id).expansion)
                 return .close()
             },
+            // Import and export open a file dialog, which a web page must never be able to raise, so
+            // neither runs from a link.
             Command(
-                id: SnippetIDs.importCommand, title: Strings.importCommand, icon: .symbol("square.and.arrow.down")
+                id: SnippetIDs.importCommand, title: Strings.importCommand, subtitle: Strings.importSubtitle,
+                icon: .symbol("square.and.arrow.down"), keywords: Strings.importKeywords, allowsDeepLinks: false
             ) { context in
                 try await self.importSnippets(context)
-                return .keepOpen
             },
-            Command(id: SnippetIDs.exportCommand, title: Strings.exportCommand, icon: .symbol("square.and.arrow.up")) {
-                context in
+            Command(
+                id: SnippetIDs.exportCommand, title: Strings.exportCommand, icon: .symbol("square.and.arrow.up"),
+                keywords: Strings.exportKeywords, allowsDeepLinks: false
+            ) { context in
                 try await self.exportSnippets(context)
             },
             // Root search shows only the switch that applies. Both stay declared, so a hotkey on
@@ -267,7 +277,7 @@ public final class SnippetsFeature: Feature {
             SettingsSection(
                 Strings.filesSection, footer: Strings.showFileInfo,
                 items: [
-                    .button(Strings.importCommand) { context in try await self.importSnippets(context) },
+                    .button(Strings.importCommand) { context in try await self.importFromSettings(context) },
                     .button(Strings.exportCommand) { context in _ = try await self.exportSnippets(context) },
                     .button(Strings.showFileAction) { context in
                         await context.workspace.reveal([self.library.fileURL])
@@ -319,36 +329,75 @@ public final class SnippetsFeature: Feature {
 
     // MARK: Import and export
 
-    /// Asks for files, then adds their snippets. Nothing the user has is changed.
-    func importSnippets(_ context: ActionContext) async throws {
-        let request = OpenDialogRequest(title: Strings.importDialog, allowedTypes: ["json"], allowsMultiple: true)
-        let files = await context.fileDialogs.chooseFiles(request)
-        guard !files.isEmpty else { return }
-        var entries: [TransferEntry] = []
-        for file in files {
-            do {
-                entries += try await SnippetImport.read(file)
-            } catch {
-                context.showToast(
-                    .failure(Strings.importFailed(file.lastPathComponent), message: Strings.importFailedMessage))
-                return
-            }
-        }
-        await library.ready()
-        let settings = self.context.settings
-        let rules = SnippetValidation.Rules(
+    /// The rules imported keywords follow, as the editor's do.
+    private var importRules: SnippetValidation.Rules {
+        let settings = context.settings
+        return SnippetValidation.Rules(
             prefix: SnippetsSettings.prefix(in: settings), trigger: settings[SnippetsSettings.trigger])
-        let summary = try await library.importEntries(entries, rules: rules)
-        let notes = Strings.importNotes(
-            duplicates: summary.duplicates, keywordClashes: summary.keywordClashes, incomplete: summary.incomplete,
-            renamed: summary.renamed, keywordsLeftOut: summary.keywordsLeftOut)
-        context.showToast(.success(Strings.imported(summary.added), message: notes))
     }
 
-    /// Asks where to save, then writes every snippet.
+    /// Asks for files, then shows what importing them would do. Nothing is saved until the user
+    /// confirms on that page.
+    func importSnippets(_ context: ActionContext) async throws -> ActionOutcome {
+        guard let page = try await importPage(context) else { return .keepOpen }
+        return .push(.list(page.page))
+    }
+
+    /// The settings window cannot show a page, so it asks one question with the counts instead.
+    func importFromSettings(_ context: ActionContext) async throws {
+        guard let page = try await importPage(context) else { return }
+        let summary = page.plan.summary
+        let question = Confirmation(
+            Strings.importQuestion(summary.added), message: Strings.importNotes(summary),
+            confirmTitle: Strings.importConfirm)
+        guard await context.confirm(question) else { return }
+        context.showToast(Strings.importToast(try await commitImport(page.entries)))
+    }
+
+    /// Reads the chosen files and plans the import. Nil when the user cancelled, a file could not
+    /// be read, or nothing is new; each says so in a toast but the first.
+    private func importPage(_ context: ActionContext) async throws -> SnippetImportPage? {
+        await library.ready()
+        // Say so before the dialog, so nobody picks a file for nothing.
+        try library.requireWritable()
+        let request = OpenDialogRequest(
+            title: Strings.importDialog, allowedTypes: ["json", SnippetImportFile.alfredExtension],
+            allowsMultiple: true)
+        let files = await context.fileDialogs.chooseFiles(request)
+        guard !files.isEmpty else { return nil }
+        var entries: [ImportedEntry] = []
+        for file in files {
+            do {
+                entries += try await SnippetImportFile.read(file)
+            } catch {
+                context.showToast(
+                    .failure(
+                        Strings.importFailed(DisplayText.fileName(file.lastPathComponent)),
+                        message: Strings.importFailedMessage(error)))
+                return nil
+            }
+        }
+        let rules = importRules
+        let plan = await SnippetImport.planInBackground(
+            entries, existing: library.index.snippets, at: self.context.clock.now, rules: rules)
+        guard plan.summary.added > 0 else {
+            context.showToast(Strings.importToast(plan.summary))
+            return nil
+        }
+        return SnippetImportPage(feature: self, entries: entries, plan: plan, prefix: rules.prefix)
+    }
+
+    /// Adds the entries the user confirmed, decided again against the snippets as they are now.
+    func commitImport(_ entries: [ImportedEntry]) async throws -> ImportSummary {
+        await library.ready()
+        return try await library.importEntries(entries, rules: importRules)
+    }
+
+    /// Asks where to save, then writes every snippet in Raycast's shape.
     func exportSnippets(_ context: ActionContext) async throws -> ActionOutcome {
         await library.ready()
-        let entries = library.index.snippets.map(TransferEntry.init)
+        let prefix = SnippetsSettings.prefix(in: self.context.settings)
+        let entries = library.index.snippets.map { TransferEntry($0, prefix: prefix) }
         guard !entries.isEmpty else {
             context.showToast(Toast(.info, Strings.nothingToExport))
             return .keepOpen
