@@ -42,6 +42,7 @@ struct CustomCommandTests {
         #expect(ai.harness.actions().first?.title == "Replace Selection")
         #expect(ai.shownText == "On-device answer.")
         #expect(ai.harness.issues.isEmpty)
+        #expect(ai.harness.pendingIssues.isEmpty)
     }
 
     @Test func aCommandWithoutTheSelectionReadsNothing() async throws {

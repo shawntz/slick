@@ -60,6 +60,7 @@ struct RootSearchTests {
         let fallbacks = quicklinks.feature.commands.filter { $0.fallback != nil }
         #expect(fallbacks.map(\.id) == ["open.google", "open.wikipedia", "open.sample-search"])
         #expect(fallbacks.first?.fallback?.title("cats") == "Search Google for \"cats\"")
+        #expect(fallbacks.allSatisfy { $0.fallback?.startsOn == true }, "the default engine and marked quicklinks")
         #expect(quicklinks.feature.commands.first { $0.id.hasPrefix("open.") }?.id == "open.google")
     }
 

@@ -26,6 +26,7 @@ struct ActionTests {
         #expect(titles.first == "Open")
         #expect(titles.contains("Delete Quicklink") && titles.contains("Turn Off Quicklink"))
         #expect(quicklinks.harness.issues.isEmpty)
+        #expect(quicklinks.harness.pendingIssues.isEmpty)
     }
 
     @Test func openOpensTheLinkAndCloses() async throws {

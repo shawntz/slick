@@ -41,6 +41,7 @@ struct DiscoveryTests {
         #expect(ids[0].hasPrefix("script.cafe-time-"))
         #expect(ids[1].hasPrefix("script.say-hello-"))
         #expect(bench.harness.issues.isEmpty)
+        #expect(bench.harness.pendingIssues.isEmpty)
 
         // A relaunch: a new feature over the same folder gives the same IDs.
         let relaunched = ScriptsBench(library: FileScriptLibrary(), fakes: fakes)

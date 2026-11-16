@@ -14,6 +14,7 @@ struct AskTests {
         #expect(ask.title == "Ask AI")
         #expect(ask.takesRootQueryOnTab)
         #expect(ask.fallback?.title("why is the sky blue") == "Ask AI about \u{201C}why is the sky blue\u{201D}")
+        #expect(ask.fallback?.startsOn == false, "a fallback starts off unless it is the feature's own web search")
         #expect(ask.arguments.map(\.name) == ["prompt"])
         #expect(ai.harness.issues.isEmpty)
     }

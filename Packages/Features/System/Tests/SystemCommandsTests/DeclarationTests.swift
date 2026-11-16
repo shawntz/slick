@@ -20,6 +20,7 @@ struct DeclarationTests {
         #expect(ids == Self.commandIDs)
         #expect(!ids.contains("quit-all"))
         #expect(system.harness.issues.isEmpty)
+        #expect(system.harness.pendingIssues.isEmpty)
     }
 
     @Test func titlesUseTitleCaseAndHotkeysAreLeftToTheUser() {

@@ -129,6 +129,7 @@ struct OutputModeTests {
         await bench.start()
         let command = try bench.harness.command(bench.id("define.sh"))
         #expect(command.fallback?.title("serendipity") == Strings.runFallback("Define", text: "serendipity"))
+        #expect(command.fallback?.startsOn == false, "a script's search starts off")
         try await bench.harness.runFallback(bench.id("define.sh"), text: "serendipity")
         #expect(bench.harness.toasts.map(\.title) == [#"["serendipity"]"#])
     }

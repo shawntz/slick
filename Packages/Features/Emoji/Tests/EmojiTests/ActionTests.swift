@@ -30,6 +30,7 @@ struct ActionTests {
         #expect(harness.fakes.pasteboard.pastedTexts == ["😀"])
         #expect(harness.huds.isEmpty)
         #expect(harness.issues.isEmpty)
+        #expect(harness.pendingIssues.isEmpty)
     }
 
     @Test func commandReturnCopies() async throws {

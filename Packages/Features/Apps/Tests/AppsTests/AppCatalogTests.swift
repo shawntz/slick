@@ -12,6 +12,7 @@ struct AppCatalogTests {
         let apps = try await AppsHarness()
         _ = try await apps.harness.catalogRows()
         #expect(apps.unexpectedIssues.isEmpty)
+        #expect(apps.harness.pendingIssues.isEmpty)
         #expect(apps.feature.catalogSources.map(\.namespace) == ["app", "setting"])
     }
 

@@ -48,6 +48,7 @@ struct HardeningTests {
                 == "If it has unsaved changes, Example Browser asks what to do with them.")
         #expect(windows.desktop.windows.count == SwitchWindowsTests.desk.count, "nothing closed on No")
         #expect(windows.harness.issues.isEmpty)
+        #expect(windows.harness.pendingIssues.isEmpty)
     }
 
     @Test func aLongTitleIsCutInTheQuestion() {

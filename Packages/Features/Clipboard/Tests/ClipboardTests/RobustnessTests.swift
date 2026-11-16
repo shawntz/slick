@@ -31,6 +31,7 @@ struct RobustnessTests {
         #expect(clipboard.harness.page?.notice?.title == Strings.List.damagedTitle)
         #expect(clipboard.harness.rows.map(\.title) == ["after the damage"])
         #expect(clipboard.harness.issues.isEmpty)
+        #expect(clipboard.harness.pendingIssues.isEmpty)
     }
 
     @Test func aSecondDamagedDatabaseGetsItsOwnFolder() async throws {

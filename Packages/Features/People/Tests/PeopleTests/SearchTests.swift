@@ -66,6 +66,7 @@ struct SearchTests {
         let (harness, _) = await makeHarness()
         let command = try harness.command("search")
         #expect(command.fallback?.title("ana") == "Search Contacts for \u{201C}ana\u{201D}")
+        #expect(command.fallback?.startsOn == false, "a fallback starts off unless it is the feature's own web search")
         try await harness.runFallback("search", text: "bruno")
         #expect(harness.page?.query == "bruno")
         #expect(harness.titles == ["Bruno Costa"])
