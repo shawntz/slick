@@ -115,6 +115,9 @@ public final class RootSearch: RootSource {
     var subtitleValues: [ItemID: LiveSubtitle.Value] = [:]
     /// The refresh loops of the visible commands with a live subtitle.
     var subtitleRunners: [ItemID: [Task<Void, Never>]] = [:]
+    /// The signal and interval each refresh loop was started with, so a loop restarts when a
+    /// declaration change hands a new one.
+    var subtitleRunnerKeys: [ItemID: SubtitleRunnerKey] = [:]
     /// True when the prepared empty snapshot shows a command with a live subtitle.
     var preparedHasLiveSubtitles = false
 
@@ -188,10 +191,17 @@ public final class RootSearch: RootSource {
     // MARK: Lifecycle
 
     /// Returns once the engine is open, the stored rows are loaded and every catalog source has
-    /// loaded once. App does not need to wait; tests and the bench do.
+    /// loaded once after this call began. A source whose `rows()` waits for work its feature started
+    /// at activation, as the Apps feature's first scan is, is waited for, so a caller that activated
+    /// the features first gets their rows. The live launcher does not wait. The scenario runner,
+    /// the self-test, tests and the bench do.
     public func ready() async {
         if !isOpen {
             await withCheckedContinuation { openWaiters.append($0) }
+        }
+        // A first load may have run before the features activated and found nothing yet.
+        for id in slotOrder {
+            if let slot = slots[id] { load(slot) }
         }
         await settle()
     }

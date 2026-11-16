@@ -10,7 +10,7 @@ import Testing
 
 /// Live subtitles refresh while their command row is visible and stop when root search leaves the
 /// screen.
-@Suite struct LiveSubtitleTests {
+@Suite(.timeLimit(.minutes(1))) struct LiveSubtitleTests {
     static func subtitle(_ fixture: RootFixture) -> String? {
         fixture.root.snapshot.rows.first { $0.title == "Disk Status" }?.subtitle
     }
@@ -64,6 +64,46 @@ import Testing
         #expect(disk.fetches == 2)
         _ = fixture.root.update(query: "calendar")
         #expect(fixture.root.subtitleRunners.isEmpty)
+        fixture.root.end()
+        await fixture.shutdown()
+    }
+
+    /// After a declaration change a command may hand a new signal or interval. Root follows the
+    /// new one and lets the old one go; the same ones keep the running loop.
+    @Test func aNewSignalOrIntervalAfterADeclarationChangeRestartsTheLoop() async throws {
+        let fixture = await RootFixture.ready(signals: true)
+        let disk = try fixture.signalsFeature().disk
+        _ = fixture.root.begin()
+        _ = fixture.root.update(query: "disk status")
+        await fixture.settle()
+        #expect(disk.fetches == 1)
+
+        fixture.directory.reload(SignalsFeature.manifest.id)
+        await fixture.settle()
+        #expect(disk.fetches == 1, "the same signal and interval keep the running loop")
+
+        let old = disk.signal
+        disk.signal = ChangeSignal()
+        fixture.directory.reload(SignalsFeature.manifest.id)
+        await fixture.settle()
+        #expect(disk.fetches == 2, "the new loop fetches at once")
+        old.send()
+        await fixture.settle()
+        #expect(disk.fetches == 2, "the old signal is no longer followed")
+        disk.signal.send()
+        await fixture.settle()
+        #expect(disk.fetches == 3)
+
+        disk.interval = .seconds(20)
+        fixture.directory.reload(SignalsFeature.manifest.id)
+        await fixture.settle()
+        #expect(disk.fetches == 4)
+        fixture.clock.advance(by: .seconds(10))
+        await fixture.settle()
+        #expect(disk.fetches == 4, "the old ten-second loop stopped")
+        fixture.clock.advance(by: .seconds(10))
+        await fixture.settle()
+        #expect(disk.fetches == 5)
         fixture.root.end()
         await fixture.shutdown()
     }

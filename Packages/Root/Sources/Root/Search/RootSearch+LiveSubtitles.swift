@@ -7,8 +7,9 @@ extension RootSearch {
     static let shortestSubtitleInterval: Duration = .seconds(10)
 
     /// Starts the refresh loops of the commands with a live subtitle among the rows the list shows
-    /// before it scrolls, and stops the loops of commands that left them. Costs one short walk when
-    /// no command has a live subtitle.
+    /// before it scrolls, and stops the loops of commands that left them. A loop whose command now
+    /// hands a different change signal or interval, after its declarations changed, starts again
+    /// with the new one. Costs one short walk when no command has a live subtitle.
     func refreshLiveSubtitles() {
         guard !plan.liveSubtitles.isEmpty || !subtitleRunners.isEmpty else { return }
         var visible: [ItemID] = []
@@ -26,10 +27,17 @@ extension RootSearch {
         for (id, runners) in subtitleRunners where !visible.contains(id) {
             for runner in runners { runner.cancel() }
             subtitleRunners[id] = nil
+            subtitleRunnerKeys[id] = nil
         }
-        for id in visible where subtitleRunners[id] == nil {
+        for id in visible {
             guard let live = plan.liveSubtitles[id] else { continue }
+            let key = SubtitleRunnerKey(live)
+            if let running = subtitleRunners[id] {
+                guard subtitleRunnerKeys[id] != key else { continue }
+                for runner in running { runner.cancel() }
+            }
             subtitleRunners[id] = startSubtitle(live, for: id)
+            subtitleRunnerKeys[id] = key
         }
     }
 
@@ -46,6 +54,7 @@ extension RootSearch {
             for runner in runners { runner.cancel() }
         }
         subtitleRunners.removeAll()
+        subtitleRunnerKeys.removeAll()
     }
 
     /// Fetches now and then at the subtitle's interval, at least ten seconds apart, and again at once
@@ -111,6 +120,17 @@ extension RootSearch {
     func pruneSubtitleValues() {
         guard !subtitleValues.isEmpty else { return }
         subtitleValues = subtitleValues.filter { plan.liveSubtitles[$0.key] != nil }
+    }
+}
+
+/// What a refresh loop follows: its change signal, by identity, and its interval.
+struct SubtitleRunnerKey: Equatable {
+    let signal: ObjectIdentifier?
+    let interval: Duration
+
+    init(_ live: LiveSubtitle) {
+        signal = live.changes.map(ObjectIdentifier.init)
+        interval = live.interval
     }
 }
 

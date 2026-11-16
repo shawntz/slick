@@ -19,7 +19,7 @@ final class SignalsFeature: Feature {
         return [
             Command(
                 id: "disk", title: "Disk Status",
-                liveSubtitle: .background(every: .seconds(2), changes: disk.signal) {
+                liveSubtitle: .background(every: disk.interval, changes: disk.signal) {
                     await disk.fetch(onMainThread: isMainThread())
                 }
             ) { _ in .close() },
@@ -138,7 +138,10 @@ final class MeetingTrigger: SuggestionTrigger {
 /// A live subtitle that fetches off the main thread and counts its fetches, and the fetches that
 /// started on the main thread.
 final class DiskStatus {
-    let signal = ChangeSignal()
+    /// The signal the command hands on its next read. A test replaces it, as a rescan may.
+    var signal = ChangeSignal()
+    /// The interval the command asks for on its next read.
+    var interval: Duration = .seconds(2)
     private(set) var fetches = 0
     private(set) var fetchesOnMainThread = 0
     var text = "Disk ok"
