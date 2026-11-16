@@ -66,7 +66,7 @@ struct ListTests {
         try await harness.openSearch()
         try harness.select(title: "Sign Off")
         let detail = try #require(try await harness.loadDetail())
-        #expect(detail.body == .markdown("Best,\n\n`{cursor}`\n\nThe Team"))
+        #expect(detail.body == .markdown("Best,\\\n`{cursor}`\\\nThe Team"))
         #expect(
             detail.metadata == [
                 .label("Keyword", value: "sig"),
@@ -83,7 +83,17 @@ struct ListTests {
         let template = Template("# Title *bold* 1. x\n- item\n2) y {date}\n\n`code` {clipboard | trim}")
         #expect(
             SnippetDetail.marked(template)
-                == "\\# Title \\*bold\\* 1. x\n\n\\- item\n\n2\\) y `{date}`\n\n\n\n\\`code\\` `{clipboard | trim}`")
+                == "\\# Title \\*bold\\* 1. x\\\n\\- item\\\n2\\) y `{date}`\\\n\\\n\\`code\\` `{clipboard | trim}`")
+    }
+
+    /// Each line ends in a hard break, so the pane keeps the snippet's lines without paragraph
+    /// spacing. An empty line holds only the break, and a backslash the text ends a line with stays
+    /// literal.
+    @Test func linesJoinWithHardBreaks() {
+        #expect(SnippetDetail.marked(Template("one\ntwo")) == "one\\\ntwo")
+        #expect(SnippetDetail.marked(Template("one\n\n  \nfour")) == "one\\\n\\\n\\\nfour")
+        #expect(SnippetDetail.marked(Template("\n\nmiddle\n\n")) == "middle", "no break at either end")
+        #expect(SnippetDetail.marked(Template("path\\\nnext")) == "path\\\\\\\nnext")
     }
 
     @Test func aBrokenPlaceholderShowsAsAProblem() async throws {

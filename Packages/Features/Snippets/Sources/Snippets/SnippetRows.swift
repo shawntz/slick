@@ -140,8 +140,11 @@ nonisolated enum SnippetDetail {
         return Detail(.markdown(marked(template)), metadata: metadata)
     }
 
-    /// The snippet's text as Markdown, with each placeholder set in code so it stands out. Each line
-    /// of the text is a paragraph of its own, so line breaks show.
+    /// The snippet's text as Markdown, with each placeholder set in code so it stands out. Lines are
+    /// joined with a hard break, a backslash before the newline, so the text keeps its lines without
+    /// the space between paragraphs. An empty line is a line that holds only the break, so it shows
+    /// as one. Empty lines at the start and end are left out, because the last line of a paragraph
+    /// cannot break.
     static func marked(_ template: Template) -> String {
         var lines: [String] = []
         var line = LineWriter()
@@ -160,7 +163,10 @@ nonisolated enum SnippetDetail {
             }
         }
         lines.append(line.text)
-        return lines.map { $0.allSatisfy(\.isWhitespace) ? "" : $0 }.joined(separator: "\n\n")
+        var shown = lines.map { $0.allSatisfy(\.isWhitespace) ? "" : $0 }
+        while shown.first == "" { shown.removeFirst() }
+        while shown.last == "" { shown.removeLast() }
+        return shown.joined(separator: "\\\n")
     }
 
     private static func source(of placeholder: Placeholder, in text: String) -> String {
