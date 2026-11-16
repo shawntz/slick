@@ -9,6 +9,17 @@ nonisolated enum HostStrings {
     static let launcherHotkeyOwner = Brand.name
     static let commandUnavailable = "This Command Is Not Available"
     static let commandRefusesLinks = "This Command Cannot Run from a Link"
+    static let commandRefusesLinksMessage =
+        "A link opened \(Brand.name) this time. Open it yourself, with its hotkey or from the menu bar, "
+        + "and run the command from there."
+    static let notAnOptionMessage = "Choose one of its options and run the command again."
+    static let waitAMoment = "Wait a Moment"
+    static let showInLargeType = "Show in Large Type"
+
+    /// Why a held confirm button did nothing yet.
+    static func waitBeforeConfirming(_ button: String) -> String {
+        "\(button) works once this question has been open for a second."
+    }
     static let itemUnavailable = "This Item Is No Longer Available"
     static let searchPlaceholder = "Search for apps and commands"
     static let filterPlaceholder = "Search"
@@ -16,6 +27,8 @@ nonisolated enum HostStrings {
     static let actionSearchPlaceholder = "Search for actions"
     static let runCommand = "Run Command"
     static let open = "Open"
+    /// The toast for a link in a detail that is not a web or mail link. Its message is the target.
+    static let notAWebLink = "Not a Web Link"
     static let universalActions = "Universal Actions"
     static let itemActions = "Item"
     static let addToFavorites = "Add to Favorites"
@@ -58,6 +71,11 @@ nonisolated enum HostStrings {
 
     static func previewPosition(_ name: String, _ position: Int, _ count: Int) -> String {
         "\(name)  \(position) of \(count)"
+    }
+
+    /// A dropdown argument got a value that is not one of its options.
+    static func notAnOption(_ placeholder: String) -> String {
+        "Not an Option for \(titleCased(placeholder, startsTitle: false))"
     }
 
     static func missingArgument(_ placeholder: String) -> String {

@@ -60,9 +60,11 @@ import KitHosting
 
     /// Runs a command by ID. Missing optional arguments get their defaults; arguments the command
     /// does not declare are passed along. An unknown or switched-off command shows a failure toast.
-    /// A missing required argument is asked for in the search field, through
-    /// ``RunPresenter/askForArguments(_:values:query:launch:)``, or shows a failure toast when the
-    /// panel cannot ask. A link never runs a command that stays out of deep links.
+    /// A dropdown argument whose value is not one of its options is refused, whoever passed it,
+    /// with a failure toast that names the argument. A missing required argument is asked for in
+    /// the search field, through ``RunPresenter/askForArguments(_:values:query:launch:)``, or shows
+    /// a failure toast when the panel cannot ask. A command that stays out of deep links never runs
+    /// from a link, from a hand-off a link's run made, or in a panel session a link opened.
     @discardableResult
     public func runCommand(
         _ id: ItemID, arguments: [String: String] = [:], query: String = "", launch: LaunchSource, row: Row? = nil
@@ -80,8 +82,14 @@ import KitHosting
         guard let runtime, let entry = runtime.command(id), entry.isEnabled else {
             return Task { showFailure(title: HostStrings.commandUnavailable, message: nil) }
         }
-        if launch == .deeplink, !entry.command.allowsDeepLinks {
-            return Task { showFailure(title: HostStrings.commandRefusesLinks, message: nil) }
+        if !entry.command.allowsDeepLinks, launch == .deeplink || startedByLink || isLinkSessionShowing {
+            return Task { refuseForLink() }
+        }
+        if let argument = Self.argumentOutsideItsOptions(entry.command.arguments, values: arguments) {
+            return Task {
+                showFailure(
+                    title: HostStrings.notAnOption(argument.placeholder), message: HostStrings.notAnOptionMessage)
+            }
         }
         var values = arguments
         for argument in entry.command.arguments where (values[argument.name] ?? "").isEmpty {
@@ -103,11 +111,37 @@ import KitHosting
             arguments: CommandArguments(values), launch: launch, row: row)
         origin.commandTitle = command.title
         origin.startedByLink = startedByLink
-        let request = RunRequest(
+        var request = RunRequest(
             key: "command." + command.id, title: command.title, requires: command.requires,
             confirmation: command.confirmation, isDestructive: command.confirmation?.isDestructive ?? false,
             policy: command.runPolicy, origin: origin, handler: command.run)
+        request.allowsLinks = command.allowsDeepLinks
         return Task { await perform(request) }
+    }
+
+    /// The first dropdown argument given a value that is not one of its options, or nil. An empty
+    /// value counts as left out. A link, a hand-off or a script's caller may pass any text, and a
+    /// command may trust a dropdown's value to be one it offered.
+    nonisolated static func argumentOutsideItsOptions(
+        _ arguments: [CommandArgument], values: [String: String]
+    ) -> CommandArgument? {
+        arguments.first { argument in
+            guard case .dropdown(let options) = argument.kind, let value = values[argument.name], !value.isEmpty
+            else { return false }
+            return !options.contains { $0.value == value }
+        }
+    }
+
+    /// True while the panel shows a session a link opened or reached.
+    private var isLinkSessionShowing: Bool {
+        guard let presenter, presenter.isPanelVisible else { return false }
+        return presenter.isLinkSession(presenter.sessionID)
+    }
+
+    /// Refuses a command that stays out of deep links for a run a link started or reached, and says
+    /// how the user can run it.
+    private func refuseForLink() {
+        showFailure(title: HostStrings.commandRefusesLinks, message: HostStrings.commandRefusesLinksMessage)
     }
 
     /// Runs a command with text typed in root search, as a fallback or the Tab command does: the
@@ -129,11 +163,13 @@ import KitHosting
         guard case .run(let handler) = action.kind else { return Task {} }
         let origin = RunOrigin(
             featureID: featureID, feature: context, query: query, arguments: arguments, launch: launch, row: row)
-        let request = RunRequest(
+        var request = RunRequest(
             key: "action." + action.id, title: action.title, requires: action.requires,
             confirmation: action.confirmation,
             isDestructive: action.style == .destructive || (action.confirmation?.isDestructive ?? false),
             policy: action.runPolicy, origin: origin, handler: handler)
+        // A command row's own actions belong to the command, so they stay out of links with it.
+        if let row, let command = runtime?.command(row.id) { request.allowsLinks = command.command.allowsDeepLinks }
         return Task { await perform(request) }
     }
 
@@ -195,6 +231,12 @@ import KitHosting
             || request.origin.session.map({ presenter?.isLinkSession($0) ?? false }) == true
         {
             request.origin.startedByLink = true
+        }
+        // Text a link typed must never reach a command that stays out of links: the session may
+        // have become a link session since the run was asked for.
+        if request.origin.startedByLink, !request.allowsLinks {
+            refuseForLink()
+            return
         }
         guard
             await grantMissing(request.requires, featureID: request.origin.featureID, inRun: true, title: request.title)
@@ -434,6 +476,9 @@ struct RunRequest {
     var policy: RunPolicy
     var origin: RunOrigin
     var handler: Action.Handler
+    /// False for a command that stays out of deep links, and for its row actions: a run a link
+    /// started or reached is refused.
+    var allowsLinks = true
 }
 
 /// The panel as one run's handler sees it. It forwards to the presenter and remembers whether the
@@ -464,7 +509,7 @@ struct RunRequest {
     func makeContext() -> ActionContext {
         ActionContext(
             feature: feature, host: self, query: origin.query, arguments: origin.arguments, launch: origin.launch,
-            row: origin.row)
+            row: origin.row, startedByLink: origin.startedByLink)
     }
 
     private var presenter: (any RunPresenter)? { pipeline?.presenter }
