@@ -7,6 +7,7 @@ import LauncherUI
 import Platform
 import Root
 import SettingsUI
+import Updates
 import os
 
 /// The composition root: every part of the launcher, made and connected for one run environment.
@@ -24,8 +25,13 @@ import os
 /// 4. Root search over the runtime, Platform's system context, the settings and the clock. Its
 ///    engine opens off the main thread; a second engine on the same folder falls back to memory.
 /// 5. The forwarders point at Root.
-/// 6. The theme store, the panel over Root and Platform's icons, the launcher hotkey, the settings
-///    window's dependencies, which read the hotkey's state, and Platform's hooks.
+/// 6. The theme store, the panel over Root and Platform's icons, the launcher hotkey, the updater,
+///    the settings window's dependencies, which read the hotkey's state and the updater, and
+///    Platform's hooks.
+///
+/// The updater is Sparkle's only in the live launcher started from a bundle with a feed address
+/// and a public key. Every other run gets `NoUpdates`, and no Sparkle object is made. It asks the
+/// menu bar item's switch whether the menu can offer an update a scheduled check found.
 @MainActor final class Assembly {
     /// What one run is made of.
     struct Configuration {
@@ -68,6 +74,9 @@ import os
     let settings: SettingsOpener
     let links: DeepLinkRouter
     let hotkey: LauncherHotkey
+    /// Whether this build updates itself. See
+    /// ``Updates/Updates/make(environment:bundle:remindsInMenu:)``.
+    let updates: any UpdateControl
     /// The services a scenario checks.
     let recordingWorkspace: RecordingWorkspace?
     /// HUDs outside the live app, which are written down instead of shown.
@@ -135,12 +144,16 @@ import os
             hotkeys: services.hotkeys, settings: services.settings, retrySignal: runtime.preferences.changes,
             clock: services.clock, press: { [weak panel] in panel?.toggle() })
         self.hotkey = hotkey
+        let updates = Updates.make(
+            environment: environment, bundle: .main,
+            remindsInMenu: StatusItemController.remindsUpdates(settings: services.settings))
+        self.updates = updates
 
         let dependencies = SettingsDependencies(
             services: services, features: runtime, preferences: runtime.preferences, learning: root.inspector,
             icons: icons, loginItem: platform.loginItem, themes: themes, dataDirectory: configuration.dataRoot,
             about: AboutInfo.fromMainBundle(links: ProjectLinks.about),
-            lookUpItem: { [weak root] id in root?.row(for: id) }, launcherHotkey: hotkey)
+            lookUpItem: { [weak root] id in root?.row(for: id) }, launcherHotkey: hotkey, updates: updates)
         settings = SettingsOpener(
             showsWindows: configuration.showsWindows, onOpen: { [weak hotkey] in hotkey?.checkNow() },
             makeController: { SettingsController(dependencies: dependencies) },

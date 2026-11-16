@@ -7,6 +7,10 @@ enum AppStrings {
     static var openLauncher: String { "Open \(Brand.name)" }
     static let settings = "Settings…"
     static var quit: String { "Quit \(Brand.name)" }
+    /// Opens the updater's window, which checks and shows the result.
+    static let checkForUpdates = "Check for Updates…"
+    /// Leads the menu while an update a scheduled check found waits. It opens the updater's window.
+    static func updateWaiting(_ version: String) -> String { "Update to \(Brand.name) \(version)…" }
 
     // MARK: Deep links
 

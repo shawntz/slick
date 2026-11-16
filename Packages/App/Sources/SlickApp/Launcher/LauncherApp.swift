@@ -76,7 +76,7 @@ import os
         }
         let workspace = assembly.services.workspace
         let status = StatusItemController(
-            settings: assembly.services.settings,
+            settings: assembly.services.settings, updates: assembly.updates,
             openLauncher: { [weak assembly] in assembly?.panel?.summon() },
             openSettings: { [weak assembly] in assembly?.settings.open() },
             openKeyboardSettings: { Task { try? await workspace.open(SpotlightShortcutGuide.keyboardSettingsURL) } })

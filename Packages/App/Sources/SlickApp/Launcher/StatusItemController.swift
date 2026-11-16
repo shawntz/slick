@@ -3,17 +3,26 @@ import Kit
 import KitHosting
 import SettingsUI
 
-/// The menu bar item: a bolt that opens a small menu with Open, Settings and Quit. It follows
-/// ``HostSettings/showStatusItem``. When root search keeps learning in memory, the menu says why.
-/// While a macOS shortcut holds the launcher hotkey, the menu names the holder and offers to open
-/// Keyboard settings.
-@MainActor final class StatusItemController: NSObject {
+/// The menu bar item: a bolt that opens a small menu with Open, Settings, Check for Updates and
+/// Quit. It follows ``HostSettings/showStatusItem``. When root search keeps learning in memory, the
+/// menu says why. While a macOS shortcut holds the launcher hotkey, the menu names the holder and
+/// offers to open Keyboard settings.
+///
+/// Check for Updates shows only in a build that updates itself. When a scheduled check found an
+/// update, the menu leads with an item that names it and opens the updater's window, until the
+/// person looks at it. While the item is hidden, the updater shows such an update in its own window,
+/// because no menu can offer it.
+@MainActor final class StatusItemController: NSObject, NSMenuItemValidation {
     private let general: FeatureSettings
+    private let updates: any UpdateControl
     private let openLauncher: () -> Void
     private let openSettings: () -> Void
     private let openKeyboardSettings: () -> Void
     private var item: NSStatusItem?
     private var watcher: Task<Void, Never>?
+    private var updatesWatcher: Task<Void, Never>?
+    /// The update the menu last offered, so a change rebuilds it only when that changes.
+    private var offeredUpdate: String?
 
     /// A problem to name at the top of the menu, such as the data folder being in use.
     var problem: String? {
@@ -31,11 +40,20 @@ import SettingsUI
     /// True while the item is in the menu bar.
     var isInstalled: Bool { item != nil }
 
+    /// Whether the menu can offer an update a scheduled check found: while the item is in the menu
+    /// bar, which follows ``HostSettings/showStatusItem``. The updater asks each time it finds one,
+    /// so hiding the item later counts too.
+    static func remindsUpdates(settings: any SettingsService) -> @MainActor () -> Bool {
+        let general = HostSettings.settings(settings)
+        return { general[HostSettings.showStatusItem] }
+    }
+
     init(
-        settings: any SettingsService, openLauncher: @escaping () -> Void, openSettings: @escaping () -> Void,
-        openKeyboardSettings: @escaping () -> Void = {}
+        settings: any SettingsService, updates: any UpdateControl = NoUpdates(), openLauncher: @escaping () -> Void,
+        openSettings: @escaping () -> Void, openKeyboardSettings: @escaping () -> Void = {}
     ) {
         general = HostSettings.settings(settings)
+        self.updates = updates
         self.openLauncher = openLauncher
         self.openSettings = openSettings
         self.openKeyboardSettings = openKeyboardSettings
@@ -43,21 +61,34 @@ import SettingsUI
 
     isolated deinit {
         watcher?.cancel()
+        updatesWatcher?.cancel()
     }
 
-    /// Shows the item when the setting says so, and follows the setting from now on.
+    /// Shows the item when the setting says so, and follows the setting and the updater from now on.
     func start() {
         apply()
         let changes = general.changes(of: HostSettings.showStatusItem)
         watcher = Task { [weak self] in
             for await _ in changes { self?.apply() }
         }
+        let updateChanges = updates.changes.stream()
+        updatesWatcher = Task { [weak self] in
+            for await _ in updateChanges { self?.updatesChanged() }
+        }
     }
 
     func stop() {
         watcher?.cancel()
         watcher = nil
+        updatesWatcher?.cancel()
+        updatesWatcher = nil
         remove()
+    }
+
+    /// Rebuilds the menu when the update it offers comes or goes.
+    private func updatesChanged() {
+        guard updates.waitingVersion != offeredUpdate else { return }
+        item?.menu = makeMenu()
     }
 
     private func apply() {
@@ -84,6 +115,14 @@ import SettingsUI
     /// The menu as it stands. Making it touches nothing on screen.
     func makeMenu() -> NSMenu {
         let menu = NSMenu()
+        offeredUpdate = updates.waitingVersion
+        if let version = offeredUpdate {
+            let update = NSMenuItem(
+                title: AppStrings.updateWaiting(version), action: #selector(checkForUpdatesFromMenu), keyEquivalent: "")
+            update.target = self
+            menu.addItem(update)
+            menu.addItem(.separator())
+        }
         if let problem {
             let line = NSMenuItem(title: problem, action: nil, keyEquivalent: "")
             line.isEnabled = false
@@ -110,6 +149,13 @@ import SettingsUI
         settings.target = self
         menu.addItem(settings)
         menu.addItem(.separator())
+        if updates.isAvailable {
+            let check = NSMenuItem(
+                title: AppStrings.checkForUpdates, action: #selector(checkForUpdatesFromMenu), keyEquivalent: "")
+            check.target = self
+            menu.addItem(check)
+            menu.addItem(.separator())
+        }
         let quit = NSMenuItem(
             title: AppStrings.quit, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
@@ -126,5 +172,17 @@ import SettingsUI
 
     @objc private func keyboardSettingsFromMenu() {
         openKeyboardSettings()
+    }
+
+    /// Opens the updater's window: the update a scheduled check found, or a check the person asked for.
+    @objc private func checkForUpdatesFromMenu() {
+        updates.checkNow()
+    }
+
+    /// The update items work only while the updater can check, as while it downloads in the
+    /// background it cannot. Every other item stays as it was made.
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard menuItem.action == #selector(checkForUpdatesFromMenu) else { return menuItem.isEnabled }
+        return updates.canCheckNow
     }
 }
