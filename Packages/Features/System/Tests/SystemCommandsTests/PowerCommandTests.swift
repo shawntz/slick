@@ -22,9 +22,9 @@ struct PowerCommandTests {
     }
 
     @Test(arguments: [
-        ("log-out", PowerRequest.logOut, "Log out now?", "Logging Out"),
-        ("restart", .restart, "Restart your Mac now?", "Restarting"),
-        ("shut-down", .shutDown, "Shut down your Mac now?", "Shutting Down"),
+        ("log-out", PowerRequest.logOut, "Log Out Now?", "Logging Out"),
+        ("restart", .restart, "Restart Your Mac Now?", "Restarting"),
+        ("shut-down", .shutDown, "Shut Down Your Mac Now?", "Shutting Down"),
     ])
     func sessionCommandsAlwaysAskFirst(id: String, request: PowerRequest, question: String, hud: String) async throws {
         let system = SystemHarness()

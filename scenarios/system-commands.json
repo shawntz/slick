@@ -8,7 +8,7 @@
     { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 2 },
-    { "expect": { "card": "Restart your Mac now?" } },
+    { "expect": { "card": "Restart Your Mac Now?" } },
     { "capture": { "name": "restart-asks", "key": true } },
     { "press": "escape" },
     { "expect": { "card": "", "visible": true } },

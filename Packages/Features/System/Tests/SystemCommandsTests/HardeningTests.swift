@@ -173,7 +173,7 @@ struct OddInputTests {
         ]
         let system = SystemHarness(disks: disks)
         try await system.harness.run("eject-all-disks")
-        #expect(system.harness.confirmations.first?.title == "Eject 3 disks?")
+        #expect(system.harness.confirmations.first?.title == "Eject 3 Disks?")
         #expect(system.housekeeping.disks.isEmpty)
     }
 

@@ -39,9 +39,9 @@ nonisolated enum Strings {
         static let shutDownKeywords = ["shutdown", "power off", "turn off", "halt"]
 
         static let sessionMessage = "Your apps will quit. An app with unsaved changes may ask you to save first."
-        static let logOutQuestion = "Log out now?"
-        static let restartQuestion = "Restart your Mac now?"
-        static let shutDownQuestion = "Shut down your Mac now?"
+        static let logOutQuestion = "Log Out Now?"
+        static let restartQuestion = "Restart Your Mac Now?"
+        static let shutDownQuestion = "Shut Down Your Mac Now?"
 
         static let loggingOut = "Logging Out"
         static let restarting = "Restarting"
@@ -119,7 +119,7 @@ nonisolated enum Strings {
             failed: "Could Not Eject the Disks", unavailable: "Eject All Disks Is Not Available on This Mac")
 
         static func question(disks: Int) -> String {
-            disks == 1 ? "Eject 1 disk?" : "Eject \(disks) disks?"
+            disks == 1 ? "Eject 1 Disk?" : "Eject \(disks) Disks?"
         }
 
         static func message(names: [String], locale: Locale) -> String {
@@ -261,7 +261,7 @@ nonisolated enum Strings {
         }
 
         static func forceQuitQuestion(_ name: String) -> String {
-            "Force quit \(name)?"
+            "Force Quit \(name)?"
         }
 
         static func forceQuitMessage(_ name: String) -> String {

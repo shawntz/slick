@@ -167,7 +167,7 @@ struct ProcessListTests {
         #expect(action.shortcut == KeyCombo(.q, [.control, .option, .shift]))
         try await system.harness.perform("force-quit")
         let confirmation = try #require(system.harness.confirmations.first)
-        #expect(confirmation.title == "Force quit Example Browser?")
+        #expect(confirmation.title == "Force Quit Example Browser?")
         #expect(confirmation.message == "Example Browser stops at once. Anything it has not saved is lost.")
         #expect(confirmation.isDestructive)
         #expect(system.processes.requests == [.forceQuit(pid: 202)])

@@ -156,7 +156,7 @@ struct EjectTests {
         let system = SystemHarness(disks: [SystemHarness.drive, SystemHarness.backup])
         let outcome = try await system.harness.run("eject-all-disks")
         let confirmation = try #require(system.harness.confirmations.first)
-        #expect(confirmation.title == "Eject 2 disks?")
+        #expect(confirmation.title == "Eject 2 Disks?")
         #expect(confirmation.message == "This ejects Example Drive and Example Backup.")
         #expect(confirmation.confirmTitle == "Eject")
         #expect(confirmation.suppressionKey == "eject-all")
@@ -172,7 +172,7 @@ struct EjectTests {
     @Test func serversStayConnectedUnlessTheSettingSaysOtherwise() async throws {
         let system = SystemHarness(disks: [SystemHarness.drive, SystemHarness.server])
         try await system.harness.run("eject-all-disks")
-        #expect(system.harness.confirmations.first?.title == "Eject 1 disk?")
+        #expect(system.harness.confirmations.first?.title == "Eject 1 Disk?")
         #expect(system.housekeeping.disks == [SystemHarness.server])
 
         let again = SystemHarness(disks: [SystemHarness.drive, SystemHarness.server])
