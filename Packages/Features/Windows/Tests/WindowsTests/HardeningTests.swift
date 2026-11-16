@@ -41,7 +41,7 @@ struct HardeningTests {
         try await windows.harness.perform("close")
         #expect(
             windows.harness.confirmations.map(\.title) == [
-                "Close \u{201C}Start Page\u{201D}?", "Close this Example Player window?",
+                "Close \u{201C}Start Page\u{201D}?", "Close This Example Player Window?",
             ])
         #expect(
             windows.harness.confirmations.first?.message
@@ -55,7 +55,7 @@ struct HardeningTests {
         let question = Strings.closeQuestion(title: String(repeating: "word ", count: 40), app: "Example Editor")
         #expect(question.count <= 64)
         #expect(question.hasSuffix("\u{2026}\u{201D}?"))
-        #expect(Strings.closeQuestion(title: nil, app: nil) == "Close this window?")
+        #expect(Strings.closeQuestion(title: nil, app: nil) == "Close This Window?")
         #expect(
             Strings.closeMessage(app: nil) == "If it has unsaved changes, the app asks what to do with them.")
     }

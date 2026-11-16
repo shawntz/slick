@@ -109,8 +109,8 @@ nonisolated enum Strings {
             let shown = title.count > 50 ? title.prefix(49) + "\u{2026}" : Substring(title)
             return "Close \u{201C}\(shown)\u{201D}?"
         }
-        if let app, !app.isEmpty { return "Close this \(app) window?" }
-        return "Close this window?"
+        if let app, !app.isEmpty { return "Close This \(app) Window?" }
+        return "Close This Window?"
     }
 
     static func closeMessage(app: String?) -> String {
@@ -119,7 +119,7 @@ nonisolated enum Strings {
     }
     static let minimizedToast = "Minimized the Window"
     static let closedToast = "Closed the Window"
-    static let needsAccessTitle = "Switch Windows needs Accessibility"
+    static let needsAccessTitle = "Switch Windows Needs Accessibility"
     static let needsAccessMessage = "Grant Accessibility to list the windows of other apps."
     static let grantAccess = "Grant Access"
 
