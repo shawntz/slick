@@ -69,12 +69,17 @@ enum SelfTest {
         return report
     }
 
+    /// How the selftest builds the launcher: the selftest environment over `dataRoot`, with an
+    /// in-memory engine and no windows.
+    static func configuration(dataRoot: URL) -> Assembly.Configuration {
+        Assembly.Configuration(environment: .selftest, dataRoot: dataRoot, rootStorage: .inMemory, showsWindows: false)
+    }
+
     /// Builds the whole launcher in the selftest environment over `dataRoot`, checks it and shuts
     /// it down. Shows nothing.
     static func checkComposition(dataRoot: URL) async -> Report {
         var report = Report()
-        let assembly = Assembly(
-            .init(environment: .selftest, dataRoot: dataRoot, rootStorage: .inMemory, showsWindows: false))
+        let assembly = Assembly(configuration(dataRoot: dataRoot))
         await assembly.start(prewarm: false)
         let runtime = assembly.runtime
         let root = assembly.root

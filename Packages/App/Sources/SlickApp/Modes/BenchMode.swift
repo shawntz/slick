@@ -38,6 +38,14 @@ enum BenchMode {
         }
     }
 
+    /// How the bench builds the launcher for one catalog size: the bench environment over
+    /// `dataRoot`, with an in-memory engine and the synthetic catalog.
+    static func configuration(dataRoot: URL, size: Int) -> Assembly.Configuration {
+        Assembly.Configuration(
+            environment: .bench, dataRoot: dataRoot, rootStorage: .inMemory,
+            builtInSources: [SyntheticCatalog(count: size)])
+    }
+
     static func run(only name: String?, folders: RunFolders) async -> Int32 {
         if let name, !names.contains(name) {
             print("bench FAIL: no bench named \(name); the names are \(names.joined(separator: ", "))")
@@ -56,10 +64,7 @@ enum BenchMode {
             print("catalog of \(size) synthetic items")
             let folder = folders.dataRoot.appending(path: "catalog-\(size)", directoryHint: .isDirectory)
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let assembly = Assembly(
-                .init(
-                    environment: .bench, dataRoot: folder, rootStorage: .inMemory,
-                    builtInSources: [SyntheticCatalog(count: size)]))
+            let assembly = Assembly(configuration(dataRoot: folder, size: size))
             await assembly.start(prewarm: true)
             let root = assembly.root
             guard await SelfTest.within(.seconds(60), { await assembly.ready() }), root.catalogCount >= size else {
