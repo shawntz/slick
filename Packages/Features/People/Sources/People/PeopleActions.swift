@@ -21,6 +21,7 @@ import Kit
         static let copyPhone = "copy-phone"
         static let copyEmail = "copy-email"
         static let copyAddress = "copy-address"
+        static let largeTypePhone = "large-type-phone"
     }
 
     private let directory: PeopleDirectory
@@ -62,6 +63,7 @@ import Kit
         let mappable = addresses.filter { ContactLinks.maps($0) != nil }
         if !mappable.isEmpty { actions.append(maps(mappable)) }
         if let open = openInContacts(id: person.id) { actions.append(open) }
+        if !phones.isEmpty { actions.append(largeType(phones)) }
 
         let section = Strings.Actions.copySection
         actions.append(
@@ -134,6 +136,17 @@ import Kit
         return Action(
             Strings.Actions.openInContacts, id: ID.openInContacts, icon: .symbol("person.crop.square"),
             shortcut: .open, run: Self.opening(url, failure: Strings.Failures.contacts))
+    }
+
+    /// Shows a number across the screen, to read it out or dial it on another phone. Command-L, as
+    /// the host's own Show in Large Type.
+    private func largeType(_ phones: [LabeledValue]) -> Action {
+        oneOrMany(
+            phones, title: Strings.Actions.showPhoneInLargeType, id: ID.largeTypePhone,
+            icon: .symbol("textformat.size")
+        ) { phone in
+            { _ in .showLargeType(phone.value.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        }.with(shortcut: .largeType)
     }
 
     // MARK: - Copying

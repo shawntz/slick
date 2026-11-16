@@ -23,7 +23,7 @@ struct ActionTests {
         #expect(
             harness.actionIDs == [
                 "open-in-contacts", "call", "message", "email", "facetime", "facetime-audio", "open-address-in-maps",
-                "copy-name", "copy-phone", "copy-email", "copy-address",
+                "large-type-phone", "copy-name", "copy-phone", "copy-email", "copy-address",
             ])
         try harness.select(personID(Cast.lea))
         #expect(harness.actionIDs == ["open-in-contacts", "copy-name"])
@@ -31,8 +31,7 @@ struct ActionTests {
         #expect(
             harness.actionIDs == [
                 "open-in-contacts", "call", "message", "facetime", "facetime-audio", "open-address-in-maps",
-                "copy-name",
-                "copy-phone", "copy-address",
+                "large-type-phone", "copy-name", "copy-phone", "copy-address",
             ])
         #expect(harness.issues.isEmpty)
     }
@@ -105,6 +104,24 @@ struct ActionTests {
             ])
     }
 
+    /// A number shows in Large Type, Command-L, which closes the panel. Several numbers get a
+    /// submenu with their labels.
+    @Test func aNumberShowsInLargeType() async throws {
+        let (harness, _) = try await select(Cast.bruno)
+        let action = try #require(harness.actions().first { $0.id == "large-type-phone" })
+        #expect(action.title == "Show Phone Number in Large Type")
+        #expect(action.shortcut == .largeType)
+        let outcome = try await harness.perform("large-type-phone")
+        #expect(outcome.kind == .showLargeType("555 0100"))
+        #expect(harness.largeTypeTexts == ["555 0100"])
+        #expect(harness.isClosed)
+
+        try harness.select(personID(Cast.ana))
+        let entries = try await harness.submenu("large-type-phone")
+        #expect(entries.map(\.title) == ["Mobile: +1 (555) 010-0101", "Work: +1 555 010 0102 ext. 7"])
+        #expect(harness.issues.isEmpty)
+    }
+
     @Test func theSameNumberWrittenTwoWaysIsOfferedOnce() async throws {
         let person = Person(
             id: "dup", givenName: "Kai",
@@ -120,7 +137,7 @@ struct ActionTests {
     @Test func aNumberThatCannotBeDialledIsOnlyCopied() async throws {
         let person = Person(id: "code", givenName: "Voicemail", phones: [LabeledValue("", "*86")])
         let (harness, _) = try await select(person, among: [person])
-        #expect(harness.actionIDs == ["open-in-contacts", "copy-name", "copy-phone"])
+        #expect(harness.actionIDs == ["open-in-contacts", "large-type-phone", "copy-name", "copy-phone"])
     }
 
     @Test(arguments: [

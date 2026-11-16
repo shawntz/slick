@@ -26,6 +26,7 @@ Only the actions a person has something for are offered. A person with several n
 | FaceTime | `facetime` | `facetime:` with a number or an email address |
 | FaceTime Audio | `facetime-audio` | `facetime-audio:` with a number or an email address |
 | Open Address in Maps | `open-address-in-maps` | `maps://?address=...` |
+| Show Phone Number in Large Type | `large-type-phone` | Command-L; a submenu for several numbers |
 | Copy Name | `copy-name` | Shift-Command-C |
 | Copy Phone Number, Copy Email Address, Copy Address | `copy-phone`, `copy-email`, `copy-address` | |
 

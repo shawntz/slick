@@ -40,7 +40,7 @@ struct HardeningTests {
         let (harness, _) = await makeHarness(people: [person])
         try await harness.run("search")
         try harness.select(title: "Flora")
-        #expect(harness.actionIDs == ["open-in-contacts", "copy-name", "copy-phone"])
+        #expect(harness.actionIDs == ["open-in-contacts", "large-type-phone", "copy-name", "copy-phone"])
         try await harness.perform("copy-phone")
         #expect(harness.fakes.pasteboard.copiedTexts == ["1-800-flowers"])
         #expect(harness.fakes.workspace.opened.isEmpty)

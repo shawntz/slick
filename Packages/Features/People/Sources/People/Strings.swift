@@ -60,6 +60,7 @@ nonisolated enum Strings {
         static let copyPhone = "Copy Phone Number"
         static let copyEmail = "Copy Email Address"
         static let copyAddress = "Copy Address"
+        static let showPhoneInLargeType = "Show Phone Number in Large Type"
         static let copiedName = "Copied Name"
         static let copiedPhone = "Copied Phone Number"
         static let copiedEmail = "Copied Email Address"
