@@ -37,7 +37,7 @@ The action chosen for Return comes first. When the person has nothing for it, Op
 - The live service, `LiveContacts`, checks `CNContactStore.authorizationStatus(for:)` before every read, so it never raises a prompt. It asks only for the keys the feature shows. Notes are never read. Photos are read one at a time for the detail pane, scaled to 256 pixels off the main thread, and kept in memory for the last 64 people.
 - Contacts stay in memory while the feature is on. The feature writes no name, number or address to disk and sends nothing over the network. Root search learns which person a query leads to, by the row's ID, as it does for apps; the settings pane says so.
 - After the first read the feature follows `CNContactStoreDidChange` and reads again off the main thread. When access goes away it forgets everyone.
-- It opens a permission change stream only after a refused request or a load that found access missing, and only until the grant, for at most ten minutes.
+- It holds no permission stream. A grant made in settings, onboarding or on the permission card reaches it as `permissionGranted(_:)`, and the list and root search read people at once. A grant made straight in System Settings is read the next time Search Contacts opens.
 
 ## Where to look
 

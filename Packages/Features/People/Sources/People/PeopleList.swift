@@ -10,8 +10,6 @@ import Kit
     private let directory: PeopleDirectory
     private let builder: PeopleActions
     private let locale: Locale
-    /// Called when a load finds access missing, so the feature can wait for a grant.
-    var onAccessMissing: (() -> Void)?
 
     init(directory: PeopleDirectory, actions: PeopleActions, locale: Locale) {
         self.directory = directory
@@ -35,7 +33,6 @@ import Kit
         do {
             snapshot = try await directory.current()
         } catch PeopleError.accessMissing {
-            onAccessMissing?()
             return ListResult(rows: [], emptyState: accessEmptyState)
         }
         guard !snapshot.people.isEmpty else {

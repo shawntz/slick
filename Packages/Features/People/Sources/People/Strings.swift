@@ -42,7 +42,8 @@ nonisolated enum Strings {
         static let restrictedMessage = "A profile on this Mac blocks access to Contacts."
 
         static var turnOnMessage: String {
-            "To allow it, turn on \(Brand.name) in System Settings under Privacy & Security, then Contacts."
+            "Turn on \(Brand.name) in System Settings under Privacy & Security, then Contacts, and open Search "
+                + "Contacts again."
         }
     }
 

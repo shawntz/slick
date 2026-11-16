@@ -17,6 +17,7 @@ struct AccessTests {
         #expect(harness.fakes.permissions.requests.isEmpty)
         #expect(harness.fakes.permissions.openStreamCount == 0)
         #expect(harness.issues.isEmpty)
+        #expect(harness.pendingIssues.isEmpty)
     }
 
     @Test func withAccessMissingNothingReadsAndNothingPrompts() async throws {
@@ -26,7 +27,6 @@ struct AccessTests {
         #expect(store.peopleReads == 0)
         #expect(harness.fakes.permissions.requests.isEmpty)
         #expect(harness.fakes.permissions.openStreamCount == 0)
-        #expect(!harness.feature.isWaitingForGrant)
     }
 
     @Test func runningSearchContactsAsksThroughTheHostThenLists() async throws {
@@ -75,22 +75,28 @@ struct AccessTests {
         #expect(harness.fakes.permissions.requests.isEmpty)
     }
 
-    @Test func accessFoundMissingOnReloadWaitsForTheGrantThenReloads() async throws {
+    @Test func accessFoundMissingHoldsNoStreamAndAGrantInSettingsReloads() async throws {
         let (harness, store) = await makeHarness()
         try await harness.run("search")
         harness.fakes.permissions.set(.contacts, to: .denied)
         try await harness.reloadPage()
         #expect(harness.page?.emptyState?.title == Strings.Access.offTitle)
-        #expect(harness.feature.isWaitingForGrant)
-        #expect(harness.fakes.permissions.openStreamCount == 1)
+        #expect(harness.fakes.permissions.openStreamCount == 0, "no stream waits for the grant")
 
-        harness.fakes.permissions.set(.contacts, to: .granted)
-        await waitUntil { !harness.feature.isWaitingForGrant }
-        try await harness.settle()
-        #expect(!harness.feature.isWaitingForGrant)
-        #expect(harness.fakes.permissions.openStreamCount == 0)
+        try await harness.grantInSettings(.contacts)
         #expect(harness.titles.count == Cast.all.count)
         #expect(store.peopleReads == 2)
+    }
+
+    @Test func aGrantInSettingsOrOnboardingFillsRootSearch() async throws {
+        let (harness, store) = await makeHarness(access: .notDetermined)
+        #expect(try await harness.catalogRows().isEmpty)
+        let before = harness.feature.directory.changes.generation
+        try await harness.grantInSettings(.contacts)
+        #expect(harness.feature.directory.changes.generation > before, "root search asks the catalog again")
+        #expect(try await harness.catalogRows().count == Cast.all.count)
+        #expect(store.peopleReads == 1)
+        #expect(harness.fakes.permissions.openStreamCount == 0)
     }
 
     @Test func theAllowButtonOnTheListAsksThroughTheHost() async throws {
@@ -117,35 +123,20 @@ struct AccessTests {
         #expect(store.peopleReads == 1)
     }
 
-    @Test func aRefusalInSettingsWaitsForSystemSettingsThenStops() async throws {
+    @Test func aRefusalInSettingsSaysHowToTurnItOnAndHoldsNoStream() async throws {
         let (harness, _) = await makeHarness(access: .notDetermined)
         harness.fakes.permissions.answer = .denied
         try await harness.pressSettingsButton(Strings.Settings.allowAccess)
         #expect(harness.toasts.last?.title == Strings.Access.offTitle)
-        #expect(harness.feature.isWaitingForGrant)
-        #expect(harness.fakes.permissions.openStreamCount == 1)
-
-        let before = harness.feature.directory.changes.generation
-        harness.fakes.permissions.set(.contacts, to: .granted)
-        try await harness.settle()
-        await waitUntil { !harness.feature.isWaitingForGrant }
+        #expect(harness.toasts.last?.message?.hasSuffix("and open Search Contacts again.") == true)
         #expect(harness.fakes.permissions.openStreamCount == 0)
-        #expect(harness.feature.directory.changes.generation > before)
+
+        // Turned on later in System Settings: the next read finds access.
+        harness.fakes.permissions.set(.contacts, to: .granted)
         #expect(try await harness.catalogRows().count == Cast.all.count)
     }
 
-    @Test func theWaitForAGrantEndsAfterTenMinutes() async throws {
-        let (harness, _) = await makeHarness(access: .notDetermined)
-        harness.fakes.permissions.answer = .denied
-        try await harness.pressSettingsButton(Strings.Settings.allowAccess)
-        #expect(harness.feature.isWaitingForGrant)
-        await harness.fakes.clock.waitForSleepers()
-        harness.fakes.clock.advance(by: .seconds(601))
-        await waitUntil { !harness.feature.isWaitingForGrant }
-        #expect(harness.fakes.permissions.openStreamCount == 0)
-    }
-
-    @Test func turningTheFeatureOffStopsWaitingAndForgetsEveryone() async throws {
+    @Test func turningTheFeatureOffForgetsEveryone() async throws {
         let (harness, store) = await makeHarness()
         try await harness.run("search")
         #expect(store.listenerCount == 1)
@@ -154,14 +145,11 @@ struct AccessTests {
         await waitUntil { store.listenerCount == 0 }
         #expect(store.listenerCount == 0)
 
-        await harness.activate()
-        harness.fakes.permissions.set(.contacts, to: .denied)
-        harness.fakes.permissions.answer = .denied
-        try await harness.pressSettingsButton(Strings.Settings.allowAccess)
-        #expect(harness.fakes.permissions.openStreamCount == 1)
-        await harness.deactivate()
-        await waitUntil { harness.fakes.permissions.openStreamCount == 0 }
-        #expect(!harness.feature.isWaitingForGrant)
+        // A grant while the feature is off reads nothing.
+        let generation = harness.feature.directory.changes.generation
+        await harness.feature.permissionGranted(.contacts)
+        #expect(harness.feature.directory.changes.generation == generation)
+        #expect(harness.feature.directory.snapshot == nil)
     }
 
     @Test func aRestrictedMacSaysWhy() async throws {
@@ -169,7 +157,7 @@ struct AccessTests {
         harness.fakes.permissions.answer = .restricted
         try await harness.pressSettingsButton(Strings.Settings.allowAccess)
         #expect(harness.toasts.last?.message == Strings.Access.restrictedMessage)
-        #expect(!harness.feature.isWaitingForGrant)
+        #expect(harness.fakes.permissions.openStreamCount == 0)
     }
 }
 
