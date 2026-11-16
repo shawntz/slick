@@ -57,10 +57,10 @@ enum AppStrings {
     // MARK: Problems
 
     static var dataFolderInUse: String {
-        "Another copy of \(Brand.name) is using the data folder. Learning is not saved until it quits."
+        "Another copy of \(Brand.name) uses the data folder. This copy forgets what it learns when it quits."
     }
     static var dataFolderUnusable: String {
-        "The data folder cannot be written. Learning is not saved."
+        "\(Brand.name) cannot write to the data folder. It forgets what it learns when it quits."
     }
     /// A HUD title, so title case: the combination, as `KeyCombo.displayString` writes it.
     static func hotkeyRefused(_ combo: String) -> String {
