@@ -256,7 +256,9 @@ import LauncherUI
         return selectedRow?.title
     }
 
-    public var isBusy: Bool { feed.isLoading }
+    /// True while the page loads, or its source says it is busy with work of its own, through
+    /// Kit's `BusySource`.
+    public var isBusy: Bool { feed.isLoading || feed.sourceIsBusy }
 
     // MARK: Cells
 

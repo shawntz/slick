@@ -86,6 +86,7 @@ import LauncherUI
             host?.pageDidFail(self, error: error)
         }
         banner.onPress = { [weak self] in self?.runNoticeAction() }
+        split?.detail.onOpenLink = { [weak self] url in self?.openLink(url) }
         contentView.onThemeChange = { [weak self] theme in self?.banner.apply(theme) }
         list.onSelect = { [weak self] _ in self?.noteSelection() }
         list.onVisibleRowsChange = { [weak self] _ in self?.contentDidScroll() }
@@ -234,7 +235,9 @@ import LauncherUI
     /// What the detail pane shows now.
     public var shownDetail: Detail? { detailPresenter?.detail }
 
-    public var isBusy: Bool { feed.isLoading || isLoadingDetail }
+    /// True while the page loads its rows or its detail, or its source says it is busy with work of
+    /// its own, through Kit's `BusySource`.
+    public var isBusy: Bool { feed.isLoading || isLoadingDetail || feed.sourceIsBusy }
 
     // MARK: Drawing
 
@@ -326,6 +329,13 @@ import LauncherUI
     }
 
     // MARK: Detail pane
+
+    /// A link clicked in the detail pane: a web or mail link opens at once, any other shows its
+    /// target in a toast first. See ``DetailLinks``.
+    private func openLink(_ url: URL) {
+        guard let runtime = host?.runtime else { return }
+        DetailLinks.open(url, origin: origin, pipeline: runtime.pipeline)
+    }
 
     /// Loads the selected row's detail once the selection has rested, unless the pane already shows
     /// that row. A newer selection cancels the load.

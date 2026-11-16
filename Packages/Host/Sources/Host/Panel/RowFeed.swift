@@ -106,6 +106,10 @@ import Kit
     /// True while the first load has not applied or a load is running.
     var isLoading: Bool { loadTask != nil }
 
+    /// True while the source says it is busy with work of its own, such as a read that ends with
+    /// a change signal.
+    var sourceIsBusy: Bool { (source as? any BusySource)?.isBusy ?? false }
+
     // MARK: Lifecycle
 
     /// The page reached the top: listens for changes, and loads when it never did or when its data

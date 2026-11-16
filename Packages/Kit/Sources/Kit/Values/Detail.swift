@@ -6,10 +6,15 @@ public struct Detail: Hashable, Sendable {
     public var body: DetailBody?
     /// Label and value pairs under or beside the body.
     public var metadata: [MetadataItem]
+    /// What a detail page stands for, as ``Row/represents`` does for a row: the host then offers
+    /// every feature's universal actions for it, and Show in Large Type for text. Nil for none.
+    /// A detail in the pane beside a list needs none: its row's `represents` counts.
+    public var represents: Selection?
 
-    public init(_ body: DetailBody? = nil, metadata: [MetadataItem] = []) {
+    public init(_ body: DetailBody? = nil, metadata: [MetadataItem] = [], represents: Selection? = nil) {
         self.body = body
         self.metadata = metadata
+        self.represents = represents
     }
 
     /// A detail showing Markdown.

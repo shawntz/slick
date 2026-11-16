@@ -34,7 +34,11 @@ import LauncherUI
     public private(set) var streamsStarted = 0
     /// True while a stream runs.
     public var isStreaming: Bool { streamTask != nil }
-    public var isBusy: Bool { streamTask != nil || flushTask != nil }
+    /// True while a stream runs or waits to draw, or the source says it is busy with work of its
+    /// own, through Kit's `BusySource`.
+    public var isBusy: Bool {
+        streamTask != nil || flushTask != nil || (page.source as? any BusySource)?.isBusy == true
+    }
     public private(set) var query = ""
 
     private weak var host: (any PageHost)?
@@ -184,10 +188,13 @@ import LauncherUI
         let entries = runtime.visible(actions).map {
             ActionEntry($0, featureID: origin.featureID, context: origin.feature)
         }
-        guard !entries.isEmpty else { return nil }
-        return ActionTarget(
+        // A detail that stands for something has actions of the host's even with none of its own.
+        guard !entries.isEmpty || detail.represents != nil else { return nil }
+        var target = ActionTarget(
             row: nil, entries: entries, featureID: origin.featureID, context: origin.feature, launch: .page,
             query: query)
+        target.represents = detail.represents
+        return target
     }
 
     // MARK: Streaming
@@ -305,8 +312,10 @@ import LauncherUI
         }
     }
 
+    /// A web or mail link opens at once; any other shows its target in a toast first. See
+    /// ``DetailLinks``.
     private func open(_ url: URL) {
-        let workspace = origin.feature.workspace
-        Task { try? await workspace.open(url) }
+        guard let runtime = host?.runtime else { return }
+        DetailLinks.open(url, origin: origin, pipeline: runtime.pipeline)
     }
 }

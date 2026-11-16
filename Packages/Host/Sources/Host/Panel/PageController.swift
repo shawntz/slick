@@ -168,6 +168,10 @@ public struct ActionTarget {
     /// Argument values a run from here starts with, declared or not, before what the argument
     /// chips hold. Empty for most targets.
     public var arguments: [String: String] = [:]
+    /// What the target stands for: the row's ``Row/represents``, or for a detail page its
+    /// ``Detail/represents``. The action panel offers universal actions for it, and for text Show
+    /// in Large Type.
+    public var represents: Selection?
 
     public init(
         row: Row?, entries: [ActionEntry], featureID: String, context: FeatureContext, launch: LaunchSource,
@@ -181,6 +185,14 @@ public struct ActionTarget {
         self.query = query
         self.isRoot = isRoot
         universalInsertIndex = entries.count
+        represents = row?.represents
+    }
+
+    /// The text Show in Large Type shows for this target, or nil when it stands for no text.
+    public var largeTypeText: String? {
+        guard case .text(let text) = represents, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { return nil }
+        return text
     }
 
     /// The entry Return runs.
