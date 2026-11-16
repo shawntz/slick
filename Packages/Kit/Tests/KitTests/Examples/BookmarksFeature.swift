@@ -29,7 +29,7 @@ final class BookmarksFeature: Feature {
         do {
             bookmarks = try await store.load(default: [])
         } catch {
-            context.log.error("Could not read bookmarks: \(error.localizedDescription, privacy: .public)")
+            context.log.error("Could not read bookmarks: \(error.localizedDescription, privacy: .private)")
         }
         changes.send()
     }

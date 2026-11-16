@@ -141,7 +141,7 @@ final class CalcHistory {
         do {
             try await store.save(HistoryFile(entries: next))
         } catch {
-            log.error("Calculator history was not saved: \(String(describing: error), privacy: .public)")
+            log.error("Calculator history was not saved: \(String(describing: error), privacy: .private)")
         }
     }
 
