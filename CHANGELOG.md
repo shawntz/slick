@@ -6,6 +6,8 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 
 ## Unreleased
 
+## 0.1.0
+
 The first release. It needs macOS 26 or later on Apple silicon.
 
 ### Added
@@ -32,6 +34,6 @@ The first release. It needs macOS 26 or later on Apple silicon.
 - Updates: once you agree, Slick checks for a new version once a day and tells you when one is
   ready. It installs an update only when you choose to, and only after checking its signature.
 
-Features still in progress, such as file search, snippets and window management, are not listed here.
-Some of them already appear in the app and may not work fully yet. The feature list in the README
-says how far along each one is.
+Features still in progress, such as file search, snippets and window management, are not listed
+here. Some of them already appear in the app and may not work fully yet. The feature list in the
+README says how far along each one is.
