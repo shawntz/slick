@@ -239,7 +239,7 @@ Slick has no Dock icon. A bolt appears in the menu bar, and onboarding opens in 
 - Clipboard History and File Search start off. The Optional Features step lists both. Clipboard History's switch starts off there, and File Search's starts on because it is suggested. Neither switch takes effect until you press Continue.
 - Slick asks macOS for no permission at launch. The Permissions step lists only what the features you kept on can need, and asks macOS only when you press Allow. You can skip every row. Each feature asks again through a card in the panel the first time you run something that needs it.
 
-This is what the code does. Nobody has run it live on a Mac yet.
+This is what the code does. Nobody has run it live on a Mac yet. [docs/FIRST-LAUNCH.md](docs/FIRST-LAUNCH.md) has the full walk: every permission and when it is asked, what Slick reads and stores, and ten things to try.
 
 <div align="center">
 
