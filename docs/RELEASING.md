@@ -174,6 +174,8 @@ new one.
 `scripts/release.sh` refuses to start on a tree with changes, on a shallow clone, off `main`, when
 `HEAD` is not `origin/main` as last fetched or pushed, on a version that is not higher than the last
 `vX.Y.Z` tag, on a `CHANGELOG.md` without a `## X.Y.Z` section, and without `NOTARYTOOL_PROFILE`.
+It refuses while a copy of the app is running from `dist/`, because it deletes that folder. Quit
+that copy first, or release from another clone.
 It also refuses when the copies the last release installed would not take this one: when `HEAD`'s
 build number is not higher than that tag's, as after a rewritten history, and when
 `support/brand.env` names another update key than that tag did. `UPDATE_KEY_ROTATION=1` allows a

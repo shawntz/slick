@@ -204,6 +204,12 @@ say "version $VERSION, build $BUILD_NUMBER, commit $COMMIT"
 # The output folder. A release always writes dist/. A dry run writes RELEASE_OUT or a temporary
 # folder. Each starts empty. A .gitignore inside keeps git from listing it, and .release-output
 # names the mode, so a later dry run knows the folder as its own even when this run fails early.
+# A release starts dist/ over. A copy of the app that someone started from dist/ would lose its
+# bundle while it runs, so a release stops here, before anything is deleted. OUT is still empty,
+# so the cleanup leaves that copy's folder and its LaunchServices record alone.
+if pgrep -f "^$ROOT/dist/" > /dev/null; then
+    refuse "a copy of the app is running from $ROOT/dist, and a release deletes that folder. Quit that copy, or release from another clone."
+fi
 if [ "$DRY_RUN" = 0 ]; then
     OUT="$ROOT/dist"
     rm -rf "$OUT"
