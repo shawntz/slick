@@ -1,6 +1,7 @@
 import Foundation
 import Kit
 import KitStorage
+import os
 
 /// Clipboard history on disk: one SQLite database with a full-text index, and a folder of images
 /// and thumbnails beside it, all in the feature's own data folder.
@@ -11,6 +12,12 @@ import KitStorage
 ///
 /// The database opens on first use inside the actor, so making the store touches nothing and no
 /// call ever runs on the main thread.
+///
+/// A deleted item leaves nothing to read in the files. The database overwrites what it frees, every
+/// delete empties the write-ahead log, and the folder is left out of backups. The full-text index
+/// keeps a deleted row's trigrams until it is rewritten, which takes about 150 ms at 10,000 items,
+/// so it is rewritten after every delete the user asks for, at the first prune of each session, and
+/// after every ``pruneRewriteThreshold`` items that prunes removed.
 actor HistoryStore {
     /// Characters of text a row shows and short searches look at.
     static let previewLength = 300
@@ -20,6 +27,9 @@ actor HistoryStore {
     static let indexedCharacters = 100_000
     /// Pinned items the first page shows.
     static let pinnedLimit = 1_000
+    /// Items prunes may remove before the full-text index is rewritten without their trigrams.
+    /// Prunes run after every copy, so rewriting each time would cost a copy 150 ms.
+    static let pruneRewriteThreshold = 256
 
     nonisolated let folder: URL
     nonisolated let databaseURL: URL
@@ -29,6 +39,12 @@ actor HistoryStore {
     private var database: SQLiteDatabase?
     /// The folder a damaged database was moved to in this session, so the history page can say so.
     private(set) var damagedCopy: URL?
+    /// Items prunes removed since the full-text index was last rewritten.
+    private var prunedSinceRewrite = 0
+    /// True once a prune ran in this session.
+    private var hasPruned = false
+    /// How many times the full-text index was rewritten in this session. For tests.
+    private(set) var indexRewrites = 0
 
     /// A store in `folder`. Touches nothing until the first call.
     init(folder: URL) {
@@ -114,19 +130,19 @@ actor HistoryStore {
     /// Deletes one item and its files. Returns false when it was already gone.
     @discardableResult
     func delete(_ key: ItemKey) throws -> Bool {
-        try deleteItems(where: "key = ?", [key.sqlite]) > 0
+        try erasing(deleteItems(where: "key = ?", [key.sqlite])) > 0
     }
 
     /// Deletes every item, or every unpinned one, with their files. Returns how many went.
     @discardableResult
     func deleteAll(keepingPinned: Bool) throws -> Int {
-        try deleteItems(where: keepingPinned ? "pinned = 0" : "1", [])
+        try erasing(deleteItems(where: keepingPinned ? "pinned = 0" : "1", []))
     }
 
     /// Deletes unpinned items copied at or after `date`. Returns how many went.
     @discardableResult
     func delete(copiedSince date: Date) throws -> Int {
-        try deleteItems(where: "pinned = 0 AND copied >= ?", [.date(date)])
+        try erasing(deleteItems(where: "pinned = 0 AND copied >= ?", [.date(date)]))
     }
 
     /// Applies the retention period, the item cap and the image storage cap to unpinned items,
@@ -166,7 +182,12 @@ actor HistoryStore {
                     """,
                 [SQLiteValue(policy.maximumImageBytes)])
         }
-        return removed
+        // The first prune of a session also clears what the last session's prunes left in the index.
+        let isFirst = !hasPruned
+        hasPruned = true
+        prunedSinceRewrite += removed
+        guard removed > 0 || isFirst else { return 0 }
+        return try erasing(removed, rewritingIndex: isFirst || prunedSinceRewrite >= Self.pruneRewriteThreshold)
     }
 
     // MARK: - Reading
@@ -253,6 +274,16 @@ actor HistoryStore {
         Int(try open().query("SELECT count(*) FROM item") { $0.int(0) ?? 0 }.first ?? 0)
     }
 
+    /// SQLite's `secure_delete` on the open database: 1 when it overwrites what it frees. For tests.
+    func secureDeleteMode() throws -> Int {
+        Int(try open().query("PRAGMA secure_delete") { $0.int(0) ?? 0 }.first ?? 0)
+    }
+
+    /// True when the folder is left out of backups. For tests.
+    nonisolated var isExcludedFromBackup: Bool {
+        (try? folder.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup) == true
+    }
+
     /// Every item's key, newest first. For tests.
     func keys() throws -> [ItemKey] {
         try open().query("SELECT key FROM item ORDER BY id DESC") { ItemKey(sqlite: $0.int(0) ?? 0) }
@@ -287,8 +318,26 @@ actor HistoryStore {
     private func openDatabase() throws -> SQLiteDatabase {
         let database = try SQLiteDatabase(url: databaseURL)
         try database.migrate(HistorySchema.migrations(foldingAccents: HistorySchema.supportsAccentFolding))
+        // A backup would keep every item the user deletes later. Without the mark the history
+        // still works, so a failure only goes to the log.
+        do {
+            try Self.excludeFromBackups(folder)
+        } catch {
+            HistoryStore.log.error(
+                "Could not keep the history out of backups: \(error.localizedDescription, privacy: .private)")
+        }
         self.database = database
         return database
+    }
+
+    private static let log = KitLog.logger(category: "clipboard.store")
+
+    /// Marks a folder, and so everything in it, as left out of Time Machine and other backups.
+    nonisolated static func excludeFromBackups(_ folder: URL) throws {
+        var url = folder
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try url.setResourceValues(values)
     }
 
     /// True for the errors SQLite gives for a file that is not a database or is corrupt. A full disk,
@@ -403,6 +452,22 @@ actor HistoryStore {
 
     private func thumbnailURL(_ name: String) -> URL {
         thumbnailsFolder.appending(path: name)
+    }
+
+    /// Clears what `removed` deleted rows left in the files and returns `removed`. The freed pages
+    /// are already overwritten. With `rewritingIndex`, which a delete the user asked for always
+    /// sets, the full-text index is rewritten without the deleted rows' trigrams. Then the
+    /// write-ahead log is copied in and emptied, so it keeps no page from before the delete.
+    private func erasing(_ removed: Int, rewritingIndex: Bool? = nil) throws -> Int {
+        let rewritingIndex = rewritingIndex ?? (removed > 0)
+        guard let database, removed > 0 || rewritingIndex else { return removed }
+        if rewritingIndex {
+            try database.execute("INSERT INTO item_search (item_search) VALUES ('optimize')")
+            indexRewrites += 1
+            prunedSinceRewrite = 0
+        }
+        try database.checkpointAndTruncateLog()
+        return removed
     }
 
     /// Deletes the rows that match and then their files. Returns how many rows went.
