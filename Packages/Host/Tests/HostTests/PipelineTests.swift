@@ -87,10 +87,12 @@ import Testing
         #expect(fixture.workbench.log == ["automate"])
     }
 
-    @Test func aDeniedGrantOpensSettingsSaysSoAndRunsOnceGranted() async {
+    /// Asked before, the system shows nothing, so Host opens the pane. A grant there ends the run
+    /// without running it: the app in front may be System Settings.
+    @Test func aGrantInSettingsOpensThePaneAndAsksToRunAgainInsteadOfRunning() async {
         let fixture = await started()
         let pipeline = fixture.runtime.pipeline
-        fixture.fakes.permissions.set(.accessibility, to: .notDetermined)
+        fixture.fakes.permissions.set(.accessibility, to: .denied)
         fixture.fakes.permissions.answer = .denied
         let run = pipeline.runCommand(RuntimeFixture.command("guarded"), launch: .root)
         #expect(await waitUntil { pipeline.grantWaitCount == 1 })
@@ -102,8 +104,61 @@ import Testing
 
         fixture.fakes.permissions.set(.accessibility, to: .granted)
         await run.value
-        #expect(fixture.workbench.log == ["guarded"])
+        #expect(fixture.workbench.log.isEmpty, "a paste now would land in System Settings")
+        #expect(fixture.presenter.huds.last == .success("Accessibility Allowed, Run Guarded Again"))
+        #expect(fixture.workbench.grants == [.accessibility], "the feature hears of the grant")
         #expect(pipeline.grantWaitCount == 0)
+
+        await pipeline.runCommand(RuntimeFixture.command("guarded"), launch: .root).value
+        #expect(fixture.workbench.log == ["guarded"], "run again, it runs")
+    }
+
+    /// The first ask of Accessibility shows the system's own dialog, which offers System Settings
+    /// itself. Host opens no pane beside it, and still waits for the grant.
+    @Test func theSystemsOwnDialogIsNotDoubledByThePane() async {
+        let fixture = await started()
+        let pipeline = fixture.runtime.pipeline
+        fixture.fakes.permissions.set(.accessibility, to: .notDetermined)
+        fixture.fakes.permissions.answer = .denied
+        let run = pipeline.runCommand(RuntimeFixture.command("guarded"), launch: .root)
+        #expect(await waitUntil { pipeline.grantWaitCount == 1 })
+        #expect(fixture.fakes.permissions.requests == [.accessibility])
+        #expect(fixture.fakes.permissions.openedSettings.isEmpty)
+        #expect(fixture.presenter.huds == [.failure("Allow Accessibility in System Settings")])
+        fixture.fakes.permissions.set(.accessibility, to: .granted)
+        await run.value
+        #expect(fixture.workbench.log.isEmpty)
+        #expect(fixture.presenter.huds.last == .success("Accessibility Allowed, Run Guarded Again"))
+    }
+
+    @Test func aGrantOnTheCardRunsAtOnceAndTellsTheFeature() async {
+        let fixture = await started()
+        let pipeline = fixture.runtime.pipeline
+        fixture.fakes.permissions.set(.accessibility, to: .notDetermined)
+        fixture.fakes.permissions.answer = .granted
+        await pipeline.runCommand(RuntimeFixture.command("guarded"), launch: .root).value
+        #expect(fixture.workbench.log == ["guarded"])
+        #expect(fixture.workbench.grants == [.accessibility])
+        #expect(fixture.fakes.permissions.openedSettings.isEmpty)
+        #expect(fixture.presenter.huds.isEmpty)
+    }
+
+    @Test(arguments: [
+        (Permission.accessibility, PermissionStatus.notDetermined, PermissionStatus.denied, true),
+        (.inputMonitoring, .notDetermined, .notDetermined, true),
+        (.screenRecording, .notDetermined, .denied, true),
+        (.accessibility, .denied, .denied, false),
+        (.inputMonitoring, .denied, .denied, false),
+        (.calendars, .notDetermined, .denied, true),
+        (.calendars, .denied, .denied, false),
+        (.automation(bundleID: "com.example.missing"), .notDetermined, .notDetermined, false),
+        (.fullDiskAccess, .notDetermined, .notDetermined, false),
+        (.pasteboard, .notDetermined, .denied, false),
+    ])
+    func theSystemAskedItselfOnlyOnTheFirstAskOfAPermissionWithADialog(
+        permission: Permission, before: PermissionStatus, after: PermissionStatus, asked: Bool
+    ) {
+        #expect(RunPipeline.systemAskedItself(permission, before: before, after: after) == asked)
     }
 
     @Test func aGrantThatNeverComesEndsTheWait() async {
@@ -126,17 +181,19 @@ import Testing
     @Test func aNewerWaitForTheSamePermissionReplacesTheOlder() async {
         let fixture = await started()
         let pipeline = fixture.runtime.pipeline
-        fixture.fakes.permissions.set(.accessibility, to: .notDetermined)
+        fixture.fakes.permissions.set(.accessibility, to: .denied)
         fixture.fakes.permissions.answer = .denied
         let first = pipeline.runCommand(RuntimeFixture.command("guarded"), launch: .root)
         #expect(await waitUntil { pipeline.grantWaitCount == 1 })
-        fixture.fakes.permissions.set(.accessibility, to: .notDetermined)
         let second = pipeline.runCommand(RuntimeFixture.command("guarded"), launch: .root)
         await first.value
         #expect(await waitUntil { pipeline.grantWaitCount == 1 })
         fixture.fakes.permissions.set(.accessibility, to: .granted)
         await second.value
-        #expect(fixture.workbench.log == ["guarded"], "one grant runs one thing")
+        #expect(fixture.workbench.log.isEmpty)
+        let asked = fixture.presenter.huds.filter { $0 == .success("Accessibility Allowed, Run Guarded Again") }
+        #expect(asked.count == 1, "one grant asks once")
+        #expect(fixture.workbench.grants == [.accessibility])
     }
 
     @Test func aConfirmationIsAskedAndCanBeSuppressed() async {
@@ -178,7 +235,15 @@ import Testing
     @Test func runToAnUnknownCommandShowsAFailureToast() async {
         let fixture = await started()
         await fixture.runtime.pipeline.runCommand(RuntimeFixture.command("nowhere"), launch: .root).value
-        #expect(fixture.presenter.toasts.map(\.title) == ["This command is not available"])
+        #expect(fixture.presenter.toasts.map(\.title) == ["This Command Is Not Available"])
+    }
+
+    /// A failure title is in title case even when it quotes a feature's placeholder.
+    @Test func aMissingArgumentsTitleIsInTitleCase() async {
+        let fixture = await started()
+        fixture.runtime.register([FeatureRegistration(Lookup.self)])
+        await fixture.runtime.pipeline.runCommand(.command(feature: "lookup", command: "find"), launch: .root).value
+        #expect(fixture.presenter.toasts.map(\.title) == ["Enter a Word to Look Up First"])
     }
 
     @Test func argumentsGetDefaultsAndMissingOnesStopTheRun() async {
@@ -186,7 +251,7 @@ import Testing
         let echo = RuntimeFixture.command("echo")
         await fixture.runtime.pipeline.runCommand(echo, launch: .root).value
         #expect(fixture.workbench.log.isEmpty)
-        #expect(fixture.presenter.toasts.map(\.title) == ["Enter text first"])
+        #expect(fixture.presenter.toasts.map(\.title) == ["Enter Text First"])
         await fixture.runtime.pipeline.runCommand(echo, typedText: "hello", launch: .fallback).value
         #expect(fixture.workbench.arguments == [CommandArguments(["text": "hello", "mode": "plain"])])
         #expect(fixture.workbench.queries == ["hello"])
@@ -227,5 +292,20 @@ import Testing
         #expect(fixture.runtime.visible(rowActions()).map(\.id) == ["edit", "run.cmd:relay.receive"])
         await fixture.runtime.preferences.setEnabled(false, feature: "relay")
         #expect(fixture.runtime.visible(rowActions()).map(\.id) == ["edit"])
+    }
+}
+
+/// A feature whose one command needs a word, with a placeholder of several words.
+final class Lookup: Feature {
+    static let manifest = FeatureManifest(id: "lookup", name: "Lookup", icon: .glyph("L"))
+
+    init(context: FeatureContext) {}
+
+    var commands: [Command] {
+        [
+            Command(
+                id: "find", title: "Find", arguments: [CommandArgument("word", placeholder: "a word to look up")]
+            ) { _ in .keepOpen }
+        ]
     }
 }

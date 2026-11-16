@@ -122,6 +122,10 @@ import os
         await instances[id]?.deactivate()
     }
 
+    private func waitUntilReady(_ id: String) async {
+        await instances[id]?.waitUntilReady()
+    }
+
     // MARK: Lookup
 
     /// The command with this `cmd:` ID, on or off. A dictionary lookup, cheap enough for a keystroke.
@@ -153,6 +157,32 @@ import os
     /// True while the feature is activated.
     public func isActive(_ featureID: String) -> Bool {
         active.contains(featureID)
+    }
+
+    /// Returns once every active feature says the work its activation started is done, through
+    /// `Feature.waitUntilReady()`, all at once. Scenarios, the self-test and benchmarks call it before
+    /// they type. The live launcher never does.
+    public func waitUntilFeaturesAreReady() async {
+        let ids = features.map(\.id).filter { active.contains($0) }
+        await withTaskGroup(of: Void.self) { group in
+            for id in ids {
+                group.addTask { await self.waitUntilReady(id) }
+            }
+        }
+    }
+
+    // MARK: Grants
+
+    /// Tells every feature that is on and lists the permission in its manifest that the user
+    /// granted it through one of the app's own buttons: the settings window, onboarding or the
+    /// panel's permission card. In registration order; returns once each has returned.
+    public func permissionGranted(_ permission: Permission) async {
+        for entry in features where entry.isEnabled && active.contains(entry.id) {
+            guard entry.manifest.permissions.contains(where: { $0.permission == permission }),
+                let feature = instances[entry.id]
+            else { continue }
+            await feature.permissionGranted(permission)
+        }
     }
 
     // MARK: Changes

@@ -1,12 +1,15 @@
 import Kit
 
 /// Every string the host shows, in one place, so localisation has one file to start from.
+///
+/// Titles of toasts, HUDs, failures, cards, pages and empty states use title case as macOS menus do
+/// and end without a full stop. Everything else is a plain sentence.
 nonisolated enum HostStrings {
     static let appName = Brand.name
     static let launcherHotkeyOwner = Brand.name
-    static let commandUnavailable = "This command is not available"
+    static let commandUnavailable = "This Command Is Not Available"
     static let commandRefusesLinks = "This Command Cannot Run from a Link"
-    static let itemUnavailable = "This item is no longer available"
+    static let itemUnavailable = "This Item Is No Longer Available"
     static let searchPlaceholder = "Search for apps and commands"
     static let filterPlaceholder = "Search"
     static let actionsTitle = "Actions"
@@ -35,40 +38,49 @@ nonisolated enum HostStrings {
     static let hotkeyPlaceholder = "Press the shortcut, or type one such as opt+cmd+k and press Return"
     static let promptEmptyHint = "Leave it empty to remove it."
     static let notAHotkey = "Not a key combination"
-    static let notBuiltYet = "Not built yet"
+    static let notBuiltYet = "Not Built Yet"
     static let notBuiltYetHint = "This kind of page arrives in a later version."
     static let noResults = "No Results"
     static let dontAskAgain = "Don't ask again"
     static let cancel = "Cancel"
     static let grantAccess = "Grant Access"
     static let openSettings = "Open System Settings"
-    static let somethingWentWrong = "Something went wrong"
+    static let somethingWentWrong = "Something Went Wrong"
     static let choose = "Choose…"
     static let hotkeyLabel = "Hotkey"
     static let recordShortcut = "Record a shortcut"
     static let applicationPlaceholder = "Choose an app"
     static let share = "Share"
-    static let sharingUnavailable = "Sharing is not available here"
+    static let sharingUnavailable = "Sharing Is Not Available Here"
+    static let copiedNotPasted = "Copied, Not Pasted"
+    static let copiedNotPastedMessage =
+        "A link opened \(Brand.name), so nothing was pasted into the app in front. Press Command-V where you want it."
 
     static func previewPosition(_ name: String, _ position: Int, _ count: Int) -> String {
         "\(name)  \(position) of \(count)"
     }
 
     static func missingArgument(_ placeholder: String) -> String {
-        "Enter \(placeholder) first"
+        "Enter \(titleCased(placeholder, startsTitle: false)) First"
     }
 
     static func permissionTitle(feature: String, permission: String) -> String {
-        "\(feature) needs \(permission)"
+        "\(feature) Needs \(permission)"
     }
 
     static func permissionStillMissing(_ permission: String) -> String {
-        "\(permission) is still missing"
+        "\(permission) Is Still Missing"
     }
 
-    /// The run goes ahead by itself once the grant arrives, so the title asks for nothing more.
     static func grantInSettings(_ permission: String) -> String {
         "Allow \(permission) in System Settings"
+    }
+
+    /// After a grant in System Settings the run does not go ahead by itself, so the title asks
+    /// for it again.
+    static func grantedRunAgain(_ permission: String, run title: String?) -> String {
+        guard let title, !title.isEmpty else { return "\(permission) Allowed, Try Again" }
+        return "\(permission) Allowed, Run \(title) Again"
     }
 
     static func hotkeyTaken(_ owner: String) -> String {
@@ -85,5 +97,28 @@ nonisolated enum HostStrings {
 
     static func currentValue(_ value: String) -> String {
         "Now: \(value)"
+    }
+
+    /// Words that stay lowercase inside a title, as in macOS menus: articles, conjunctions and
+    /// short prepositions.
+    private static let minorWords: Set<String> = [
+        "a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor", "of", "on", "or", "the",
+        "to", "via", "with",
+    ]
+
+    /// A feature's text, such as an argument's placeholder, in title case for a title. Each word
+    /// starts with a capital except minor words, unless one begins the title; the rest of each word
+    /// is kept, so "URL" stays as it is.
+    static func titleCased(_ text: String, startsTitle: Bool = true) -> String {
+        var words: [String] = []
+        for (index, word) in text.split(separator: " ", omittingEmptySubsequences: false).enumerated() {
+            let lower = word.lowercased()
+            if index > 0 || !startsTitle, minorWords.contains(lower) {
+                words.append(lower)
+            } else {
+                words.append(word.prefix(1).uppercased() + word.dropFirst())
+            }
+        }
+        return words.joined(separator: " ")
     }
 }

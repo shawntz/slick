@@ -215,7 +215,7 @@ import Testing
         let run = fixture.runtime.runtime.pipeline.runCommand(RuntimeFixture.command("guarded"), launch: .root)
         #expect(await waitUntil { fixture.panel.pendingCard != nil })
         let card = try #require(fixture.panel.pendingCard)
-        #expect(card.content.title == "Workbench needs Accessibility")
+        #expect(card.content.title == "Workbench Needs Accessibility")
         #expect(card.content.message == "Move the windows you pick.")
         #expect(fixture.runtime.fakes.permissions.requests.isEmpty)
         card.keyDown(with: PanelFixture.returnKey())

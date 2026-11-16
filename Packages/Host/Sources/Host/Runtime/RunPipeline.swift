@@ -8,10 +8,14 @@ import KitHosting
 /// The steps, in order:
 ///
 /// 1. Check ``Action/requires`` or ``Command/requires``. For a missing permission, show the
-///    permission card; run only after the user granted it. When the system request is denied,
-///    close the panel, open System Settings, say in a HUD what to allow there, and wait, up to
-///    ``grantWait``, for the grant through the permission's change stream; the run goes on once
-///    it arrives. A card asked while the panel was closed, as for a hotkey, a link or a keyword
+///    permission card; run only after the user granted it. A grant on the card tells the feature
+///    through ``FeatureRuntime/permissionGranted(_:)``. When the system request does not grant
+///    it, close the panel, say in a HUD what to allow in System Settings, open its pane unless the
+///    system showed its own dialog, and wait, up to ``grantWait``, for the grant through the
+///    permission's change stream. A grant made there ends the run without running it: whatever
+///    app is in front now, perhaps System Settings, would get its paste or its keystrokes. A toast
+///    says the permission is allowed and asks the user to run it again, and the feature hears of
+///    the grant. A card asked while the panel was closed, as for a hotkey, a link or a keyword
 ///    typed in another app, opens the panel first.
 /// 2. Ask the confirmation, unless the user suppressed it.
 /// 3. Queue under the ``RunPolicy``: serial runs wait for the feature's earlier serial runs,
@@ -63,13 +67,15 @@ import KitHosting
     public func runCommand(
         _ id: ItemID, arguments: [String: String] = [:], query: String = "", launch: LaunchSource, row: Row? = nil
     ) -> Task<Void, Never> {
-        runCommand(id, arguments: arguments, query: query, launch: launch, row: row, session: nil)
+        runCommand(id, arguments: arguments, query: query, launch: launch, row: row, session: nil, startedByLink: false)
     }
 
     /// Runs a command for a run that started in `session`, as a hand-off does. A session that has
-    /// ended does not open the panel to ask for arguments.
+    /// ended does not open the panel to ask for arguments. A hand-off from a run a link started
+    /// counts as started by a link too.
     private func runCommand(
-        _ id: ItemID, arguments: [String: String], query: String, launch: LaunchSource, row: Row?, session: Int?
+        _ id: ItemID, arguments: [String: String], query: String, launch: LaunchSource, row: Row?, session: Int?,
+        startedByLink: Bool
     ) -> Task<Void, Never> {
         guard let runtime, let entry = runtime.command(id), entry.isEnabled else {
             return Task { showFailure(title: HostStrings.commandUnavailable, message: nil) }
@@ -96,10 +102,11 @@ import KitHosting
             featureID: entry.featureID, feature: runtime.context(for: entry.featureID), query: query,
             arguments: CommandArguments(values), launch: launch, row: row)
         origin.commandTitle = command.title
+        origin.startedByLink = startedByLink
         let request = RunRequest(
-            key: "command." + command.id, requires: command.requires, confirmation: command.confirmation,
-            isDestructive: command.confirmation?.isDestructive ?? false, policy: command.runPolicy, origin: origin,
-            handler: command.run)
+            key: "command." + command.id, title: command.title, requires: command.requires,
+            confirmation: command.confirmation, isDestructive: command.confirmation?.isDestructive ?? false,
+            policy: command.runPolicy, origin: origin, handler: command.run)
         return Task { await perform(request) }
     }
 
@@ -123,7 +130,8 @@ import KitHosting
         let origin = RunOrigin(
             featureID: featureID, feature: context, query: query, arguments: arguments, launch: launch, row: row)
         let request = RunRequest(
-            key: "action." + action.id, requires: action.requires, confirmation: action.confirmation,
+            key: "action." + action.id, title: action.title, requires: action.requires,
+            confirmation: action.confirmation,
             isDestructive: action.style == .destructive || (action.confirmation?.isDestructive ?? false),
             policy: action.runPolicy, origin: origin, handler: handler)
         return Task { await perform(request) }
@@ -133,8 +141,8 @@ import KitHosting
     @discardableResult
     public func perform(_ toastAction: ToastAction, origin: RunOrigin) -> Task<Void, Never> {
         let request = RunRequest(
-            key: "toast", requires: [], confirmation: nil, isDestructive: false, policy: .concurrent, origin: origin,
-            handler: toastAction.run)
+            key: "toast", title: toastAction.title, requires: [], confirmation: nil, isDestructive: false,
+            policy: .concurrent, origin: origin, handler: toastAction.run)
         return Task { await perform(request) }
     }
 
@@ -143,15 +151,17 @@ import KitHosting
     @discardableResult
     public func perform(key: String, origin: RunOrigin, handler: @escaping Action.Handler) -> Task<Void, Never> {
         let request = RunRequest(
-            key: key, requires: [], confirmation: nil, isDestructive: false, policy: .serial, origin: origin,
-            handler: handler)
+            key: key, title: nil, requires: [], confirmation: nil, isDestructive: false, policy: .serial,
+            origin: origin, handler: handler)
         return Task { await perform(request) }
     }
 
     /// Asks for each missing permission through the card, then the system, as a run does before
-    /// its handler. True when all are granted. A form calls it before validating.
+    /// its handler. True when all are granted on the card or by the system's own answer. A grant
+    /// made in System Settings returns false, with a toast that asks the user to try again. A form
+    /// calls it before validating.
     public func ensurePermissions(_ permissions: [Permission], featureID: String) async -> Bool {
-        await grantMissing(permissions, featureID: featureID)
+        await grantMissing(permissions, featureID: featureID, title: nil) == .granted
     }
 
     /// The entries of a submenu, loaded with a context like the one its entries will run with.
@@ -181,7 +191,15 @@ import KitHosting
         defer { activeRunCount -= 1 }
         var request = request
         if let presenter, presenter.isPanelVisible { request.origin.session = presenter.sessionID }
-        guard await grantMissing(request.requires, featureID: request.origin.featureID, inRun: true) else { return }
+        if request.origin.launch == .deeplink
+            || request.origin.session.map({ presenter?.isLinkSession($0) ?? false }) == true
+        {
+            request.origin.startedByLink = true
+        }
+        guard
+            await grantMissing(request.requires, featureID: request.origin.featureID, inRun: true, title: request.title)
+                == .granted
+        else { return }
         if let confirmation = request.confirmation {
             let suppressionKey = confirmation.suppressionKey.map { request.origin.featureID + "." + $0 }
             let suppressed = suppressionKey.map { runtime?.preferences.isConfirmationSuppressed($0) ?? false } ?? false
@@ -196,7 +214,10 @@ import KitHosting
         let host = RunHost(pipeline: self, origin: request.origin, permissions: permissions)
         guard var outcome = await execute(request, host: host) else { return }
         if case .needsPermission(let permission) = outcome {
-            guard await grantMissing([permission], featureID: request.origin.featureID, force: true, inRun: true),
+            guard
+                await grantMissing(
+                    [permission], featureID: request.origin.featureID, force: true, inRun: true, title: request.title)
+                    == .granted,
                 let again = await execute(request, host: host)
             else { return }
             outcome = again
@@ -209,7 +230,8 @@ import KitHosting
             break
         case .run(let id, let arguments):
             await runCommand(
-                id, arguments: arguments, query: "", launch: .command, row: nil, session: request.origin.session
+                id, arguments: arguments, query: "", launch: .command, row: nil, session: request.origin.session,
+                startedByLink: request.origin.startedByLink
             ).value
         case .needsPermission(let permission):
             // Asked twice in a row: the grant did not take. Say so instead of looping.
@@ -268,14 +290,24 @@ import KitHosting
         }
     }
 
-    /// Asks for each missing permission through the card, then the system. True when all are
-    /// granted. With `force`, asks even when the status already reads granted, as for a handler
-    /// that found one missing. `inRun` says the caller counts in ``activeRunCount``, which a wait
-    /// for a grant in System Settings leaves.
+    /// How asking for permissions ended.
+    enum GrantOutcome: Equatable {
+        /// Every permission is granted: the run goes on.
+        case granted
+        /// The user said no, or the wait ran out: the run ends quietly.
+        case refused
+        /// The user granted one in System Settings: the run ends, and a toast asks to run it again.
+        case grantedInSettings
+    }
+
+    /// Asks for each missing permission through the card, then the system. With `force`, asks
+    /// even when the status already reads granted, as for a handler that found one missing.
+    /// `inRun` says the caller counts in ``activeRunCount``, which a wait for a grant in System
+    /// Settings leaves. `title` names the run in the toast after such a grant.
     private func grantMissing(
-        _ permissions: [Permission], featureID: String, force: Bool = false, inRun: Bool = false
-    ) async -> Bool {
-        guard let runtime else { return false }
+        _ permissions: [Permission], featureID: String, force: Bool = false, inRun: Bool = false, title: String?
+    ) async -> GrantOutcome {
+        guard let runtime else { return .refused }
         let service = runtime.services.permissions
         for permission in permissions where force || !service.status(of: permission).isGranted {
             let manifest = runtime.feature(featureID)?.manifest
@@ -283,20 +315,47 @@ import KitHosting
             guard let presenter,
                 await presenter.askForPermission(
                     permission, featureName: manifest?.name ?? HostStrings.appName, reason: reason)
-            else { return false }
-            guard await service.request(permission).isGranted else {
-                // Listen before opening System Settings, so a quick grant is not missed.
-                let changes = service.changes(of: permission)
-                // System Settings takes key focus and the panel would close with its toast unread.
-                // Close it first, so the HUD says what to do there.
-                if presenter.isPanelVisible { presenter.dismissPanel() }
-                await service.openSettings(for: permission)
-                showFailure(title: HostStrings.grantInSettings(permission.displayName), message: nil)
-                guard await waitForGrant(permission, changes: changes, inRun: inRun) else { return false }
+            else { return .refused }
+            let before = service.status(of: permission)
+            let after = await service.request(permission)
+            if after.isGranted {
+                await runtime.permissionGranted(permission)
                 continue
             }
+            // Listen before opening System Settings, so a quick grant is not missed.
+            let changes = service.changes(of: permission)
+            // System Settings or the system's dialog takes key focus, and the panel would close with
+            // its toast unread. Close it first, so the HUD says what to do there.
+            if presenter.isPanelVisible { presenter.dismissPanel() }
+            if !Self.systemAskedItself(permission, before: before, after: after) {
+                await service.openSettings(for: permission)
+            }
+            showFailure(title: HostStrings.grantInSettings(permission.displayName), message: nil)
+            guard await waitForGrant(permission, changes: changes, inRun: inRun) else { return .refused }
+            await runtime.permissionGranted(permission)
+            // The run ends here. Running it again asks for any other permission it lacks.
+            showSuccess(title: HostStrings.grantedRunAgain(permission.displayName, run: title))
+            return .grantedInSettings
         }
-        return true
+        return .granted
+    }
+
+    /// True when the request showed the system's own dialog, so Host opens no pane beside it.
+    /// Accessibility, Input Monitoring and Screen Recording show a dialog with a button to System
+    /// Settings the first time they are asked, and the request returns before the user answers. A
+    /// permission that waits for the answer, such as Calendars, showed its dialog when the answer
+    /// is not "not determined" any more; an Automation target that is not installed shows nothing.
+    /// Full Disk Access and Paste from Other Apps have no dialog. Once asked, a permission shows
+    /// nothing again, and its status reads denied.
+    public nonisolated static func systemAskedItself(
+        _ permission: Permission, before: PermissionStatus, after: PermissionStatus
+    ) -> Bool {
+        guard before == .notDetermined else { return false }
+        switch permission {
+        case .accessibility, .inputMonitoring, .screenRecording: return true
+        case .fullDiskAccess, .pasteboard: return false
+        default: return after != .notDetermined
+        }
     }
 
     /// Waits until the permission's change stream reports it granted, for at most ``grantWait``.
@@ -344,6 +403,16 @@ import KitHosting
         }
     }
 
+    /// Shows a success toast, or a HUD while the panel is closed.
+    func showSuccess(title: String) {
+        guard let presenter else { return }
+        if presenter.isPanelVisible {
+            presenter.showToast(.success(title), id: makeToastID(), origin: nil)
+        } else {
+            presenter.showHUD(.success(title))
+        }
+    }
+
     /// A toast ID from the top of the range, apart from the IDs `ActionContext` hands out.
     func makeToastID() -> ToastID {
         nextToast += 1
@@ -356,6 +425,9 @@ import KitHosting
 struct RunRequest {
     /// `command.<id>` or `action.<id>`, for `dropWhileRunning`.
     var key: String
+    /// The command's or action's title, for the toast that asks to run it again. Nil for a run the
+    /// host made, such as a form's submit.
+    var title: String?
     var requires: [Permission]
     var confirmation: Confirmation?
     var isDestructive: Bool
@@ -369,6 +441,9 @@ struct RunRequest {
 @MainActor final class RunHost: ActionHost {
     private weak var pipeline: RunPipeline?
     let origin: RunOrigin
+    /// The context the handler gets: the origin's, or for a run a link started the same context
+    /// with a pasteboard that copies instead of pasting.
+    let feature: FeatureContext
     private let permissions: any PermissionService
     private(set) var reloadRequested = false
 
@@ -376,12 +451,20 @@ struct RunRequest {
         self.pipeline = pipeline
         self.origin = origin
         self.permissions = permissions
+        if origin.startedByLink, let runtime = pipeline.runtime {
+            var services = runtime.services
+            services.pasteboard = LinkPasteboard(wrapping: services.pasteboard)
+            feature = FeatureContext(
+                featureID: origin.feature.featureID, environment: origin.feature.environment, services: services)
+        } else {
+            feature = origin.feature
+        }
     }
 
     func makeContext() -> ActionContext {
         ActionContext(
-            feature: origin.feature, host: self, query: origin.query, arguments: origin.arguments,
-            launch: origin.launch, row: origin.row)
+            feature: feature, host: self, query: origin.query, arguments: origin.arguments, launch: origin.launch,
+            row: origin.row)
     }
 
     private var presenter: (any RunPresenter)? { pipeline?.presenter }

@@ -120,6 +120,11 @@ final class Workbench: Feature {
     func activate() async { activations += 1 }
     func deactivate() async { deactivations += 1 }
 
+    /// Grants the host announced, in order.
+    private(set) var grants: [Permission] = []
+
+    func permissionGranted(_ permission: Permission) async { grants.append(permission) }
+
     var commands: [Command] {
         var commands = [
             Command(id: "plain", title: "Plain") { context in
@@ -213,7 +218,9 @@ final class Workbench: Feature {
             },
             // As Snippets' Fill In Snippet: a keyword typed in another app pastes at once, or asks
             // in a form first when its snippet has blanks.
-            Command(id: "fill", title: "Fill In", requires: [.accessibility], showsInRoot: false) { context in
+            Command(
+                id: "fill", title: "Fill In", requires: [.accessibility], showsInRoot: false, allowsDeepLinks: false
+            ) { context in
                 self.record("fill", context)
                 if context.arguments["snippet"] == "plain", context.launch == .textExpansion {
                     try await context.pasteboard.paste("Plain text")
@@ -344,10 +351,15 @@ final class Relay: Feature {
 /// A feature that is off until the user turns it on.
 final class Watcher: Feature {
     static let manifest = FeatureManifest(
-        id: "watcher", name: "Watcher", icon: .glyph("E"), isEnabledByDefault: false)
+        id: "watcher", name: "Watcher", icon: .glyph("E"),
+        permissions: [PermissionNeed(.accessibility, reason: "Watch the windows you pick.")],
+        isEnabledByDefault: false)
     private(set) var activations = 0
+    /// Grants the host announced, in order.
+    private(set) var grants: [Permission] = []
     init(context: FeatureContext) {}
     func activate() async { activations += 1 }
+    func permissionGranted(_ permission: Permission) async { grants.append(permission) }
 }
 
 /// Setting keys of the test features.

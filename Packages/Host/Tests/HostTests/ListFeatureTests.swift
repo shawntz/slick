@@ -217,6 +217,6 @@ import Testing
         defer { fixture.close() }
         #expect(fixture.panel.shareSheet == nil, "nothing shares outside the live app")
         fixture.panel.share([.text("hello")])
-        #expect(fixture.panel.surface.actionBar.toast?.text == "Sharing is not available here")
+        #expect(fixture.panel.surface.actionBar.toast?.text == "Sharing Is Not Available Here")
     }
 }

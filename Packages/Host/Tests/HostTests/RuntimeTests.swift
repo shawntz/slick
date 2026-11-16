@@ -84,6 +84,22 @@ import Testing
         #expect(fixture.runtime.command(RuntimeFixture.command("plain"))?.isEnabled == false)
     }
 
+    /// A grant made through the app's own buttons reaches each feature that is on and lists it.
+    @Test func aGrantReachesTheFeaturesThatAreOnAndListIt() async throws {
+        let fixture = RuntimeFixture()
+        await fixture.start()
+        let watcher = try #require(fixture.runtime.instance("watcher") as? Watcher)
+        await fixture.runtime.permissionGranted(.accessibility)
+        await fixture.runtime.permissionGranted(.calendars)
+        #expect(fixture.workbench.grants == [.accessibility], "only what the manifest lists")
+        #expect(watcher.grants.isEmpty, "a feature that is off hears nothing")
+
+        await fixture.runtime.preferences.setEnabled(true, feature: "watcher")
+        await fixture.runtime.permissionGranted(.accessibility)
+        #expect(watcher.grants == [.accessibility])
+        #expect(fixture.workbench.grants == [.accessibility, .accessibility])
+    }
+
     @Test func aCommandSwitchTurnsOneCommandOff() async {
         let fixture = RuntimeFixture()
         await fixture.start()
@@ -91,7 +107,7 @@ import Testing
         #expect(fixture.runtime.isAvailable(RuntimeFixture.command("plain")) == false)
         await fixture.runtime.pipeline.runCommand(RuntimeFixture.command("plain"), launch: .root).value
         #expect(fixture.workbench.log.isEmpty)
-        #expect(fixture.presenter.toasts.map(\.title) == ["This command is not available"])
+        #expect(fixture.presenter.toasts.map(\.title) == ["This Command Is Not Available"])
     }
 }
 
@@ -122,6 +138,43 @@ import Testing
         #expect(loaded.isEnabled(command: RuntimeFixture.command("plain")) == false)
         #expect(loaded.isEnabled(feature: "watcher"))
         #expect(second.runtime.feature("watcher")?.isEnabled == true)
+    }
+
+    @Test func fallbackChoicesSurviveARelaunchAndAnOlderFileLoads() async throws {
+        let fakes = FakeServices()
+        let folder = fakes.storage.root.appending(path: "host", directoryHint: .isDirectory)
+        let first = RuntimeFixture(fakes: fakes, dataDirectory: folder)
+        await first.start()
+        let preferences = first.runtime.preferences
+        #expect(preferences.fallbackChoices.isEmpty)
+        let echo = RuntimeFixture.command("echo")
+        let plain = RuntimeFixture.command("plain")
+        var changes = preferences.changes.stream().makeAsyncIterator()
+        preferences.setFallback(echo, isOn: true)
+        await changes.next()
+        preferences.setFallbackOrder([plain, echo, plain])
+        await changes.next()
+        #expect(preferences.fallbackChoices == FallbackChoices(order: [plain, echo], switches: [echo: true]))
+        await preferences.flush()
+
+        let second = RuntimeFixture(fakes: fakes, dataDirectory: folder)
+        await second.start()
+        #expect(second.runtime.preferences.fallbackChoices == preferences.fallbackChoices)
+    }
+
+    @Test(arguments: [
+        (#"{ "aliases": { "cmd:workbench.echo": "ec" } }"#, FallbackChoices()),
+        (
+            #"{ "fallbackChoices": { "order": ["not an id", "cmd:workbench.echo"], "switches": { "x": true } } }"#,
+            FallbackChoices(order: [ItemID.command(feature: "workbench", command: "echo")])
+        ),
+    ])
+    func anOlderOrHandEditedFileLoadsTheFallbackChoicesItCan(json: String, expected: FallbackChoices) async throws {
+        let fixture = RuntimeFixture()
+        try FileManager.default.createDirectory(at: fixture.dataDirectory, withIntermediateDirectories: true)
+        try Data(json.utf8).write(to: fixture.runtime.preferences.fileURL)
+        await fixture.start()
+        #expect(fixture.runtime.preferences.fallbackChoices == expected)
     }
 
     @Test func aCorruptFileLoadsDefaults() async throws {

@@ -137,7 +137,7 @@ import Testing
         await fixture.runtime.pipeline.runCommand(
             RuntimeFixture.command("echo"), arguments: ["text": "hi"], launch: .root
         ).value
-        #expect(fixture.presenter.toasts.last?.title == "This command is not available")
+        #expect(fixture.presenter.toasts.last?.title == "This Command Is Not Available")
         #expect(!workbench.log.contains("echo"))
     }
 

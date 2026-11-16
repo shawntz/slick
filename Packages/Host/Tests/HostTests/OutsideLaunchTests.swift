@@ -55,7 +55,7 @@ import Testing
         #expect(await waitUntil { fixture.panel.pendingCard != nil })
         #expect(fixture.panel.isPanelVisible)
         let card = try #require(fixture.panel.pendingCard)
-        #expect(card.content.title == "Workbench needs Accessibility")
+        #expect(card.content.title == "Workbench Needs Accessibility")
         #expect(fixture.runtime.fakes.permissions.requests.isEmpty, "the system is asked only after the button")
         card.keyDown(with: PanelFixture.returnKey())
         await run.value
@@ -86,13 +86,13 @@ import Testing
     }
 
     /// System Settings takes key focus, which would close the panel with its toast unread. The
-    /// panel closes first and a HUD says what to allow; the run goes ahead once it is allowed.
+    /// panel closes first and a HUD says what to allow. Once allowed, a HUD asks to run it again.
     @Test func aGrantInSystemSettingsClosesThePanelAndSaysWhatToAllow() async throws {
         let fixture = await PanelFixture.make()
         defer { fixture.close() }
         let pipeline = fixture.runtime.runtime.pipeline
         let permissions = fixture.runtime.fakes.permissions
-        permissions.set(.accessibility, to: .notDetermined)
+        permissions.set(.accessibility, to: .denied)
         permissions.answer = .denied
         let run = pipeline.runCommand(RuntimeFixture.command("guarded"), launch: .root)
         #expect(await waitUntil { fixture.panel.pendingCard != nil })
@@ -103,7 +103,8 @@ import Testing
         #expect(fixture.hud.shown == [.failure("Allow Accessibility in System Settings")])
         permissions.set(.accessibility, to: .granted)
         await run.value
-        #expect(fixture.runtime.workbench.log == ["guarded"])
+        #expect(fixture.runtime.workbench.log.isEmpty, "the app in front now may be System Settings")
+        #expect(fixture.hud.shown.last == .success("Accessibility Allowed, Run Guarded Again"))
     }
 
     // MARK: Text expansion
