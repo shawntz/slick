@@ -1,30 +1,41 @@
 //! The query path allocates nothing: a counting allocator watches this thread while a warmed-up
-//! session runs queries, highlight ranges and the completion decision over 10,000 items.
+//! session runs queries, highlight ranges and the completion decision over 10,000 items, and while
+//! a feature index answers typed queries and the host's highlight ranges over 4,000 tagged items.
 
 #[path = "support/synthetic.rs"]
 mod synthetic;
+#[path = "support/tagged.rs"]
+mod tagged;
 
-use slick_engine::{Engine, EngineParams, Session};
+use slick_engine::{Engine, EngineParams, FuzzyIndex, Session};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct Counting;
 
-static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
-
 thread_local! {
     static COUNTING: Cell<bool> = const { Cell::new(false) };
+    /// Allocations of this thread while it counts. Per thread, so tests run side by side.
+    static ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
 }
 
 fn note() {
     if COUNTING.try_with(Cell::get).unwrap_or(false) {
-        ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
+        let _ = ALLOCATIONS.try_with(|n| n.set(n.get() + 1));
     }
 }
 
+/// Runs `f` and returns how many allocations this thread made inside it.
+fn allocations_in(f: impl FnOnce()) -> usize {
+    ALLOCATIONS.with(|n| n.set(0));
+    COUNTING.with(|c| c.set(true));
+    f();
+    COUNTING.with(|c| c.set(false));
+    ALLOCATIONS.with(Cell::get)
+}
+
 // SAFETY: every method forwards to the system allocator with the caller's arguments unchanged;
-// counting touches only an atomic and a const-initialized thread local, neither of which allocates.
+// counting touches only const-initialized thread locals, which never allocate.
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         note();
@@ -100,15 +111,61 @@ fn the_query_path_allocates_nothing() {
     let mut typed = String::with_capacity(64);
     // Warm up twice: buffers grow to the longest query and the deepest narrowing stack.
     let warm = run(&e, &mut s, &mut typed) + run(&e, &mut s, &mut typed);
-    ALLOCATIONS.store(0, Ordering::Relaxed);
-    COUNTING.with(|c| c.set(true));
-    let measured = run(&e, &mut s, &mut typed);
-    let single = query_and_render(&e, &mut s, "s");
-    COUNTING.with(|c| c.set(false));
-    let allocations = ALLOCATIONS.load(Ordering::Relaxed);
+    let (mut measured, mut single) = (0, 0);
+    let allocations = allocations_in(|| {
+        measured = run(&e, &mut s, &mut typed);
+        single = query_and_render(&e, &mut s, "s");
+    });
     assert!(
         measured > 0 && warm > 0 && single > 0,
         "the queries matched and rendered something"
     );
     assert_eq!(allocations, 0, "allocations on the query path");
+}
+
+/// One keystroke in a host-filtered list as Root's `EngineFuzzyIndex` serves it: every match, then
+/// the title ranges of every hit that is not a keyword match.
+fn filter_list(index: &FuzzyIndex, s: &mut Session, q: &str, every: usize) -> usize {
+    let mut n = 0;
+    let len = index.query(s, q, every).expect("query").len();
+    for i in 0..len {
+        let hit = s.hits()[i];
+        if hit.field != 2 {
+            n += index.ranges(s, hit.key).expect("ranges").len();
+        }
+    }
+    n + len
+}
+
+fn type_tagged(index: &FuzzyIndex, s: &mut Session, typed: &mut String, every: usize) -> usize {
+    let mut seen = 0;
+    s.reset();
+    for q in tagged::QUERIES {
+        typed.clear();
+        for c in q.chars() {
+            typed.push(c);
+            seen += filter_list(index, s, typed, every);
+        }
+        typed.pop();
+        seen += filter_list(index, s, typed, every);
+    }
+    seen
+}
+
+#[test]
+fn the_feature_index_query_path_allocates_nothing() {
+    let items = tagged::catalog(4_000);
+    let index = FuzzyIndex::new();
+    index.set_items(&items).expect("items");
+    let mut s = Session::new();
+    let mut typed = String::with_capacity(64);
+    let every = items.len();
+    let warm = type_tagged(&index, &mut s, &mut typed, every) + type_tagged(&index, &mut s, &mut typed, every);
+    let mut measured = 0;
+    let allocations = allocations_in(|| measured = type_tagged(&index, &mut s, &mut typed, every));
+    assert!(
+        measured > 0 && measured == warm / 2,
+        "the same queries matched the same rows"
+    );
+    assert_eq!(allocations, 0, "allocations on the feature index's query path");
 }

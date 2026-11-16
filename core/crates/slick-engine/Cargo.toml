@@ -19,3 +19,8 @@ slick-predict = { path = "../slick-predict" }
 [[bench]]
 name = "engine"
 harness = false
+
+# Feature index latency over synthetic tagged lists, as Root serves a host-filtered list. No budget.
+[[bench]]
+name = "fuzzy"
+harness = false
