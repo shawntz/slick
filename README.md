@@ -14,13 +14,14 @@
 
 <sub>Two typed letters find Notes, and the field completes its name. Recorded from the assembled app with Apple's own apps.</sub>
 
-<p><strong>Pre-release, with no download yet.</strong> The assembled app passes all of its end-to-end scenarios against made-up data. The live launcher first ran on a real Mac on 16 November 2026, and most of its features have not been tried there yet.</p>
+<p><strong>Version 0.1.0 is out, and it is early.</strong> Install it with <code>brew install --cask shawntz/tap/slick</code>, or <a href="https://github.com/shawntz/slick/releases/latest">download it</a>. The assembled app passes all of its end-to-end scenarios against made-up data. The live launcher first ran on a real Mac on 16 November 2026, and most of its features have not been tried there yet.</p>
 
 <p>
   <a href="#speed-measured-inside-the-app">Speed</a> ·
   <a href="#real-liquid-glass">Glass</a> ·
   <a href="#it-learns-what-you-pick">Learning</a> ·
   <a href="#every-feature-and-its-status">Features</a> ·
+  <a href="#install">Install</a> ·
   <a href="#build-from-source">Build</a> ·
   <a href="#privacy">Privacy</a>
 </p>
@@ -186,7 +187,7 @@ As of 2026-11-16, 12 of 30 features are available and 18 are in progress.
 | In progress | What it does |
 |---|---|
 | Themes | Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher. The editor and sharing are not tested in the app yet. |
-| Updates | Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. No release has shipped the updater yet, so it has not run on a Mac. |
+| Updates | Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. Version 0.1.0 is the first release with the updater, so no update has reached anyone through it yet. |
 
 #### Built-in tools
 
@@ -220,6 +221,16 @@ As of 2026-11-16, 12 of 30 features are available and 18 are in progress.
 | Media controls | Play, pause and skip tracks in Music and Spotify, and see what is playing. Proven in the launcher against a simulated player. Controlling the real apps has not run on a Mac yet. |
 
 <!-- features:end -->
+
+## Install
+
+```sh
+brew install --cask shawntz/tap/slick
+```
+
+Or download `Slick-0.1.0.zip` from the [latest release](https://github.com/shawntz/slick/releases/latest), unzip it and move Slick to your Applications folder.
+
+The app is signed with a Developer ID and notarized by Apple. It needs macOS 26 or later on Apple silicon, and it has been tested only on macOS 27. Once you agree, it checks GitHub once a day for a new version and installs one only when you choose to.
 
 ## Build from source
 
@@ -265,7 +276,7 @@ Swift 6 and AppKit draw the panel and run the features. A Rust core does the mat
 | Features | [Packages/Features](Packages/Features) | Twenty-one packages, one per feature |
 | App | [Packages/App](Packages/App) | The executable that joins the rest |
 
-Each module is its own package, so a syntax error in one feature cannot stop another feature's tests. In the latest full run, 278 Rust tests and all 30 Swift packages passed with warnings as errors, and all 65 scenarios passed headless. CI runs the selftest of the bundled app on every push. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the contract for the layout, the dependency rules, the ranking contract and the latency and glass rules.
+Each module is its own package, so a syntax error in one feature cannot stop another feature's tests. In the latest full run, 278 Rust tests and all 30 Swift packages passed with warnings as errors, and all 66 scenarios passed headless. CI runs the selftest of the bundled app on every push. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the contract for the layout, the dependency rules, the ranking contract and the latency and glass rules.
 
 ### Write a feature
 
