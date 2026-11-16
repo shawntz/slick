@@ -165,4 +165,41 @@ final class Paster: Feature {
         fixture.type("a")
         #expect(page.selectedRow?.title == "Beta")
     }
+
+    /// Found in review: Tab on a link's text ran the user's Tab command with that text, so one Tab
+    /// could send a web page's words to an AI provider. Tab waits for the user's own keys, as
+    /// Return does.
+    @Test func tabOnALinksTextRunsNoTabCommandUntilTheUserTypes() async {
+        let fixture = await PanelFixture.make(summon: false)
+        defer { fixture.close() }
+        let relay = fixture.runtime.relay
+        fixture.root.tabCommand = .command(feature: "relay", command: "receive")
+        fixture.panel.showRootForLink(query: "zzz")
+        #expect(fixture.press(.complete))
+        #expect(fixture.panel.rootPage.holdsSelection)
+        fixture.type("zzzz")
+        fixture.press(.complete)
+        #expect(await waitUntil { relay.received.count == 1 })
+        #expect(relay.received == [CommandArguments(["text": "zzzz"])])
+    }
+
+    /// The handler hears that a link started its run, through a hand-off from such a run, and in a
+    /// panel session a link opened, though its launch source may say otherwise. A feature asks
+    /// before it reads the selection or the clipboard for such a run.
+    @Test func theHandlerHearsThatALinkStartedItsRun() async {
+        let fixture = await PanelFixture.make(summon: false)
+        defer { fixture.close() }
+        let relay = fixture.runtime.relay
+        let pipeline = fixture.panel.runtime.pipeline
+        await pipeline.runCommand(Workbench.relayed, arguments: ["text": "a"], launch: .deeplink).value
+        await pipeline.runCommand(RuntimeFixture.command("hand-off"), launch: .deeplink).value
+        await pipeline.runCommand(Workbench.relayed, arguments: ["text": "b"], launch: .root).value
+        #expect(relay.launches == [.deeplink, .command, .root])
+        #expect(relay.startedByLink == [true, true, false])
+
+        fixture.panel.showRootForLink(query: "zzz")
+        await pipeline.runCommand(Workbench.relayed, typedText: "zzz", launch: .tabFromRoot).value
+        #expect(relay.launches.last == .tabFromRoot)
+        #expect(relay.startedByLink.last == true)
+    }
 }
