@@ -47,8 +47,8 @@ public struct Command: Identifiable, Sendable {
     public var showsInRoot: Bool
     /// False keeps the command out of deep links: the app refuses a link that names it, even when the
     /// user chose Always Allow for it. Set it on a hidden command that acts at once, such as one that
-    /// pastes, so a web page can never start it. ``FeatureValidator/pendingIssues(_:)`` reports a
-    /// hidden command with no ``confirmation`` that leaves it true.
+    /// pastes, so a web page can never start it. ``FeatureValidator/validate(_:)`` reports a hidden
+    /// command with no ``confirmation`` that leaves it true.
     public var allowsDeepLinks: Bool
     /// What happens when the command starts again before an earlier run has finished.
     public var runPolicy: RunPolicy

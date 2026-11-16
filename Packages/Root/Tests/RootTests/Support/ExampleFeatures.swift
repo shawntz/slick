@@ -25,7 +25,9 @@ final class LibraryFeature: Feature {
                 id: "search", title: "Search Library",
                 fallback: Fallback(startsOn: true) { "Search Library for \"\($0)\"" }
             ) { _ in .close() },
-            Command(id: "hidden", title: "Hidden Maintenance", showsInRoot: false) { _ in .close() },
+            Command(id: "hidden", title: "Hidden Maintenance", showsInRoot: false, allowsDeepLinks: false) { _ in
+                .close()
+            },
         ]
     }
 

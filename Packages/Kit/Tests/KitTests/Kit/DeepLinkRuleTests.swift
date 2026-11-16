@@ -28,24 +28,25 @@ struct DeepLinkRuleTests {
         #expect(!Command(id: "b", title: "B", allowsDeepLinks: false) { _ in .close() }.allowsDeepLinks)
     }
 
-    @Test func aHiddenCommandThatAsksNothingAndTakesLinksIsPending() {
+    /// Every feature follows the rule now, so it is an issue like any other, and none is pending.
+    @Test func aHiddenCommandThatAsksNothingAndTakesLinksIsAnIssue() {
         let harness = FeatureHarness(Hidden.self)
-        #expect(harness.pendingIssues.count == 1)
-        #expect(harness.pendingIssues.first?.message.hasPrefix("command \"paste-now\" is hidden") == true)
-    }
-
-    /// Features written before the rule still register without an issue.
-    @Test func theRuleIsNotYetAnIssue() {
-        let harness = FeatureHarness(Hidden.self)
-        #expect(harness.issues.isEmpty)
-        #expect(FeatureValidator.validate(harness.feature).isEmpty)
+        #expect(harness.issues.count == 1)
+        #expect(harness.issues.first?.message.hasPrefix("command \"paste-now\" is hidden") == true)
+        #expect(FeatureValidator.validate(harness.feature).count == 1)
+        #expect(harness.pendingIssues.isEmpty)
     }
 
     @Test func checksAListOfCommandsAlone() {
+        let manifest = Hidden.manifest
         let hidden = Command(id: "x", title: "X", showsInRoot: false) { _ in .close() }
-        #expect(FeatureValidator.pendingIssues(commands: [hidden]).count == 1)
+        #expect(FeatureValidator.validate(commands: [hidden], manifest: manifest).count == 1)
         var safe = hidden
         safe.allowsDeepLinks = false
-        #expect(FeatureValidator.pendingIssues(commands: [safe]).isEmpty)
+        #expect(FeatureValidator.validate(commands: [safe], manifest: manifest).isEmpty)
+        var asks = hidden
+        asks.confirmation = Confirmation("Run X?")
+        #expect(FeatureValidator.validate(commands: [asks], manifest: manifest).isEmpty)
+        #expect(FeatureValidator.pendingIssues(commands: [hidden]).isEmpty)
     }
 }

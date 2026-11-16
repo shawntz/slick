@@ -76,6 +76,14 @@ import Foundation
             for permission in command.requires where !declared.contains(permission) {
                 issues.append("\(name) requires \(permission.displayName), which the manifest does not list")
             }
+            // A web page can fire a deep link, and once the user chose Always Allow for a command
+            // the link runs it without a word. A hidden command is often one that acts at once.
+            if !command.showsInRoot && command.confirmation == nil && command.allowsDeepLinks {
+                issues.append(
+                    FeatureIssue(
+                        "\(name) is hidden and asks nothing, so a deep link would run it as is; "
+                            + "set allowsDeepLinks to false or give it a confirmation"))
+            }
             if let rowActions = command.rowActions {
                 issues += validate(actions: rowActions(), manifest: manifest).map { "\(name): \($0.message)" }
             }
