@@ -145,6 +145,24 @@ import Testing
         #expect(await service.read()?.plainText == "a👍🏽 b")
     }
 
+    /// Found in the second review: a multi-line snippet pasted through the pasteboard stayed there,
+    /// where Universal Clipboard could carry it to the user's other devices. A paste is for the app
+    /// in front on this Mac, and a concealed copy is a secret, so both stay on this Mac. A plain
+    /// copy is the user's to use anywhere.
+    @Test func pastesAndConcealedCopiesStayOnThisMac() async throws {
+        defer { board.releaseGlobally() }
+        let service = makeService()
+        await service.copy("synthetic copy")
+        #expect(!service.lastWriteStaysOnThisMac)
+        try await service.paste("synthetic paste")
+        #expect(service.lastWriteStaysOnThisMac)
+        #expect(await service.read()?.plainText == "synthetic paste")
+        await service.copy(.text("synthetic secret"), options: .concealed)
+        #expect(service.lastWriteStaysOnThisMac)
+        await service.copy("synthetic again")
+        #expect(!service.lastWriteStaysOnThisMac)
+    }
+
     @Test func pasteWithoutAccessibilityLeavesTheContentAndSendsNothing() async {
         defer { board.releaseGlobally() }
         poster.isAllowed = false
@@ -251,6 +269,50 @@ import Testing
             board.writeObjects([item])
         }
         #expect(await service.read()?.contents == [.text("synthetic")])
+    }
+
+    /// Writes a concealed item once, as a password manager could between two reads of the
+    /// pasteboard.
+    static func concealedWriteOnce() -> @Sendable (NSPasteboard) -> Void {
+        let once = Closed()
+        return { board in
+            once.mark()
+            guard once.count == 1 else { return }
+            let item = NSPasteboardItem()
+            item.setString("synthetic secret", forType: .string)
+            item.setData(Data(), forType: NSPasteboard.PasteboardType(PasteboardMarkers.concealed))
+            board.clearContents()
+            board.writeObjects([item])
+        }
+    }
+
+    /// Found in review: a concealed item written after the verdict and before the contents was
+    /// read under the earlier item's verdict.
+    @Test func aWriteDuringAReadDropsWhatWasRead() async {
+        defer { board.releaseGlobally() }
+        let service = makeService()
+        await otherAppWrites(service, text: "public words")
+        service.setBeforeContentsRead(Self.concealedWriteOnce())
+        #expect(await service.read() == nil)
+        #expect(await service.read() == nil, "the concealed item is judged on its own")
+        await otherAppWrites(service, text: "later words")
+        #expect(await service.read()?.plainText == "later words")
+    }
+
+    @Test func aWriteDuringAPollIsNeverRecorded() async {
+        defer { board.releaseGlobally() }
+        // The timer never fires during the test; each check runs when the test asks.
+        let service = LivePasteboard(
+            pasteboard: board, permissions: permissions, poster: poster, clock: FakeClock(),
+            ownBundleID: "com.example.self", pollInterval: .seconds(3600))
+        let consumer = collect(service.entries(), count: 1)
+        service.setBeforeContentsRead(Self.concealedWriteOnce())
+        await otherAppWrites(service, text: "public words")
+        await service.checkNow()
+        await service.checkNow()
+        await otherAppWrites(service, text: "later words")
+        await service.checkNow()
+        #expect(await boundedValue(of: consumer).map(\.plainText) == ["later words"])
     }
 
     @Test func markersAreReadTheWayNspasteboardOrgDescribes() {
