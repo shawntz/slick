@@ -4,15 +4,19 @@ import KitHosting
 import LauncherUI
 import Observation
 
-/// The advanced pane: the data folder, how the panel appears, remote icons, and a reset.
+/// The advanced pane: the data folder, how the panel appears, remote icons, the commands links
+/// may run without asking, and a reset.
 @Observable final class AdvancedModel {
     @ObservationIgnored private let context: SettingsContext
     @ObservationIgnored private let tasks = TaskBag()
+    @ObservationIgnored private let links: FeatureSettings
     private let revision = Revision()
 
     init(context: SettingsContext) {
         self.context = context
+        links = LinkAllowances.settings(context.services.settings)
         tasks.follow(HostSettings.allKeys, in: context.general, bumping: revision)
+        tasks.follow([LinkAllowances.key.erased], in: links, bumping: revision)
     }
 
     var dataDirectory: URL { context.dependencies.dataDirectory }
@@ -49,6 +53,40 @@ import Observation
             context.general[HostSettings.fetchRemoteIcons] = newValue
             revision.bump()
         }
+    }
+
+    // MARK: Links
+
+    /// One command links may run without asking, as the pane lists it.
+    struct LinkAllowanceItem: Identifiable, Hashable {
+        let entry: LinkAllowances.Entry
+        /// The command's title now, or the title it had when the user allowed it.
+        let title: String
+        /// The exact arguments allowed, or a note that there are none.
+        let detail: String
+        var id: String { entry.storedValue }
+    }
+
+    /// Every command links may run without asking, in the order the user allowed them.
+    var linkAllowances: [LinkAllowanceItem] {
+        revision.track()
+        return LinkAllowances.entries(in: links).map { entry in
+            LinkAllowanceItem(
+                entry: entry, title: context.directory.command(entry.command)?.command.title ?? entry.title,
+                detail: Self.argumentsText(entry.arguments))
+        }
+    }
+
+    /// Stops links from running the command without asking.
+    func removeLinkAllowance(_ item: LinkAllowanceItem) {
+        LinkAllowances.remove(item.entry, in: links)
+        revision.bump()
+    }
+
+    /// The arguments as one line, in name order, or a note that there are none.
+    static func argumentsText(_ arguments: [String: String]) -> String {
+        guard !arguments.isEmpty else { return "With no arguments" }
+        return "With " + arguments.keys.sorted().map { "\($0): \(arguments[$0] ?? "")" }.joined(separator: ", ")
     }
 
     static func title(_ strategy: HostSettings.SummonStrategy) -> String {

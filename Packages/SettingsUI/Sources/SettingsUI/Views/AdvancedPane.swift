@@ -22,6 +22,26 @@ struct AdvancedPane: View {
                     Text("Keep ready leaves the panel in place, invisible, so it shows on the next frame.")
                 }
             }
+            Section {
+                if model.linkAllowances.isEmpty {
+                    Text("No command runs from links without asking.").foregroundStyle(.secondary)
+                }
+                ForEach(model.linkAllowances) { item in
+                    LabeledContent {
+                        Button("Remove") { model.removeLinkAllowance(item) }
+                            .accessibilityLabel("Remove \(item.title)")
+                    } label: {
+                        Text(item.title)
+                        Text(item.detail)
+                    }
+                }
+            } header: {
+                Text("Links")
+            } footer: {
+                Text(
+                    "A web page or another app can open a link that runs these commands without asking, with exactly these arguments. Remove one to be asked again."
+                )
+            }
             Section("Network") {
                 Toggle(isOn: $model.fetchRemoteIcons) {
                     Text("Download website icons")

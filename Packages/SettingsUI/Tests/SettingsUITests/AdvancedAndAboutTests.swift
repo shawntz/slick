@@ -59,6 +59,28 @@ import Testing
         #expect(bed.preferences.hotkeys[TestBed.open] == KeyCombo(.o, .command))
     }
 
+    @Test func listsAndRemovesTheCommandsLinksMayRun() async {
+        let bed = TestBed()
+        let model = AdvancedModel(context: bed.context())
+        #expect(model.linkAllowances.isEmpty)
+        let links = LinkAllowances.settings(bed.fakes.settings)
+        let open = LinkAllowances.Entry(command: TestBed.open, arguments: [:], title: "Old Name")
+        let gone = LinkAllowances.Entry(
+            command: .command(feature: "sample", command: "gone"), arguments: ["level": "40", "name": "notes"],
+            title: "Gone Command")
+        LinkAllowances.add(open, in: links)
+        LinkAllowances.add(gone, in: links)
+        #expect(await eventually { model.linkAllowances.count == 2 })
+        let items = model.linkAllowances
+        // A command that still exists shows its title now; a gone one shows the title it had.
+        #expect(items.map(\.title) == ["Open Sample", "Gone Command"])
+        #expect(items.map(\.detail) == ["With no arguments", "With level: 40, name: notes"])
+
+        model.removeLinkAllowance(items[0])
+        #expect(LinkAllowances.entries(in: links) == [gone])
+        #expect(model.linkAllowances.map(\.title) == ["Gone Command"])
+    }
+
     @Test func declinedResetChangesNothing() async {
         let bed = TestBed()
         let context = bed.context()
