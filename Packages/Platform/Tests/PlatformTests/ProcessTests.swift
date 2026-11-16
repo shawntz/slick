@@ -71,9 +71,10 @@ import Testing
     /// the shell alone can take seconds, and a narrow one measured the machine, not the runner.
     @Test func aBackgroundChildDoesNotHoldTheStreamOpen() async throws {
         let started = ContinuousClock.now
+        // The background sleep is a grandchild the test did not start, so the test sends it no
+        // signal. It ends by itself after a minute and holds nothing.
         let result = try await runner.run(Self.script("/bin/sleep 60 & echo $!"))
         let child = pid_t(result.output.trimmingCharacters(in: .whitespacesAndNewlines))
-        defer { if let child, child > 1 { kill(child, SIGTERM) } }
         #expect(child != nil, "the script prints the background child's process ID")
         #expect(result.exitCode == 0)
         #expect(ContinuousClock.now - started < .seconds(30))
