@@ -174,16 +174,24 @@ final class ExpansionController {
 
     /// Renders the snippet for a typed keyword, fresh, so `{date}` and `{clipboard}` are current. A
     /// snippet that asks for arguments opens the panel on a form instead.
+    ///
+    /// Text with a line break is pasted, never typed. Typed, each break is a press of Return, which
+    /// runs a line in a terminal; a paste goes through the terminal's guard for pasted text. That
+    /// holds wherever the break comes from: the snippet's own text, an imported pack, `{clipboard}`
+    /// or `{selection}`. Fill In Snippet pastes it after the keyword is deleted, launched as text
+    /// expansion, which is the only launch that pastes at once.
     @concurrent nonisolated static func expand(_ keyword: String, table: ExpansionTable, context: FeatureContext) async
         -> ExpansionResult
     {
         guard let entry = table.entry(forKeyword: keyword) else { return .ignore }
         context.usage.recordUse(of: SnippetIDs.row(entry.id))
-        guard !entry.hasArguments else {
-            return .runCommand(SnippetIDs.fillCommandID, arguments: [SnippetIDs.snippetArgument: entry.id])
-        }
+        let fill = ExpansionResult.runCommand(
+            SnippetIDs.fillCommandID, arguments: [SnippetIDs.snippetArgument: entry.id])
+        guard !entry.hasArguments else { return fill }
         let environment = TemplateEnvironment(context: context) { name in table.text(named: name) }
-        return .insert(await Template(entry.text).render(in: environment).expansion)
+        let expansion = await Template(entry.text).render(in: environment).expansion
+        guard !expansion.text.contains(where: \.isNewline) else { return fill }
+        return .insert(expansion)
     }
 }
 

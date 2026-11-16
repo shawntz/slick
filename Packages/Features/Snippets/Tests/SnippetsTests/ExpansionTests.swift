@@ -66,11 +66,75 @@ struct ExpansionTests {
         try await harness.writeFile(all + [dated])
         try await harness.announceFileChange()
 
+        #expect(await harness.fakes.textExpansion.type("dd") == .insert(Expansion("2026-11-14: copied words")))
+        #expect(await harness.fakes.textExpansion.type("hi") == .insert(Expansion("Hello there")))
+        // Lines are pasted, not typed: see the finding 7 tests below.
         #expect(
             await harness.fakes.textExpansion.type("sig")
-                == .insert(Expansion("Best,\n\nThe Team", charactersAfterCursor: 9)))
-        #expect(await harness.fakes.textExpansion.type("dd") == .insert(Expansion("2026-11-14: copied words")))
+                == .runCommand(SnippetIDs.fillCommandID, arguments: ["snippet": Fixture.signoff.id]))
+        try await harness.run("fill", arguments: ["snippet": Fixture.signoff.id], launch: .textExpansion)
+        #expect(
+            harness.fakes.pasteboard.pastes == [
+                FakePasteboard.Paste(content: .text("Best,\n\nThe Team"), charactersAfterCursor: 9)
+            ])
         #expect(harness.fakes.usage.useCount(of: SnippetIDs.row(Fixture.signoff.id)) == 1)
+    }
+
+    // MARK: Line breaks are pasted (security review, finding 7)
+
+    /// Typed, a line break is a press of Return, and in a terminal Return runs the line. Every
+    /// expansion that holds one goes through Fill In Snippet, which pastes, wherever the break comes
+    /// from.
+    @Test func aLineBreakInTheSnippetsOwnTextIsPastedNotTyped() async throws {
+        let breaks = ["one\ntwo", "one\rtwo", "one\r\ntwo", "one\u{2028}two", "one\u{2029}two", "trailing\n"]
+        let snippets = breaks.enumerated().map {
+            Fixture.snippet("Break \($0.offset)", $0.element, keyword: "b\($0.offset)")
+        }
+        let harness = try await expanding(snippets + [Fixture.greeting])
+        for (position, snippet) in snippets.enumerated() {
+            let result = await harness.fakes.textExpansion.type("b\(position)")
+            #expect(
+                result == .runCommand(SnippetIDs.fillCommandID, arguments: ["snippet": snippet.id]),
+                "\(snippet.text.debugDescription)")
+            try await harness.run("fill", arguments: ["snippet": snippet.id], launch: .textExpansion)
+        }
+        #expect(harness.fakes.pasteboard.pastedTexts == breaks)
+        #expect(await harness.fakes.textExpansion.type("hi") == .insert(Expansion("Hello there")), "one line is typed")
+    }
+
+    @Test func aLineBreakFromTheClipboardOrSelectionIsPastedNotTyped() async throws {
+        let fromClipboard = Fixture.snippet("Run", "run: {clipboard}", keyword: "rc")
+        let fromSelection = Fixture.snippet("Quote", "> {selection}", keyword: "qs")
+        let harness = try await expanding([fromClipboard, fromSelection])
+        let fill = { (snippet: Snippet) in
+            ExpansionResult.runCommand(SnippetIDs.fillCommandID, arguments: ["snippet": snippet.id])
+        }
+
+        harness.fakes.pasteboard.simulateCopy("ls")
+        #expect(await harness.fakes.textExpansion.type("rc") == .insert(Expansion("run: ls")))
+        harness.fakes.pasteboard.simulateCopy("ls\nrm -r example")
+        #expect(await harness.fakes.textExpansion.type("rc") == fill(fromClipboard))
+        try await harness.run("fill", arguments: ["snippet": fromClipboard.id], launch: .textExpansion)
+        #expect(harness.fakes.pasteboard.pastedTexts == ["run: ls\nrm -r example"])
+
+        harness.fakes.selection.selection = .text("a quote")
+        #expect(await harness.fakes.textExpansion.type("qs") == .insert(Expansion("> a quote")))
+        harness.fakes.selection.selection = .text("first\rsecond")
+        #expect(await harness.fakes.textExpansion.type("qs") == fill(fromSelection))
+    }
+
+    @Test func anImportedPackWithLinesIsPastedToo() async throws {
+        let harness = try await expanding([])
+        let file = harness.fakes.storage.root.appending(path: "pack.alfredsnippets")
+        try AlfredFixture.archive([.init("Script", "cd ~\nrm -r example\n", keyword: "boom")]).write(to: file)
+        try await harness.importAndConfirm([file])
+        let imported = try #require(harness.snippet(named: "Script"))
+        await harness.feature.expansion.update(harness.library.index).value
+        #expect(
+            await harness.fakes.textExpansion.type("boom")
+                == .runCommand(SnippetIDs.fillCommandID, arguments: ["snippet": imported.id]))
+        try await harness.run("fill", arguments: ["snippet": imported.id], launch: .textExpansion)
+        #expect(harness.fakes.pasteboard.pastedTexts == ["cd ~\nrm -r example\n"])
     }
 
     @Test func aSnippetThatDoesNotExpandIsNotWatched() async throws {
