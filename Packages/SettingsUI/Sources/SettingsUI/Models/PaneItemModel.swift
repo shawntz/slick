@@ -271,6 +271,27 @@ import Observation
         }
     }
 
+    /// One entry of a list as the pane shows it.
+    struct ListEntry: Hashable {
+        /// The stored value.
+        var value: String
+        /// How it reads, see ``label(forEntry:)``.
+        var label: String
+        /// True for an app that is not on this Mac. Its row shows the bundle ID and says so.
+        var isMissing: Bool
+    }
+
+    /// The list's entries as the pane shows them. In an app list the apps on this Mac come first,
+    /// then the ones that are not, each part in the stored order.
+    var listEntries: [ListEntry] {
+        let entries = strings.map { value in
+            var isMissing = false
+            if case .application = listKind { isMissing = applicationName(value) == nil }
+            return ListEntry(value: value, label: label(forEntry: value), isMissing: isMissing)
+        }
+        return entries.filter { !$0.isMissing } + entries.filter(\.isMissing)
+    }
+
     // MARK: Multi-select
 
     /// Calls the feature for its options, as each time the pane shows.
@@ -338,6 +359,12 @@ import Observation
         page.settingsRevision.track()
         guard let permission else { return .notDetermined }
         return context.permissions.status(of: permission)
+    }
+
+    /// The row's title, which names an Automation permission's app, see
+    /// ``SettingsContext/title(for:)``.
+    var permissionTitle: String? {
+        permission.map(context.title(for:))
     }
 
     /// What the row says in place of Allow while the permission waits for its app to run.

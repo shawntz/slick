@@ -32,7 +32,7 @@ import Testing
         let model = LearningModel(context: bed.context())
         await model.load()
         #expect(model.summary.eventCount == 45)
-        #expect(model.summaryText == "45 runs of 3 items, 3 queries.")
+        #expect(model.summaryText == "45 runs across 3 items and 3 searches")
         #expect(model.sinceText != nil)
         #expect(model.topItems.map(\.title) == ["Example Terminal", "Example Notes", "Open Sample"])
         #expect(model.queries.map(\.query) == ["te", "no", "op"])
@@ -44,7 +44,7 @@ import Testing
         let bed = TestBed()
         let model = LearningModel(context: bed.context())
         await model.load()
-        #expect(model.summaryText == "Nothing learned yet.")
+        #expect(model.summaryText == "Nothing learned yet")
         #expect(model.sinceText == nil)
     }
 
@@ -96,7 +96,7 @@ import Testing
         await accepted.value
         #expect(bed.learning.eraseCount == 1)
         #expect(model.topItems.isEmpty)
-        #expect(model.summaryText == "Nothing learned yet.")
+        #expect(model.summaryText == "Nothing learned yet")
     }
 
     @Test func marksTheItemThatRanksFirst() async {
@@ -138,7 +138,7 @@ import Testing
         let meeting = model.switchedOffTriggers[0]
         #expect(model.featureName(of: meeting) == SampleFeature.manifest.name)
         #expect(model.triggerTitle(meeting) == "Meeting soon")
-        #expect(model.triggerDetail(meeting) == "Taken 1 of 24 times")
+        #expect(model.triggerDetail(meeting) == "From Sample Tools. You picked it 1 of 24 times.")
         #expect(model.featureName(of: model.switchedOffTriggers[1]) == "gone", "an unknown feature shows its ID")
         #expect(model.triggerTitle(model.switchedOffTriggers[1]) == "New download")
 

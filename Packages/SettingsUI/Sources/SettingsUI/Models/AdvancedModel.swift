@@ -91,8 +91,8 @@ import Observation
 
     static func title(_ strategy: HostSettings.SummonStrategy) -> String {
         switch strategy {
-        case .layerOpacity: "Keep ready, fastest"
-        case .orderFront: "Bring to front each time"
+        case .layerOpacity: "Keep Ready"
+        case .orderFront: "Bring to Front Each Time"
         }
     }
 
@@ -104,7 +104,7 @@ import Observation
             Confirmation(
                 "Reset all settings?",
                 message:
-                    "General, root search and feature settings go back to their defaults, and the Standard theme is selected. Aliases, hotkeys, favorites, your theme files and what was learned are kept.",
+                    "General, root search and feature settings go back to their defaults. The Standard theme is selected. Reset keeps your aliases, hotkeys, favorites, theme files and what root search learned.",
                 confirmTitle: "Reset", isDestructive: true))
         guard confirmed else { return }
         let general = context.general

@@ -25,7 +25,7 @@ struct FeaturesPane: View {
                         }
                     }
                 } footer: {
-                    Text("A feature that is off leaves root search and stops its background work.")
+                    Text("Turning a feature off removes it from root search and stops its background work.")
                 }
             }
             .formStyle(.grouped)

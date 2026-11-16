@@ -100,9 +100,10 @@ import Observation
         return words.prefix(1).uppercased() + words.dropFirst()
     }
 
-    /// How a switched-off trigger did, such as "Taken 1 of 24 times".
+    /// Which feature a switched-off trigger belongs to and how often it was picked, such as "From
+    /// Calendar and Reminders. You picked it 1 of 24 times."
     func triggerDetail(_ trigger: LearnedTrigger) -> String {
-        "Taken \(trigger.taken) of \(trigger.impressions) times"
+        "From \(featureName(of: trigger)). You picked it \(trigger.taken) of \(trigger.impressions) times."
     }
 
     /// The item that ranks first for a query, above an exact name match, if any.
@@ -131,11 +132,11 @@ import Observation
     // MARK: Text
 
     var summaryText: String {
-        guard summary.eventCount > 0 else { return "Nothing learned yet." }
+        guard summary.eventCount > 0 else { return "Nothing learned yet" }
         let runs = summary.eventCount == 1 ? "1 run" : "\(summary.eventCount) runs"
         let items = summary.itemCount == 1 ? "1 item" : "\(summary.itemCount) items"
-        let queries = summary.queryCount == 1 ? "1 query" : "\(summary.queryCount) queries"
-        return "\(runs) of \(items), \(queries)."
+        let searches = summary.queryCount == 1 ? "1 search" : "\(summary.queryCount) searches"
+        return "\(runs) across \(items) and \(searches)"
     }
 
     var sizeText: String {

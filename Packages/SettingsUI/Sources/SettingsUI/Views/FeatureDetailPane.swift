@@ -52,7 +52,7 @@ struct FeatureDetailPane: View {
                             }
                         }
                     } header: {
-                        Text("Hotkey presets")
+                        Text("Hotkey Presets")
                     } footer: {
                         Text("A preset sets hotkeys for several commands at once. You see every change first.")
                     }
@@ -88,9 +88,8 @@ private struct CommandRow: View {
     @FocusState private var aliasFocused: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             IconView(icon: command.icon ?? featureIcon, size: 20, resolver: icons)
-                .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(command.title)
                 if let subtitle = command.subtitle {

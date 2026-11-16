@@ -13,7 +13,7 @@ struct LearningPane: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Everything learned stays on this Mac.").fontWeight(.semibold)
                         Text(
-                            "Nothing is sent anywhere. Root search learns which result you pick for what you type, and ranks with that."
+                            "Root search learns which result you pick for each search. It puts that result higher next time. Nothing is sent anywhere."
                         )
                         .foregroundStyle(.secondary)
                     }
@@ -32,7 +32,7 @@ struct LearningPane: View {
                     Text("Nothing new is recorded. What was learned still ranks.")
                 }
             }
-            Section("Most used") {
+            Section("Most Used") {
                 if model.topItems.isEmpty {
                     Text("Nothing yet.").foregroundStyle(.secondary)
                 }
@@ -54,10 +54,12 @@ struct LearningPane: View {
                 }
             }
             Section {
-                TextField("Filter", text: $model.filter, prompt: Text("Filter queries"))
+                TextField("Filter", text: $model.filter, prompt: Text("Filter searches"))
                     .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
                 if model.queries.isEmpty {
-                    Text(model.filter.isEmpty ? "No learned queries." : "No query matches.").foregroundStyle(.secondary)
+                    Text(model.filter.isEmpty ? "Nothing learned yet." : "No search matches.").foregroundStyle(
+                        .secondary)
                 }
                 ForEach(model.queries) { query in
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -83,10 +85,10 @@ struct LearningPane: View {
                     .accessibilityElement(children: .contain)
                 }
             } header: {
-                Text("Learned queries")
+                Text("Learned Searches")
             } footer: {
                 Text(
-                    "What each typed query learned. The pinned item ranks first, above an exact name match. Delete a row and that query ranks by text again."
+                    "Each row shows what a typed search learned. The pinned result ranks first, even above an exact name match. Deleting a row makes that search rank by text again."
                 )
             }
             if !model.switchedOffTriggers.isEmpty {
@@ -94,8 +96,10 @@ struct LearningPane: View {
                     ForEach(model.switchedOffTriggers) { trigger in
                         HStack(spacing: 8) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(model.featureName(of: trigger)): \(model.triggerTitle(trigger))")
-                                Text(model.triggerDetail(trigger)).foregroundStyle(.secondary)
+                                Text(model.triggerTitle(trigger))
+                                Text(model.triggerDetail(trigger))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
                             Spacer()
                             Button("Turn On") {
@@ -106,10 +110,10 @@ struct LearningPane: View {
                         }
                     }
                 } header: {
-                    Text("Switched-off suggestions")
+                    Text("Suggestions That Turned Off")
                 } footer: {
                     Text(
-                        "These suggestions switched themselves off because they were rarely taken. Turn one on and it starts learning again."
+                        "These suggestions turned off because you rarely picked them. Turning one on lets it learn again."
                     )
                 }
             }

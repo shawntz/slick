@@ -20,7 +20,14 @@ struct PaneItemView: View {
                 TitleAndInfo(title: item.title, info: item.info)
             }
         case .textField(_, let placeholder):
-            TextField(text: $item.text, prompt: placeholder.map { Text($0) }) {
+            // A bordered field of its own width, so a long value scrolls inside a box that reads as a
+            // field, and a placeholder never reads as a value.
+            LabeledContent {
+                TextField(item.title, text: $item.text, prompt: placeholder.map { Text($0) })
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 280)
+            } label: {
                 TitleAndInfo(title: item.title, info: item.info)
             }
         case .secret(_, let placeholder):
@@ -54,7 +61,7 @@ struct PaneItemView: View {
             ListItemView(item: item)
         case .multiSelect:
             VStack(alignment: .leading, spacing: 6) {
-                TitleAndInfo(title: item.title, info: item.info)
+                ListTitle(title: item.title, info: item.info)
                 if item.isLoadingChoices && item.choices.isEmpty {
                     ProgressView().controlSize(.small)
                 } else if item.choices.isEmpty {
@@ -84,7 +91,8 @@ struct PaneItemView: View {
             }
         case .permission(let permission):
             PermissionRow(
-                permission: permission, status: item.permissionStatus, reason: item.info ?? item.permissionReason,
+                permission: permission, title: item.permissionTitle, status: item.permissionStatus,
+                reason: item.info ?? item.permissionReason,
                 waitingSentence: item.permissionWaitingSentence, grant: { await item.grant() },
                 openSettings: { await item.openPermissionSettings() })
         case .note:
@@ -116,6 +124,7 @@ private struct SecretItemView: View {
             HStack {
                 SecureField(item.title, text: $item.secretDraft, prompt: Text(prompt))
                     .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
                     .frame(minWidth: 160)
                     .onSubmit { Task { await item.saveSecret() } }
                 Button("Save") { Task { await item.saveSecret() } }
@@ -139,18 +148,24 @@ private struct ListItemView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            TitleAndInfo(title: item.title, info: item.info)
-            ForEach(item.strings, id: \.self) { value in
+            ListTitle(title: item.title, info: item.info)
+            ForEach(item.listEntries, id: \.value) { entry in
                 HStack {
-                    Text(item.label(forEntry: value)).lineLimit(1).truncationMode(.middle)
+                    Text(entry.label)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(entry.isMissing ? .secondary : .primary)
                     Spacer()
+                    if entry.isMissing {
+                        Text("Not installed").foregroundStyle(.secondary)
+                    }
                     Button {
-                        item.remove(value)
+                        item.remove(entry.value)
                     } label: {
                         Image(systemName: "minus.circle")
                     }
                     .buttonStyle(.borderless)
-                    .accessibilityLabel("Remove \(item.label(forEntry: value))")
+                    .accessibilityLabel("Remove \(entry.label)")
                 }
             }
             switch item.listKind {
@@ -158,6 +173,7 @@ private struct ListItemView: View {
                 HStack {
                     TextField("New entry", text: $item.listDraft, prompt: Text(placeholder ?? "New entry"))
                         .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
                         .onSubmit { item.addDraft() }
                     Button("Add") { item.addDraft() }
                         .disabled(item.listDraft.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -173,5 +189,24 @@ private struct ListItemView: View {
     private var placeholder: String? {
         if case .list(_, _, let placeholder) = item.control { return placeholder }
         return nil
+    }
+}
+
+/// The title of a list or a set of checkboxes, with its help sentence under it in the small grey
+/// type every other help line in a form uses. A plain stack gets no form styling, so it sets it.
+private struct ListTitle: View {
+    let title: String
+    let info: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            if let info {
+                Text(info)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }

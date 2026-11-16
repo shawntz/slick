@@ -85,11 +85,21 @@ struct AppearancePane: View {
                 tintRow("Light tint", dark: false)
                 tintRow("Dark tint", dark: true)
                 LabeledContent {
-                    Slider(value: $model.clarity, in: AppearanceModel.Limits.clarity)
-                        .accessibilityValue(String(format: "%.2f", model.clarity))
+                    HStack {
+                        Slider(value: $model.clarity, in: AppearanceModel.Limits.clarity)
+                            .accessibilityValue(String(format: "%.2f", model.clarity))
+                            .frame(width: Self.sliderWidth)
+                        // The room the tint rows give their color well, so the three sliders line up.
+                        ColorPicker("", selection: .constant(CGColor(gray: 0, alpha: 1)))
+                            .labelsHidden()
+                            .hidden()
+                            .accessibilityHidden(true)
+                    }
                 } label: {
                     Text("Clarity")
-                    Text("Scales the tint. Lower shows more glass; higher reads more easily.")
+                    Text(
+                        "Scales the tint. A lower value shows more of the glass. A higher value makes text easier to read."
+                    )
                 }
                 Picker("Selection", selection: $model.lensStyle) {
                     Text("Glass").tag(LensMetrics.Style.glass)
@@ -103,7 +113,7 @@ struct AppearancePane: View {
                     ColorPicker("Accent color", selection: accentBinding, supportsOpacity: false)
                 }
             }
-            Section("Text and layout") {
+            Section("Text and Layout") {
                 metric("Search text", value: $model.querySize, range: AppearanceModel.Limits.querySize, step: 0.5)
                 metric("Titles", value: $model.titleSize, range: AppearanceModel.Limits.titleSize, step: 0.5)
                 metric("Subtitles", value: $model.subtitleSize, range: AppearanceModel.Limits.subtitleSize, step: 0.5)
@@ -127,9 +137,17 @@ struct AppearancePane: View {
 
     private var preview: some View {
         VStack(alignment: .trailing, spacing: 8) {
+            // Every theme draws in a frame of Standard's proportions, so the pane keeps its height
+            // when the person picks a theme whose panel is taller.
             let size = ThemePreviewView.logicalSize(for: model.draft)
-            ThemePreview(theme: model.draft, dark: model.previewDark)
-                .aspectRatio(size.width / size.height, contentMode: .fit)
+            let frame = ThemePreviewView.logicalSize(for: .standard)
+            Color.clear
+                .aspectRatio(frame.width / frame.height, contentMode: .fit)
+                .overlay {
+                    ThemePreview(theme: model.draft, dark: model.previewDark)
+                        .aspectRatio(size.width / size.height, contentMode: .fit)
+                }
+                .background(.quaternary.opacity(0.6))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             Picker("Preview", selection: $model.previewDark) {
                 Text("Match System").tag(Bool?.none)
@@ -143,6 +161,9 @@ struct AppearancePane: View {
         }
     }
 
+    /// The width of the tint and clarity sliders, the same for all three so they line up.
+    static let sliderWidth: CGFloat = 220
+
     private func tintRow(_ title: String, dark: Bool) -> some View {
         LabeledContent(title) {
             HStack {
@@ -153,6 +174,7 @@ struct AppearancePane: View {
                 )
                 .accessibilityLabel("\(title) strength")
                 .accessibilityValue("\(Int(model.tintStrength(dark: dark) * 100)) percent")
+                .frame(width: Self.sliderWidth)
                 ColorPicker(title, selection: tintBinding(dark: dark), supportsOpacity: false)
                     .labelsHidden()
             }

@@ -1,3 +1,4 @@
+import Kit
 import KitHosting
 import SwiftUI
 
@@ -19,7 +20,7 @@ struct AdvancedPane: View {
                     }
                 } label: {
                     Text("Summon")
-                    Text("Keep ready leaves the panel in place, invisible, so it shows on the next frame.")
+                    Text("Keep Ready keeps the panel open but hidden. It appears faster when you press the hotkey.")
                 }
             }
             Section {
@@ -39,19 +40,19 @@ struct AdvancedPane: View {
                 Text("Links")
             } footer: {
                 Text(
-                    "A web page or another app can open a link that runs these commands without asking, with exactly these arguments. Remove one to be asked again."
+                    "Links from web pages and other apps can run these commands without asking, but only with these exact arguments. Remove a command to be asked again."
                 )
             }
             Section("Network") {
                 Toggle(isOn: $model.fetchRemoteIcons) {
                     Text("Download website icons")
-                    Text("When off, websites and scripts show generic icons and no request is made for them.")
+                    Text("When this is off, websites and scripts show plain icons. \(Brand.name) downloads no icons.")
                 }
             }
             Section {
                 Button("Reset All Settings…", role: .destructive) { Task { await model.resetAllSettings() } }
             } footer: {
-                Text("Aliases, hotkeys, favorites, your themes and what was learned are kept.")
+                Text("Reset keeps your aliases, hotkeys, favorites, themes and what root search learned.")
             }
         }
         .formStyle(.grouped)

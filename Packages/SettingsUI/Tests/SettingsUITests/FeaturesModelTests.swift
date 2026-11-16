@@ -276,6 +276,13 @@ import Testing
         #expect(bed.sampleSettings()[SampleSettings.skipApps] == ["com.example.editor"])
         #expect(apps.label(forEntry: "com.example.editor") == "Example Editor")
         #expect(bed.fakes.fileDialogs.openRequests.last?.allowedTypes == ["app"])
+        // An app that is not on this Mac shows its bundle ID, says so, and goes after the apps that are.
+        apps.strings = ["com.example.gone", "com.example.editor"]
+        #expect(
+            apps.listEntries == [
+                .init(value: "com.example.editor", label: "Example Editor", isMissing: false),
+                .init(value: "com.example.gone", label: "com.example.gone", isMissing: true),
+            ])
 
         let folders = items(page)["Folders"]!
         let home = bed.fakes.storage.homeDirectory
@@ -323,6 +330,7 @@ import Testing
         let permission = items(page)["Accessibility"]!
         #expect(permission.permissionStatus == .notDetermined)
         #expect(permission.permissionReason == "Paste the chosen sample into the frontmost app.")
+        #expect(permission.permissionTitle == "Accessibility")
         await page.appeared()
         #expect(bed.fakes.permissions.requests.isEmpty)
         bed.fakes.permissions.set(.accessibility, to: .granted)

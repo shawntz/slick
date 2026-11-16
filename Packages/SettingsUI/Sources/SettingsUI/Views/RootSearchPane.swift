@@ -7,7 +7,7 @@ struct RootSearchPane: View {
 
     var body: some View {
         Form {
-            Section("When the search field is empty") {
+            Section("When the Search Field Is Empty") {
                 Toggle("Show suggestions", isOn: $model.showSuggestions)
                 ValueStepper(
                     title: "Suggestions", value: $model.suggestionCount, range: RootSearchModel.suggestionRange,
@@ -39,7 +39,7 @@ struct RootSearchPane: View {
             } header: {
                 Text("Favorites")
             }
-            Section("While typing") {
+            Section("While Typing") {
                 Toggle(isOn: $model.inlineCompletion) {
                     Text("Complete the top result inline")
                     Text("Shows the rest of the top title after what you typed. Tab accepts it.")
@@ -76,9 +76,11 @@ struct RootSearchPane: View {
                 }
                 .onMove { model.moveFallbacks(from: $0, to: $1) }
             } header: {
-                Text("Fallback commands")
+                Text("Fallback Commands")
             } footer: {
-                Text("The ones that are on show under the results, in this order. Each runs with what you typed.")
+                Text(
+                    "Fallback commands that are on appear under the results in this order. Each one runs with what you typed."
+                )
             }
         }
         .formStyle(.grouped)

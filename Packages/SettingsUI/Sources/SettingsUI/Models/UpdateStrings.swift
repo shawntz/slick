@@ -10,7 +10,7 @@ enum UpdateStrings {
 
     /// Under the switch: what a check sends, and to whom.
     static var whatIsSent: String {
-        "Once a day, \(Brand.name) asks GitHub whether a new version exists, and the request carries nothing but the version numbers of \(Brand.name) and its updater."
+        "Once a day, \(Brand.name) asks GitHub for a new version. The request sends only the version numbers of \(Brand.name) and its updater."
     }
 
     static let checkNow = "Check Now"
@@ -25,7 +25,7 @@ enum UpdateStrings {
 
     /// The General pane of a build that cannot update itself.
     static var builtFromSource: String {
-        "This copy of \(Brand.name) was built from source, so it updates when you pull with git and build again."
+        "This copy of \(Brand.name) was built from source. To update it, pull with git and build again."
     }
 
     /// When the last check was, or that there was none.
