@@ -218,9 +218,10 @@ import KitHosting
         permissions.userMayHaveReturned()
     }
 
-    /// Stops listening, stops text expansion, removes every hotkey and waits for pending settings
-    /// writes. Call it when the app quits.
+    /// Stops listening, stops text expansion, stops every process a command started, removes every
+    /// hotkey and waits for pending settings writes. Call it when the app quits.
     public func stop() {
+        Self.stopProcesses(processes)
         workspaceObserver?.stop()
         keyFocusObserver?.stop()
         for observer in activityObservers {
@@ -237,6 +238,16 @@ import KitHosting
         hotkeys.unregisterAll()
         privatePasteboard?.releaseGlobally()
         settings.flush()
+    }
+
+    /// How long quitting lets a running command's process group end after SIGTERM before it gets
+    /// SIGKILL. Short, because quitting waits for it.
+    nonisolated public static let processStopGrace: Duration = .milliseconds(500)
+
+    /// Stops every process group the live runner started, with ``processStopGrace``. The services
+    /// of other environments start no process, so there is nothing to stop.
+    nonisolated static func stopProcesses(_ processes: any ProcessService) {
+        (processes as? ProcessRunner)?.stopAll(grace: processStopGrace)
     }
 
     /// Tells the permission center when this app becomes active or stops being active: permission
