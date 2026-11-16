@@ -205,7 +205,8 @@ nonisolated enum Strings {
 
     // MARK: Import page
 
-    static let importSubtitle = "From Raycast or an export, or Alfred web searches read by an unverified guess"
+    static let importSubtitle =
+        "From Raycast, a \(Brand.name) export, or Alfred web searches. The Alfred format is unverified."
     static let importKeywords = ["raycast", "alfred", "web searches", "json", "migrate"]
     static let exportKeywords = ["raycast", "json", "backup"]
     static func importAction(_ count: Int) -> String {

@@ -113,6 +113,8 @@ struct SettingsTests {
         let storage = pane.sections.first { $0.title == "Chat History" }?.footer ?? ""
         #expect(storage.contains("/Chats"))
         #expect(storage.contains("commands.json"))
+        // The folder joins each name with one "/", never two.
+        #expect(!storage.contains("//"), "\(storage)")
     }
 
     @Test func theDefaultsAreSafe() {

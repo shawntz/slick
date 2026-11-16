@@ -275,7 +275,7 @@ nonisolated enum Strings {
     static let inlineTitle = "Refresh automatically"
     static let inlineInfo =
         "Only the inline scripts you check here run by themselves, on their refresh time. The others run when you run them."
-    static let reloadButtonInfo = "Scripts are found again by themselves whenever a script folder changes."
+    static let reloadButtonInfo = "The list updates by itself when a script folder changes."
 
     static func timeoutName(_ timeout: ScriptTimeout) -> String {
         switch timeout {

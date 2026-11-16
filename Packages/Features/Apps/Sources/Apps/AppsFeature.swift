@@ -119,7 +119,7 @@ public final class AppsFeature: Feature {
                         info: "Find each pane of System Settings, and the sections inside it, by name."),
                     .button(
                         "Rescan Applications",
-                        info: "Apps are found again by themselves whenever an app folder changes."
+                        info: "The list updates by itself when an app folder changes."
                     ) { context in
                         await self.rescan().value
                         context.showToast(.success("Found \(self.installed.count) Applications"))

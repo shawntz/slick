@@ -182,7 +182,7 @@ nonisolated enum Strings {
         static let functionKeysNote =
             "The Function Keys preset works when the keys send F7, F8 and F9, which is when you hold Fn or set them to act as standard function keys in Keyboard settings."
         static let accessNote =
-            "The first time a command finds Music or Spotify running, the launcher says why it needs permission to control that app, and macOS asks only after you press Grant. Nothing is sent to a player that is not running."
+            "The first time a command finds Music or Spotify running, the launcher says why it needs permission to control that app, and macOS asks only after you press Grant Access. Nothing is sent to a player that is not running."
     }
 
     // MARK: - Hotkey presets

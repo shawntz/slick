@@ -266,7 +266,7 @@ nonisolated enum Strings {
         + "queries. Search Notes and quick capture work either way."
     static let folderSection = "Notes Folder"
     static let folderFooter =
-        "Choosing a folder does not move notes: the old folder keeps them. A folder macOS guards, such as "
+        "Choosing a folder does not move your notes. They stay in the old folder. A folder macOS guards, such as "
         + "Documents, asks for access the first time it is read, right after you choose it."
     static let defaultFolderNote = "Notes are kept in the feature's own data folder."
     static let chooseFolderDialog = "Choose a Folder for Notes"

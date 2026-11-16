@@ -89,9 +89,11 @@ extension AIFeature {
             isDestructive: true)
     }
 
-    /// The data folder as people read it, with the home folder as "~".
+    /// The data folder as people read it, with the home folder as "~" and no "/" at the end, so a
+    /// name joins it with one "/".
     var dataFolder: String {
-        let path = context.storage.dataDirectory.path(percentEncoded: false)
+        var path = context.storage.dataDirectory.path(percentEncoded: false)
+        while path.count > 1, path.hasSuffix("/") { path.removeLast() }
         let home = context.storage.homeDirectory.path(percentEncoded: false)
         let trimmedHome = home.hasSuffix("/") ? String(home.dropLast()) : home
         guard !trimmedHome.isEmpty, path.hasPrefix(trimmedHome + "/") else { return path }

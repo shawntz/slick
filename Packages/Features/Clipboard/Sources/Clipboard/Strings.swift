@@ -226,13 +226,13 @@ nonisolated enum Strings {
         static let historySection = "History"
         static let retention = "Keep items for"
         static let retentionInfo =
-            "Older items are deleted, at once when you shorten this. Pinned items stay until you unpin them."
+            "Older items are deleted. Shortening this deletes them right away. Pinned items stay until you unpin them."
         static let maximumItems = "Keep at most"
         static let maximumItemsInfo =
-            "When the history is full, the oldest items that are not pinned go first, at once when you lower this."
+            "When the history is full, the oldest unpinned items are deleted first. Lowering this deletes them right away."
         static let imageStorage = "Space for images"
         static let imageStorageInfo =
-            "When images take more space, the oldest ones that are not pinned go first, at once when you lower this."
+            "When images take more space, the oldest unpinned ones are deleted first. Lowering this deletes them right away."
         static let clear = "Clear History"
         static let clearInfo = "Deletes every item that is not pinned."
 

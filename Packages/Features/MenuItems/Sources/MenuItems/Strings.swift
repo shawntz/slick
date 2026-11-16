@@ -161,7 +161,7 @@ nonisolated enum Strings {
 
     static let accessSection = "Access"
     static let accessInfo =
-        "Reading another app's menus needs Accessibility. Nothing asks for it until you run Search Menu Items and press Grant."
+        "Reading another app's menus needs Accessibility. Nothing asks for it until you run Search Menu Items and press Grant Access."
 
     static let privacySection = "Privacy"
     static let storageNote =

@@ -252,7 +252,7 @@ nonisolated enum Strings {
         static let rootSearch = "Show bookmarks in root search"
 
         static func rootSearchInfo(limit: Int) -> String {
-            "Up to \(grouped(limit)) bookmarks join root search: those on the bookmarks bar first, then the newest. Search Bookmarks always shows them all."
+            "Root search shows up to \(grouped(limit)) bookmarks. Bookmarks bar items come first, then the newest. Search Bookmarks always shows them all."
         }
 
         static let opensIn = "Open bookmarks in"
