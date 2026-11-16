@@ -6,13 +6,20 @@ they land. While the major version is 0, every release is a GitHub pre-release.
 A release takes two commands, with a stop after each for you to look:
 
 ```sh
-NOTARYTOOL_PROFILE=splay-notary make release VERSION=0.1.0   # build, sign, notarize and staple into dist/
+NOTARYTOOL_PROFILE=slick-notary make release VERSION=0.1.0   # build, sign, notarize and staple into dist/
 make release-publish VERSION=0.1.0                            # tag, push the tag, draft the release, write the cask
 ```
 
 The first publishes nothing. The second leaves the release as a draft and never touches the
 Homebrew tap. You publish the draft and update the tap yourself, with commands it prints. Splay does
 all of this in one script. Slick stops twice, because a published version can never be replaced.
+
+To run Slick every day from your own checkout without a release, see
+[Install from a checkout](#install-from-a-checkout) at the end.
+
+Agents never run `make release`, `make release-publish`, `make install` or `make uninstall`. Each
+one changes your Mac, your keychain or the public repository. An agent may run
+`make release-dry-run`, which builds and signs ad hoc in a temporary folder and shows nothing.
 
 ## One-time setup
 
@@ -27,13 +34,13 @@ Do these once, before the first release.
 
    The list must hold a line with `"Developer ID Application: `. If it holds two, set
    `DEVELOPER_ID_APPLICATION` to the 40-character hash of the one to use.
-2. A notarytool profile is in the keychain. A profile belongs to the team, not to one app, so the
-   one you made for Splay works here. Splay's guide names it `splay-notary`, and so does this guide.
-   If you used another name, use that name wherever this guide says `splay-notary`. Without one,
-   make one. It asks for an app-specific password from account.apple.com:
+2. A notarytool profile is in the keychain. This guide names it `slick-notary`, the profile the
+   maintainer stored. A profile belongs to the team, not to one app, so one made for another app
+   works too: use its name wherever this guide says `slick-notary`. Without one, make one. It asks
+   for an app-specific password from account.apple.com:
 
    ```sh
-   xcrun notarytool store-credentials splay-notary --apple-id <Apple ID> --team-id <team ID>
+   xcrun notarytool store-credentials slick-notary --apple-id <Apple ID> --team-id <team ID>
    ```
 
 3. `gh` is signed in. `gh auth status` says so, and `gh auth login` signs in.
@@ -85,7 +92,7 @@ These are the steps for 0.1.0, in order. For a later version, change the number 
 5. Build the release:
 
    ```sh
-   NOTARYTOOL_PROFILE=splay-notary make release VERSION=0.1.0
+   NOTARYTOOL_PROFILE=slick-notary make release VERSION=0.1.0
    ```
 
    macOS may ask once whether `codesign` may use the Developer ID key. Enter your login password
@@ -205,6 +212,9 @@ version, the checksums match, the dSYM matches the executable, and the cask rend
 Ruby. It needs Ruby and Python 3 on the path, as the release does. `OUT` must name a new or empty
 folder, or one an earlier dry run wrote.
 
+CI runs `make release-dry-run` after the tests on every push to main and every pull request, so a
+change that breaks the release pipeline fails there, not on release day.
+
 ## Before you publish
 
 `make release` has checked the signature, the ticket, the checksums and the cask. These checks need
@@ -290,4 +300,45 @@ the same version breaks every install with a checksum error. Fix forward with a 
 `make notices` rewrites `THIRD-PARTY-NOTICES.md` from the crates linked into the Rust library, the
 Rust standard library and the emoji data's license. It works offline from the local cargo registry.
 Run it and commit the result whenever `core/Cargo.lock` changes. `make release` refuses a stale
-file.
+file. `scripts/bundle.sh` copies the file into `Contents/Resources` of every bundle it makes,
+including those of `make app` and `make install`. The About pane in settings links to the copy in
+the repository.
+
+## Install from a checkout
+
+`make install` builds the release configuration of the app and copies `build/Slick.app` to
+`/Applications` with `ditto`. `INSTALL_DIR` picks another folder:
+
+```sh
+make install                                # build, then copy to /Applications
+make install INSTALL_DIR=~/Applications     # or to a folder of your own
+make uninstall                              # remove the installed copy
+```
+
+- Quit the installed copy first, with Quit Slick in its menu bar menu. `make install` refuses while
+  a copy from that folder is running and says so. It also refuses to replace a `Slick.app` there that
+  carries another bundle ID.
+- The new copy goes into a hidden folder beside the old one and replaces it only once it is whole,
+  so a failed copy leaves the old install as it was.
+- Afterwards the system knows one launcher. The installed copy is registered with LaunchServices, so
+  links and Spotlight open it, and `build/Slick.app` is unregistered. While an installed copy
+  exists, `scripts/launch.sh` unregisters build's copy after each `make selftest`, `make bench` or
+  `make scenario`. `make run` still starts build's copy, which registers it again until the next
+  `make install`.
+- One copy runs at a time per data folder. Quit any copy started from `build/` before you open the
+  installed one, or the installed one opens the other's panel and quits. Both copies share the data
+  folder and the settings.
+- Turn on Open at Login in the installed copy's General settings. The switch registers the copy
+  that is running, so turning it on in a copy started from `build/` makes every login open that
+  copy, which `make clean` deletes. If you did, turn it off there and on again in the installed copy.
+- Permission grants carry over between the two copies only when both are signed with the same Apple
+  Development identity. An ad hoc copy asks again.
+
+`make uninstall` removes `Slick.app` from `/Applications`, or from `INSTALL_DIR`, only when it carries
+this app's bundle ID and is not running. It unregisters the copy first. The data folder in
+`~/Library/Application Support/Slick` and the settings stay. Turn Open at Login off before you
+uninstall, or its entry may stay in System Settings with nothing to open.
+
+`scripts/test-scripts.sh`, part of `make test`, checks both targets against a temporary folder with
+a stand-in bundle made of plain files, and with a recorder in place of `lsregister`, so nothing
+reaches LaunchServices.

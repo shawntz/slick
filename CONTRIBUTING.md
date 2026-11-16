@@ -15,17 +15,33 @@ in the same change.
 | `make run` | Build, then launch through LaunchServices. For people, not agents |
 | `make selftest` | Build, then run `--selftest` directly and through LaunchServices |
 | `make test` | Every Rust and Swift test. `make -j4 test` runs them in parallel |
-| `make test-rust` | Every Rust test |
+| `make test-rust` | Every Rust test, ended after `RUST_TEST_TIMEOUT` seconds, 900 by default, so a hung test fails the run |
 | `make test-<Pkg>` | One Swift package's tests, for example `make test-Kit` |
+| `make test-scripts` | The tests of the install, showcase, bundle and time limit scripts, in a temporary folder |
 | `make bench` | Latency tables from the app bundle. `NAME=<bench>` picks one |
 | `make scenario S=<file>` | A scripted UI run |
-| `make lint` | rustfmt, clippy, `swift format`, the manifest check and the brand check |
+| `make lint` | rustfmt, clippy, `swift format`, the manifest check, the brand check and the LaunchServices check |
 | `make fmt` | Format Rust and Swift sources in place |
 | `make xcode` | Generate the optional Xcode project with XcodeGen |
 | `make clean` | Remove every build output |
 
 An area that needs its own targets adds them to its file in `mk/`. The Makefile includes every
-`mk/*.mk`, so nobody has to edit the shared Makefile.
+`mk/*.mk`, so nobody has to edit the shared Makefile. `make help` lists them all.
+
+These targets change the Mac, the keychain or the public repository, so only a person runs them,
+by hand:
+
+| Target | What it does |
+|---|---|
+| `make install` | Build the release app and copy it to `/Applications`, or `INSTALL_DIR` |
+| `make uninstall` | Remove the installed app |
+| `make release VERSION=<x.y.z>` | Build, sign with Developer ID, notarize and staple a release into `dist/` |
+| `make release-publish VERSION=<x.y.z>` | Tag, push the tag and draft the GitHub release from `dist/` |
+
+Agents never run any of them, nor `make run` or anything else that starts the launcher on the
+desktop. An agent may run `make release-dry-run`, which builds the release and signs it ad hoc in
+a temporary folder, without the notary service, and shows nothing. [docs/RELEASING.md](docs/RELEASING.md)
+covers all of them.
 
 ## Working in one package
 
