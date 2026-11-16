@@ -99,7 +99,7 @@ struct AppActionsTests {
         #expect(
             try await apps.harness.performRoot("force-quit", on: sheets).kind == .close(hud: "Force Quit Suite Sheets"))
         #expect(apps.running.requests == [.hide(pid: 10), .quit(pid: 11), .forceQuit(pid: 12)])
-        #expect(apps.harness.confirmations.map(\.title) == ["Force quit Suite Sheets?"])
+        #expect(apps.harness.confirmations.map(\.title) == ["Force Quit Suite Sheets?"])
     }
 
     @Test func declinedForceQuitQuitsNothing() async throws {

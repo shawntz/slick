@@ -94,7 +94,7 @@ public final class AppsFeature: Feature {
                 id: "quit-all", title: "Quit All Applications", icon: .symbol("xmark.circle"),
                 keywords: ["close all"],
                 confirmation: Confirmation(
-                    "Quit all applications?",
+                    "Quit All Applications?",
                     message: "Apps you keep running in settings stay open. An app with unsaved changes may ask first.",
                     confirmTitle: "Quit All", isDestructive: true, suppressionKey: "quit-all")
             ) { _ in
@@ -136,6 +136,21 @@ public final class AppsFeature: Feature {
     }
 
     // MARK: - What the sources read
+
+    /// Returns once the scan and the running-app read that activation started, and any that
+    /// replaced them, have applied. Root search reads the catalog after the scan anyway, but the
+    /// rows and the Running Applications page also show which apps run, so scenarios and the
+    /// self-test wait for both before they type.
+    public func waitUntilReady() async {
+        while let current = scan {
+            await current.value
+            if scan == current { break }
+        }
+        while let current = runningRefresh {
+            await current.value
+            if runningRefresh == current { break }
+        }
+    }
 
     /// Every installed app's row, after the scan in progress, if any, has finished.
     func appRows() async -> [Row] {

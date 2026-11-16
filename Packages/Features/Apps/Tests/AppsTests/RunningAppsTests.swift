@@ -73,7 +73,7 @@ struct RunningAppsTests {
     @Test func quitAllAsksFirstAndKeepsFinderRunning() async throws {
         let apps = try await AppsHarness(running: Self.three)
         let outcome = try await apps.harness.run("quit-all")
-        #expect(apps.harness.confirmations.map(\.title) == ["Quit all applications?"])
+        #expect(apps.harness.confirmations.map(\.title) == ["Quit All Applications?"])
         #expect(apps.harness.confirmations.first?.suppressionKey == "quit-all")
         #expect(outcome.kind == .close(hud: "Quitting 2 Applications"))
         #expect(apps.running.requests == [.quit(pid: 12), .quit(pid: 10)])

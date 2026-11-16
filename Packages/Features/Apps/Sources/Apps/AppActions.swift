@@ -84,7 +84,7 @@ extension AppsFeature {
                 "Force Quit", id: "force-quit", icon: .symbol("xmark.octagon"), shortcut: Shortcut.forceQuit,
                 style: .destructive, section: section,
                 confirmation: Confirmation(
-                    "Force quit \(app.name)?", message: "Changes you have not saved in \(app.name) will be lost.",
+                    "Force Quit \(app.name)?", message: "Changes you have not saved in \(app.name) will be lost.",
                     confirmTitle: "Force Quit", isDestructive: true)
             ) { context in
                 try await self.forEachCopy(of: app, failure: "Could Not Force Quit \(app.name)") {
