@@ -34,6 +34,33 @@ struct RateKeeperTests {
         #expect(harness.feature.rates.downloadCount == 1)
     }
 
+    /// Root search shows the loading row, then asks again when the rates signal, and the same row
+    /// becomes the conversion with nobody typing.
+    @Test func theLoadingRowTurnsIntoTheAnswerWhenRatesArrive() async throws {
+        let rates = ScriptedRates(next: [.success(sampleTable())])
+        rates.hold()
+        let harness = await readyHarness(rates: rates)
+        let query = "100 usd in eur"
+        let loading = try #require(harness.instantAnswers(for: query).first?.rows.first)
+        #expect(loading.title == "Loading Exchange Rates")
+        rates.release()
+        let answers = try await harness.instantAnswersAfterChange(for: query)
+        let answer = try #require(answers.first?.rows.first)
+        #expect(answer.title == "80 EUR")
+        #expect(answer.id == loading.id, "the row keeps its place and its selection")
+        #expect(harness.feature.rates.downloadCount == 1)
+    }
+
+    @Test func aFailedDownloadAlsoChangesTheAnswer() async throws {
+        let rates = ScriptedRates(next: [.failure(.unreachable)])
+        rates.hold()
+        let harness = await readyHarness(rates: rates)
+        #expect(harness.instantAnswers(for: "1 usd in eur").first?.rows.first?.title == "Loading Exchange Rates")
+        rates.release()
+        let answers = try await harness.instantAnswersAfterChange(for: "1 usd in eur")
+        #expect(answers.first?.rows.first?.title == "Exchange Rates Unavailable")
+    }
+
     @Test func atMostOneDownloadADay() async throws {
         let rates = ScriptedRates(next: [.success(sampleTable(downloadedAt: fakeStart))])
         let harness = await readyHarness(rates: rates)

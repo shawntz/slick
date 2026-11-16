@@ -10,6 +10,10 @@ import os
 /// tried again no sooner than half an hour later, or at once when the user asks. The setting turns
 /// downloads off. The saved table is read from the feature's folder at activation, so answers work
 /// offline with the rates of the last download, which the row dates.
+///
+/// ``ratesChanged`` fires whenever what a currency question shows may have changed: a download
+/// ended, well or not, the saved table was attached, or a running download was stopped. Root search
+/// then asks the calculator again, so a loading row turns into the answer by itself.
 final class RateKeeper {
     /// What the rates are doing, for the row a currency question shows without a table.
     enum State: Hashable, Sendable {
@@ -30,6 +34,8 @@ final class RateKeeper {
     private(set) var lastFailure: Date?
     /// How many downloads started, for tests.
     private(set) var downloadCount = 0
+    /// Sent when the rates or their state changed.
+    let ratesChanged = ChangeSignal()
 
     private var download: Task<Bool, Never>?
     /// Counts downloads, so one that finishes after it was cancelled cannot clear a newer one.
@@ -58,6 +64,7 @@ final class RateKeeper {
         // A download that finished meanwhile is newer.
         guard table == nil else { return }
         await use(saved)
+        ratesChanged.send()
     }
 
     /// Called by the provider when the user typed a currency conversion. Starts a download when
@@ -90,7 +97,10 @@ final class RateKeeper {
         download?.cancel()
         download = nil
         downloadGeneration += 1
-        if state == .loading { state = .idle }
+        if state == .loading {
+            state = .idle
+            ratesChanged.send()
+        }
     }
 
     private func startDownload() {
@@ -116,6 +126,7 @@ final class RateKeeper {
         switch result {
         case .success(let fresh):
             await use(fresh)
+            defer { ratesChanged.send() }
             guard generation == downloadGeneration else { return true }
             lastFailure = nil
             state = .idle
@@ -127,6 +138,7 @@ final class RateKeeper {
             lastFailure = clock.now
             state = .failed
             download = nil
+            ratesChanged.send()
             return false
         }
     }

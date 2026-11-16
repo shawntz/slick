@@ -7,6 +7,9 @@ import Kit
 /// Budget: 100 µs per keystroke on the main thread. The engine rejects a query that is not math in
 /// tens of nanoseconds and allocates nothing, and nothing before it allocates either: no trimming,
 /// no settings read. Work that allocates starts only once the engine has an answer.
+///
+/// Its answers change when exchange rates arrive, so it declares ``answersChanged``: root search
+/// asks again for the query on screen and the loading row becomes the conversion in place.
 final class CalcProvider: InstantProvider {
     /// A longer query is pasted text, not a question. The engine stops at 256 bytes anyway.
     static let maximumQueryBytes = 1024
@@ -25,6 +28,8 @@ final class CalcProvider: InstantProvider {
         self.settings = context.settings
         self.clock = context.clock
     }
+
+    var answersChanged: ChangeSignal? { rates.ratesChanged }
 
     func answer(for query: String) -> InstantAnswer? {
         guard engine.isReady, let calculator = engine.calculator, query.utf8.count <= Self.maximumQueryBytes,
