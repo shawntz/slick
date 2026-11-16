@@ -100,7 +100,7 @@ nonisolated enum EmojiStrings {
     static let recentCount = "Emoji to show"
     static let recentCountInfo = "Set to 0 to hide the Recently Used section."
     static let clearRecents = "Clear Recently Used"
-    static let clearRecentsQuestion = "Clear recently used emoji?"
+    static let clearRecentsQuestion = "Clear Recently Used Emoji?"
     static let clearRecentsMessage = "The grid and the colon search forget which emoji and symbols you used."
     static let clearRecentsConfirm = "Clear"
     static let clearedRecents = "Cleared Recently Used Emoji"

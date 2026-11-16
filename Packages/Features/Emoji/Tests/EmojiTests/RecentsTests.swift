@@ -75,7 +75,7 @@ struct RecentsTests {
 
         harness.confirmationAnswer = false
         try await harness.pressSettingsButton("Clear Recently Used")
-        #expect(harness.confirmations.map(\.title) == ["Clear recently used emoji?"])
+        #expect(harness.confirmations.map(\.title) == ["Clear Recently Used Emoji?"])
         #expect(fakes.usage.recentlyUsed(namespace: "emoji", limit: 10).count == 2, "declined: nothing changes")
 
         harness.confirmationAnswer = true
