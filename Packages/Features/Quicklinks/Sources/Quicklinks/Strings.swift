@@ -1,3 +1,5 @@
+import Kit
+
 /// Every string a user reads, in one place so it can be translated later. Command, action, section,
 /// empty-state, toast and HUD titles, buttons and menu items use title case, as macOS menus do.
 /// Everything else is a plain sentence.
@@ -63,7 +65,11 @@ nonisolated enum Strings {
     static func defaultEngineSet(_ name: String) -> String { "\(name) Is the Default Search Engine" }
     static let restoredDefaults = "Restored the Default Web Searches"
     static func imported(_ count: Int) -> String {
-        count == 1 ? "Imported 1 Quicklink" : "Imported \(count) Quicklinks"
+        switch count {
+        case 0: "No New Quicklinks to Import"
+        case 1: "Imported 1 Quicklink"
+        default: "Imported \(count) Quicklinks"
+        }
     }
     static func importSkipped(duplicates: Int, invalid: Int) -> String? {
         var parts: [String] = []
@@ -73,6 +79,27 @@ nonisolated enum Strings {
         }
         guard !parts.isEmpty else { return nil }
         return "Skipped " + parts.joined(separator: " and ") + "."
+    }
+    /// What an import added, turned off and skipped: a success toast, or a plain one when nothing
+    /// was new.
+    static func importToast(_ plan: QuicklinkImportPlan) -> Toast {
+        var notes: [String] = []
+        if plan.turnedOff > 0 {
+            notes.append(
+                plan.turnedOff == 1
+                    ? "Turned 1 off, because its link is not a web link."
+                    : "Turned \(plan.turnedOff) off, because their links are not web links.")
+        }
+        if plan.turnedOffSending > 0 {
+            notes.append(
+                plan.turnedOffSending == 1
+                    ? "Turned 1 off, because its link sends what you copied or selected."
+                    : "Turned \(plan.turnedOffSending) off, because their links send what you copied or selected.")
+        }
+        if let skipped = importSkipped(duplicates: plan.duplicates, invalid: plan.invalid) { notes.append(skipped) }
+        return Toast(
+            plan.added > 0 ? .success : .info, imported(plan.added),
+            message: notes.isEmpty ? nil : notes.joined(separator: " "))
     }
     static func exported(_ count: Int) -> String {
         count == 1 ? "Exported 1 Quicklink" : "Exported \(count) Quicklinks"
@@ -175,6 +202,50 @@ nonisolated enum Strings {
     static let importDialogTitle = "Import Quicklinks"
     static let exportDialogTitle = "Export Quicklinks"
     static let exportFileName = "Quicklinks.json"
+
+    // MARK: Import page
+
+    static let importSubtitle = "From Raycast or an export, or Alfred web searches read by an unverified guess"
+    static let importKeywords = ["raycast", "alfred", "web searches", "json", "migrate"]
+    static let exportKeywords = ["raycast", "json", "backup"]
+    static func importAction(_ count: Int) -> String {
+        count == 1 ? "Import 1 Quicklink" : "Import \(count) Quicklinks"
+    }
+    static let importPageTitle = "Import Quicklinks"
+    static let importSearchPlaceholder = "Search what will be imported"
+    static let importNoticeTitle = "Nothing Is Saved Until You Import"
+    static func importNoticeMessage(_ count: Int) -> String {
+        "Choose \(importAction(count)) to add them, or go back to cancel."
+    }
+    static let importAddSection = "To Add"
+    static let importOffSection = "To Add Turned Off"
+    static let importDuplicateSection = "Skipped as Duplicates"
+    static let importNotValidSection = "Skipped as Not Valid"
+    static let importOutcomeLabel = "Import"
+    static func entryTitle(_ position: Int) -> String { "Entry \(position)" }
+    static let importNoName = "It has no name."
+    static let importNoLink = "It has no link."
+    static let importTooMany = "The file holds more than 10,000 entries, and this one is past that."
+    static func importTurnedOff(_ scheme: String) -> String {
+        "Turned off, because it opens a \(DisplayText.fileName(scheme, limit: 20)) link, not a web page. "
+            + "Check it, then turn it on."
+    }
+    static func importTurnedOffSending(clipboard: Bool, selection: Bool) -> String {
+        let what =
+            switch (clipboard, selection) {
+            case (true, true): "what you copied and selected"
+            case (true, false): "what you copied"
+            default: "what you selected"
+            }
+        return "Turned off, because it sends \(what) to the site it opens. Check it, then turn it on."
+    }
+    static func importDuplicate(of name: String) -> String {
+        "\u{201C}\(name)\u{201D} already has this name and link."
+    }
+    static func importUnknownApp(_ app: String) -> String {
+        "Opens in your default app. The file names \u{201C}\(DisplayText.fileName(app, limit: 40))\u{201D}, "
+            + "which is not an app ID."
+    }
 
     // MARK: Settings
 

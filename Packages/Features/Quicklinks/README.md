@@ -23,7 +23,8 @@ Open a site, a search or a deep link by typing its name, and search the web when
 | `QuicklinkRows.swift` | rows, the catalog, the list pages and the commands |
 | `QuicklinkActions.swift` | every action, built from an ID and looked up again when it runs |
 | `QuicklinkForms.swift` | the editor, its rules, and the form for argument values |
-| `QuicklinkExchange.swift` | import and export as JSON |
+| `QuicklinkExchange.swift` | import and export as JSON in Raycast's shape, Alfred's web searches read on an unverified guess of their format, and the rules that decide each imported entry |
+| `QuicklinkImportPage.swift` | the page that shows an import before it is saved |
 | `DefaultSearches.swift` | the built-in searches |
 | `Strings.swift` | every string a user reads |
 
@@ -34,3 +35,4 @@ Open a site, a search or a deep link by typing its name, and search the web when
 - Every link opens through Kit's workspace service. A value can never change the scheme the link was written with, and a link that starts with a value must be a web link.
 - The address detector runs on the main thread inside the keystroke: no I/O, no locks, nil on the first byte for text that starts with anything but a letter or a digit, and nil after one pass for words.
 - Parsing links, cleaning a file read from disk, building rows and merging an import run off the main thread, so a file of fifty thousand quicklinks does not stall the panel.
+- Import shows what it will do and saves only when the user confirms. A link with a scheme other than http or https is imported turned off, so an imported file can never make the first Return open an app or a file. So is a web link that sends the clipboard or the selection to the site it opens. A file's fallback mark is never kept; the user turns a fallback on after a look. Import and export never run from a link.

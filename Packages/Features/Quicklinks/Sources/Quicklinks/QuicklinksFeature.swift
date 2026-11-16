@@ -142,13 +142,17 @@ public final class QuicklinksFeature: Feature {
                 }
                 return .push(.list(editList.page()))
             },
+            // Import and export open a file dialog, which a web page must never be able to raise, so
+            // neither runs from a link.
             Command(
-                id: "import", title: Strings.importQuicklinks, icon: .symbol("square.and.arrow.down")
+                id: "import", title: Strings.importQuicklinks, subtitle: Strings.importSubtitle,
+                icon: .symbol("square.and.arrow.down"), keywords: Strings.importKeywords, allowsDeepLinks: false
             ) { [unowned self] context in
                 try await importFromFile(context: context)
             },
             Command(
-                id: "export", title: Strings.exportQuicklinks, icon: .symbol("square.and.arrow.up")
+                id: "export", title: Strings.exportQuicklinks, icon: .symbol("square.and.arrow.up"),
+                keywords: Strings.exportKeywords, allowsDeepLinks: false
             ) { [unowned self] context in
                 try await exportToFile(context: context)
             },
@@ -350,17 +354,29 @@ public final class QuicklinksFeature: Feature {
 
     // MARK: - Import and export
 
+    /// Asks for a file, then shows what importing it would do. Nothing is saved until the user
+    /// confirms on that page.
     private func importFromFile(context: ActionContext) async throws -> ActionOutcome {
-        let request = OpenDialogRequest(title: Strings.importDialogTitle, allowedTypes: ["json"])
+        // Say so before the dialog, so nobody picks a file for nothing.
+        guard fileProblem == nil else {
+            throw ActionFailure(Strings.fileUnreadableTitle, message: Strings.fileUnreadableMessage)
+        }
+        let request = OpenDialogRequest(title: Strings.importDialogTitle, allowedTypes: ["json", "plist"])
         guard let url = await context.fileDialogs.chooseFiles(request).first else { return .keepOpen }
         let incoming = try await QuicklinkExchange.read(url)
-        let result = await QuicklinkExchange.mergeInBackground(incoming, into: file.quicklinks)
-        try await add(result.added)
-        context.showToast(
-            .success(
-                Strings.imported(result.added.count),
-                message: Strings.importSkipped(duplicates: result.duplicates, invalid: result.invalid)))
-        return .keepOpen
+        let plan = await QuicklinkExchange.planInBackground(incoming, existing: file.quicklinks)
+        guard plan.added > 0 else {
+            context.showToast(Strings.importToast(plan))
+            return .keepOpen
+        }
+        return .push(.list(QuicklinkImportPage(feature: self, entries: incoming, plan: plan).page))
+    }
+
+    /// Adds the entries the user confirmed, decided again against the quicklinks as they are now.
+    func commitImport(_ entries: [ExchangedQuicklink]) async throws -> QuicklinkImportPlan {
+        let plan = await QuicklinkExchange.planInBackground(entries, existing: file.quicklinks)
+        try await add(plan.quicklinks)
+        return plan
     }
 
     private func exportToFile(context: ActionContext) async throws -> ActionOutcome {
