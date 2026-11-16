@@ -163,10 +163,9 @@ nonisolated enum Strings {
     enum Appearance {
         static let title = "Toggle Dark Mode"
         static let keywords = ["dark mode", "light mode", "appearance", "theme", "night mode"]
-        // These two HUDs keep sentence case for now: scenarios/system-commands.json checks this text.
-        // Change both together to "Switched to Dark Mode" and "Switched to Light Mode".
-        static let dark = "Switched to dark mode"
-        static let light = "Switched to light mode"
+        // scenarios/system-commands.json checks the dark one.
+        static let dark = "Switched to Dark Mode"
+        static let light = "Switched to Light Mode"
         static let words = FailureWords(
             failed: "The Appearance Could Not Be Changed", unavailable: "System Events Is Not Available on This Mac")
     }

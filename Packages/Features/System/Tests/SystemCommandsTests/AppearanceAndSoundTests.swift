@@ -14,7 +14,7 @@ struct AppearanceTests {
         #expect(system.appearance.isDark)
         try await system.harness.run("toggle-dark-mode")
         #expect(!system.appearance.isDark)
-        #expect(system.harness.huds == ["Switched to dark mode", "Switched to light mode"])
+        #expect(system.harness.huds == ["Switched to Dark Mode", "Switched to Light Mode"])
     }
 
     @Test func aMissingGrantForSystemEventsShowsThePermissionCard() async throws {
@@ -36,7 +36,7 @@ struct AppearanceTests {
         try await system.harness.run("toggle-dark-mode")
         #expect(system.fakes.permissions.requests == [systemEvents])
         #expect(system.appearance.isDark)
-        #expect(system.harness.huds == ["Switched to dark mode"])
+        #expect(system.harness.huds == ["Switched to Dark Mode"])
     }
 
     @Test func saysSoWhenSystemEventsIsMissing() async throws {

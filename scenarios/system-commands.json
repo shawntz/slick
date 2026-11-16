@@ -5,6 +5,7 @@
     { "summon": true },
     { "type": "reboot" },
     { "expect": { "selection": "Restart" } },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 2 },
     { "expect": { "card": "Restart your Mac now?" } },
@@ -16,14 +17,16 @@
     { "expect": { "selection": "Set Volume" } },
     { "press": "tab" },
     { "type": "40" },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "app": { "hud": "Volume 40%" } },
     { "summon": true },
     { "press": "escape" },
     { "type": "toggle dark mode" },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 3 },
-    { "app": { "hud": "Switched to dark mode", "launched": [], "opened": [] } }
+    { "app": { "hud": "Switched to Dark Mode", "launched": [], "opened": [] } }
   ]
 }
