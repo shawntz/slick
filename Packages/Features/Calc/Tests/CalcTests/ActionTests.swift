@@ -15,19 +15,20 @@ struct ActionTests {
         let actions = harness.rootActions(for: row)
         #expect(
             actions.map(\.id) == [
-                "copy", "paste", "copy-plain-number", "copy-question-and-answer", "copy-form-0", "copy-form-1",
-                "run.cmd:calculator.history",
+                "copy", "paste", "copy-plain-number", "copy-question-and-answer", "large-type", "copy-form-0",
+                "copy-form-1", "run.cmd:calculator.history",
             ])
         #expect(
             actions.map(\.title) == [
-                "Copy Answer", "Paste Answer", "Copy as Plain Number", "Copy Question and Answer", "Copy Hex",
-                "Copy Binary", "Open Calculator History",
+                "Copy Answer", "Paste Answer", "Copy as Plain Number", "Copy Question and Answer",
+                "Show in Large Type", "Copy Hex", "Copy Binary", "Open Calculator History",
             ])
         #expect(actions.primary?.id == "copy")
         #expect(actions.secondary?.id == "paste")
         #expect(actions[2].shortcut == KeyCombo(.c, [.option, .command]))
         #expect(actions[3].shortcut == KeyCombo(.c, [.option, .shift, .command]))
-        #expect(actions[4].section == "Other Forms")
+        #expect(actions[4].shortcut == .largeType)
+        #expect(actions[5].section == "Other Forms")
         #expect(actions[1].requires == [.accessibility])
         #expect(harness.issues.isEmpty)
     }

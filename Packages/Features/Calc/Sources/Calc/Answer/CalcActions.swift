@@ -67,6 +67,9 @@ final class CalcActions {
                 title: CalcStrings.copyQuestionAndAnswer, hud: CalcStrings.copiedQuestionAndAnswer,
                 shortcut: Self.copyQuestionShortcut
             ).with(id: "copy-question-and-answer").then(record))
+        // Its own action rather than `represents`, which would also bring every feature's actions for
+        // text, such as Define Word, to a number.
+        actions.append(.showInLargeType(payload.answer))
         for (index, form) in payload.forms.enumerated() {
             actions.append(
                 Action.copy(form.text, title: CalcStrings.copyForm(form.label), hud: CalcStrings.copied(form.text))

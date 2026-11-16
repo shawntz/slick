@@ -33,6 +33,21 @@ struct AnswerTests {
         #expect(harness.issues.isEmpty)
     }
 
+    /// An answer shows in Large Type, Command-L, as Copy Answer copies it. The row stands for no
+    /// text, so other features' actions for text, such as Define Word, stay off a number.
+    @Test func anAnswerShowsInLargeType() async throws {
+        let harness = await readyHarness()
+        let row = try #require(harness.answerRow("1234567.891 * 2"))
+        #expect(row.represents == nil)
+        let actions = harness.feature.provider.actions(for: row)
+        let large = try #require(actions.first { $0.title == "Show in Large Type" })
+        #expect(large.shortcut == .largeType)
+        #expect(actions.first?.title == "Copy Answer")
+        let outcome = try await harness.performRoot(large.id, on: row, query: "1234567.891 * 2")
+        #expect(outcome.kind == .showLargeType("2,469,135.782"))
+        #expect(harness.largeTypeTexts == ["2,469,135.782"])
+    }
+
     @Test func tabPutsTheEngineCopyValueInTheField() async throws {
         let harness = await readyHarness()
         let row = try #require(harness.answerRow("1234567.891 * 2"))

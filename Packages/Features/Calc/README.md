@@ -23,6 +23,7 @@ Rows use the namespace `calculator`. An answer's key is the trimmed question. A 
 | Answer | Paste Answer | `paste` | Command-Return |
 | Answer | Copy as Plain Number: no grouping, no unit | `copy-plain-number` | Option-Command-C |
 | Answer | Copy Question and Answer, as `question = answer` | `copy-question-and-answer` | Option-Shift-Command-C |
+| Answer | Show in Large Type, the answer as shown | `large-type` | Command-L |
 | Answer | Copy each other form, such as Hex or Fraction | `copy-form-<n>` | |
 | Answer that used rates, while downloads are on | Refresh Exchange Rates | `refresh-rates` | Command-R |
 | Answer | Open Calculator History | `run.cmd:calculator.history` | |
