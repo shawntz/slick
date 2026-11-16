@@ -92,7 +92,7 @@ import LauncherUI
         list.apply(
             ListContent(
                 sections: [LauncherUI.ListSection(title: nil, rows: [mapped])], rowStyle: .oneLine,
-                emphasizesMatches: false))
+                emphasizesMatches: false, showsRunHints: false))
         list.select(0, animated: false)
     }
 }
