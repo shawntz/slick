@@ -56,34 +56,29 @@ struct RootSearchPane: View {
             }
             Section {
                 if model.fallbacks.isEmpty {
-                    Text("No fallback commands.").foregroundStyle(.secondary)
+                    Text("No feature that is on offers a fallback.").foregroundStyle(.secondary)
                 }
-                ForEach(Array(model.fallbacks.enumerated()), id: \.element.id) { index, item in
-                    ItemRow(item: item, icons: icons) {
+                ForEach(Array(model.fallbacks.enumerated()), id: \.element.id) { index, fallback in
+                    ItemRow(item: fallback.item, icons: icons) {
                         reorderButtons(index: index, count: model.fallbacks.count) {
-                            model.moveFallback(item.id, by: $0)
+                            model.moveFallback(fallback.id, by: $0)
                         }
-                        Button {
-                            model.removeFallback(item.id)
-                        } label: {
-                            Image(systemName: "minus.circle")
-                        }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel("Remove \(item.title) from fallbacks")
+                        Toggle(
+                            "Show \(fallback.item.title) under the results",
+                            isOn: Binding(
+                                get: { fallback.isOn },
+                                set: { model.setFallback(fallback.id, isOn: $0) })
+                        )
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
                     }
                 }
                 .onMove { model.moveFallbacks(from: $0, to: $1) }
-                Menu("Add Fallback") {
-                    ForEach(model.fallbackCandidates) { item in
-                        Button(item.title) { model.addFallback(item.id) }
-                    }
-                }
-                .disabled(model.fallbackCandidates.isEmpty)
-                .fixedSize()
             } header: {
                 Text("Fallback commands")
             } footer: {
-                Text("Listed under the results, in this order. Each runs with what you typed.")
+                Text("The ones that are on show under the results, in this order. Each runs with what you typed.")
             }
         }
         .formStyle(.grouped)

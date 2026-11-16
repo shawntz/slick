@@ -44,24 +44,37 @@ import Testing
         #expect(model.favorites.first?.isAvailable == true)
     }
 
-    @Test func fallbacksAreOrderedAndOnlyFallbackCommandsAreOffered() {
+    @Test func fallbacksListEveryFeatureThatIsOnWithASwitchEachThroughItemPreferences() async {
         let bed = TestBed()
         let model = RootSearchModel(context: bed.context())
-        #expect(model.fallbacks.isEmpty)
-        #expect(model.fallbackCandidates.map(\.id) == [TestBed.open, TestBed.show])
-        model.addFallback(TestBed.show)
-        model.addFallback(TestBed.open)
-        model.addFallback(TestBed.open)
-        #expect(bed.general[HostSettings.fallbackCommands] == [TestBed.show.rawValue, TestBed.open.rawValue])
-        #expect(model.fallbackCandidates.isEmpty)
+        // The helper feature is off, so only the sample's fallback is listed. It starts off, as a
+        // declared fallback does.
+        #expect(model.fallbacks.map(\.id) == [TestBed.open])
+        #expect(model.fallbacks.map(\.isOn) == [false])
+        #expect(model.fallbacks.first?.item.title == "Open Sample")
+
+        model.setFallback(TestBed.open, isOn: true)
+        #expect(bed.preferences.fallbackChoices.switches == [TestBed.open: true])
+        #expect(model.fallbacks.map(\.isOn) == [true])
+        // Root search reads the same list.
+        #expect(bed.directory.fallbacks(bed.preferences.fallbackChoices).map(\.isOn) == [true])
+
+        // A feature turned on brings its fallback, after the ones the user placed.
+        await bed.preferences.setEnabled(true, feature: "helper")
+        #expect(model.fallbacks.map(\.id) == [TestBed.open, TestBed.show])
+        model.moveFallback(TestBed.show, by: -1)
+        #expect(model.fallbacks.map(\.id) == [TestBed.show, TestBed.open])
+        #expect(bed.preferences.fallbackChoices.order == [TestBed.show, TestBed.open])
+        model.moveFallbacks(from: [0], to: 2)
+        #expect(model.fallbacks.map(\.id) == [TestBed.open, TestBed.show])
         model.moveFallback(TestBed.open, by: -1)
         #expect(model.fallbacks.map(\.id) == [TestBed.open, TestBed.show])
-        model.moveFallbacks(from: [0], to: 2)
-        #expect(model.fallbacks.map(\.id) == [TestBed.show, TestBed.open])
-        // The helper feature is off, so its command shows as unavailable.
-        #expect(model.fallbacks.first?.isAvailable == false)
-        model.removeFallback(TestBed.show)
-        #expect(bed.general[HostSettings.fallbackCommands] == [TestBed.open.rawValue])
+
+        // The old setting is neither read nor written.
+        #expect(bed.general[HostSettings.fallbackCommands].isEmpty)
+        bed.general[HostSettings.fallbackCommands] = [TestBed.show.rawValue]
+        #expect(model.fallbacks.map(\.id) == [TestBed.open, TestBed.show])
+        #expect(model.fallbacks.map(\.isOn) == [true, false])
     }
 
     @Test func tabCommand() {

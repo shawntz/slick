@@ -3,8 +3,8 @@ import Kit
 import KitHosting
 import Observation
 
-/// The root search pane: suggestions, favorites, inline completion, the fallback list and the Tab
-/// command.
+/// The root search pane: suggestions, favorites, inline completion, the fallbacks with a switch and
+/// a place each, and the Tab command.
 @Observable final class RootSearchModel {
     /// An item as the pane lists it.
     struct Item: Identifiable, Hashable {
@@ -95,39 +95,42 @@ import Observation
         set { write(HostSettings.inlineCompletion, newValue) }
     }
 
-    /// The fallback list in order.
-    var fallbacks: [Item] {
-        read(HostSettings.fallbackCommands).compactMap { ItemID(rawValue: $0) }.map(item)
+    /// A fallback as the pane lists it: the command, and whether it shows under the results.
+    struct Fallback: Identifiable, Hashable {
+        var item: Item
+        var isOn: Bool
+        var id: ItemID { item.id }
     }
 
-    /// Commands that can be fallbacks and are not in the list yet.
-    var fallbackCandidates: [Item] {
-        let listed = Set(read(HostSettings.fallbackCommands))
-        return commands { $0.command.fallback != nil }.filter { !listed.contains($0.id.rawValue) }
+    /// Every fallback of a feature that is on, in the user's order, each with its switch. Root
+    /// search reads the same list, so the pane always shows what root search does.
+    var fallbacks: [Fallback] {
+        revision.track()
+        return context.directory.fallbacks(context.preferences.fallbackChoices).map {
+            Fallback(item: item($0.id), isOn: $0.isOn)
+        }
     }
 
-    func addFallback(_ id: ItemID) {
-        var ids = general[HostSettings.fallbackCommands]
-        guard !ids.contains(id.rawValue) else { return }
-        ids.append(id.rawValue)
-        write(HostSettings.fallbackCommands, ids)
-    }
-
-    func removeFallback(_ id: ItemID) {
-        write(HostSettings.fallbackCommands, general[HostSettings.fallbackCommands].filter { $0 != id.rawValue })
+    /// Turns one fallback on or off.
+    func setFallback(_ id: ItemID, isOn: Bool) {
+        context.preferences.setFallback(id, isOn: isOn)
+        revision.bump()
     }
 
     func moveFallbacks(from offsets: IndexSet, to destination: Int) {
-        var ids = general[HostSettings.fallbackCommands]
+        var ids = fallbacks.map(\.id)
         ids.reorder(fromOffsets: offsets, toOffset: destination)
-        write(HostSettings.fallbackCommands, ids)
+        context.preferences.setFallbackOrder(ids)
+        revision.bump()
     }
 
+    /// Moves one fallback up or down by one place, for the keyboard.
     func moveFallback(_ id: ItemID, by offset: Int) {
-        var ids = general[HostSettings.fallbackCommands]
-        guard let index = ids.firstIndex(of: id.rawValue), ids.indices.contains(index + offset) else { return }
+        var ids = fallbacks.map(\.id)
+        guard let index = ids.firstIndex(of: id), ids.indices.contains(index + offset) else { return }
         ids.swapAt(index, index + offset)
-        write(HostSettings.fallbackCommands, ids)
+        context.preferences.setFallbackOrder(ids)
+        revision.bump()
     }
 
     /// The command Tab runs with the typed text, or nil.
