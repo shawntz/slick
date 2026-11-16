@@ -140,7 +140,8 @@ nonisolated enum Strings {
             case .changeTone: "Change Tone"
             case .summarize: "Summarize"
             case .explain: "Explain"
-            case .translate: "Translate"
+            // The Translate feature has a command of its own, so this one names the AI.
+            case .translate: "Translate with AI"
             }
         }
 
@@ -306,7 +307,7 @@ nonisolated enum Strings {
         static let responseLength = "Response length"
         static let responseLengthInfo = "The longest answer a model may give. A longer limit can cost more."
         static let translateLanguage = "Translate into"
-        static let translateLanguageInfo = "Translate uses this language when you do not type one."
+        static let translateLanguageInfo = "Translate with AI uses this language when you do not type one."
         static let chatsSection = "Chat History"
         static let keepChats = "Keep chats"
         static let keepChatsInfo =

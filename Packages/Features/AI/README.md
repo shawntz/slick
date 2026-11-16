@@ -21,7 +21,7 @@ Anthropic requests send `anthropic-version: 2026-10-21`, no sampling parameters 
 | Command `ask` | Ask AI. Takes the root query on Tab, and is a fallback: Ask AI about the typed text. With nothing typed it opens an empty page whose field takes the first question |
 | Command `chat` | AI Chat: kept conversations by day, with Open, New, Rename, Export as Markdown, Delete and Delete All |
 | Command `new-chat` | New AI Chat |
-| Commands `improve-writing`, `fix-spelling-and-grammar`, `make-shorter`, `make-longer`, `change-tone`, `summarize`, `explain`, `translate` | Commands on the selected text. Change Tone takes a tone, Translate a language |
+| Commands `improve-writing`, `fix-spelling-and-grammar`, `make-shorter`, `make-longer`, `change-tone`, `summarize`, `explain`, `translate` | Commands on the selected text. Change Tone takes a tone, Translate with AI a language |
 | Command `create-command` | Create AI Command: a name and a prompt in Kit's templates |
 | Commands `custom.<slug>-<hash>` | The user's own commands, with Edit and Delete on their rows |
 | Command `setup` | Set Up AI Provider |

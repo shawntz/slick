@@ -215,6 +215,10 @@ struct HardeningTests {
 
     // MARK: - Many commands
 
+    /// True when the thread sanitizer's runtime is loaded, which `swift test --sanitize=thread` does.
+    nonisolated static let runsUnderTheThreadSanitizer =
+        dlsym(UnsafeMutableRawPointer(bitPattern: -2), "__tsan_init") != nil
+
     @Test func fiftyThousandCommandsAreParsedOffTheMainThread() async throws {
         let ai = try await AIHarness(activate: false)
         let commands = (0..<50_000).map { index in
@@ -240,8 +244,10 @@ struct HardeningTests {
         let universalTime = clock.now - universalStart
         #expect(declared.count == 50_000 + 13)
         #expect(universal.count == 25_000 + TextCommandKind.allCases.count)
-        #expect(declaredTime < .milliseconds(250), "commands took \(declaredTime)")
-        #expect(universalTime < .milliseconds(250), "universal actions took \(universalTime)")
+        // The thread sanitizer checks every memory access, which made one run take 293 ms.
+        let budget = Duration.milliseconds(250) * (Self.runsUnderTheThreadSanitizer ? 10 : 1)
+        #expect(declaredTime < budget, "commands took \(declaredTime)")
+        #expect(universalTime < budget, "universal actions took \(universalTime)")
         let first = try ai.harness.command("custom.c-0")
         #expect(first.arguments.map(\.name) == ["style"])
     }

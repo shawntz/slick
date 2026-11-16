@@ -14,12 +14,28 @@ struct TextCommandTests {
         #expect(
             titles == [
                 "Improve Writing", "Fix Spelling and Grammar", "Make Shorter", "Make Longer", "Change Tone",
-                "Summarize", "Explain", "Translate",
+                "Summarize", "Explain", "Translate with AI",
             ])
         #expect(try ai.harness.command("change-tone").arguments.first?.defaultValue == "professional")
         #expect(try ai.harness.command("translate").arguments.first?.isOptional == true)
         #expect(try ai.harness.command("summarize").keywords.contains("summarise"))
         #expect(ai.harness.issues.isEmpty)
+    }
+
+    /// The Translate feature's own command is titled Translate, so this one names the AI and keeps
+    /// its keywords. Typing "translate" still finds it, by the start of its title.
+    @Test func translateNamesTheAIAndIsStillFoundByTheWord() async throws {
+        let ai = try await AIHarness()
+        let command = try ai.harness.command("translate")
+        #expect(command.title == "Translate with AI")
+        #expect(command.keywords == ["translation", "language", "ai"])
+        let kinds = TextCommandKind.allCases
+        let index = SimpleFuzzyIndex(kinds.map { FuzzyEntry(title: $0.title, keywords: $0.keywords) })
+        let found = index.search("translate", limit: 10)
+        #expect(found.first.map { kinds[$0.index] } == .translate)
+        #expect(found.first?.tier == .prefix)
+        #expect(found.first?.matchesTitle == true)
+        #expect(kinds.filter { $0.title == "Translate" }.isEmpty)
     }
 
     @Test func improveWritingRewritesTheSelectionAndReplacesIt() async throws {
