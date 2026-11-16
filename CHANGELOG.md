@@ -14,6 +14,8 @@ The first release. It needs macOS 26 or later on Apple silicon.
 
 - Liquid Glass panel: a real system glass panel, not a blur imitation, with a selection lens that
   glides between rows.
+- Built-in themes: seven looks for the panel, among them Beam, modeled on the search panel of
+  macOS 27, and Clear, the system's clear glass with no tint.
 - Fuzzy search: an in-house matcher that understands prefixes, acronyms, camelCase, word order and
   typos.
 - Learns your habits: pick a result twice for a query and it becomes the top hit. Everything it
