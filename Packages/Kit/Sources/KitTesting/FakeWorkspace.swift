@@ -21,6 +21,7 @@ public final class FakeWorkspace: WorkspaceService {
         var installed: [AppInfo] = []
         var frontmost: AppInfo?
         var failsToOpen = false
+        var refusesToLaunch: Set<String> = []
     }
 
     private let state = Mutex(State())
@@ -99,8 +100,18 @@ public final class FakeWorkspace: WorkspaceService {
         state.withLock { $0.frontmost }
     }
 
+    /// The bundle IDs ``launch(bundleID:)`` refuses with ``FakeWorkspaceError``, as when the app
+    /// is not installed. A refused launch is not recorded in ``launched``.
+    public var refusesToLaunch: Set<String> {
+        get { state.withLock { $0.refusesToLaunch } }
+        set { state.withLock { $0.refusesToLaunch = newValue } }
+    }
+
     public func launch(bundleID: String) async throws {
-        state.withLock { $0.launched.append(bundleID) }
+        try state.withLock { state in
+            if state.refusesToLaunch.contains(bundleID) { throw FakeWorkspaceError.refused }
+            state.launched.append(bundleID)
+        }
     }
 }
 

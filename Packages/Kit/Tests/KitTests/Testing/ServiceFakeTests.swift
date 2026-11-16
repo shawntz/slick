@@ -66,6 +66,19 @@ struct ServiceFakeTests {
         #expect(workspace.application(bundleID: "com.example.missing") == nil)
     }
 
+    @Test func theWorkspaceCanRefuseToLaunchOneApp() async throws {
+        let workspace = FakeWorkspace()
+        workspace.refusesToLaunch = ["com.example.missing"]
+        await #expect(throws: FakeWorkspaceError.refused) {
+            try await workspace.launch(bundleID: "com.example.missing")
+        }
+        try await workspace.launch(bundleID: "com.example.present")
+        #expect(workspace.launched == ["com.example.present"], "a refused launch is not recorded")
+        workspace.refusesToLaunch = []
+        try await workspace.launch(bundleID: "com.example.missing")
+        #expect(workspace.launched == ["com.example.present", "com.example.missing"])
+    }
+
     @Test func aStreamThatStaysOpenRecordsItsCancellation() async throws {
         let http = FakeHTTP()
         let url = try #require(URL(string: "https://ai.example.test/answer"))
