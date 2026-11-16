@@ -1,0 +1,104 @@
+{
+  "name": "A feature switched off in onboarding stays off, and turns on later",
+  "timeLimit": 30,
+  "steps": [
+    {
+      "app": {
+        "onboarding": {
+          "features": {
+            "files": false
+          }
+        },
+        "featuresActive": {
+          "files": false,
+          "clipboard": false
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "~/"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "rows": [
+          "Search Google for \"~/\"",
+          "Search Wikipedia for \"~/\""
+        ]
+      }
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "type": "search files"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "rows": [
+          "Search Google for \"search files\"",
+          "Search Wikipedia for \"search files\""
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "setFeatures": {
+          "files": true
+        },
+        "featuresActive": {
+          "files": true,
+          "clipboard": false
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "type": "~/"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "rowsInclude": [
+          "docs",
+          "notes.csv"
+        ]
+      }
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "type": "search files"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "selection": "Search Files"
+      }
+    },
+    {
+      "dismiss": true
+    }
+  ]
+}

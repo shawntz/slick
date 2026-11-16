@@ -1,0 +1,457 @@
+{
+  "name": "A link to any command of the eight new features asks first; a feature that is off refuses it",
+  "timeLimit": 60,
+  "steps": [
+    {
+      "app": {
+        "link": "{scheme}://commands/calculator/history",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Calculator History",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/dictionary/define",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Define Word",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/dictionary/spell",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Check Spelling",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/schedule/my-schedule",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run My Schedule",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/schedule/create-event",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Create Event",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/schedule/my-reminders",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run My Reminders",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/schedule/create-reminder",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Create Reminder",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/contacts/search",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Search Contacts",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/bookmarks/search",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Search Bookmarks",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/bookmarks/choose-browsers",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Choose Bookmark Browsers",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/ai/ask",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Ask AI",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/ai/chat",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run AI Chat",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/ai/new-chat",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run New AI Chat",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/menu-items/search",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Search Menu Items",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/files/search",
+        "linkOutcome": "refused"
+      }
+    },
+    {
+      "app": {
+        "setFeatures": {
+          "files": true
+        }
+      }
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/files/search",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Search Files",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/files/rebuild",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Rebuild File Index",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/files/choose-folders",
+        "linkOutcome": "asked"
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "title": "Open Link",
+        "rows": [
+          "Run Choose Folders to Search",
+          "Always Allow",
+          "Cancel"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "setFeatures": {
+          "ai": false
+        }
+      }
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/ai/ask",
+        "linkOutcome": "refused"
+      }
+    },
+    {
+      "app": {
+        "link": "{scheme}://commands/calculator/nosuchcommand",
+        "linkOutcome": "refused"
+      }
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "app": {
+        "launched": [],
+        "opened": []
+      }
+    }
+  ]
+}

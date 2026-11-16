@@ -1,0 +1,84 @@
+{
+  "name": "Apple's Calculator app and the calculator feature share a name, and each keeps its place",
+  "timeLimit": 30,
+  "systemApps": true,
+  "steps": [
+    {
+      "summon": true
+    },
+    {
+      "type": "calculator"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "rows": [
+          "Calculator",
+          "Calculator History",
+          "Search Google for \"calculator\"",
+          "Search Wikipedia for \"calculator\""
+        ],
+        "selection": "Calculator"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "app": {
+        "launched": [
+          "com.apple.calculator"
+        ]
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "type": "12 * 12"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "selection": "144"
+      }
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "type": "time"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "selection": "Time Machine",
+        "rowsInclude": [
+          "Time Machine",
+          "Current Time",
+          "Search Google for \"time\""
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    }
+  ]
+}

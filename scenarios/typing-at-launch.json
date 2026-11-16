@@ -1,0 +1,61 @@
+{
+  "name": "Typing at once after launch, before root search and the features finished loading",
+  "timeLimit": 30,
+  "startsBeforeReady": true,
+  "steps": [
+    {
+      "summon": true
+    },
+    {
+      "type": "cal"
+    },
+    {
+      "expect": {
+        "query": "cal",
+        "visible": true
+      }
+    },
+    {
+      "app": {
+        "waitUntilReady": true
+      }
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "query": "cal"
+      }
+    },
+    {
+      "type": "e"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "selection": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "app": {
+        "launched": [
+          "com.example.calendar"
+        ]
+      }
+    }
+  ]
+}

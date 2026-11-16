@@ -1,0 +1,100 @@
+{
+  "name": "A waiting launcher hotkey that becomes free while a page is pushed binds and keeps the page",
+  "timeLimit": 30,
+  "startTime": "2026-11-16T09:00:00Z",
+  "steps": [
+    {
+      "app": {
+        "systemShortcuts": [
+          "cmd+space"
+        ],
+        "setSettings": {
+          "launcherHotkey": "ctrl+opt+k"
+        },
+        "launcherHotkey": "ctrl+opt+k"
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "launcherHotkey": "cmd+space"
+        },
+        "hotkeyBound": false,
+        "hotkeyWaiting": "Spotlight"
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "running applications"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "page": "list",
+        "rows": [
+          "Mail",
+          "Notes"
+        ]
+      }
+    },
+    {
+      "app": {
+        "systemShortcuts": [],
+        "hotkeyBound": false,
+        "hotkeyWaiting": "Spotlight"
+      }
+    },
+    {
+      "app": {
+        "setTime": "2026-11-16T09:00:05Z",
+        "hotkeyBound": true,
+        "launcherHotkey": "cmd+space",
+        "hotkeyWaiting": "",
+        "hud": "⌘Space Now Opens {brand}"
+      }
+    },
+    {
+      "expect": {
+        "visible": true,
+        "page": "list",
+        "rows": [
+          "Mail",
+          "Notes"
+        ]
+      }
+    },
+    {
+      "app": {
+        "pressHotkey": true
+      }
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "app": {
+        "pressHotkey": true
+      }
+    },
+    {
+      "expect": {
+        "visible": true
+      }
+    },
+    {
+      "dismiss": true
+    }
+  ]
+}

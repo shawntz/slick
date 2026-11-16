@@ -1,0 +1,156 @@
+{
+  "name": "Fallbacks follow the user's order and switches, and one that starts off can be turned on",
+  "timeLimit": 30,
+  "steps": [
+    {
+      "app": {
+        "fallbacksOn": [
+          "cmd:quicklinks.open.google",
+          "cmd:quicklinks.open.wikipedia"
+        ]
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "qwzxv"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "rows": [
+          "Search Google for \"qwzxv\"",
+          "Search Wikipedia for \"qwzxv\""
+        ]
+      }
+    },
+    {
+      "app": {
+        "setFallbacks": {
+          "order": [
+            "cmd:quicklinks.open.wikipedia",
+            "cmd:quicklinks.open.google"
+          ]
+        },
+        "fallbacksOn": [
+          "cmd:quicklinks.open.wikipedia",
+          "cmd:quicklinks.open.google"
+        ]
+      }
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "type": "qwzxv"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "rows": [
+          "Search Wikipedia for \"qwzxv\"",
+          "Search Google for \"qwzxv\""
+        ],
+        "selection": "Search Wikipedia for \"qwzxv\""
+      }
+    },
+    {
+      "app": {
+        "setFallbacks": {
+          "on": {
+            "cmd:quicklinks.open.wikipedia": false
+          }
+        },
+        "fallbacksOn": [
+          "cmd:quicklinks.open.google"
+        ]
+      }
+    },
+    {
+      "expect": {
+        "rows": [
+          "Search Google for \"qwzxv\""
+        ]
+      }
+    },
+    {
+      "app": {
+        "setFallbacks": {
+          "on": {
+            "cmd:quicklinks.open.google": false,
+            "cmd:dictionary.define": true
+          }
+        },
+        "fallbacksOn": [
+          "cmd:dictionary.define"
+        ]
+      }
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "type": "qwzxv"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "rows": [
+          "Define “qwzxv”"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    },
+    {
+      "app": {
+        "setFeatures": {
+          "quicklinks": false
+        },
+        "fallbacksOn": [
+          "cmd:dictionary.define"
+        ]
+      }
+    },
+    {
+      "app": {
+        "setFeatures": {
+          "quicklinks": true
+        },
+        "fallbacksOn": [
+          "cmd:dictionary.define"
+        ]
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "press": "escape"
+    },
+    {
+      "type": "qwzxv"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "rows": [
+          "Define “qwzxv”"
+        ]
+      }
+    },
+    {
+      "dismiss": true
+    }
+  ]
+}

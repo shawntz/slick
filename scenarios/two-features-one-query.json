@@ -1,0 +1,95 @@
+{
+  "name": "Two features answer the same query, and each row runs its own feature",
+  "timeLimit": 30,
+  "steps": [
+    {
+      "summon": true
+    },
+    {
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "rows": [
+          "Calendar",
+          "My Schedule",
+          "Create Event",
+          "Search Google for \"calendar\"",
+          "Search Wikipedia for \"calendar\""
+        ],
+        "selection": "Calendar"
+      }
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "expect": {
+        "actions": [
+          "Open",
+          "Show in Finder",
+          "Show Package Contents",
+          "Copy Name",
+          "Copy Bundle Identifier",
+          "Copy Path",
+          "Add to Favorites",
+          "Set Alias",
+          "Set Hotkey",
+          "Reset Ranking"
+        ]
+      }
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "app": {
+        "select": "My Schedule"
+      }
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "expect": {
+        "actions": [
+          "Run Command",
+          "Add to Favorites",
+          "Set Alias",
+          "Set Hotkey",
+          "Reset Ranking",
+          "Disable Command"
+        ]
+      }
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "page": "list",
+        "title": "My Schedule"
+      }
+    },
+    {
+      "app": {
+        "launched": []
+      }
+    },
+    {
+      "dismiss": true
+    }
+  ]
+}
