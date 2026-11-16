@@ -7,7 +7,8 @@
 ///   so), builds a fuzzy index over every row's title and keywords off the main thread, and filters
 ///   it on each keystroke itself, with no call into the source. Fifty thousand rows are fine.
 ///   Matching keeps sections in order, hides empty ones and those whose ``ListSection/visibility``
-///   says so, and orders rows inside a section by match tier, then ``Row/rankHint``.
+///   says so, and orders rows inside a section by match tier, then a title match before a row only
+///   a keyword reached, then ``Row/rankHint``. A keyword equal to the query is in the exact tier.
 /// - ``ListFiltering/custom(debounce:)``. The host calls ``load(_:)`` with each query after the
 ///   debounce, in a task it cancels when the query changes. Check `Task.isCancelled` or call
 ///   `try Task.checkCancellation()` between steps. Return rows with ``Row/titleHighlights`` so

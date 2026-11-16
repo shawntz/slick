@@ -37,9 +37,9 @@ public struct Row: Identifiable, Hashable, Sendable {
     /// custom-filtered list or an async provider. Host filtering computes its own and ignores these.
     /// Left out when the row is encoded.
     public var titleHighlights: [Range<Int>]
-    /// Orders rows inside one match tier under host filtering: higher first, then the host's usual
-    /// order. Use it for recency or frequency inside a feature. A weaker tier never outranks a
-    /// stronger one, whatever the hint.
+    /// Orders rows inside one match tier under host filtering, after the rows whose title made the
+    /// match: higher first, then the host's usual order. Use it for recency or frequency inside a
+    /// feature. A weaker tier never outranks a stronger one, whatever the hint.
     public var rankHint: Double
     /// What root search keeps after the user runs the row.
     public var memory: RowMemory
