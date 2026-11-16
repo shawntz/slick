@@ -16,6 +16,10 @@ import SettingsUI
 /// The file is Host's format, documented in docs/SCENARIOS.md, plus ``AppStep``s for what only
 /// the app can see. The app splits the steps at each app step, runs each stretch of Host's steps
 /// with the time left, runs the app step, and writes one `result.json` in Host's format.
+///
+/// The run's clock is a ``ScenarioClock`` in UTC that `setTime` steps move. A file with
+/// `"systemApps": true` lists Apple's own apps from `/System/Applications` with their real icons
+/// in place of the Apps feature's made-up ones: see ``SystemApps``.
 enum ScenarioMode {
     /// The most seconds the process may take: the longest scenario plus starting and stopping.
     static let processLimit: Double = 180
@@ -38,6 +42,13 @@ enum ScenarioMode {
         var name: String
         var timeLimit: Double
         var items: [Item]
+        /// True lists the system's own apps with their real icons. See ``SystemApps``.
+        var systemApps = false
+        /// The run's time when it starts. Nil starts at the real time.
+        var startTime: Date?
+        /// True runs the first step as soon as the features are activated, before root search and
+        /// the features finished loading, as a person who types at once after launch does.
+        var startsBeforeReady = false
     }
 
     /// One step's outcome in `result.json`.
@@ -62,12 +73,16 @@ enum ScenarioMode {
     enum LoadError: Error, CustomStringConvertible {
         case notAnObject
         case missing(String)
+        case unknownKey(String)
+        case badValue(String, String)
         case badStep(Int, String)
 
         var description: String {
             switch self {
             case .notAnObject: "the file is not a JSON object"
             case .missing(let key): "the file has no \"\(key)\""
+            case .unknownKey(let key): "the file has an unknown key \"\(key)\""
+            case .badValue(let key, let value): "cannot read \"\(value)\" as \(key)"
             case .badStep(let index, let reason): "step \(index): \(reason)"
             }
         }
@@ -77,6 +92,9 @@ enum ScenarioMode {
     static func load(_ data: Data) throws -> File {
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw LoadError.notAnObject
+        }
+        if let unknown = object.keys.sorted().first(where: { !fileKeys.contains($0) }) {
+            throw LoadError.unknownKey(unknown)
         }
         guard let name = object["name"] as? String else { throw LoadError.missing("name") }
         guard let steps = object["steps"] as? [Any] else { throw LoadError.missing("steps") }
@@ -96,7 +114,40 @@ enum ScenarioMode {
                 throw LoadError.badStep(offset + 1, String(describing: error))
             }
         }
-        return File(name: name, timeLimit: limit, items: items)
+        let systemApps = (object["systemApps"] as? Bool) ?? false
+        var startTime: Date?
+        if let text = object["startTime"] as? String {
+            guard let date = try? Date.ISO8601FormatStyle().parse(text) else {
+                throw LoadError.badValue("startTime", text)
+            }
+            startTime = date
+        }
+        let startsBeforeReady = (object["startsBeforeReady"] as? Bool) ?? false
+        return File(
+            name: name, timeLimit: limit, items: items, systemApps: systemApps, startTime: startTime,
+            startsBeforeReady: startsBeforeReady)
+    }
+
+    /// The keys a scenario file may have. `media` holds what scenarios/media/publish.py reads.
+    static let fileKeys: Set<String> = [
+        "name", "timeLimit", "steps", "systemApps", "startTime", "startsBeforeReady", "media",
+    ]
+
+    /// How a scenario run is built: the scenario environment, a workspace that records, a clock
+    /// the file can move and, for `systemApps`, the system's own apps and icons. Prepares the data
+    /// folder for them. `surface` places the panel; tests put it off screen.
+    static func configuration(
+        for file: File, dataRoot: URL, surface: LauncherSurface? = nil
+    ) throws -> Assembly.Configuration {
+        var configuration = Assembly.Configuration(
+            environment: .scenario, dataRoot: dataRoot, workspace: { RecordingWorkspace(wrapping: $0) },
+            surface: surface)
+        configuration.clock = ScenarioClock(startingAt: file.startTime)
+        if file.systemApps {
+            try SystemApps.prepare(dataRoot: dataRoot)
+            configuration.icons = { SystemApps.icons(platform: $0) }
+        }
+        return configuration
     }
 
     // MARK: Running
@@ -117,20 +168,19 @@ enum ScenarioMode {
             print("scenario FAIL: \(reason)")
             return 1
         }
+        let configuration: Assembly.Configuration
         do {
             try folders.create()
+            configuration = try self.configuration(for: file, dataRoot: folders.dataRoot)
         } catch {
             print("scenario FAIL: cannot make the data folder: \(error.localizedDescription)")
             return 1
         }
-        let assembly = Assembly(
-            .init(
-                environment: .scenario, dataRoot: folders.dataRoot,
-                workspace: { RecordingWorkspace(wrapping: $0) }))
+        let assembly = Assembly(configuration)
         await assembly.start(prewarm: true)
-        let root = assembly.root
         let result: ResultRecord
-        if await SelfTest.within(.seconds(30), { await root.ready() }), let panel = assembly.panel {
+        let ready = file.startsBeforeReady ? true : await SelfTest.within(.seconds(30), { await assembly.ready() })
+        if ready, let panel = assembly.panel {
             let runner = ScenarioRunner(panel: panel, output: output)
             runner.makeBackdrop = { frame in ScenarioBackdrop(frame: frame) }
             runner.log = { _ in }
@@ -141,6 +191,7 @@ enum ScenarioMode {
                 captures: [], steps: [])
         }
         write(result, to: output)
+        assembly.settings.existingController?.close()
         await assembly.shutdown()
         folders.removeIfTemporary()
         print("output \(output.path)")
@@ -149,8 +200,11 @@ enum ScenarioMode {
     }
 
     /// Runs the steps in order: each stretch of Host steps through the runner, each app step here.
+    /// `settingsOrigin` is where `openSettings` puts the settings window's bottom-left corner; nil
+    /// puts it in the bottom-left corner of the main screen, inside the area clips record.
     static func run(
-        _ file: File, runner: ScenarioRunner, assembly: Assembly, log: (String) -> Void = { print($0) }
+        _ file: File, runner: ScenarioRunner, assembly: Assembly, settingsOrigin: CGPoint? = nil,
+        log: (String) -> Void = { print($0) }
     ) async -> ResultRecord {
         let started = ContinuousClock.now
         let deadline = started + .milliseconds(Int(file.timeLimit * 1000))
@@ -167,7 +221,10 @@ enum ScenarioMode {
             }
             if case .app(let step) = file.items[index] {
                 let stepStart = ContinuousClock.now
-                let problem = await perform(step, assembly: assembly)
+                var made: [String] = []
+                let problem = await perform(
+                    step, assembly: assembly, runner: runner, settingsOrigin: settingsOrigin, captures: &made)
+                captures += made
                 let record = StepRecord(
                     index: index + 1, step: "app", passed: problem == nil,
                     milliseconds: seconds(ContinuousClock.now - stepStart) * 1000, note: problem)
@@ -210,9 +267,14 @@ enum ScenarioMode {
 
     // MARK: App steps
 
-    /// Does an app step's actions, then checks it. Nil when everything held.
-    static func perform(_ step: AppStep, assembly: Assembly) async -> String? {
+    /// Does an app step's actions, then checks it. Nil when everything held. Captures it writes
+    /// are added to `captures`.
+    static func perform(
+        _ step: AppStep, assembly: Assembly, runner: ScenarioRunner? = nil, settingsOrigin: CGPoint? = nil,
+        captures: inout [String]
+    ) async -> String? {
         var problems: [String] = []
+        problems += await playContext(step, assembly: assembly)
         if step.pressHotkey == true, !assembly.hotkey.simulatePress() {
             problems.append("no launcher hotkey is bound")
         }
@@ -237,21 +299,35 @@ enum ScenarioMode {
         if let request = step.setHotkey {
             problems += setHotkey(request, preferences: assembly.runtime.preferences)
         }
+        if let request = step.setFallbacks {
+            problems += setFallbacks(request, assembly: assembly)
+        }
+        if let request = step.onboarding {
+            problems += await OnboardingRehearsal.chooseOptionalFeatures(
+                request.features, dependencies: assembly.dependencies)
+        }
         for text in step.copyAsOtherApp ?? [] {
             await assembly.platform.copyAsAnotherApp(text)
-            // The pasteboard is polled four times a second; give each copy one poll and a margin.
-            try? await Task.sleep(for: .milliseconds(400))
+            if let problem = await waitForHistory(text, assembly: assembly) { problems.append(problem) }
         }
         if let keys = step.pressKeys {
             if let problem = press(keys, hotkeys: assembly.platform.hotkeys) { problems.append(problem) }
             // Let the run the hotkey starts reach its handler.
             for _ in 0..<5 { await Task.yield() }
         }
-        if step.setFeatures != nil || step.setSettings != nil || step.setHotkey != nil {
-            // Let the changes reach the runtime, root search and the panel, and let root search
-            // load what a feature switched on brings back.
+        if step.setFeatures != nil || step.setSettings != nil || step.setHotkey != nil || step.onboarding != nil
+            || step.setFallbacks != nil
+        {
+            // Let the changes reach the runtime, root search and the panel, let a feature switched
+            // on finish loading, and let root search load what it brings back.
             for _ in 0..<10 { await Task.yield() }
+            if await !SelfTest.within(readyWait, { await assembly.runtime.waitUntilFeaturesAreReady() }) {
+                problems.append("a feature did not finish loading within \(readyWait)")
+            }
             await assembly.root.settle()
+        }
+        if step.waitUntilReady == true, await !SelfTest.within(readyWait, { await assembly.ready() }) {
+            problems.append("root search and the features were not ready within \(readyWait)")
         }
         if let link = step.resolvedLink {
             if let url = URL(string: link) {
@@ -262,6 +338,22 @@ enum ScenarioMode {
             // Let the run a link starts reach its handler.
             for _ in 0..<5 { await Task.yield() }
         }
+        if let title = step.waitForRow {
+            if let panel = assembly.panel {
+                if let problem = await waitForRow(title, panel: panel) { problems.append(problem) }
+            } else {
+                problems.append("waitForRow needs the panel")
+            }
+        }
+        if let title = step.select {
+            if let runner {
+                if let problem = await select(title, runner: runner) { problems.append(problem) }
+            } else {
+                problems.append("select needs the panel")
+            }
+        }
+        problems += await settingsWindow(
+            step, assembly: assembly, runner: runner, origin: settingsOrigin, captures: &captures)
         if let expected = step.linkOutcome {
             let last = assembly.links.outcomes.last.map(outcomeName) ?? "none"
             if last != expected { problems.append("the last link was \(last), expected \(expected)") }
@@ -322,7 +414,179 @@ enum ScenarioMode {
         where assembly.runtime.isActive(featureID) != active {
             problems.append("feature \(featureID) was \(active ? "not active" : "active")")
         }
+        if let expected = step.fallbacksOn {
+            let on = assembly.runtime.fallbacks(assembly.runtime.preferences.fallbackChoices).filter(\.isOn)
+                .map(\.id.rawValue)
+            if on != expected { problems.append("the fallbacks on were \(on), expected \(expected)") }
+        }
         return problems.isEmpty ? nil : problems.joined(separator: "; ")
+    }
+
+    /// Changes the fallback choices the way the root search pane does: the order first, through
+    /// every fallback the pane lists, then each switch. Returns the problems.
+    static func setFallbacks(_ request: AppStep.FallbackRequest, assembly: Assembly) -> [String] {
+        let preferences = assembly.runtime.preferences
+        let listed = assembly.runtime.fallbacks(preferences.fallbackChoices).map(\.id)
+        var problems: [String] = []
+        func known(_ raw: String) -> ItemID? {
+            guard let id = ItemID(rawValue: raw), listed.contains(id) else {
+                problems.append("no fallback \(raw); the pane lists \(listed.map(\.rawValue))")
+                return nil
+            }
+            return id
+        }
+        if let order = request.order {
+            let ids = order.compactMap(known)
+            // The pane always passes every fallback it lists; the ones the file leaves out keep
+            // their places after the ones it names.
+            preferences.setFallbackOrder(ids + listed.filter { !ids.contains($0) })
+        }
+        for (raw, isOn) in (request.on ?? [:]).sorted(by: { $0.key < $1.key }) {
+            if let id = known(raw) { preferences.setFallback(id, isOn: isOn) }
+        }
+        return problems
+    }
+
+    /// Moves the run's clock, plays a session start and puts an app in front, in that order, then
+    /// lets root search catch up. Returns the problems.
+    static func playContext(_ step: AppStep, assembly: Assembly) async -> [String] {
+        guard step.setTime != nil || step.advanceClock != nil || step.sessionStart != nil || step.frontApp != nil
+        else { return [] }
+        var problems: [String] = []
+        if let date = step.setTime {
+            if let clock = assembly.scenarioClock {
+                if !clock.move(to: date) { problems.append("the run's time is already past \(date)") }
+            } else {
+                problems.append("the run has no clock a scenario can move")
+            }
+        }
+        if let seconds = step.advanceClock {
+            if let clock = assembly.scenarioClock {
+                clock.move(to: clock.now.addingTimeInterval(seconds))
+            } else {
+                problems.append("the run has no clock a scenario can move")
+            }
+        }
+        if step.sessionStart == true {
+            assembly.platform.systemContext.sessionStarted(at: assembly.services.clock.now)
+        }
+        if let bundleID = step.frontApp {
+            let name = assembly.root.row(for: ItemID("app", bundleID))?.title ?? appName(bundleID)
+            assembly.recordingWorkspace?.setFrontmost(AppInfo(bundleID: bundleID, name: name))
+            assembly.platform.systemContext.update { $0.frontmostBundleID = bundleID }
+        }
+        // Let the hourly tick, the session start and the context change reach root search, and let
+        // it prepare the empty state again.
+        for _ in 0..<10 { await Task.yield() }
+        await assembly.root.settle()
+        return problems
+    }
+
+    /// A name for an app root search does not know: the last part of its bundle ID, capitalized.
+    static func appName(_ bundleID: String) -> String {
+        let last = bundleID.split(separator: ".").last.map(String.init) ?? bundleID
+        return last.split(separator: "-").map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ")
+    }
+
+    /// The longest an app step waits for the features' own loading.
+    static let readyWait = Duration.seconds(20)
+
+    /// The longest a copy waits to reach clipboard history.
+    static let historyWait = Duration.seconds(5)
+
+    /// Waits until clipboard history holds `text` as its newest entry, looking every 10 ms, for at
+    /// most ``historyWait``. The pasteboard is polled four times a second, so a fixed pause would
+    /// pass on a quiet Mac and fail on a busy one. With no clipboard history on there is nothing to
+    /// wait for. Returns the problem, or nil.
+    static func waitForHistory(_ text: String, assembly: Assembly) async -> String? {
+        guard let reader = assembly.historyReader else { return nil }
+        let deadline = ContinuousClock.now + historyWait
+        while await reader.text(offset: 0) != text {
+            guard ContinuousClock.now < deadline else {
+                return "clipboard history did not take \"\(text)\" within \(historyWait)"
+            }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return nil
+    }
+
+    /// The longest a `waitForRow` step waits.
+    static let rowWait = Duration.seconds(5)
+
+    /// Waits until the top page shows a row or cell titled `title`, looking every 10 ms, for at
+    /// most ``rowWait``. Returns the problem, or nil.
+    static func waitForRow(_ title: String, panel: PanelController) async -> String? {
+        let deadline = ContinuousClock.now + rowWait
+        while !panel.shownTitles.contains(title) {
+            guard ContinuousClock.now < deadline else {
+                return "no row \"\(title)\" after \(rowWait); rows were \(panel.shownTitles)"
+            }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return nil
+    }
+
+    /// Selects the row or cell titled `title` on the top page by pressing Down, then Up, through
+    /// the runner, as a person would. Returns the problem, or nil.
+    static func select(_ title: String, runner: ScenarioRunner) async -> String? {
+        let panel = runner.panel
+        guard panel.shownTitles.contains(title) else {
+            return "no row \"\(title)\" to select; rows were \(panel.shownTitles)"
+        }
+        let limit = panel.shownTitles.count
+        for key in ["down", "up"] {
+            for _ in 0...limit {
+                if panel.selectedTitle == title { return nil }
+                let pressed = await runner.run(Scenario(name: "select", timeLimit: 5, steps: [.press(key)]))
+                if !pressed.passed { return pressed.reason ?? "cannot press \(key)" }
+            }
+        }
+        return panel.selectedTitle == title
+            ? nil : "cannot select \"\(title)\"; the selection stayed on \(panel.selectedTitle ?? "nothing")"
+    }
+
+    /// Opens, captures and closes the real settings window for `openSettings`, `captureSettings`
+    /// and `closeSettings`. Returns the problems.
+    static func settingsWindow(
+        _ step: AppStep, assembly: Assembly, runner: ScenarioRunner?, origin: CGPoint?, captures: inout [String]
+    ) async -> [String] {
+        var problems: [String] = []
+        if let name = step.openSettings {
+            if let pane = SettingsPaneID(rawValue: name) {
+                let place = origin ?? defaultSettingsOrigin()
+                if assembly.settings.settingsController.showForCapture(pane, at: place) == nil {
+                    problems.append("the settings window could not be put at \(place)")
+                }
+                // Let SwiftUI lay the pane out before anything captures it.
+                for _ in 0..<10 { await Task.yield() }
+            } else {
+                problems.append("no settings pane \(name)")
+            }
+        }
+        if let name = step.captureSettings {
+            if let frame = assembly.settings.settingsController.captureFrame, let runner {
+                do {
+                    let image = try await runner.capture(frame)
+                    let url = runner.output.appending(path: "captures/\(name).png")
+                    try PanelSnapshot.writePNG(image, to: url)
+                    captures.append(url.path)
+                } catch {
+                    problems.append("cannot capture the settings window: \(error)")
+                }
+            } else {
+                problems.append("no settings window to capture; open one with openSettings first")
+            }
+        }
+        if step.closeSettings == true {
+            assembly.settings.existingController?.close()
+        }
+        return problems
+    }
+
+    /// The bottom-left corner of the main screen, inside the area a clip records.
+    static func defaultSettingsOrigin() -> CGPoint {
+        guard let visible = NSScreen.main?.visibleFrame else { return .zero }
+        return CGPoint(x: visible.minX + 20, y: visible.minY + 20)
     }
 
     /// Makes the run's inert hotkey system report macOS shortcuts on these combinations. Returns the
@@ -362,6 +626,8 @@ enum ScenarioMode {
         case ("launcherHotkey", .text(let keys)):
             guard let combo = KeyCombo(parsing: keys) else { return "cannot read the keys \(keys)" }
             general[HostSettings.launcherHotkey] = combo
+        case ("tabCommand", .text(let id)):
+            general[HostSettings.tabCommand] = id
         default:
             return "cannot set \(key) to \(value)"
         }

@@ -43,6 +43,11 @@ import os
         var workspace: ((any WorkspaceService) -> any WorkspaceService)?
         /// Replaces the hotkey service, as tests do.
         var hotkeys: (any HotkeyService)?
+        /// Replaces the clock every package reads, as scenarios do to move time.
+        var clock: (any ClockService)?
+        /// Makes the icons the panel and settings draw in place of Platform's, as a scenario that
+        /// shows the system's own apps does.
+        var icons: (@MainActor (PlatformServices) -> any IconProvider)?
         /// False skips the panel, for headless runs that only query root search.
         var makesPanel = true
         /// The surface the panel drives. Tests pass one placed off every screen.
@@ -65,6 +70,8 @@ import os
     let recordingWorkspace: RecordingWorkspace?
     /// HUDs outside the live app, which are written down instead of shown.
     let recordingHUD: RecordingHUD?
+    /// The clock a scenario moves, when the run has one.
+    var scenarioClock: ScenarioClock? { services.clock as? ScenarioClock }
 
     private let usage = LateUsageService()
     private let fuzzyIndex = LateFuzzyIndexService()
@@ -84,6 +91,7 @@ import os
         var services = platform.services(usage: usage, fuzzyIndex: fuzzyIndex)
         if let makeWorkspace = configuration.workspace { services.workspace = makeWorkspace(services.workspace) }
         if let hotkeys = configuration.hotkeys { services.hotkeys = hotkeys }
+        if let clock = configuration.clock { services.clock = clock }
         self.services = services
         recordingWorkspace = services.workspace as? RecordingWorkspace
 
@@ -109,10 +117,11 @@ import os
 
         let hud = environment.touchesRealSystem ? nil : RecordingHUD()
         recordingHUD = hud
+        let icons = configuration.icons?(platform) ?? platform.icons
         let panel =
             configuration.makesPanel
             ? PanelController(
-                runtime: runtime, rootSource: root, icons: platform.icons, themes: themes,
+                runtime: runtime, rootSource: root, icons: icons, themes: themes,
                 surface: configuration.surface, hud: hud) : nil
         self.panel = panel
 
@@ -123,7 +132,7 @@ import os
 
         let dependencies = SettingsDependencies(
             services: services, features: runtime, preferences: runtime.preferences, learning: root.inspector,
-            icons: platform.icons, loginItem: platform.loginItem, themes: themes, dataDirectory: configuration.dataRoot,
+            icons: icons, loginItem: platform.loginItem, themes: themes, dataDirectory: configuration.dataRoot,
             lookUpItem: { [weak root] id in root?.row(for: id) }, launcherHotkey: hotkey)
         settings = SettingsOpener(
             showsWindows: configuration.showsWindows, onOpen: { [weak hotkey] in hotkey?.checkNow() },
@@ -176,11 +185,14 @@ import os
             }
         }
         platform.pasteboard.setHistoryReader(reader)
-        hasHistoryReader = reader != nil
+        historyReader = reader
     }
 
+    /// The clipboard history of the feature that provides it, while that feature is on.
+    private(set) var historyReader: (any ClipboardHistoryReader)?
+
     /// True while a feature's clipboard history answers the pasteboard's recent text.
-    private(set) var hasHistoryReader = false
+    var hasHistoryReader: Bool { historyReader != nil }
 
     // MARK: Lifecycle
 
@@ -203,6 +215,14 @@ import os
             GlassPanel.installEditMenu()
             panel?.prewarm()
         }
+    }
+
+    /// Returns once every active feature finished the work its activation started and root search
+    /// loaded every catalog source and opened its engine. Scenarios, the self-test and benchmarks
+    /// wait for it before they type. The live launcher never does.
+    func ready() async {
+        await runtime.waitUntilFeaturesAreReady()
+        await root.ready()
     }
 
     /// Unbinds the hotkey, deactivates the features, writes what root search learned, lets the

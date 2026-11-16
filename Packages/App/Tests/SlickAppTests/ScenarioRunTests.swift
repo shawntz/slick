@@ -4,13 +4,15 @@ import Host
 import Kit
 import LauncherUI
 import Root
+import SettingsUI
 import Testing
 
 @testable import SlickApp
 
 /// Every committed scenario, run headless: the real panel placed far off every screen, never key,
 /// with a stand-in capture. `make scenario` runs the same files on screen with real captures.
-@Suite("Committed scenarios", .serialized)
+/// `SCENARIO_ONLY=name.json,other.json` in the environment runs only those files.
+@Suite("Committed scenarios", .serialized, .timeLimit(.minutes(10)))
 struct ScenarioRunTests {
     static let offscreen = CGRect(x: -20000, y: -20000, width: 1600, height: 1000)
 
@@ -21,7 +23,10 @@ struct ScenarioRunTests {
 
     nonisolated static var files: [String] {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
-        return names.filter { $0.hasSuffix(".json") }.sorted()
+        let only = ProcessInfo.processInfo.environment["SCENARIO_ONLY"].map {
+            Set($0.split(separator: ",").map { $0.hasSuffix(".json") ? String($0) : $0 + ".json" })
+        }
+        return names.filter { $0.hasSuffix(".json") && only?.contains($0) != false }.sorted()
     }
 
     @Test(arguments: files)
@@ -37,19 +42,21 @@ struct ScenarioRunTests {
         _ = NSApplication.shared
         let surface = LauncherSurface(visibleFrame: Self.offscreen)
         surface.accessibilityOverride = DisplayAccessibility(reduceMotion: true)
-        let assembly = Assembly(
-            .init(
-                environment: .scenario, dataRoot: data, workspace: { RecordingWorkspace(wrapping: $0) },
-                surface: surface))
+        let assembly = Assembly(try ScenarioMode.configuration(for: file, dataRoot: data, surface: surface))
         await assembly.start(prewarm: true)
         let panel = try #require(assembly.panel)
-        #expect(await SelfTest.within(.seconds(20)) { await assembly.root.ready() })
+        if !file.startsBeforeReady {
+            #expect(await SelfTest.within(.seconds(20)) { await assembly.ready() })
+        }
         let runner = ScenarioRunner(panel: panel, output: data.appending(path: "output"), placesInCorner: false)
         runner.capture = { _ in Self.solidImage() }
         runner.log = { _ in }
         var lines: [String] = []
-        let result = await ScenarioMode.run(file, runner: runner, assembly: assembly) { lines.append($0) }
+        let result = await ScenarioMode.run(
+            file, runner: runner, assembly: assembly, settingsOrigin: Self.offscreen.origin
+        ) { lines.append($0) }
         #expect(result.passed, "\(result.reason ?? "")\n\(lines.joined(separator: "\n"))")
+        assembly.settings.existingController?.close()
         await assembly.shutdown()
     }
 

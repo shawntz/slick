@@ -55,7 +55,7 @@ struct FastTypingTests {
         let assembly = Assembly(configuration)
         await assembly.start(prewarm: true)
         let panel = try #require(assembly.panel)
-        #expect(await SelfTest.within(.seconds(20)) { await assembly.root.ready() })
+        #expect(await SelfTest.within(.seconds(20)) { await assembly.ready() })
         let slow = try #require(assembly.runtime.instance("slow-search") as? SlowSearch)
 
         let file = try ScenarioMode.load(
@@ -65,6 +65,7 @@ struct FastTypingTests {
                   "name": "Typing faster than an async section",
                   "timeLimit": 20,
                   "steps": [
+                    { "app": { "setFeatures": { "schedule": false } } },
                     { "summon": true },
                     { "type": "notes" },
                     { "expect": { "selection": "Notes" } },

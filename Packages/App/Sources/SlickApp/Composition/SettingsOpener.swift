@@ -33,6 +33,9 @@ import SettingsUI
         self.makeController = makeController
     }
 
+    /// The controller if one was made, without making one.
+    var existingController: SettingsController? { controller }
+
     /// The controller, made on first use.
     var settingsController: SettingsController {
         if let controller { return controller }

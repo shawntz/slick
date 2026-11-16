@@ -4,7 +4,8 @@ import Synchronization
 
 /// The workspace a scenario gives the features: it records every launch, open and reveal and does
 /// none of them, so a scenario can check that running an app reached the workspace. Trash is
-/// refused, as in every isolated run. Everything else comes from the inert workspace it wraps.
+/// refused, as in every isolated run. The app in front is the one a scenario put there, if any.
+/// Everything else comes from the inert workspace it wraps.
 nonisolated final class RecordingWorkspace: WorkspaceService {
     /// One request a feature made.
     enum Request: Hashable, Sendable {
@@ -16,6 +17,7 @@ nonisolated final class RecordingWorkspace: WorkspaceService {
 
     private let base: any WorkspaceService
     private let log = Mutex<[Request]>([])
+    private let front = Mutex<AppInfo?>(nil)
 
     init(wrapping base: any WorkspaceService) {
         self.base = base
@@ -65,7 +67,12 @@ nonisolated final class RecordingWorkspace: WorkspaceService {
     }
 
     func frontmostApplication() -> AppInfo? {
-        base.frontmostApplication()
+        front.withLock { $0 } ?? base.frontmostApplication()
+    }
+
+    /// Puts an app in front, as a scenario's `frontApp` step does.
+    func setFrontmost(_ app: AppInfo?) {
+        front.withLock { $0 = app }
     }
 
     func launch(bundleID: String) async throws {

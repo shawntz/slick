@@ -13,6 +13,7 @@ public final class SettingsController {
     private let model: SettingsModel
     private let launcherHotkey: (any LauncherHotkeyStatus)?
     private var window: NSWindow?
+    private var captureWindow: NSWindow?
     private var keyObserver: (any NSObjectProtocol)?
 
     public init(dependencies: SettingsDependencies) {
@@ -36,16 +37,46 @@ public final class SettingsController {
         present()
     }
 
-    /// Closes the window. It keeps its state for the next ``show(_:)``.
+    /// Closes the window, and the one ``showForCapture(_:at:)`` opened. Each keeps its state for
+    /// the next time it shows.
     public func close() {
         window?.close()
+        captureWindow?.close()
     }
 
     /// True while the window is on screen.
     public var isVisible: Bool { window?.isVisible ?? false }
 
+    /// Shows the window on a pane with its bottom-left corner at `origin`, for a scenario that
+    /// captures it. The app does not come forward, the window does not take key status, and its
+    /// frame is not saved, so the place the user left the window stays as it was. The window keeps
+    /// the place it is given, even off every screen, and stays fully transparent unless it is
+    /// exactly there, so it never shows anywhere else. ``close()`` puts it away. Returns the
+    /// frame to capture, or nil when the window could not be put at `origin`.
+    @discardableResult
+    public func showForCapture(_ pane: SettingsPaneID, at origin: CGPoint) -> CGRect? {
+        model.show(pane)
+        let window = captureWindow ?? makeWindow(savesFrame: false)
+        captureWindow = window
+        window.alphaValue = 0
+        window.setFrameOrigin(origin)
+        window.orderFrontRegardless()
+        guard window.frame.origin == origin else {
+            window.orderOut(nil)
+            return nil
+        }
+        window.alphaValue = 1
+        return window.frame
+    }
+
+    /// The frame of the window ``showForCapture(_:at:)`` opened, while it is on screen.
+    public var captureFrame: CGRect? {
+        guard let captureWindow, captureWindow.isVisible else { return nil }
+        return captureWindow.frame
+    }
+
     private func present() {
-        let window = self.window ?? makeWindow()
+        let window = self.window ?? makeWindow(savesFrame: true)
         self.window = window
         launcherHotkey?.checkNow()
         NSApplication.shared.activate()
@@ -54,19 +85,30 @@ public final class SettingsController {
         window.orderFrontRegardless()
     }
 
-    private func makeWindow() -> NSWindow {
+    private func makeWindow(savesFrame: Bool) -> NSWindow {
         let hosting = NSHostingController(rootView: SettingsRootView(model: model))
         hosting.sceneBridgingOptions = [.title, .toolbars]
-        let window = NSWindow(contentViewController: hosting)
+        let window =
+            savesFrame ? NSWindow(contentViewController: hosting) : PlacedWindow(contentViewController: hosting)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.title = "\(Brand.name) Settings"
         window.toolbarStyle = .unified
         window.isReleasedWhenClosed = false
         window.setContentSize(NSSize(width: 900, height: 640))
+        guard savesFrame else { return window }
         window.setFrameAutosaveName("SettingsWindow")
         if window.frame.origin == .zero { window.center() }
         keyObserver = LauncherHotkeyCheck.observe(window, status: launcherHotkey)
         return window
+    }
+}
+
+/// A window that stays where it is put. AppKit moves a titled window back onto a screen when it
+/// orders in; a capture window must stay at the place a scenario gives it, which tests put off
+/// every screen.
+final class PlacedWindow: NSWindow {
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
     }
 }
 
