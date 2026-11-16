@@ -25,7 +25,8 @@ import Testing
                           "lead": 0.2, "frameRate": 60}},
               {"record": {"name": "plain"}},
               {"stopRecording": true},
-              {"stopRecording": {"tail": 1.5, "poster": 2.25, "webMaxBytes": 1000, "gifWidth": 900, "gifMaxBytes": 2000}}
+              {"stopRecording": {"tail": 1.5, "poster": 2.25, "webMaxBytes": 1000, "gifWidth": 900, "gifMaxBytes": 2000}},
+              {"still": "settings-dark"}
             ]}
             """
         let scenario = try JSONDecoder().decode(Scenario.self, from: Data(json.utf8))
@@ -39,11 +40,14 @@ import Testing
                 .stopRecording(ScenarioClipOutput()),
                 .stopRecording(
                     ScenarioClipOutput(tail: 1.5, poster: 2.25, webMaxBytes: 1000, gifWidth: 900, gifMaxBytes: 2000)),
+                .still("settings-dark"),
             ])
+        #expect(ScenarioStep.still("x").name == "still")
         #expect(ScenarioRecording(name: "plain").idle == 120, "a clip waits for two idle minutes by default")
         for bad in [
             #"{"record": {"name": "../out"}}"#, #"{"record": {"name": ""}}"#, #"{"record": {"name": "x", "pace": -1}}"#,
-            #"{"stopRecording": false}"#, #"{"stopRecording": {"tail": -2}}"#,
+            #"{"stopRecording": false}"#, #"{"stopRecording": {"tail": -2}}"#, #"{"still": "../pane"}"#,
+            #"{"still": ""}"#,
         ] {
             #expect(throws: DecodingError.self, "\(bad)") {
                 try JSONDecoder().decode(Scenario.self, from: Data(#"{"name": "x", "steps": [\#(bad)]}"#.utf8))
@@ -58,6 +62,7 @@ import Testing
         #expect(ScenarioPacing.pause(before: .press("down"), after: .type("a")) == 0.42)
         #expect(ScenarioPacing.pause(before: .press("cmd+k"), after: nil) == 0.5)
         #expect(ScenarioPacing.pause(before: .expect(ScenarioExpectation()), after: nil) == 0)
+        #expect(ScenarioPacing.pause(before: .still("pane"), after: .summon) == 0)
         #expect(ScenarioPacing.pause(beforeCharacter: "a", at: 0) == 0, "the step's own pause covers the first")
         let gaps = (1..<9).map { ScenarioPacing.pause(beforeCharacter: "a", at: $0) }
         #expect(gaps.allSatisfy { (0.09...0.16).contains($0) })
@@ -205,11 +210,94 @@ import Testing
         #expect(result.passed, "\(result.reason ?? "")")
         #expect(backdrops == 1, "only the capture after the clip adds its own backdrop")
     }
+
+    @Test func aStillDuringAClipCapturesTheWholeRecordedAreaEvenWithThePanelHidden() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let recorder = FakeRecorder()
+        let runner = makeRunner(fixture, recorder: recorder)
+        var captured: [CGRect] = []
+        runner.capture = { rect in
+            captured.append(rect)
+            return ScenarioTests.solidImage()
+        }
+        let result = await runner.run(
+            Scenario(
+                name: "still",
+                steps: [
+                    .record(ScenarioRecording(name: "clip", pace: 0, lead: 0)), .dismiss, .still("pane-dark"),
+                    .stopRecording(ScenarioClipOutput(tail: 0)),
+                ]))
+        #expect(result.passed, "\(result.reason ?? "")")
+        #expect(captured == [FakeRecorder.canvas], "the still covers the clip's area, not the panel's frame")
+        let still = runner.output.appending(path: "captures/pane-dark.png").path
+        #expect(result.captures == [still, "/clips/clip.mp4"])
+        #expect(FileManager.default.fileExists(atPath: still))
+    }
+
+    @Test func aStillOutsideAClipFails() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let runner = makeRunner(fixture, recorder: FakeRecorder())
+        let result = await runner.run(Scenario(name: "loose", steps: [.still("pane")]))
+        #expect(result.reason == "step 1 still: a still is taken during a clip; put a record step before it")
+    }
+
+    @Test func inputDuringAStillThrowsTheClipOut() async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let recorder = FakeRecorder()
+        let runner = makeRunner(fixture, recorder: recorder)
+        runner.capture = { _ in
+            recorder.inputArrived = true
+            return ScenarioTests.solidImage()
+        }
+        let result = await runner.run(
+            Scenario(
+                name: "touched",
+                steps: [
+                    .record(ScenarioRecording(name: "clip", pace: 0, lead: 0)), .still("pane"),
+                    .stopRecording(ScenarioClipOutput(tail: 0)),
+                ]))
+        #expect(result.reason == "step 2 still: input arrived during the clip, so it was thrown out")
+        #expect(result.captures.isEmpty, "a still taken as input arrived is not kept")
+        #expect(recorder.cancelled == 1)
+    }
+
+    @Test func theWindowsAClipShowsAreThisAppsWindowsInItsAreaFrontToBack() throws {
+        _ = NSApplication.shared
+        // Far off every screen, borderless so AppKit does not move them, and fully transparent.
+        let canvas = CGRect(x: -41000, y: -41000, width: 940, height: 740)
+        func window(_ frame: CGRect, panel: Bool = false) -> NSWindow {
+            let made =
+                panel
+                ? NSPanel(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: true)
+                : NSWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: true)
+            made.isReleasedWhenClosed = false
+            made.alphaValue = 0
+            return made
+        }
+        let launcher = window(CGRect(x: -40900, y: -40900, width: 400, height: 300))
+        let back = window(CGRect(x: -40980, y: -40980, width: 900, height: 640))
+        let front = window(CGRect(x: -40800, y: -40800, width: 200, height: 200))
+        let elsewhere = window(CGRect(x: -51000, y: -51000, width: 200, height: 200))
+        let otherPanel = window(CGRect(x: -40950, y: -40950, width: 200, height: 200), panel: true)
+        let hidden = window(CGRect(x: -40950, y: -40950, width: 200, height: 200))
+        let all = [launcher, back, front, elsewhere, otherPanel, hidden]
+        defer {
+            for made in all { made.close() }
+        }
+        for shown in [launcher, back, elsewhere, otherPanel, front] { shown.orderFrontRegardless() }
+        #expect(ScenarioWindows.shown(in: canvas, besides: launcher) == [front, back])
+    }
 }
 
 /// Records what the runner asked of it, and nothing else.
 @MainActor final class FakeRecorder: ScenarioRecorder {
+    /// The area the fake records while a clip runs.
+    static let canvas = CGRect(x: 10, y: 20, width: 940, height: 740)
     var inputArrived = false
+    private(set) var canvas: CGRect?
     var started: [ScenarioRecording] = []
     var steps: [String] = []
     var stopped: [ScenarioClipOutput] = []
@@ -221,6 +309,7 @@ import Testing
     func start(_ recording: ScenarioRecording, panel: PanelController, folder: URL) async -> String? {
         if let startProblem { return startProblem }
         started.append(recording)
+        canvas = Self.canvas
         return nil
     }
 
@@ -231,10 +320,12 @@ import Testing
 
     func stop(_ output: ScenarioClipOutput) async -> Result<[String], ScenarioRecorderFailure> {
         stopped.append(output)
+        canvas = nil
         return .success(["/clips/\(started.last?.name ?? "").mp4"])
     }
 
     func cancel() async {
         cancelled += 1
+        canvas = nil
     }
 }

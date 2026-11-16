@@ -25,6 +25,8 @@
         public private(set) var inputArrived = false
         private var session: Session?
 
+        public var canvas: CGRect? { session?.canvas }
+
         public init() {}
 
         /// One clip in progress and what to put back after it.
@@ -105,8 +107,16 @@
                     pixels: CGSize(width: canvas.width * scale, height: canvas.height * scale))
                 let made = ShowcaseBackdropWindow(frame: canvas)
                 made.show(picture)
-                made.orderFrontRegardless()
-                made.order(.below, relativeTo: window.windowNumber)
+                if let lowest = ScenarioWindows.shown(in: canvas, besides: window).last {
+                    // A window the scenario opened before the clip, such as the settings window,
+                    // stays in front of the wallpaper: the wallpaper takes its level, just below it.
+                    made.level = lowest.level
+                    made.orderFrontRegardless()
+                    made.order(.below, relativeTo: lowest.windowNumber)
+                } else {
+                    made.orderFrontRegardless()
+                    made.order(.below, relativeTo: window.windowNumber)
+                }
                 backdrop = made
             }
 
@@ -196,6 +206,10 @@
             guard let session else { return }
             session.panel.summoner.takesKeyStatus = false
             session.panel.dismiss()
+            // A settings window the clip shows goes too, so the corner is clear at once.
+            for window in ScenarioWindows.shown(in: session.canvas, besides: session.panel.surface.panel) {
+                window.orderOut(nil)
+            }
             session.backdrop?.orderOut(nil)
         }
 

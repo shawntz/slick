@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 
@@ -129,6 +130,8 @@ public struct ScenarioClipOutput: Sendable, Decodable, Equatable {
     /// True once a person touched the keyboard or mouse during the clip. By then the recorder has
     /// put the panel away and given key status back; the runner stops the run.
     var inputArrived: Bool { get }
+    /// The area the clip records, in AppKit screen coordinates, while a clip records. Nil otherwise.
+    var canvas: CGRect? { get }
     /// Starts a clip of `panel`, writing into `folder`. Returns why it could not, or nil.
     func start(_ recording: ScenarioRecording, panel: PanelController, folder: URL) async -> String?
     /// Hears each step that ran during the clip, so the recorder can check the panel's look.
@@ -145,6 +148,19 @@ public struct ScenarioRecorderFailure: Error, Sendable, Equatable, CustomStringC
 
     public init(_ description: String) {
         self.description = description
+    }
+}
+
+/// This app's windows that a clip shows besides the panel, such as the settings window a scenario
+/// opened for a picture. The recorder keeps its wallpaper behind them and puts them away when a
+/// person touches the Mac.
+@MainActor public enum ScenarioWindows {
+    /// This app's windows on screen inside `canvas`, front to back. `panel` and every other panel
+    /// are left out.
+    public static func shown(in canvas: CGRect, besides panel: NSWindow) -> [NSWindow] {
+        NSApp.windows
+            .filter { $0 !== panel && !($0 is NSPanel) && $0.isVisible && $0.frame.intersects(canvas) }
+            .sorted { $0.orderedIndex < $1.orderedIndex }
     }
 }
 
@@ -165,7 +181,7 @@ nonisolated public enum ScenarioPacing {
             return keys.contains("+") ? 0.5 : 0.42
         case .summon: return 0.55
         case .dismiss: return 0.5
-        case .wait, .waitUntilIdle, .expect, .fill, .capture, .record, .stopRecording: return 0
+        case .wait, .waitUntilIdle, .expect, .fill, .capture, .record, .stopRecording, .still: return 0
         }
     }
 
