@@ -289,8 +289,9 @@ Clipboard history never stores items an app marks as concealed, transient or aut
 
 ### What leaves the Mac, and when
 
-Nothing leaves at launch. Slick makes a network request only when you ask for something that needs one:
+Nothing leaves at launch unless you turned on update checks. Slick makes a network request only when you ask for something that needs one, or for the update check you agreed to:
 
+- a check for a new version: once a day in a release build after you turn on Check for Updates Automatically, and whenever you choose Check for Updates. It asks GitHub for the latest release's feed. The request carries the version numbers of Slick and its updater and, like any web request, your IP address.
 - a web search
 - a currency conversion, which downloads exchange rates
 - a question to an AI provider you set up
