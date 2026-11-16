@@ -194,6 +194,9 @@ import LauncherUI
             return check(expectation)
         case .fill(let field, let value):
             return fill(field, value)
+        case .clickLink(let target):
+            return panel.clickDetailLink(target) ? nil : "the detail shows no link to \"\(target)\""
+
         case .capture(let name, let key):
             return await capture(name, key: key)
         case .record(let recording):
@@ -487,7 +490,9 @@ import LauncherUI
             problems.append("selection was \(Self.quoted(panel.selectedTitle)), expected \"\(selection)\"")
         }
         let toast = panel.surface.actionBar.toast?.text
-        if let expectedToast = expected.toast, toast != expectedToast {
+        if let expectedToast = expected.toast?.replacingOccurrences(of: "{brand}", with: Brand.name),
+            toast != expectedToast
+        {
             problems.append("toast was \(Self.quoted(toast)), expected \"\(expectedToast)\"")
         }
         if expected.noToast == true, let toast { problems.append("a toast shows: \"\(toast)\"") }
@@ -527,6 +532,9 @@ import LauncherUI
             let shown = panel.pendingCard?.content.title ?? ""
             if shown != card { problems.append("the card was \(Self.quoted(shown)), expected \"\(card)\"") }
         }
+        if let largeType = expected.largeType, (panel.lastLargeType ?? "") != largeType {
+            problems.append("Large Type showed \(Self.quoted(panel.lastLargeType)), expected \"\(largeType)\"")
+        }
         if let visible = expected.visible, panel.isPanelVisible != visible {
             problems.append(visible ? "the panel is hidden" : "the panel shows")
         }
@@ -547,6 +555,10 @@ import LauncherUI
 
     // MARK: Capturing
 
+    /// How long a capture waits after it ordered a backdrop in or made the panel key, so the window
+    /// server shows both before the picture.
+    public static let captureSettle: Duration = .milliseconds(120)
+
     private func capture(_ name: String, key: Bool) async -> String? {
         guard panel.isPanelVisible else { return "the panel is hidden" }
         let window = panel.surface.panel
@@ -557,6 +569,10 @@ import LauncherUI
         if let backdrop {
             backdrop.orderFrontRegardless()
             backdrop.order(.below, relativeTo: window.windowNumber)
+            // Draw it now and hand the drawing to the window server, or the picture can show the
+            // Mac's desktop where the backdrop has not drawn yet.
+            backdrop.displayIfNeeded()
+            CATransaction.flush()
         }
         defer { backdrop?.close() }
         panel.surface.updateHeight(animated: false)
@@ -565,8 +581,8 @@ import LauncherUI
             // Key status only for the picture; giving it back must not dismiss the panel.
             window.onResignKey = nil
             window.makeKey()
-            try? await Task.sleep(for: .milliseconds(120))
         }
+        if key || backdrop != nil { try? await Task.sleep(for: Self.captureSettle) }
         let image = await captureWithin(frame, seconds: min(5, remainingSeconds))
         if key {
             NSApp.deactivate()

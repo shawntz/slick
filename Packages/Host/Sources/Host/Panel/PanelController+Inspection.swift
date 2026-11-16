@@ -26,10 +26,18 @@ extension PanelController {
     }
 
     /// The text of the detail shown: the detail page's, or the pane beside a list.
-    public var shownDetailText: String? {
+    public var shownDetailText: String? { shownDetailPane?.bodyText }
+
+    /// Clicks the link with this target in the detail shown, as a person would, so it goes where
+    /// a click goes. False when the detail shows no such link.
+    @discardableResult public func clickDetailLink(_ target: String) -> Bool {
+        shownDetailPane?.clickLink(target: target) ?? false
+    }
+
+    private var shownDetailPane: DetailPane? {
         switch top {
-        case let page as DetailPageController: page.pane.bodyText
-        case let page as ListPageController: page.split?.detail.bodyText
+        case let page as DetailPageController: page.pane
+        case let page as ListPageController: page.split?.detail
         default: nil
         }
     }

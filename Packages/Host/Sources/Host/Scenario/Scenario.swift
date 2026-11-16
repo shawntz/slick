@@ -70,6 +70,9 @@ public enum ScenarioStep: Sendable, Decodable, Equatable {
     case capture(name: String, key: Bool)
     /// Sets a form field's value: text, a checkbox's `true` or `false`, or a dropdown option's ID.
     case fill(field: String, value: String)
+    /// Clicks the link with this target in the detail shown, on a detail page or beside a list, as a
+    /// person would. Fails when the detail shows no such link.
+    case clickLink(String)
     /// Hides the panel.
     case dismiss
     /// Starts a clip. The steps after it play at a person's pace, with the panel key over a
@@ -111,6 +114,7 @@ public enum ScenarioStep: Sendable, Decodable, Equatable {
         case "press": self = .press(try container.decode(String.self, forKey: key))
         case "waitUntilIdle": self = .waitUntilIdle(try container.decode(Double.self, forKey: key))
         case "wait": self = .wait(try container.decode(Double.self, forKey: key))
+        case "clickLink": self = .clickLink(try container.decode(String.self, forKey: key))
         case "expect": self = .expect(try container.decode(ScenarioExpectation.self, forKey: key))
         case "fill":
             let fill = try container.decode(Fill.self, forKey: key)
@@ -160,6 +164,7 @@ public enum ScenarioStep: Sendable, Decodable, Equatable {
         case .expect: "expect"
         case .capture: "capture"
         case .fill: "fill"
+        case .clickLink: "clickLink"
         case .dismiss: "dismiss"
         case .record: "record"
         case .stopRecording: "stopRecording"
@@ -177,7 +182,8 @@ public struct ScenarioExpectation: Sendable, Decodable, Equatable {
     public var rowCount: Int?
     /// The selected row's or cell's title; empty when nothing is selected.
     public var selection: String?
-    /// The toast's text, as the action bar shows it.
+    /// The toast's text, as the action bar shows it. `{brand}` stands for the app's name, so a file
+    /// never writes it out.
     public var toast: String?
     /// True when no toast may show.
     public var noToast: Bool?
@@ -199,12 +205,15 @@ public struct ScenarioExpectation: Sendable, Decodable, Equatable {
     public var fieldErrors: [String]?
     /// The title of the confirmation or permission card waiting for an answer. Empty for none.
     public var card: String?
+    /// The text Large Type showed last in this run. Empty when it showed nothing. A scenario never
+    /// puts Large Type on screen: the text is recorded.
+    public var largeType: String?
 
     public init(
         rows: [String]? = nil, rowsInclude: [String]? = nil, rowCount: Int? = nil, selection: String? = nil,
         toast: String? = nil, noToast: Bool? = nil, title: String? = nil, ghost: String? = nil, query: String? = nil,
         page: String? = nil, detailIncludes: String? = nil, actions: [String]? = nil, visible: Bool? = nil,
-        fieldErrors: [String]? = nil, card: String? = nil
+        fieldErrors: [String]? = nil, card: String? = nil, largeType: String? = nil
     ) {
         self.rows = rows
         self.rowsInclude = rowsInclude
@@ -221,5 +230,6 @@ public struct ScenarioExpectation: Sendable, Decodable, Equatable {
         self.visible = visible
         self.fieldErrors = fieldErrors
         self.card = card
+        self.largeType = largeType
     }
 }

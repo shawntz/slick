@@ -181,6 +181,7 @@ nonisolated public enum ScenarioPacing {
             return keys.contains("+") ? 0.5 : 0.42
         case .summon: return 0.55
         case .dismiss: return 0.5
+        case .clickLink: return 0.5
         case .wait, .waitUntilIdle, .expect, .fill, .capture, .record, .stopRecording, .still: return 0
         }
     }
