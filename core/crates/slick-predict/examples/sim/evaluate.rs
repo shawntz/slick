@@ -294,7 +294,15 @@ pub fn run_user(cat: &[Item], arena: &Arena, cfg: &Config, seed: u64) -> UserOut
             k: n,
             ..Opts::default()
         };
-        search(arena, &Query::new(q), &opts, None, None, scratch, &mut hits);
+        search(
+            arena,
+            &Query::with_whole_words(q),
+            &opts,
+            None,
+            None,
+            scratch,
+            &mut hits,
+        );
         let v: Vec<Cand> = hits
             .iter()
             .map(|h| Cand {
