@@ -144,7 +144,7 @@ nonisolated enum Strings {
     static let accessInfo = "Window commands and Switch Windows need it to see and move other apps' windows."
     static let hotkeysSection = "Hotkeys"
     static let noHotkeysNote =
-        "Window commands have no hotkeys until you add them. To use the shortcuts of another window manager, apply one of the presets below."
+        "Window commands have no hotkeys until you add them. To use the shortcuts of another window manager, apply one of the presets above."
     static let turnOffNote =
         "If you already use a window manager, you can turn Window Management off as a whole in the Features pane."
 

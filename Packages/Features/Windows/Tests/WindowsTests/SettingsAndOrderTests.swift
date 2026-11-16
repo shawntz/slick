@@ -25,6 +25,12 @@ struct SettingsAndOrderTests {
         #expect(harness.context.settings[WindowsSettings.showsLayoutName] == false)
     }
 
+    /// The settings window draws a feature's hotkey presets above its own sections.
+    @Test func theHotkeysNoteSaysThePresetsAreAbove() {
+        #expect(Strings.noHotkeysNote.contains("the presets above"))
+        #expect(!Strings.noHotkeysNote.contains("below"))
+    }
+
     @Test func everyRepeatChoiceHasATitle() throws {
         let harness = WindowsHarness().harness
         let picker = try #require(
