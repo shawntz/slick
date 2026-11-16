@@ -204,6 +204,27 @@ extension QueryField {
     @_spi(Testing) public func drawnText() -> DrawnText {
         DrawnText(titles: argumentChips.compactMap { chip in chip.textFrame.map { convert($0, from: chip) } })
     }
+
+    /// Where the typed text is drawn, in the field's coordinates, or nil while nothing is typed.
+    @_spi(Testing) public var typedTextFrame: CGRect? {
+        textField.oneLineTextFrame.map { convert($0, from: textField) }
+    }
+
+    /// Where the placeholder or the ghost completion is drawn, whichever shows, in the field's
+    /// coordinates. Nil while neither shows.
+    @_spi(Testing) public var hintTextFrame: CGRect? {
+        guard let font = textField.font else { return nil }
+        let height = ceil(font.ascender - font.descender)
+        if text.isEmpty, !placeholder.isEmpty {
+            let width = min(textField.bounds.width, ceil(textField.placeholderAttributedString?.size().width ?? 0))
+            let local = CGRect(x: 2, y: (textField.bounds.height - height) / 2, width: width, height: height)
+            return convert(local, from: textField)
+        }
+        guard let ghost = ghostFrame, !ghostText.isEmpty else { return nil }
+        let width = min(
+            ghost.width, ceil(NSAttributedString(string: ghostText, attributes: [.font: font]).size().width))
+        return CGRect(x: ghost.minX, y: textField.frame.midY - height / 2, width: width, height: height)
+    }
 }
 
 extension NSTextField {

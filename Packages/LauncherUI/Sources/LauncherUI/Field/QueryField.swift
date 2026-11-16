@@ -85,6 +85,7 @@ public final class QueryField: NSView, NSTextFieldDelegate {
 
     let glyphView = LeadingGlyphView()
     let breadcrumb = BreadcrumbCapsule()
+    let caretGlow = CaretGlowView()
     private let ghost = GhostTextView()
     /// Where the ghost goes for the current text, or nil when it does not fit.
     private var ghostOrigin: CGPoint?
@@ -122,7 +123,8 @@ public final class QueryField: NSView, NSTextFieldDelegate {
         glyphView.onPress = { [weak self] in self?.goBack() }
         ghost.isHidden = true
         breadcrumb.isHidden = true
-        for view in [glyphView, breadcrumb, textField, ghost] as [NSView] { addSubview(view) }
+        caretGlow.isHidden = true
+        for view in [glyphView, breadcrumb, caretGlow, textField, ghost] as [NSView] { addSubview(view) }
     }
 
     required init?(coder: NSCoder) { nil }
@@ -139,15 +141,41 @@ public final class QueryField: NSView, NSTextFieldDelegate {
         breadcrumb.apply(theme)
         for chip in argumentChips { chip.apply(theme) }
         filterChip?.apply(theme)
+        let font = theme.queryFont
+        caretGlow.apply(
+            colors: theme.caretGlow, caretHeight: font.ascender - font.descender,
+            scale: window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2)
         applyLeading()
         applyPlaceholder()
+        applyHalo(theme)
         needsLayout = true
+    }
+
+    /// Gives the typed text, the placeholder, the ghost and the leading glyph the theme's halo, as
+    /// the list's text has it, for glass that does not even out what is behind it. The halo is a
+    /// shadow of what each view draws, so it follows the glyphs and the caret, and it costs the
+    /// main thread nothing per keystroke. A theme without a halo clears it.
+    ///
+    /// Vibrant text adds light to the glass, so over a white page in dark mode it stays white on
+    /// white, and a dark halo under it adds nothing. With a halo the field therefore takes the
+    /// theme's own colours and leaves vibrancy to the themes without one.
+    private func applyHalo(_ theme: ResolvedTheme) {
+        let halo = theme.textHalo != nil
+        textField.textColor = halo ? NSColor(cgColor: theme.title) : .labelColor
+        // While the field is being edited its field editor draws the text, in its own colour.
+        if let editor = textField.currentEditor() as? NSTextView, editor.delegate === textField {
+            editor.textColor = textField.textColor
+            editor.typingAttributes[.foregroundColor] = textField.textColor
+        }
+        glyphView.contentTintColor = halo ? NSColor(cgColor: theme.subtitle) : .secondaryLabelColor
+        for view in [textField, ghost, glyphView] as [NSView] { view.applyTextHalo(theme) }
     }
 
     /// Makes the text field first responder, which installs the field editor. Call once while
     /// pre-warming; the editor then stays installed and the summon path never repeats it.
     public func installEditor() {
         window?.makeFirstResponder(textField)
+        placeCaretGlow()
         guard selectionObserver == nil, let editor = textField.currentEditor() else { return }
         // Composition changes the selection but not the committed text, so hide the ghost here.
         selectionObserver = NotificationCenter.default.addObserver(
@@ -165,18 +193,23 @@ public final class QueryField: NSView, NSTextFieldDelegate {
         let metrics = theme.theme.queryRow
         let height = bounds.height
         var x = CGFloat(metrics.leadingInset)
-        let slot = CGFloat(metrics.glyphSlotWidth)
-        glyphView.frame = NSRect(x: x, y: 0, width: slot, height: height)
-        x += slot
+        // A theme may leave the magnifier out at root; the text then starts at the inset.
+        let showsGlyph = leading.glyph == .back || metrics.showsRootGlyph
+        glyphView.isHidden = !showsGlyph
+        if showsGlyph {
+            let slot = CGFloat(metrics.glyphSlotWidth)
+            glyphView.frame = NSRect(x: x, y: 0, width: slot, height: height)
+            x += slot
+        }
         if !breadcrumb.isHidden {
-            x += CGFloat(metrics.textGap) / 2
+            if showsGlyph { x += CGFloat(metrics.textGap) / 2 }
             let capsuleHeight = CGFloat(metrics.breadcrumbHeight)
             let width = breadcrumb.width(maximum: bounds.width * CGFloat(metrics.breadcrumbMaxFraction))
             breadcrumb.frame = NSRect(
                 x: x, y: ((height - capsuleHeight) / 2).rounded(), width: width, height: capsuleHeight)
             x += width
         }
-        x += CGFloat(metrics.textGap)
+        if showsGlyph || !breadcrumb.isHidden { x += CGFloat(metrics.textGap) }
         var right = bounds.width - CGFloat(metrics.trailingInset)
         if let filterChip {
             let chips = theme.theme.chips
@@ -304,8 +337,9 @@ public final class QueryField: NSView, NSTextFieldDelegate {
 
     private func applyPlaceholder() {
         guard let theme else { return }
+        let color = theme.textHalo == nil ? theme.placeholder : NSColor(cgColor: theme.subtitle) ?? theme.placeholder
         textField.placeholderAttributedString = NSAttributedString(
-            string: placeholder, attributes: [.font: theme.queryFont, .foregroundColor: NSColor.tertiaryLabelColor]
+            string: placeholder, attributes: [.font: theme.queryFont, .foregroundColor: color]
         )
     }
 
@@ -337,6 +371,7 @@ public final class QueryField: NSView, NSTextFieldDelegate {
     /// Shows the ghost only while the caret is at the end and nothing is being composed. Runs on
     /// every selection change, so it only reads state.
     private func showOrHideGhost() {
+        placeCaretGlow()
         guard ghostOrigin != nil, let editor = textField.currentEditor() as? NSTextView, !editor.hasMarkedText(),
             editor.selectedRange() == NSRange(location: (editor.string as NSString).length, length: 0)
         else {
@@ -344,6 +379,38 @@ public final class QueryField: NSView, NSTextFieldDelegate {
             return
         }
         ghost.isHidden = false
+    }
+
+    /// Moves the caret glow to the insertion point. It hides while the shared field editor serves
+    /// another field, while text is selected and while an input method composes. Runs on every
+    /// selection change, so it reads the insertion point from the editor's finished layout and
+    /// sets one frame. Asking the editor for the point in screen coordinates costs twice as much.
+    func placeCaretGlow() {
+        guard caretGlow.hasGlow, let window, let editor = textField.currentEditor() as? NSTextView,
+            editor.delegate === textField, window.firstResponder === editor, !editor.hasMarkedText(),
+            editor.selectedRange().length == 0, let layoutManager = editor.layoutManager,
+            let container = editor.textContainer
+        else {
+            caretGlow.hide()
+            return
+        }
+        // The insertion point as TextKit draws it, in the text container's coordinates.
+        let glyphs = layoutManager.glyphRange(forCharacterRange: editor.selectedRange(), actualCharacterRange: nil)
+        var insertion: CGFloat?
+        layoutManager.enumerateEnclosingRects(forGlyphRange: glyphs, withinSelectedGlyphRange: glyphs, in: container) {
+            rect, stop in
+            insertion = rect.minX
+            stop.pointee = true
+        }
+        let origin = editor.textContainerOrigin
+        let x = (insertion ?? container.lineFragmentPadding) + origin.x
+        let caret = editor.convert(NSPoint(x: x, y: origin.y), to: self)
+        let field = textField.frame
+        guard caret.x >= field.minX - 1, caret.x <= field.maxX + 1 else {
+            caretGlow.hide()
+            return
+        }
+        caretGlow.place(caretCenter: CGPoint(x: caret.x, y: field.midY))
     }
 
     /// The field draws its text this far in from its frame.

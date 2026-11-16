@@ -81,6 +81,9 @@ final class DetailTextView: NSView, NSTextViewDelegate {
             .underlineColor: theme.detail.link, .cursor: NSCursor.pointingHand,
         ]
         textView.selectedTextAttributes = [.backgroundColor: NSColor.selectedTextBackgroundColor]
+        // Body text takes the theme's halo as a shadow of what the text view draws: its background
+        // is clear, so the shadow follows the glyphs.
+        textView.applyTextHalo(theme)
         rebuild()
     }
 

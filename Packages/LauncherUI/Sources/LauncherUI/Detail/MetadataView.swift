@@ -73,6 +73,7 @@ final class MetadataView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         guard let theme, let context = NSGraphicsContext.current?.cgContext else { return }
+        context.touchCorners(of: bounds)
         let metrics = theme.theme.detail
         let scale = window?.backingScaleFactor ?? 2
         let padding = CGFloat(metrics.padding)
@@ -92,8 +93,12 @@ final class MetadataView: NSView {
                 to: (right - padding) * 0.45, font: labelFont, color: theme.subtitle)
             let baseline = RowTypesetter.snap(
                 row.y + RowTypesetter.baseline(centering: labelFont, in: row.height), scale)
-            RowRenderer.draw(.init(line: labelLine, origin: CGPoint(x: padding, y: baseline)), context)
             let valueLeft = padding + RowTypesetter.lineWidth(labelLine) + CGFloat(theme.theme.list.accessoryGap)
+            // Only text takes the halo: swatches, tag fills, the link underline and icons would
+            // gain a shadow, and under a halo of two layers they would be drawn twice.
+            RowRenderer.withHalo(theme, context) {
+                RowRenderer.draw(.init(line: labelLine, origin: CGPoint(x: padding, y: baseline)), context)
+            }
             drawValue(
                 row.item, left: valueLeft, right: right, rowY: row.y, rowHeight: row.height, theme: theme,
                 context: context, scale: scale)
@@ -111,7 +116,9 @@ final class MetadataView: NSView {
                 CTLineCreateWithAttributedString(RowTypesetter.attributed(string, font: font, color: color)),
                 to: max(0, right - left), font: font, color: color)
             let x = right - RowTypesetter.lineWidth(line)
-            RowRenderer.draw(.init(line: line, origin: CGPoint(x: x, y: baseline)), context)
+            RowRenderer.withHalo(theme, context) {
+                RowRenderer.draw(.init(line: line, origin: CGPoint(x: x, y: baseline)), context)
+            }
             return x
         }
         switch item {
@@ -160,7 +167,10 @@ final class MetadataView: NSView {
                         transform: nil))
                 context.setFillColor(colors.fill)
                 context.fillPath()
-                RowRenderer.draw(RowTypesetter.centered(line, in: frame, font: theme.tagFont, scale: scale), context)
+                RowRenderer.withHalo(theme, context) {
+                    RowRenderer.draw(
+                        RowTypesetter.centered(line, in: frame, font: theme.tagFont, scale: scale), context)
+                }
                 x = frame.minX - CGFloat(list.accessorySpacing)
             }
         case .separator: break

@@ -82,6 +82,7 @@ public final class EmptyStateView: NSView, LauncherContentView {
         titleLabel.font = theme.feedback.emptyTitleFont
         hintLabel.font = theme.feedback.emptyHintFont
         hintLabel.textColor = NSColor(cgColor: theme.subtitle)
+        symbol.contentTintColor = theme.emptySymbol
         applySymbol()
         needsLayout = true
     }
