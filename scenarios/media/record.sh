@@ -12,7 +12,7 @@
 #    this script waits for the next idle moment and tries again, up to `attempts` times. It gives up
 #    waiting once `budget` seconds have passed since it started.
 # 3. publish.py copies each clip's MP4, GIF and poster into site/media and rewrites their entries in
-#    site/media/manifest.json. publish=0 skips it.
+#    site/media/manifest.json, then check.py checks the whole manifest. publish=0 skips both.
 #
 # The app gets the purple accent in its own argument domain, as the stills did. The Mac's own
 # setting is not read or changed. Results go to build/media/out/<storyboard>.
@@ -91,6 +91,7 @@ if pgrep -f "^$APP/Contents/MacOS/" > /dev/null; then pkill -f "^$APP/Contents/M
 
 if [ "$PUBLISH" = 1 ] && [ ${#recorded[@]} -gt 0 ]; then
     python3 -I "$HERE/publish.py" "$OUT/out" "${recorded[@]}"
+    python3 -I "$HERE/check.py"
 fi
 log "recorded: ${recorded[*]:-none}"
 if [ ${#failed[@]} -gt 0 ]; then

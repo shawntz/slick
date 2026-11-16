@@ -1,0 +1,263 @@
+{
+  "name": "Standard and Clear over the same window, with the same query",
+  "timeLimit": 110,
+  "systemApps": true,
+  "media": {
+    "appearance": "dark",
+    "clip": false,
+    "stills": [
+      {
+        "capture": "glass-standard-dark",
+        "file": "glass-standard-dark.png",
+        "caption": "Standard: frosted glass blurs the window behind the panel.",
+        "alt": "Slick's search panel in the Standard theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The frosted, tinted glass blurs the app icon and the lines of text behind it into soft shapes. The picture beside it shows the same scene in the Clear theme. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+      },
+      {
+        "capture": "glass-clear-dark",
+        "file": "glass-clear-dark.png",
+        "caption": "Clear: the same window stays sharp through the glass.",
+        "alt": "Slick's search panel in the Clear theme, dark mode, with “cal” typed and Calculator selected, over the same About page. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it, and the panel's text carries a soft dark halo. The picture beside it shows the same scene in the Standard theme. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+      }
+    ]
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0,
+          "themeName": "Standard"
+        }
+      }
+    },
+    {
+      "app": {
+        "theme": "Standard"
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "notes"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Notes"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "app": {
+        "openSettings": "about"
+      }
+    },
+    {
+      "record": {
+        "name": "glass-dark",
+        "appearance": "dark",
+        "lead": 0.3
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 8
+        }
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 7
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Mail",
+          "Calendar",
+          "Music",
+          "Notes"
+        ]
+      }
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "type": "cal"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "selection": "Calendar"
+      }
+    },
+    {
+      "app": {
+        "select": "Calculator"
+      }
+    },
+    {
+      "expect": {
+        "selection": "Calculator"
+      }
+    },
+    {
+      "wait": 0.8
+    },
+    {
+      "still": "glass-standard-dark"
+    },
+    {
+      "app": {
+        "setSettings": {
+          "themeName": "Clear"
+        },
+        "theme": "Clear"
+      }
+    },
+    {
+      "wait": 1.0
+    },
+    {
+      "expect": {
+        "visible": true,
+        "query": "cal",
+        "selection": "Calculator"
+      }
+    },
+    {
+      "still": "glass-clear-dark"
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "stopRecording": {
+        "tail": 0.2
+      }
+    },
+    {
+      "app": {
+        "closeSettings": true
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "themeName": "Standard"
+        },
+        "theme": "Standard"
+      }
+    }
+  ]
+}

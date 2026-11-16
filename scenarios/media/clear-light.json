@@ -1,0 +1,314 @@
+{
+  "name": "Clear, light: the panel opens over a window, three letters narrow the results, the actions open and close, and Return picks an app",
+  "timeLimit": 110,
+  "systemApps": true,
+  "media": {
+    "file": "clip-clear-light",
+    "appearance": "light",
+    "caption": "Clear: the most translucent glass. The window behind the panel stays sharp.",
+    "alt": "A recording of Slick's search panel in the Clear theme, light mode. Slick's settings window, open on its About page, sits over a pale lavender wallpaper behind the panel. Clear's glass has no tint and no frost. Over the white page it is almost invisible, and only its edge shows where it crosses the grey sidebar. The app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft light halo. The panel opens with Calendar, Music, Notes and Mail suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in the Clear theme, light mode. Slick's settings window, open on its About page, sits over a pale lavender wallpaper behind the panel. Clear's glass has no tint and no frost. Over the white page it is almost invisible, and only its edge shows where it crosses the grey sidebar. The app icon, the name and the lines of the About page stay sharp through it, and the panel's own text carries a soft light halo. The panel opens with Calendar, Music, Notes and Mail suggested. Typing “c”, “a” and “l” narrows the results. With “cal” the list shows Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink. The selection moves down to Calculator. Command-K opens the action panel, a card of regular glass with a deeper tint, and closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in the Clear theme, light mode, with “cal” typed and Calculator selected, over the About page of Slick's settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple's own apps.",
+    "stills": [
+      {
+        "capture": "clear-light",
+        "file": "clear-light.png",
+        "caption": "Clear in light mode: nothing frosts the window behind the panel.",
+        "alt": "Slick's search panel in the Clear theme, light mode, over the About page of Slick's settings window and a pale lavender wallpaper. The query “cal” lists Calendar, Calculator, Calculator History, Quit All Applications, Eject All Disks, Search Apple Maps and Create Quicklink, with Calculator selected. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it. The panel's text carries a soft light halo. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+      }
+    ]
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
+        "setSettings": {
+          "visibleRows": 7,
+          "app.general.resetToRootAfter": 0,
+          "themeName": "Clear"
+        }
+      }
+    },
+    {
+      "app": {
+        "theme": "Clear"
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "notes"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Notes"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "app": {
+        "openSettings": "about"
+      }
+    },
+    {
+      "record": {
+        "name": "clip-clear-light",
+        "appearance": "light",
+        "lead": 0.3
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 8
+        }
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 7
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Mail",
+          "Calendar",
+          "Music",
+          "Notes"
+        ]
+      }
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "type": "c"
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "type": "a"
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "type": "l"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "selection": "Calendar"
+      }
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "app": {
+        "select": "Calculator"
+      }
+    },
+    {
+      "expect": {
+        "selection": "Calculator"
+      }
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "still": "clear-light"
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "actions": [
+          "Open",
+          "Show in Finder",
+          "Show Package Contents",
+          "Copy Name",
+          "Copy Bundle Identifier",
+          "Copy Path",
+          "Add to Favorites",
+          "Set Alias",
+          "Set Hotkey",
+          "Reset Ranking"
+        ]
+      }
+    },
+    {
+      "wait": 1.0
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "visible": true,
+        "query": "cal",
+        "selection": "Calculator"
+      }
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "stopRecording": {
+        "tail": 0.5,
+        "poster": 5.3
+      }
+    },
+    {
+      "app": {
+        "launched": [
+          "com.apple.mail",
+          "com.apple.iCal",
+          "com.apple.Music",
+          "com.apple.Notes",
+          "com.apple.calculator"
+        ]
+      }
+    },
+    {
+      "app": {
+        "closeSettings": true
+      }
+    }
+  ]
+}

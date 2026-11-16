@@ -1,0 +1,314 @@
+{
+  "name": "Beam, dark: the capsule opens, three letters narrow the results, the actions open and close, and Return picks an app",
+  "timeLimit": 110,
+  "systemApps": true,
+  "media": {
+    "file": "clip-beam-dark",
+    "appearance": "dark",
+    "caption": "Beam: the query in a capsule of glass, the results in a separate container below it.",
+    "alt": "A recording of Slick's search panel in the Beam theme, dark mode, over a purple gradient wallpaper. Beam draws two pieces of glass: a tall capsule that holds the search field and a glowing caret, and below it, apart from it, a rounded container of results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in the Beam theme, dark mode, over a purple gradient wallpaper. Beam draws two pieces of glass: a tall capsule that holds the search field and a glowing caret, and below it, apart from it, a rounded container of results. The panel opens with Music, Notes, Mail and Calendar suggested, each with its Command-digit shortcut at the right. Typing “c”, “a” and “l” narrows the results, and the field completes “calendar” in grey. With “cal” the container shows Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks. The selection moves down to Calculator. Command-K opens the action panel inside the results container, which grows to fit it. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path with their shortcuts, then Add to Favorites and Set Alias. Command-K closes it again. Return picks Calculator and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in the Beam theme, dark mode, with “cal” typed in the capsule and Calculator selected in the results container below it. Each row has a Command-digit shortcut at the right. A frame from a recording of the assembled app with Apple's own apps.",
+    "stills": [
+      {
+        "capture": "beam-empty-dark",
+        "file": "beam-empty-dark.png",
+        "caption": "Beam before anything is typed: a capsule with a glowing caret above four suggestions.",
+        "alt": "Slick's search panel in the Beam theme, dark mode, over a purple gradient wallpaper, before anything is typed. A tall capsule of dark glass holds a glowing caret and the placeholder “Search for apps and commands”. Below it, apart from it, a rounded container lists Music, Notes, Mail and Calendar under Suggested, each with its Command-digit shortcut at the right. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+      },
+      {
+        "capture": "beam-dark",
+        "file": "beam-dark.png",
+        "caption": "Beam in dark mode: the query in its capsule, the results in their own glass below.",
+        "alt": "Slick's search panel in the Beam theme, dark mode, over a purple gradient wallpaper. A tall capsule of glass holds the query “cal”, completed to “calendar” in grey. Below it, apart from it, a rounded container lists Calendar, Calculator, Calculator History, Quit All Applications and Eject All Disks, with Calculator selected. Apps show their own icons and commands show line glyphs. Command-1 to Command-5 sit at the right of the rows. Captured from the assembled app running a scripted scenario, with Apple's own apps."
+      }
+    ]
+  },
+  "steps": [
+    {
+      "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
+        "setSettings": {
+          "visibleRows": 5,
+          "app.general.resetToRootAfter": 0,
+          "themeName": "Beam",
+          "panelSizing": "fitContent"
+        }
+      }
+    },
+    {
+      "app": {
+        "theme": "Beam"
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "mail"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Mail"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "calendar"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Calendar"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "music"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Music"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "type": "notes"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "app": {
+        "select": "Notes"
+      }
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "record": {
+        "name": "clip-beam-dark",
+        "appearance": "dark",
+        "lead": 0.3
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 6
+        }
+      }
+    },
+    {
+      "app": {
+        "setSettings": {
+          "visibleRows": 5
+        }
+      }
+    },
+    {
+      "summon": true
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "query": "",
+        "rowsInclude": [
+          "Mail",
+          "Calendar",
+          "Music",
+          "Notes"
+        ]
+      }
+    },
+    {
+      "wait": 0.4
+    },
+    {
+      "still": "beam-empty-dark"
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "type": "c"
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "type": "a"
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "type": "l"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "selection": "Calendar"
+      }
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "app": {
+        "select": "Calculator"
+      }
+    },
+    {
+      "expect": {
+        "selection": "Calculator"
+      }
+    },
+    {
+      "wait": 0.5
+    },
+    {
+      "still": "beam-dark"
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "actions": [
+          "Open",
+          "Show in Finder",
+          "Show Package Contents",
+          "Copy Name",
+          "Copy Bundle Identifier",
+          "Copy Path",
+          "Add to Favorites",
+          "Set Alias",
+          "Set Hotkey",
+          "Reset Ranking"
+        ]
+      }
+    },
+    {
+      "wait": 0.8
+    },
+    {
+      "press": "cmd+k"
+    },
+    {
+      "waitUntilIdle": 2
+    },
+    {
+      "expect": {
+        "visible": true,
+        "query": "cal",
+        "selection": "Calculator"
+      }
+    },
+    {
+      "wait": 0.3
+    },
+    {
+      "press": "return"
+    },
+    {
+      "waitUntilIdle": 3
+    },
+    {
+      "expect": {
+        "visible": false
+      }
+    },
+    {
+      "wait": 0.2
+    },
+    {
+      "stopRecording": {
+        "tail": 0.5,
+        "poster": 5.1
+      }
+    },
+    {
+      "app": {
+        "launched": [
+          "com.apple.mail",
+          "com.apple.iCal",
+          "com.apple.Music",
+          "com.apple.Notes",
+          "com.apple.calculator"
+        ]
+      }
+    }
+  ]
+}
