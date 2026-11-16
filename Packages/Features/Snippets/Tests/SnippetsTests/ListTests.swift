@@ -111,10 +111,28 @@ struct ListTests {
         let harness = try await FeatureHarness.loaded(all)
         try await harness.openSearch()
         #expect(
-            try harness.actionIDs(of: "Sign Off") == ["paste", "copy", "edit", "duplicate", "pin", "create", "delete"])
+            try harness.actionIDs(of: "Sign Off") == [
+                "paste", "copy", "large-type", "edit", "duplicate", "pin", "create", "delete",
+            ])
         #expect(harness.actions().primary?.title == "Paste Snippet")
         #expect(harness.actions().secondary?.title == "Copy to Clipboard")
         #expect(harness.actions().first { $0.id == "delete" }?.style == .destructive)
+        #expect(harness.issues.isEmpty)
+    }
+
+    /// Show in Large Type, Command-L, on a snippet that asks for nothing: the text as it renders
+    /// when the action runs. A snippet that asks for arguments leaves it out, because its text
+    /// needs a form first.
+    @Test func aSnippetShowsInLargeType() async throws {
+        let letter = Fixture.snippet("Letter", #"Dear {argument name="name"}, {cursor}!"#)
+        let harness = try await FeatureHarness.loaded(all + [letter])
+        try await harness.openSearch()
+        #expect(try harness.actionIDs(of: "Sign Off").prefix(3) == ["paste", "copy", "large-type"])
+        let action = try #require(harness.actions().first { $0.id == "large-type" })
+        #expect(action.title == "Show in Large Type" && action.shortcut == .largeType)
+        try await harness.perform("large-type")
+        #expect(harness.largeTypeTexts == ["Best,\n\nThe Team"])
+        #expect(try !harness.actionIDs(of: "Letter").contains("large-type"))
         #expect(harness.issues.isEmpty)
     }
 

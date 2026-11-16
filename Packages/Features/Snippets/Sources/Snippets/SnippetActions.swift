@@ -49,8 +49,9 @@ struct SnippetActions {
         ]
     }
 
-    /// Paste and Copy. Each renders when it runs, so `{date}` and `{clipboard}` are fresh. A snippet
-    /// that asks for arguments shows a form for them first.
+    /// Paste, Copy and Show in Large Type. Each renders when it runs, so `{date}` and `{clipboard}`
+    /// are fresh. A snippet that asks for arguments shows a form for them first, and offers no
+    /// Large Type.
     private func delivery(for snippet: Snippet) -> [Action] {
         let feature = feature
         let id = snippet.id
@@ -74,6 +75,11 @@ struct SnippetActions {
             Action.copy(title: Strings.copyAction, hud: Strings.copiedHUD, shortcut: .secondaryAction) { _ in
                 .text(try await feature.render(id: id).text)
             }.recordingUse(),
+            Action(
+                Strings.largeTypeAction, id: "large-type", icon: .symbol("textformat.size"), shortcut: .largeType
+            ) { _ in
+                .showLargeType(try await feature.render(id: id).text)
+            },
         ]
     }
 
