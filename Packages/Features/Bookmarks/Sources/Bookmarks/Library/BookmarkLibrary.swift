@@ -33,7 +33,6 @@ final class BookmarkLibrary {
     private var loadedWithSafariAccess: Bool?
     private var settingsWatch: Task<Void, Never>?
     private var fileWatch: Task<Void, Never>?
-    private var accessWatch: Task<Void, Never>?
     private var watchedFolders: [URL] = []
     private var isActive = false
 
@@ -75,10 +74,9 @@ final class BookmarkLibrary {
     /// Stops every watch and load and lets the bookmarks go.
     func stop() {
         isActive = false
-        for task in [settingsWatch, fileWatch, accessWatch, loading, retry] { task?.cancel() }
+        for task in [settingsWatch, fileWatch, loading, retry] { task?.cancel() }
         settingsWatch = nil
         fileWatch = nil
-        accessWatch = nil
         loading = nil
         retry = nil
         watchedFolders = []
@@ -162,8 +160,10 @@ final class BookmarkLibrary {
 
     // MARK: - Watching
 
-    /// Watches the folders of the browsers a load may read, and Full Disk Access while Safari waits
-    /// for it. Replaces a watch whose folders changed.
+    /// Watches the folders of the browsers a load may read. Replaces a watch whose folders changed.
+    /// No permission stream waits for Full Disk Access: a grant made through the launcher arrives as
+    /// ``accessGranted()``, and one made straight in System Settings is noticed by the next load,
+    /// which ``ready()`` starts when access changed.
     private func watch() {
         guard isActive else { return }
         let folders = readableBrowsers.map(files.watchFolder(for:))
@@ -180,38 +180,20 @@ final class BookmarkLibrary {
                 }
             }
         }
-        if safariNeedsAccess {
-            watchAccess()
-        } else {
-            accessWatch?.cancel()
-            accessWatch = nil
-        }
     }
 
-    /// While Safari waits for Full Disk Access, waits for the user to grant it in System Settings,
-    /// then reads Safari. The live stream checks once a second, so it is open only while needed.
-    private func watchAccess() {
-        guard accessWatch == nil else { return }
-        let statuses = context.permissions.changes(of: .fullDiskAccess)
-        accessWatch = Task { [weak self] in
-            for await status in statuses where status.isGranted {
-                guard let self else { return }
-                self.accessWatch = nil
-                self.onStatusChange?()
-                let task = self.reload()
-                self.watch()
-                await task.value
-                // Ending by cancellation, not by leaving the loop, tells the stream it is done.
-                withUnsafeCurrentTask { $0?.cancel() }
-            }
-        }
+    /// The user granted Full Disk Access through the launcher. When Safari waited for it, Safari is
+    /// read and watched now.
+    func accessGranted() async {
+        guard isActive, chosenBrowsers.contains(.safari), loadedWithSafariAccess != true else { return }
+        onStatusChange?()
+        let task = reload()
+        watch()
+        await task.value
     }
 
     /// True for a path whose change may mean a bookmark changed.
     nonisolated static func isBookmarkFile(_ path: URL) -> Bool {
         BrowserFolders.watchedNames.contains(path.lastPathComponent)
     }
-
-    /// True while a Full Disk Access stream is open, for tests.
-    var isWatchingAccess: Bool { accessWatch != nil }
 }

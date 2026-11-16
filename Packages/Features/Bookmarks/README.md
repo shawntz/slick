@@ -12,7 +12,7 @@ Searches the bookmarks of Safari, Google Chrome, Brave, Microsoft Edge, Vivaldi,
 ## Privacy
 
 - Every browser is off at first. Activation reads nothing. The first read follows something the user did: choosing a browser, opening Search Bookmarks, or root search asking after the user turned that on.
-- Safari's file sits behind Full Disk Access. The feature never asks the file service for Safari without it, and the live service refuses Safari without it too. The permission stream is open only while Safari is chosen and the access is missing.
+- Safari's file sits behind Full Disk Access. The feature never asks the file service for Safari without it, and the live service refuses Safari without it too. No permission stream waits for it: a grant made in settings, onboarding or on the permission card reads Safari at once, and one made straight in System Settings is noticed the next time Search Bookmarks opens or root search asks for bookmarks.
 - The live service reads `Bookmarks.plist`, each Chromium profile's `Bookmarks` and `AccountBookmarks`, and Firefox's `places.sqlite` with its log. Nothing else: no `Local State`, no `profiles.ini`, no history or cookies. Profiles are named by their folders.
 - Firefox is read through a clone in the feature's cache folder, deleted at once, so its own files are never opened with SQLite and a running Firefox is not disturbed. Only the bookmark tables are copied out of the clone. The clone holds the whole history, so each read first deletes any clone an earlier read left behind, for example after a crash. Reads take turns, so one never deletes another's clone.
 - Firefox is read at most every 10 seconds. A clock set back does not stretch that wait.

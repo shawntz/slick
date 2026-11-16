@@ -260,8 +260,8 @@ nonisolated enum Strings {
 
         static func openTarget(_ target: OpenTarget) -> String {
             switch target {
-            case .defaultBrowser: "Default browser"
-            case .sourceBrowser: "The browser it came from"
+            case .defaultBrowser: "Default Browser"
+            case .sourceBrowser: "The Browser It Came From"
             }
         }
 

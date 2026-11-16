@@ -44,6 +44,12 @@ public final class BookmarksFeature: Feature {
         library.stop()
     }
 
+    /// Full Disk Access granted in settings, onboarding or on the panel's card: Safari is read.
+    public func permissionGranted(_ permission: Permission) async {
+        guard permission == .fullDiskAccess else { return }
+        await library.accessGranted()
+    }
+
     public var declarationChanges: ChangeSignal? { declarations }
 
     public var catalogSources: [any CatalogSource] { [catalog] }

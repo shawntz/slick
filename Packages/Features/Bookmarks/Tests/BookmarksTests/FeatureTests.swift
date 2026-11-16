@@ -20,6 +20,7 @@ struct ChoosingTests {
     @Test func declaresWhatItNeedsAndStartsWithEverythingOff() {
         let bookmarks = BookmarksHarness(files: Self.sampleFiles)
         #expect(bookmarks.harness.issues.isEmpty)
+        #expect(bookmarks.harness.pendingIssues.isEmpty)
         let manifest = BookmarksFeature.manifest
         #expect(manifest.id == "bookmarks")
         #expect(manifest.permissions.map(\.permission) == [.fullDiskAccess])
@@ -101,7 +102,7 @@ struct ChoosingTests {
         #expect(!bookmarks.files.listed.contains(.safari))
         #expect(!bookmarks.files.reads.contains("safari"))
         #expect(bookmarks.fakes.permissions.requests.isEmpty)
-        #expect(bookmarks.fakes.permissions.openStreamCount == 1, "waits for the grant while it is missing")
+        #expect(bookmarks.fakes.permissions.openStreamCount == 0, "no stream waits for the grant")
         #expect(!bookmarks.fakes.fileWatcher.watchedDirectories.contains(bookmarks.files.watchFolder(for: .safari)))
         let notice = try #require(bookmarks.harness.page?.notice)
         #expect(notice.title == "Safari Needs Full Disk Access")
@@ -109,15 +110,28 @@ struct ChoosingTests {
         #expect(bookmarks.feature.status?.requires == [.fullDiskAccess])
         #expect(bookmarks.harness.rows.count == 5, "Chrome still shows")
 
-        // The user grants it in System Settings: Safari is read, and the stream closes.
-        bookmarks.fakes.permissions.set(.fullDiskAccess, to: .granted)
-        try await bookmarks.harness.settle()
+        // The user grants it in settings: Safari is read and watched.
+        try await bookmarks.harness.grantInSettings(.fullDiskAccess)
         #expect(bookmarks.files.reads.contains("safari"))
         #expect(bookmarks.harness.rows.contains { $0.title == "Project Board" })
         #expect(bookmarks.harness.page?.notice == nil)
         #expect(bookmarks.feature.status == nil)
         #expect(bookmarks.fakes.permissions.openStreamCount == 0)
         #expect(bookmarks.fakes.fileWatcher.watchedDirectories.contains(bookmarks.files.watchFolder(for: .safari)))
+    }
+
+    @Test func aGrantMadeInSystemSettingsIsReadAtTheNextOpen() async throws {
+        let bookmarks = BookmarksHarness(files: Self.sampleFiles, permissions: .denied)
+        await bookmarks.harness.activate()
+        try await bookmarks.choose(.safari)
+        try await bookmarks.open()
+        #expect(bookmarks.harness.rows.isEmpty)
+        bookmarks.fakes.permissions.set(.fullDiskAccess, to: .granted)
+        bookmarks.harness.pop()
+        try await bookmarks.open()
+        #expect(bookmarks.harness.rows.map(\.title) == ["Project Board", "Rye Bread", "A Long Read"])
+        #expect(bookmarks.feature.status == nil)
+        #expect(bookmarks.fakes.permissions.openStreamCount == 0)
     }
 
     @Test func theGrantButtonAsksOnlyWhenPressed() async throws {
@@ -133,11 +147,12 @@ struct ChoosingTests {
         #expect(bookmarks.harness.rows.map(\.title) == ["Project Board", "Rye Bread", "A Long Read"])
     }
 
-    @Test func turningSafariOffClosesThePermissionStream() async throws {
+    @Test func turningSafariOffClearsTheStatus() async throws {
         let bookmarks = BookmarksHarness(files: Self.sampleFiles, permissions: .denied)
         await bookmarks.harness.activate()
         try await bookmarks.choose(.safari)
-        #expect(bookmarks.fakes.permissions.openStreamCount == 1)
+        #expect(bookmarks.feature.status?.requires == [.fullDiskAccess])
+        #expect(bookmarks.fakes.permissions.openStreamCount == 0)
         bookmarks.harness.context.settings[BookmarkSettings.includes(.safari)] = false
         try await bookmarks.harness.settle()
         #expect(bookmarks.fakes.permissions.openStreamCount == 0)
@@ -155,7 +170,7 @@ struct ChoosingTests {
         try await bookmarks.open()
         #expect(bookmarks.harness.rows.isEmpty)
         #expect(bookmarks.harness.page?.notice?.title == "Safari Needs Full Disk Access")
-        #expect(bookmarks.fakes.permissions.openStreamCount == 1)
+        #expect(bookmarks.fakes.permissions.openStreamCount == 0)
         #expect(bookmarks.feature.status?.requires == [.fullDiskAccess])
     }
 
@@ -369,6 +384,7 @@ struct SearchPageTests {
         try await bookmarks.choose(.chrome)
         let command = try bookmarks.harness.command("search")
         #expect(command.fallback?.title("wiki") == "Search Bookmarks for \u{201C}wiki\u{201D}")
+        #expect(command.fallback?.startsOn == false, "a fallback starts off unless it is the feature's own web search")
         try await bookmarks.harness.runFallback("search", text: "wiki")
         #expect(bookmarks.harness.page?.listPage?.initialQuery == "wiki")
     }
