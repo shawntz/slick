@@ -95,12 +95,15 @@ impl Session {
         &self.hits
     }
 
-    /// Prepares a query against `index`: binds the session to it and folds `text`.
-    pub(crate) fn begin(&mut self, index: &Index, text: &str) {
+    /// Prepares a query against `index`: binds the session to it and folds `text`. With
+    /// `whole_words`, a query equal to a whole later word of a title ranks with literal prefixes
+    /// ("code" finds Visual Studio Code); see `slick_match::Query::whole_words`.
+    pub(crate) fn begin(&mut self, index: &Index, text: &str, whole_words: bool) {
         if self.target != index.generation {
             self.matcher.reset();
             self.target = index.generation;
         }
+        self.query.whole_words = whole_words;
         self.query.set(text);
         self.hits.clear();
         self.specials.clear();

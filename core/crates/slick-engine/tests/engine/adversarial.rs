@@ -6,7 +6,8 @@
 use crate::fixtures::{T0, context, key};
 use crate::rng::Rng;
 use slick_engine::rank::{TIER_ALIAS_EXACT, TIER_ALIAS_PREFIX, TIER_LEARNED};
-use slick_engine::{Engine, EngineParams, FuzzyIndex, Hit, Item, Session, Source, hit_flags, kind};
+use slick_engine::{Engine, EngineParams, Hit, Item, Session, Source, hit_flags, kind};
+use slick_match::{Arena, Opts, Query, Scratch, search};
 use std::collections::HashMap;
 
 /// Few, overlapping words, so titles, aliases and keywords collide and tie.
@@ -181,15 +182,25 @@ fn check_rule_5(m: &Model, e: &Engine, q: &str, hits: &[Hit], typed: &mut Sessio
     );
 }
 
+/// Every item's text tier from the matcher alone, as root search runs it: a whole later word ranks
+/// with literal prefixes, and there is no lift and no learning.
 fn plain_tiers(m: &Model, q: &str) -> HashMap<u64, u8> {
-    let ix = FuzzyIndex::new();
-    ix.set_items(&m.catalog).expect("index");
-    let mut s = Session::new();
-    ix.query(&mut s, q, 1_000)
-        .expect("query")
-        .iter()
-        .map(|h| (h.key, h.tier))
-        .collect()
+    let mut arena = Arena::new(false);
+    for i in &m.catalog {
+        arena.push_item(
+            &i.title,
+            i.aliases.iter().map(String::as_str),
+            i.keywords.iter().map(String::as_str),
+        );
+    }
+    let opts = Opts {
+        k: m.catalog.len().max(1),
+        ..Opts::default()
+    };
+    let mut hits = Vec::new();
+    let query = Query::with_whole_words(q);
+    search(&arena, &query, &opts, None, None, &mut Scratch::default(), &mut hits);
+    hits.iter().map(|h| (m.catalog[h.idx as usize].key, h.tier())).collect()
 }
 
 fn check_all(m: &Model, e: &Engine, rng: &mut Rng) {

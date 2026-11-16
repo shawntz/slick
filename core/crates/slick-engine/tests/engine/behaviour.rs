@@ -73,6 +73,47 @@ fn inline_completion_needs_a_decisive_literal_prefix() {
 }
 
 #[test]
+fn a_whole_later_word_ranks_with_literal_prefixes() {
+    let items = vec![
+        app("Visual Studio Code"),
+        app("Google Chrome"),
+        command("Code Review Checklist"),
+        command("Chrome: Search Tabs"),
+        app("Xcode"),
+    ];
+    let e = engine(items.clone());
+    let mut s = Session::new();
+    // "code" and "chrome" are whole later words, so they rank in the prefix tier, where the app
+    // kind prior puts the apps over the longer commands. Xcode holds "code" mid-word.
+    assert_eq!(
+        titles(&e, &mut s, "code", &items),
+        vec!["Visual Studio Code", "Code Review Checklist", "Xcode"]
+    );
+    let hits = e.query(&mut s, "code", 10).expect("query");
+    assert_eq!((hits[0].tier, hits[1].tier, hits[2].tier), (5, 5, 2));
+    assert_eq!(e.ranges(&mut s, items[0].key).expect("ranges"), &[(14, 4)]);
+    assert_eq!(
+        titles(&e, &mut s, "chrome", &items),
+        vec!["Google Chrome", "Chrome: Search Tabs"]
+    );
+    let hits = e.query(&mut s, "chrome", 10).expect("query");
+    assert_eq!((hits[0].tier, hits[1].tier), (5, 5));
+    // Part of a word stays a word-prefix match.
+    let hits = e.query(&mut s, "chr", 10).expect("query");
+    let browser = hits.iter().find(|h| h.key == items[1].key).map(|h| h.tier);
+    assert_eq!(browser, Some(4));
+    // A title that does not start with the query never completes inline.
+    let e = engine(vec![app("Google Chrome")]);
+    e.query(&mut s, "chrome", 10).expect("query");
+    assert_eq!(e.completion(&mut s).expect("completion"), None);
+    e.query(&mut s, "goo", 10).expect("query");
+    assert_eq!(
+        e.completion(&mut s).expect("completion").map(|c| c.1),
+        Some("gle Chrome")
+    );
+}
+
+#[test]
 fn suggestions_follow_context_and_never_include_the_frontmost_app() {
     let items = vec![app("Mail"), app("Music"), app("Notes"), command("Lock Screen")];
     let e = engine(items.clone());

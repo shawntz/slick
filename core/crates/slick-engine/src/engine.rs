@@ -349,7 +349,8 @@ impl Engine {
     pub fn query<'s>(&self, session: &'s mut Session, text: &str, k: usize) -> Result<&'s [Hit], EngineError> {
         let st = self.read()?;
         let ix = &*st.index;
-        session.begin(ix, text);
+        // Root search ranks a query equal to a whole later word with literal prefixes.
+        session.begin(ix, text, true);
         if session.query.is_empty() || k == 0 {
             return Ok(&session.hits);
         }

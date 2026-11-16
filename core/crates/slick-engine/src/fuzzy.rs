@@ -56,7 +56,8 @@ impl FuzzyIndex {
     /// The best `k` items for `text`.
     pub fn query<'s>(&self, session: &'s mut Session, text: &str, k: usize) -> Result<&'s [Hit], EngineError> {
         let ix = self.current()?;
-        session.begin(&ix, text);
+        // Feature lists keep literal prefixes above later words; only root search promotes them.
+        session.begin(&ix, text, false);
         session.run(&ix, k, Some(&ix.static_lift), &ix.static_seeds);
         Ok(&session.hits)
     }

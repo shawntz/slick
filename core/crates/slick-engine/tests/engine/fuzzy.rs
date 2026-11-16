@@ -29,7 +29,8 @@ fn set_query_ranges_and_replace() {
     let hits = index.query(&mut s, "party", 10).expect("query").to_vec();
     assert_eq!(hits.len(), 3);
     // The prior lifts the longer title over the shorter one inside the prefix tier, but never
-    // lifts the word-prefix match "Pinned Party" over either.
+    // lifts the word-prefix match "Pinned Party" over either. Unlike root search, a feature index
+    // does not rank a whole later word with literal prefixes.
     let order: Vec<u64> = hits.iter().map(|h| h.key).collect();
     assert_eq!(
         order,
