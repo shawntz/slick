@@ -281,7 +281,7 @@ nonisolated final class IndexController: Sendable {
             stateChanges.send()
             return LoadOutcome()
         }
-        log.error("The file index could not be opened or walked: \(String(describing: error), privacy: .public)")
+        log.error("The file index could not be opened or walked: \(String(describing: error), privacy: .private)")
         state.withLock { state in
             guard state.generation == generation else { return }
             state.summary.isWalking = false
@@ -424,7 +424,7 @@ nonisolated final class IndexController: Sendable {
             // A batch the close stopped changed nothing, so the mark the index holds stays true and the
             // next start replays this batch from it.
             if (error as? CoreError) == .cancelled { return }
-            log.error("A batch of file events could not be applied: \(String(describing: error), privacy: .public)")
+            log.error("A batch of file events could not be applied: \(String(describing: error), privacy: .private)")
             // The index may miss this batch, so no saved mark may claim it. The next start walks again.
             state.withLock { state in
                 guard state.generation == generation else { return }
@@ -496,7 +496,7 @@ nonisolated final class IndexController: Sendable {
             try maker.save(index, to: file, mark: mark)
         } catch {
             state.withLock { $0.dirty = true }
-            log.error("The file index could not be saved: \(String(describing: error), privacy: .public)")
+            log.error("The file index could not be saved: \(String(describing: error), privacy: .private)")
         }
     }
 
