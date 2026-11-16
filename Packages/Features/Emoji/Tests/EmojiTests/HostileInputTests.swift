@@ -50,6 +50,15 @@ struct HostileInputTests {
         _ = harness.instantAnswers(for: query)
     }
 
+    /// What scenarios and the self-test wait for before they type: once it returns, colon search
+    /// answers.
+    @Test func colonSearchAnswersOnceTheFeatureSaysItIsReady() async {
+        let harness = FeatureHarness(EmojiFeature.self)
+        await harness.activate()
+        await harness.feature.waitUntilReady()
+        #expect(harness.instantAnswers(for: ":heart").first?.rows.isEmpty == false)
+    }
+
     @Test func turningTheFeatureOffAndOnKeepsTheData() async throws {
         let harness = await loadedHarness()
         await harness.deactivate()

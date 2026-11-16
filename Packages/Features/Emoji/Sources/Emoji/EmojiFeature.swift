@@ -44,6 +44,12 @@ public final class EmojiFeature: Feature {
         library.startLoading()
     }
 
+    /// The colon search answers only once the data and its index are loaded, so scenarios and the
+    /// self-test wait for that before they type.
+    public func waitUntilReady() async {
+        await waitUntilLoaded()
+    }
+
     /// Waits until the data is loaded, for tests and benchmarks.
     func waitUntilLoaded() async {
         _ = await library.loaded()

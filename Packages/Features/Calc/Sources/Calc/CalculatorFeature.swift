@@ -120,9 +120,9 @@ public final class CalculatorFeature: Feature {
         rates.cancel()
     }
 
-    /// Waits until the engine can answer and the saved rates are attached, for tests and
-    /// benchmarks.
-    func waitUntilReady() async {
+    /// Waits until the engine can answer and the saved rates are attached. The engine answers
+    /// nothing before that, so scenarios, the self-test and benchmarks wait for it before they type.
+    public func waitUntilReady() async {
         await startup?.value
         await history.loaded()
     }

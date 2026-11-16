@@ -63,6 +63,12 @@
     /// host cancels the feature's running action handlers.
     func deactivate() async
 
+    /// Returns once the work ``activate()`` started that search depends on has finished, such as an
+    /// index built off the main thread. Scenarios, the self-test and benchmarks wait for it before
+    /// they type, so they never race a feature's own loading. The live launcher never waits for it.
+    /// Default: returns at once.
+    func waitUntilReady() async
+
     /// The user granted a permission the manifest lists, through one of Slick's own Grant buttons:
     /// in the settings window, in onboarding, or on the panel's permission card. Called only while
     /// the feature is on, once per grant, on the main actor.
@@ -88,6 +94,7 @@ extension Feature {
     public var provides: [ProvidedService] { [] }
     public func activate() async {}
     public func deactivate() async {}
+    public func waitUntilReady() async {}
     public func permissionGranted(_ permission: Permission) async {}
 }
 
