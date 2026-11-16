@@ -135,12 +135,10 @@ final class TagFormControl: FormControlView {
     /// when none does.
     private func openSuggestions() -> Bool {
         let matches = TagSuggestions.matches(for: field.stringValue, in: suggestions, excluding: tags)
-        guard !matches.isEmpty, let surface = (window as? GlassPanel)?.surface,
-            let glassContent = surface.glass.contentView
-        else { return false }
+        guard !matches.isEmpty, let surface = (window as? GlassPanel)?.surface else { return false }
         let menu = DropdownMenuView(
             options: matches.map { MenuOption(id: $0, title: $0) }, selectedID: nil,
-            placement: .below(convert(bounds, to: glassContent), trailingAligned: false))
+            placement: .below(convert(bounds, to: surface.overlaySpace), trailingAligned: false))
         menu.onChoose = { [weak self] option in
             guard let self else { return }
             add(option.id)

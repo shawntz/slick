@@ -45,6 +45,28 @@ struct SummonOrderTests {
         #expect(surface.rootView.layer?.opacity == 0)
     }
 
+    /// The key look comes from each glass view's own layout after the key change, so every piece
+    /// is laid out before the panel shows, the results container of the split layout too.
+    @Test func everyPieceOfGlassIsLaidOutBeforeTheFirstFrame() {
+        let surface = TestSupport.makeSurface()
+        defer { surface.panel.close() }
+        surface.theme = .beam
+        let summoner = Summoner(surface: surface)
+        summoner.followsPointerScreen = false
+        var opacityAtKey: Float = -1
+        summoner.keyChange = { _ in
+            // What AppKit does on a key change: each glass view needs layout again.
+            for piece in surface.glassPieces { piece.needsLayout = true }
+            opacityAtKey = surface.rootView.layer?.opacity ?? -1
+        }
+        summoner.prewarm()
+        summoner.summon()
+        #expect(surface.glassPieces.count == 2)
+        #expect(opacityAtKey == 0)
+        #expect(surface.glassPieces.allSatisfy { !$0.needsLayout })
+        summoner.dismiss(returnFocus: false)
+    }
+
     @Test func theOldOrderShowsThePanelBeforeMakingItKey() {
         let (summoner, surface, moments) = summoner(keyFirst: false)
         defer { surface.panel.close() }

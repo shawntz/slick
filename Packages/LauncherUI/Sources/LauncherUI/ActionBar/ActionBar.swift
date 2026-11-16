@@ -13,6 +13,9 @@ public final class ActionBar: NSView {
     public private(set) var toast: ActionBarToast?
     /// The toast's button was clicked or pressed through accessibility.
     public var onToastButton: (() -> Void)?
+    /// A toast appeared or went away. The surface listens, for a theme that shows the bar only
+    /// while a toast shows.
+    var onToastChange: (() -> Void)?
 
     private let viewRegion = FlippedView()
     private let viewIcon = NSImageView()
@@ -112,7 +115,9 @@ public final class ActionBar: NSView {
     /// Cross-fades a toast in over the view's name, or back out when `toast` is nil.
     public func show(_ toast: ActionBarToast?) {
         guard toast != self.toast else { return }
+        let appears = (toast == nil) != (self.toast == nil)
         self.toast = toast
+        defer { if appears { onToastChange?() } }
         if let toast {
             toastText.stringValue = toast.text
             switch toast.style {

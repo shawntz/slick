@@ -61,12 +61,10 @@ final class FilterChipView: NSView {
 
     /// Shows the options under the chip, aligned to its trailing edge.
     func openMenu() {
-        guard let surface = (window as? GlassPanel)?.surface, let glassContent = surface.glass.contentView else {
-            return
-        }
+        guard let surface = (window as? GlassPanel)?.surface else { return }
         let menu = DropdownMenuView(
             options: filter.options, selectedID: filter.selectedID,
-            placement: .below(convert(bounds, to: glassContent), trailingAligned: true))
+            placement: .below(convert(bounds, to: surface.overlaySpace), trailingAligned: true))
         menu.onChoose = { [weak self] option in
             guard let self, option.id != filter.selectedID else { return }
             filter.selectedID = option.id

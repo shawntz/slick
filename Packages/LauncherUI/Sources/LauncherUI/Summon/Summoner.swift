@@ -68,6 +68,11 @@ public final class Summoner {
     /// Makes the panel key. Tests replace it, so they can check the order without taking key
     /// status.
     var keyChange: (GlassPanel) -> Void = { $0.makeKey() }
+    /// How many times every piece of glass was rendered while the panel was invisible: once at
+    /// pre-warm, and once after each theme change that added or restyled a piece.
+    private(set) var hiddenGlassRenders = 0
+    /// A theme change restyled the glass while the panel showed; render it at the next dismiss.
+    private var needsHiddenGlassRender = false
 
     private var root: NSView { surface.rootView }
     private static let rampKey = "summonRamp"
@@ -77,19 +82,24 @@ public final class Summoner {
         self.strategy = strategy
         self.probe = probe ?? LatencyProbe(view: surface.rootView)
         surface.panel.onResignKey = { [weak self] in self?.dismiss(returnFocus: false) }
+        surface.onGlassRestyled = { [weak self] in self?.renderHiddenGlass() }
     }
 
     /// Renders the panel once so the first real summon costs what every later one does (the
     /// first glass render costs about 30 ms), installs the field editor, and leaves the panel
-    /// hidden. Call once at launch, before the first summon.
+    /// hidden. Every piece of glass is rendered, a results container that hides by opacity
+    /// included. Call once at launch, before the first summon.
     public func prewarm() {
         let panel = surface.panel
         // A process started from a terminal begins active and would make the panel key at once.
         NSApp.deactivate()
         panel.alphaValue = 0
         panel.orderFrontRegardless()
-        panel.displayIfNeeded()
-        CATransaction.flush()
+        surface.withEveryPieceShown {
+            panel.displayIfNeeded()
+            CATransaction.flush()
+        }
+        hiddenGlassRenders += 1
         surface.queryField.installEditor()
         setRootOpacity(0)
         panel.alphaValue = 1
@@ -122,7 +132,7 @@ public final class Summoner {
             // and the first visible frame already has the key look.
             keyChange(panel)
             timings.makeKey = split()
-            surface.glass.layoutSubtreeIfNeeded()
+            for piece in surface.glassPieces { piece.layoutSubtreeIfNeeded() }
             CATransaction.flush()
             timings.keyLook = split()
         }
@@ -164,7 +174,32 @@ public final class Summoner {
             surface.panel.orderOut(nil)
             setRootOpacity(0)
         }
+        if needsHiddenGlassRender { renderHiddenGlass() }
         prepareNext?()
+    }
+
+    /// Renders every piece of glass once while the panel stays invisible, after a theme change
+    /// added or restyled one, so its first render never lands on a summon or a keystroke. While
+    /// the panel shows, it waits for the next dismiss.
+    private func renderHiddenGlass() {
+        guard !isShown else {
+            needsHiddenGlassRender = true
+            return
+        }
+        needsHiddenGlassRender = false
+        let panel = surface.panel
+        let orderedIn = panel.isVisible
+        panel.alphaValue = 0
+        if !orderedIn { panel.orderFrontRegardless() }
+        setRootOpacity(1)
+        surface.withEveryPieceShown {
+            panel.displayIfNeeded()
+            CATransaction.flush()
+        }
+        setRootOpacity(0)
+        if !orderedIn { panel.orderOut(nil) }
+        panel.alphaValue = 1
+        hiddenGlassRenders += 1
     }
 
     /// Sets the root layer's opacity in its own transaction, with no implicit animation. With

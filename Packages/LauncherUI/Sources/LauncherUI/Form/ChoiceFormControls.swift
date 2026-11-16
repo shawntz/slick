@@ -109,12 +109,10 @@ final class DropdownFormControl: FormControlView {
 
     /// Shows the options under the field, inside the panel.
     func openMenu() {
-        guard let surface = (window as? GlassPanel)?.surface, let glassContent = surface.glass.contentView,
-            !options.isEmpty
-        else { return }
+        guard let surface = (window as? GlassPanel)?.surface, !options.isEmpty else { return }
         let menu = DropdownMenuView(
             options: options, selectedID: selectedID,
-            placement: .below(convert(bounds, to: glassContent), trailingAligned: false))
+            placement: .below(convert(bounds, to: surface.overlaySpace), trailingAligned: false))
         menu.onChoose = { [weak self] option in
             guard let self, option.id != selectedID else { return }
             selectedID = option.id

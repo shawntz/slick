@@ -163,12 +163,12 @@ final class ArgumentChipView: NSView {
 
     /// Opens a dropdown chip's options under it, inside the panel.
     func openMenu() {
-        guard case .dropdown(let options) = argument.kind, let surface = (window as? GlassPanel)?.surface,
-            let glassContent = surface.glass.contentView
-        else { return }
+        guard case .dropdown(let options) = argument.kind, let surface = (window as? GlassPanel)?.surface else {
+            return
+        }
         let menu = DropdownMenuView(
             options: options, selectedID: argument.value,
-            placement: .below(convert(bounds, to: glassContent), trailingAligned: false))
+            placement: .below(convert(bounds, to: surface.overlaySpace), trailingAligned: false))
         menu.onChoose = { [weak self] option in
             guard let self else { return }
             argument.value = option.id

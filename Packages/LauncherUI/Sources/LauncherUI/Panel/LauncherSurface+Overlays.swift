@@ -15,21 +15,26 @@ extension LauncherSurface {
         }
         overlay.overlaySizeDidChange = { [weak self] in
             self?.updateHeight(animated: true)
-            self?.layoutOverlay(glassHeight: self?.currentGlassHeight ?? 0)
+            self?.layoutOverlay(hostHeight: self?.currentHostHeight ?? 0)
         }
         if let parked = parkedOverlay, parked !== overlay { parked.removeFromSuperview() }
         parkedOverlay = nil
-        if overlay.superview === glassContent {
+        let host = contentHost
+        if overlay.superview === host {
             // A parked overlay is still on top; the shield goes just under it.
-            glassContent.addSubview(shield, positioned: .below, relativeTo: overlay)
+            host.addSubview(shield, positioned: .below, relativeTo: overlay)
         } else {
-            glassContent.addSubview(shield)
-            glassContent.addSubview(overlay)
+            host.addSubview(shield)
+            host.addSubview(overlay)
+        }
+        if layout == .split {
+            glassContent.addSubview(fieldShield)
+            fieldShield.frame = glassContent.bounds
         }
         overlay.isHidden = false
-        shield.frame = CGRect(x: 0, y: 0, width: CGFloat(theme.panel.width), height: currentGlassHeight)
+        shield.frame = CGRect(x: 0, y: 0, width: CGFloat(theme.panel.width), height: currentHostHeight)
         updateHeight(animated: true)
-        layoutOverlay(glassHeight: currentGlassHeight)
+        layoutOverlay(hostHeight: currentHostHeight)
         let fade = resolvedTheme.motion.cardFade
         overlay.alphaValue = fade > 0 ? 0 : 1
         if fade > 0 { animate(fade) { overlay.animator().alphaValue = 1 } }
@@ -48,7 +53,7 @@ extension LauncherSurface {
         overlay.frame = CGRect(origin: .zero, size: overlay.overlaySize(maximum: overlayMaximumSize))
         overlay.isHidden = false
         overlay.alphaValue = 0
-        glassContent.addSubview(overlay)
+        contentHost.addSubview(overlay)
         overlay.layoutSubtreeIfNeeded()
         panel.displayIfNeeded()
         CATransaction.flush()
@@ -73,6 +78,7 @@ extension LauncherSurface {
         parkedOverlay = overlay
         parkedOverlayTheme = resolvedTheme
         shield.removeFromSuperview()
+        fieldShield.removeFromSuperview()
         setDimmed(false)
         if restoringFocus {
             if let previous = focusBeforeOverlay as? NSView, previous.window === panel,
@@ -88,15 +94,6 @@ extension LauncherSurface {
         updateHeight(animated: true)
     }
 
-    /// The view with keyboard focus: the text field being edited rather than its field editor.
-    private var currentFocus: NSResponder? {
-        let responder = panel.firstResponder
-        if let editor = responder as? NSTextView, editor.isFieldEditor, let field = editor.delegate as? NSTextField {
-            return field
-        }
-        return responder
-    }
-
     /// The content height an overlay needs to fit with its margins.
     var overlayRequiredHeight: CGFloat {
         guard let overlay else { return 0 }
@@ -106,8 +103,14 @@ extension LauncherSurface {
         case .bottomTrailing, .center:
             return size.height + margin * 2
         case .below(let anchor, _):
-            return anchor.maxY + margin + size.height + margin - CGFloat(theme.queryRow.height)
+            return anchorBottom(anchor) + margin + size.height + margin - contentTop
         }
+    }
+
+    /// The anchor's bottom edge as a menu below it sees it. In the split layout a chip in the query
+    /// row lies above the results container, so its menu starts at the container's top margin.
+    private func anchorBottom(_ anchor: CGRect) -> CGFloat {
+        layout == .split ? max(anchor.maxY, CGFloat(theme.card.margin) / 2) : anchor.maxY
     }
 
     private var overlayMaximumSize: CGSize {
@@ -116,14 +119,14 @@ extension LauncherSurface {
             width: CGFloat(theme.panel.width) - margin * 2, height: CGFloat(theme.panel.maxContentHeight) - margin * 2)
     }
 
-    /// Places the overlay for a glass of `glassHeight`. Bottom-anchored cards ride the glass's
-    /// bottom edge while its height animates.
-    func layoutOverlay(glassHeight: CGFloat) {
+    /// Places the overlay for a content-side piece of `hostHeight`: the slab, or the results
+    /// container. Bottom-anchored cards ride its bottom edge while its height animates.
+    func layoutOverlay(hostHeight: CGFloat) {
         guard let overlay else { return }
         let margin = CGFloat(theme.card.margin)
         let width = CGFloat(theme.panel.width)
-        let top = CGFloat(theme.queryRow.height)
-        let bottom = glassHeight - CGFloat(theme.actionBar.height)
+        let top = contentTop
+        let bottom = hostHeight - actionBarRoom
         var size = overlay.overlaySize(maximum: overlayMaximumSize)
         var origin: CGPoint
         switch overlay.placement {
@@ -134,7 +137,7 @@ extension LauncherSurface {
                 x: ((width - size.width) / 2).rounded(), y: (top + (bottom - top - size.height) / 2).rounded())
         case .below(let anchor, let trailingAligned):
             let x = trailingAligned ? anchor.maxX - size.width : anchor.minX
-            origin = CGPoint(x: min(max(margin, x), width - margin - size.width), y: anchor.maxY + margin / 2)
+            origin = CGPoint(x: min(max(margin, x), width - margin - size.width), y: anchorBottom(anchor) + margin / 2)
             let roomBelow = bottom - margin - origin.y
             if size.height > roomBelow {
                 let roomAbove = anchor.minY - margin / 2 - (top + margin)
