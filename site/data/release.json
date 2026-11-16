@@ -1,0 +1,9 @@
+{
+  "comment": "Turns the website's download button on or off. When a signed build exists, set enabled to true and url to the file or the release page. Nothing else on the site needs to change.",
+  "download": {
+    "enabled": false,
+    "url": "",
+    "label": "Download for Mac",
+    "version": ""
+  }
+}
