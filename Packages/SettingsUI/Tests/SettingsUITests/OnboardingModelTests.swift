@@ -106,34 +106,113 @@ import Testing
         #expect(bed.general[HostSettings.launcherHotkey] == KeyCombo(.space, .command))
     }
 
-    @Test func theHotkeyStepExplainsTheWaitAndTurnsGreenWhenItEnds() async {
+    @Test func anotherShortcutGetsTheAdviceAndTheStepTurnsGreenWhenItEnds() async {
         let bed = TestBed()
-        bed.hotkeyStatus.startWaiting()
+        let combo = KeyCombo(.upArrow, .control)
+        bed.general[HostSettings.launcherHotkey] = combo
+        bed.hotkeyStatus.startWaiting(combo, owner: "Mission Control")
         let model = OnboardingModel(context: bed.context()) {}
-        let wait = LauncherHotkeyWait(combo: KeyCombo(.space, .command), owner: "Spotlight")
+        let wait = LauncherHotkeyWait(combo: combo, owner: "Mission Control")
         #expect(model.hotkeyGuide == .waiting(wait))
-        #expect(wait.isSpotlight)
-        let note = SpotlightShortcutGuide.waitingNote(wait)
-        #expect(note.hasPrefix("Spotlight holds ⌘Space"))
-        #expect(note.contains("Turn off Spotlight's shortcut in System Settings"))
-        #expect(SpotlightShortcutGuide.steps.count == 3)
+        #expect(!wait.isSpotlight)
+        #expect(
+            SpotlightShortcutGuide.cannotTurnOffNote(wait)
+                == "Mission Control uses ⌃↑ right now. To open \(Brand.name) with ⌃↑, turn off that shortcut in "
+                + "System Settings, under Keyboard. You can also click the field above and press other keys.")
+        #expect(SpotlightShortcutGuide.waitingLine(wait) == "\(Brand.name) waits until ⌃↑ is free.")
 
         model.openKeyboardSettings()
         #expect(await eventually { bed.fakes.workspace.opened == [SpotlightShortcutGuide.keyboardSettingsURL] })
 
+        // Continue never touches a shortcut the app cannot turn off; it moves on.
+        await model.next()
+        #expect(model.step == .hotkey)
+        model.show(.hotkey)
+        await model.next()
+        #expect(bed.hotkeyStatus.turnOffs == 0)
+        #expect(model.step == .features)
+
+        model.back()
         bed.hotkeyStatus.bindWaited()
+        #expect(await eventually { model.hotkeyGuide == .freed(combo) })
+        #expect(SpotlightShortcutGuide.freedLine(combo) == "⌃↑ opens \(Brand.name) now.")
+    }
+
+    @Test func continueTurnsSpotlightOffBindsTheHotkeyAndTheLineTurnsGreen() async {
+        let bed = TestBed()
+        bed.hotkeyStatus.startWaiting(canTurnOff: true)
+        let model = OnboardingModel(context: bed.context()) {}
+        let wait = LauncherHotkeyWait(combo: KeyCombo(.space, .command), owner: "Spotlight", canTurnOff: true)
+        #expect(model.hotkeyGuide == .waiting(wait))
+        #expect(
+            SpotlightShortcutGuide.takeOverNote(wait)
+                == "⌘Space opens Spotlight right now. When you press Continue, \(Brand.name) turns off Spotlight's "
+                + "shortcut. Then ⌘Space opens \(Brand.name).")
+        #expect(
+            SpotlightShortcutGuide.takeOverFootnote(wait)
+                == "To keep ⌘Space for Spotlight, click the field above and press other keys. To turn Spotlight's "
+                + "shortcut back on later, open System Settings, Keyboard, Keyboard Shortcuts, Spotlight.")
+        // Nothing is turned off before the person continues.
+        #expect(bed.hotkeyStatus.turnOffs == 0)
+        await model.next()
+        #expect(model.step == .hotkey)
+        // Continue turns the shortcut off, binds the hotkey and moves on in one press.
+        await model.next()
+        #expect(model.step == .features)
+        #expect(bed.hotkeyStatus.turnOffs == 1)
+        #expect(bed.hotkeyStatus.bound == KeyCombo(.space, .command))
+        #expect(!model.isTakingKeys)
+        // Back on the step, the green line says the keys are Slick's, and Continue asks nothing more.
+        model.back()
+        #expect(model.step == .hotkey)
         #expect(await eventually { model.hotkeyGuide == .freed(KeyCombo(.space, .command)) })
-        #expect(SpotlightShortcutGuide.freedLine(KeyCombo(.space, .command)) == "⌘Space opens \(Brand.name) now.")
+        await model.next()
+        #expect(model.step == .features)
+        #expect(bed.hotkeyStatus.turnOffs == 1)
+        model.show(.done)
+        #expect(SpotlightShortcutGuide.doneBound(KeyCombo(.space, .command)) == "Press ⌘Space to open \(Brand.name).")
+    }
+
+    @Test func aFailedTryStaysOnTheStepWithItsSentence() async {
+        let bed = TestBed()
+        bed.hotkeyStatus.startWaiting(canTurnOff: true)
+        bed.hotkeyStatus.turnOffWorks = false
+        let model = OnboardingModel(context: bed.context()) {}
+        model.show(.hotkey)
+        await model.next()
+        #expect(model.step == .hotkey)
+        #expect(bed.hotkeyStatus.turnOffs == 1)
+        let failed = LauncherHotkeyWait(combo: KeyCombo(.space, .command), owner: "Spotlight", turnOffFailed: true)
+        #expect(await eventually { model.hotkeyGuide == .waiting(failed) })
+        #expect(
+            SpotlightShortcutGuide.failedNote(failed)
+                == "\(Brand.name) could not turn off Spotlight's shortcut. Turn off Show Spotlight search in System "
+                + "Settings, under Keyboard, Keyboard Shortcuts, Spotlight.")
+        // The person can move on; the app does not try again.
+        await model.next()
+        #expect(model.step == .features)
+        #expect(bed.hotkeyStatus.turnOffs == 1)
+        model.show(.done)
+        #expect(
+            SpotlightShortcutGuide.doneWaiting(failed)
+                == "⌘Space still opens Spotlight. Click the bolt in the menu bar to open \(Brand.name) for now.")
+    }
+
+    @Test func theDoneStepWithNoHotkey() {
+        #expect(
+            SpotlightShortcutGuide.doneNoHotkey
+                == "Click the bolt in the menu bar to open \(Brand.name). You can set a hotkey in Settings.")
     }
 
     @Test func theGuideNeverSuggestsOptionSpace() {
-        let wait = LauncherHotkeyWait(combo: KeyCombo(.space, .command), owner: "Spotlight")
+        let wait = LauncherHotkeyWait(combo: KeyCombo(.space, .command), owner: "Spotlight", canTurnOff: true)
         let other = LauncherHotkeyWait(combo: KeyCombo(.space, .control), owner: "Select the previous input source")
-        let texts =
-            SpotlightShortcutGuide.steps + [
-                SpotlightShortcutGuide.waitingNote(wait), SpotlightShortcutGuide.waitingNote(other),
-                SpotlightShortcutGuide.waitingLine(wait), SpotlightShortcutGuide.menuTitle(wait),
-            ]
+        let texts = [
+            SpotlightShortcutGuide.takeOverNote(wait), SpotlightShortcutGuide.takeOverFootnote(wait),
+            SpotlightShortcutGuide.failedNote(wait), SpotlightShortcutGuide.cannotTurnOffNote(other),
+            SpotlightShortcutGuide.waitingLine(wait), SpotlightShortcutGuide.menuTitle(wait),
+            SpotlightShortcutGuide.paneNote(wait),
+        ]
         for text in texts {
             #expect(!text.contains(KeyCombo(.space, .option).displayString))
             #expect(!text.contains("Option"))
@@ -214,7 +293,6 @@ import Testing
         #expect(!bed.preferences.isEnabled(feature: "helper"))
         #expect(!bed.preferences.isEnabled(feature: "suggested"))
         #expect(OnboardingController.isNeeded(bed.fakes.settings))
-        #expect(OnboardingView.closeNote.contains("opens again the next time \(Brand.name) starts"))
     }
 
     @Test func anAllowedPermissionIsAnnouncedToTheFeaturesOnce() async {

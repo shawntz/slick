@@ -3,8 +3,10 @@ import LauncherUI
 import SwiftUI
 
 /// The launcher drawn with a theme by LauncherUI's own views: the glass, query field, result list,
-/// selection lens and action bar, over a synthetic backdrop. It shows made-up rows and is not
-/// interactive.
+/// selection lens and action bar, over a synthetic backdrop. It shows made-up rows, and its parts
+/// never take a click: the preview is a picture. With ``onClick`` set, as on onboarding's theme
+/// tiles, the whole preview takes the click itself and runs it, in AppKit, so the click works the
+/// same whatever SwiftUI puts around it.
 ///
 /// It lays the panel out at the theme's real size and scales it to fit, so what the user sees is
 /// what the panel draws: the glass in the theme's style, one piece or the query row apart from a
@@ -69,8 +71,28 @@ final class ThemePreviewView: NSView {
 
     override var isFlipped: Bool { true }
 
-    // The preview is a picture: clicks never reach the field or the list.
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    /// Runs when the person clicks the preview. Nil leaves it a picture that takes no clicks.
+    var onClick: (() -> Void)?
+
+    // Clicks never reach the field or the list. Without an action, they pass the preview by.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard onClick != nil, !isHidden, frame.contains(point) else { return nil }
+        return self
+    }
+
+    // A tile in a window that is not key selects on the first click.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { onClick != nil }
+
+    override func mouseDown(with event: NSEvent) {
+        guard onClick == nil else { return }
+        super.mouseDown(with: event)
+    }
+
+    // A click counts when the button comes up over the preview, as a button's does.
+    override func mouseUp(with event: NSEvent) {
+        guard let onClick else { return super.mouseUp(with: event) }
+        if bounds.contains(convert(event.locationInWindow, from: nil)) { onClick() }
+    }
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
@@ -313,10 +335,12 @@ private final class PreviewFlippedView: NSView {
     override var isFlipped: Bool { true }
 }
 
-/// The preview in SwiftUI. `dark` forces an appearance; nil follows the window.
+/// The preview in SwiftUI. `dark` forces an appearance; nil follows the window. `onClick` makes
+/// the preview take clicks and run it; nil leaves it a picture.
 struct ThemePreview: NSViewRepresentable {
     let theme: Theme
     var dark: Bool?
+    var onClick: (() -> Void)?
 
     func makeNSView(context: Context) -> ThemePreviewView {
         ThemePreviewView(frame: .zero)
@@ -324,6 +348,7 @@ struct ThemePreview: NSViewRepresentable {
 
     func updateNSView(_ view: ThemePreviewView, context: Context) {
         view.appearance = dark.map { NSAppearance(named: $0 ? .darkAqua : .aqua) } ?? nil
+        view.onClick = onClick
         view.apply(theme: theme)
     }
 }

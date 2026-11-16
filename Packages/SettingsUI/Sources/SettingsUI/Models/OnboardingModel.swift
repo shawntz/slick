@@ -5,15 +5,18 @@ import Observation
 
 /// The first-run flow: welcome, the hotkey, optional features, permissions, a theme, done.
 ///
-/// The hotkey step leads with the recorder. When a macOS shortcut holds the launcher hotkey, as
-/// Spotlight holds Command-Space on a new Mac, it shows how to turn that shortcut off and a line
-/// that turns green the moment the app binds the hotkey. The optional features step lists every
-/// feature that is off until the user turns it on. A feature whose manifest suggests it starts with
-/// its switch on, and the switches take effect when the user continues past the step. The
-/// permissions step shows only what the features that are on need. It never asks the system for a
-/// permission the user did not press Allow for. In a build that updates itself, the done step has
-/// the automatic check switch, which starts on. Finishing stores that choice and sets
-/// ``HostSettings/onboardingDone``.
+/// The hotkey step leads with the recorder. When Spotlight's shortcut uses the launcher's keys, as
+/// Command-Space does on a new Mac, the step says that continuing turns that shortcut off, and
+/// Continue does so: it is the person's yes. The step then stays, with a green line once the app
+/// binds the hotkey, or with the advice when the try failed, and the next Continue moves on. When
+/// another macOS shortcut uses the keys, the step says where to turn it off and waits. The optional
+/// features step lists every feature that is off until the user turns it on. A feature whose
+/// manifest suggests it starts with its switch on, and the switches take effect when the user
+/// continues past the step. The permissions step shows only what the features that are on need, in
+/// groups. It never asks the system for a permission the user did not press Allow for, and a
+/// request that macOS leaves unanswered shows where to allow it by hand. In a build that updates
+/// itself, the done step has the automatic check switch, which starts on. Finishing stores that
+/// choice and sets ``HostSettings/onboardingDone``.
 /// Closing the window before that is finishing later: onboarding opens again at the next launch,
 /// and switches the user did not continue past are not applied.
 @Observable final class OnboardingModel {
@@ -43,7 +46,8 @@ import Observation
     enum HotkeyGuide: Equatable {
         /// Nothing to explain: the hotkey is bound, cleared or refused, and never waited here.
         case none
-        /// A macOS shortcut holds the stored combination, so nothing is bound yet.
+        /// A macOS shortcut uses the stored combination, so nothing is bound yet. The wait says
+        /// whether the app can turn that shortcut off, and whether a try failed.
         case waiting(LauncherHotkeyWait)
         /// The combination waited, and the app has bound it since.
         case freed(KeyCombo)
@@ -62,11 +66,18 @@ import Observation
     /// One permission the enabled features may need, with every feature's reason.
     struct PermissionItem: Identifiable {
         var permission: Permission
+        /// The row's title, which names an Automation permission's app.
+        var title: String
         var reasons: [(feature: String, reason: String)]
         var status: PermissionStatus
         var isSkipped: Bool
         /// What the row says in place of Allow and Skip while the permission waits for its app.
         var waitingSentence: String?
+        /// True while the app asks macOS for it.
+        var isAsking = false
+        /// What the row says, with a button to System Settings, after a request macOS left
+        /// unanswered and the permission is still not allowed.
+        var unansweredSentence: String?
         var id: String { permission.settingsKey }
     }
 
@@ -78,6 +89,12 @@ import Observation
     /// The launcher hotkey's recorder.
     let hotkey: HotkeyRecorderModel
     private var skipped: Set<String> = []
+    /// Permissions the app asks macOS for now.
+    private var asking: Set<String> = []
+    /// Permissions whose last request ended with no answer from macOS.
+    private var unanswered: Set<String> = []
+    /// True while Continue turns off the macOS shortcut that uses the launcher's keys.
+    private(set) var isTakingKeys = false
     /// The user's switch for each optional feature, until the step applies them.
     private var featureChoices: [String: Bool] = [:]
     /// The last wait the app reported, so the step can confirm when it ends.
@@ -109,7 +126,23 @@ import Observation
 
     /// Goes to the next step that has something to show. Leaving the optional features step turns
     /// each feature on or off as its switch shows, so the permissions step lists what they need.
+    ///
+    /// On the hotkey step, while the app can turn off the macOS shortcut that uses the launcher's
+    /// keys, Continue does that instead and stays: the step then shows whether it worked, and the
+    /// next Continue moves on.
     func next() async {
+        guard !isTakingKeys else { return }
+        if step == .hotkey, case .waiting(let wait) = hotkeyGuide, wait.canTurnOff,
+            let status = context.launcherHotkey
+        {
+            isTakingKeys = true
+            revision.bump()
+            let taken = await status.turnOffSystemShortcut()
+            isTakingKeys = false
+            revision.bump()
+            // Continue continues. A failed try stays on the step, which then says what to do by hand.
+            guard taken else { return }
+        }
         if step == .features { await applyFeatureChoices() }
         guard let following = nearest(from: step.rawValue + 1, by: 1) else { return }
         step = following
@@ -242,7 +275,7 @@ import Observation
 
     // MARK: Permissions
 
-    /// Every permission an enabled feature names, in the order features name them.
+    /// Every permission an enabled feature names, in their groups' order, see ``PermissionGroup``.
     var permissionItems: [PermissionItem] {
         revision.track()
         var order: [Permission] = []
@@ -253,20 +286,67 @@ import Observation
                 reasons[need.permission, default: []].append((feature.manifest.name, need.reason))
             }
         }
-        return order.map { permission in
+        let items = order.map { permission in
             let status = context.permissions.status(of: permission)
+            let key = permission.settingsKey
             return PermissionItem(
-                permission: permission, reasons: reasons[permission] ?? [], status: status,
-                isSkipped: skipped.contains(permission.settingsKey),
-                waitingSentence: context.waitingSentence(for: permission, status: status))
+                permission: permission, title: context.title(for: permission), reasons: reasons[permission] ?? [],
+                status: status,
+                isSkipped: skipped.contains(key),
+                waitingSentence: context.waitingSentence(for: permission, status: status),
+                isAsking: asking.contains(key),
+                unansweredSentence: unanswered.contains(key) && !status.isGranted
+                    ? PermissionGrant.unansweredSentence(permission) : nil)
+        }
+        return PermissionGroup.sorted(items, by: \.permission)
+    }
+
+    /// The permissions in their groups, each under its heading. A group with none is left out.
+    var permissionGroups: [(group: PermissionGroup, items: [PermissionItem])] {
+        PermissionGroup.grouped(permissionItems, by: \.permission)
+    }
+
+    /// Runs the grant flow for one permission the user chose to allow. It always ends: when macOS
+    /// gives no answer, the row says where to allow the permission by hand.
+    func allow(_ permission: Permission) async {
+        let key = permission.settingsKey
+        guard !asking.contains(key) else { return }
+        skipped.remove(key)
+        unanswered.remove(key)
+        asking.insert(key)
+        revision.bump()
+        let status = await context.permissions.grant(permission)
+        asking.remove(key)
+        if status == .notDetermined { unanswered.insert(key) }
+        revision.bump()
+    }
+
+    /// Opens the permission's place in System Settings. Only the button beside a request macOS left
+    /// unanswered calls it.
+    func openSettings(for permission: Permission) async {
+        context.grants.watch(permission)
+        await context.permissions.openSettings(for: permission)
+    }
+
+    /// Follows the status of every listed permission while the step shows, so an answer macOS gives
+    /// late, or a grant made in System Settings, shows at once. The view runs it in a task that
+    /// ends when the step goes away.
+    func watchPermissions() async {
+        let permissions = permissionItems.map(\.permission)
+        for permission in permissions { context.grants.watch(permission) }
+        await withTaskGroup(of: Void.self) { group in
+            for permission in permissions {
+                let stream = context.services.permissions.changes(of: permission)
+                group.addTask { [weak self] in
+                    for await _ in stream { await self?.permissionChanged(permission) }
+                }
+            }
         }
     }
 
-    /// Runs the grant flow for one permission the user chose to allow.
-    func allow(_ permission: Permission) async {
-        skipped.remove(permission.settingsKey)
-        _ = await context.permissions.grant(permission)
+    private func permissionChanged(_ permission: Permission) async {
         revision.bump()
+        await context.grants.check(permission)
     }
 
     /// Leaves a permission for later. Features ask again when they need it.
