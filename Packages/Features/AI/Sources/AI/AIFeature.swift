@@ -97,6 +97,12 @@ public final class AIFeature: Feature {
         await loading?.value
     }
 
+    /// The user's own commands join root search once activation has read them, so scenarios and
+    /// the self-test wait for that before they type.
+    public func waitUntilReady() async {
+        await waitUntilLoaded()
+    }
+
     private func settingChanged(_ name: String) async {
         if name == AISettings.retention.name { try? await pruneChats() }
         declarationChanges?.send()
@@ -129,7 +135,9 @@ public final class AIFeature: Feature {
             let prompt = typed.trimmingCharacters(in: .whitespacesAndNewlines)
             guard prompt.utf8.count <= TextInput.maximumBytes else { throw Strings.Failures.textTooLong }
             let services = self.services
-            if context.launch == .deeplink {
+            // A link may stand behind this run whatever its launch, such as Tab after a search
+            // link, so the question shows in the form and nothing is sent until the user says so.
+            if context.launch == .deeplink || context.startedByLink {
                 return .push(
                     .form(
                         self.typedTextForm(title: Strings.Ask.title, field: Strings.Forms.question, initial: prompt) {
