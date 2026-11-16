@@ -149,6 +149,13 @@ These are the steps for 0.1.0, in order. For a later version, change the number 
     Check for Updates… in the menu bar menu. Sparkle's window should say that 0.1.0 is the newest
     version.
 
+    Homebrew loads a cask from a tap like this one only after you trust it. Installing by the full
+    name, as above, trusts that one cask, so install before you run the audit and the livecheck.
+12. Tell the website and the README. In `site/data/release.json`, set the version and turn the
+    download on. Then edit the release sentences by hand: "Turning on the download button" in
+    [WEBSITE.md](WEBSITE.md) lists the ones in `site/index.html`, and the README has the line
+    under its hero and the Install section. Commit and push to `main`.
+
 ## When a step fails
 
 Every message starts with the script's name and says what to do. Nothing is published until step

@@ -150,7 +150,7 @@ A clip of one feature carries a status chip, so the clip never suggests more tha
 
 The script rewrites every chip's `data-status` and label from the feature with that id, `--check` fails when one is stale, and `main.js` updates them from `data/features.json` too. Today the page has seven. They are the four clips in Built in, and the themes, Spotlight and Glass clips in Themes. All three in Themes name the `themes` feature.
 
-Above the list, the three-step track headed Done, Now and Not yet is hand-written. It follows where the whole project stands, not the JSON file. Today it reads: done, one app with twenty-one features; now, first runs on a real Mac, which began on 16 November 2026; not yet, a download. When a step is reached, move the `data-stage` values along: `done`, `now`, `next`. The step marked `now` also carries `aria-current="step"`. The Now step and the "You would be early" note in Try it both say when the live launcher first ran and that most features have not been tried on a real Mac. Change them together as that changes.
+Above the list, the three-step track headed Done, Now and Not yet is hand-written. It follows where the whole project stands, not the JSON file. Today it reads: done, version 0.1.0 is out; now, first runs on a real Mac, which began on 16 November 2026; not yet, every feature proven on a real Mac. When a step is reached, move the `data-stage` values along: `done`, `now`, `next`. The step marked `now` also carries `aria-current="step"`. The Now step and the "You would be early" note in Try it both say when the live launcher first ran and that most features have not been tried on a real Mac. Change them together as that changes.
 
 ### Turning on the download button
 
@@ -165,7 +165,9 @@ Edit `site/data/release.json`:
       }
     }
 
-The published HTML says nothing about a download. With the switch on, `main.js` adds the download button first in the hero and makes the GitHub button the second one. It also changes the pre-release line to the version, and replaces the "Can I download it?" answer with "Where do I download it?". The URL must be HTTPS or on this site. All of this needs JavaScript, so readers without it still see the pre-release line. On release day, also edit that line, the "Can I download it?" answer, the Try it section and the Status track in `index.html` by hand.
+With the switch on, `main.js` adds the download button first in the hero and makes the GitHub button the second one. It also sets the line above the name to the version. The URL must be HTTPS or on this site. Both need JavaScript.
+
+Everything else about a release is plain HTML, so readers without JavaScript see it too. For each release, edit these by hand in `index.html`: the version line above the name, the "Can I download it?" answer, the Try it section with its Homebrew command, and the Status track. In the README, edit the line under the hero and the Install section. They were last edited for 0.1.0 on 16 November 2026.
 
 ### Clip slots
 
