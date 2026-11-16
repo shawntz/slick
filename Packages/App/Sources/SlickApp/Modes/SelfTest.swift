@@ -10,8 +10,10 @@ import Root
 /// compiled against, that it runs inside the right bundle, and that the whole composition works:
 /// every feature registers and activates in the selftest environment, root search opens an
 /// in-memory engine, and queries through the real ``RootSource`` find every command and a sample
-/// of every catalog source. It prints one verdict line, "selftest PASS ..." or "selftest FAIL ...",
-/// for `make selftest` and CI. It shows no window and takes no focus.
+/// of every catalog source. It prints the validator's pending issues, one `pending` line each, then
+/// one verdict line, "selftest PASS ..." or "selftest FAIL ...", for `make selftest` and CI. A
+/// pending issue that is not in ``knownPendingIssues`` fails it. It shows no window and takes no
+/// focus.
 enum SelfTest {
     /// The outcome of one selftest run.
     struct Report {
@@ -19,6 +21,8 @@ enum SelfTest {
         var failures: [String] = []
         /// Counts that go on the verdict line, such as `features=1`.
         var facts: [String] = []
+        /// The validator's pending issues, one line each, printed before the verdict.
+        var pending: [String] = []
         /// The verdict line to print.
         var line = ""
 
@@ -28,6 +32,20 @@ enum SelfTest {
     /// Validator findings the selftest accepts, by feature ID, each with the reason it is accepted.
     /// Every entry is a known disagreement between a feature and Kit, listed in the app report.
     static let knownIssues: [String: Set<String>] = [:]
+
+    /// Pending validator findings the selftest accepts, by feature ID: rules Kit does not enforce
+    /// yet, from `FeatureValidator.pendingIssues`. Every one is printed; one not listed here fails
+    /// the selftest, so a feature cannot add a new one unnoticed.
+    static let knownPendingIssues: [String: Set<String>] = [:]
+
+    /// Commands whose own title a feature's keyword takes over in root search, by command, with the
+    /// query that finds them instead and the reason. Typing "define word" looks up the word "word",
+    /// as Alfred's keyword does, so the command answers to "define".
+    static let titlesTakenOver: [ItemID: (query: String, reason: String)] = [
+        ItemID.command(feature: "dictionary", command: "define"): (
+            "define", "\"define <term>\" is the Dictionary keyword, so the title looks up the word \"word\""
+        )
+    ]
 
     /// Checks the Rust core and the bundle. `bundleIdentifier` is nil when the executable runs
     /// outside an app bundle, as it does under `swift run` and in tests.
@@ -66,7 +84,7 @@ enum SelfTest {
         let runtime = assembly.runtime
         let root = assembly.root
 
-        let ready = await within(.seconds(20)) { await root.ready() }
+        let ready = await within(.seconds(20)) { await assembly.ready() }
         if !ready { report.failures.append("root search was not ready within 20 s") }
         if root.status != .ready(persistent: false) {
             report.failures.append("root search status \(root.status), expected an in-memory engine")
@@ -91,8 +109,15 @@ enum SelfTest {
         if !optional.isEmpty {
             // Let the switch reach root search and let it load what the features bring.
             for _ in 0..<10 { await Task.yield() }
+            if await !within(.seconds(20), { await runtime.waitUntilFeaturesAreReady() }) {
+                report.failures.append("a feature that is off by default did not finish loading within 20 s")
+            }
             await root.settle()
         }
+        let pending = pendingIssues(registered.map { ($0.id, $0.commands.map(\.command)) }, known: knownPendingIssues)
+        report.pending = pending.lines
+        report.failures += pending.failures
+        let knownPending = pending.known
         var known = 0
         for (featureID, found) in runtime.issues.sorted(by: { $0.key < $1.key }) {
             for issue in found {
@@ -107,9 +132,15 @@ enum SelfTest {
         // Queries through the real root search: every command by title, and up to three rows of
         // every catalog source by title.
         var expected: [(query: String, id: ItemID)] = []
+        var takenOver = 0
         for entry in runtime.enabledFeatures {
             for command in entry.commands where command.isEnabled && command.command.showsInRoot {
-                expected.append((command.command.title, command.id))
+                if let other = titlesTakenOver[command.id] {
+                    takenOver += 1
+                    expected.append((other.query, command.id))
+                } else {
+                    expected.append((command.command.title, command.id))
+                }
             }
             for source in entry.catalogSources {
                 let rows = (try? await source.rows()) ?? []
@@ -142,9 +173,34 @@ enum SelfTest {
         report.facts = [
             "features=\(registered.count)", "optional=\(optional.count)",
             "commands=\(registered.reduce(0) { $0 + $1.commands.count })",
-            "queries=\(found)/\(expected.count)", "suggested=\(empty.rows.count)", "known-issues=\(known)",
+            "queries=\(found)/\(expected.count)", "taken-over=\(takenOver)", "suggested=\(empty.rows.count)",
+            "known-issues=\(known)", "pending=\(report.pending.count)", "known-pending=\(knownPending)",
         ]
         return report
+    }
+
+    /// The validator's pending issues for each feature, as lines to print, failures for those not in
+    /// `known`, and how many were known.
+    /// `rule` is Kit's pending rules; tests pass one of their own, since none is pending now.
+    static func pendingIssues(
+        _ features: [(id: String, commands: [Command])], known: [String: Set<String>],
+        rule: ([Command]) -> [FeatureIssue] = { FeatureValidator.pendingIssues(commands: $0) }
+    ) -> (lines: [String], failures: [String], known: Int) {
+        var lines: [String] = []
+        var failures: [String] = []
+        var count = 0
+        for (featureID, commands) in features {
+            for issue in rule(commands) {
+                let isKnown = known[featureID]?.contains(issue.description) == true
+                lines.append("pending \(featureID): \(issue.description)\(isKnown ? " (known)" : "")")
+                if isKnown {
+                    count += 1
+                } else {
+                    failures.append("feature \(featureID) has a new pending issue: \(issue.description)")
+                }
+            }
+        }
+        return (lines, failures, count)
     }
 
     /// Starts the app without a window, runs every check, prints the verdict line with the time
@@ -159,12 +215,14 @@ enum SelfTest {
                 let composition = await checkComposition(dataRoot: folders.dataRoot)
                 report.failures += composition.failures
                 report.facts += composition.facts
+                report.pending += composition.pending
             } catch {
                 report.failures.append("cannot make the data folder: \(error.localizedDescription)")
             }
             folders.removeIfTemporary()
         }
         finish(&report)
+        for line in report.pending { print(line) }
         let elapsed = start.duration(to: clock.now)
         let milliseconds = Double(elapsed.components.seconds) * 1e3 + Double(elapsed.components.attoseconds) / 1e15
         print(report.line + " ms=" + String(format: "%.1f", milliseconds))
