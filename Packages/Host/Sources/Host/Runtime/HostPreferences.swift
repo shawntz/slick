@@ -55,7 +55,7 @@ import os
         do {
             file = try await store.load() ?? PreferencesFile()
         } catch {
-            log.error("preferences could not be read: \(error.localizedDescription, privacy: .public)")
+            log.error("preferences could not be read: \(error.localizedDescription, privacy: .private)")
             file = PreferencesFile()
         }
         apply(file)
@@ -294,7 +294,7 @@ import os
             do {
                 try await store.save(next)
             } catch {
-                log.error("preferences could not be saved: \(error.localizedDescription, privacy: .public)")
+                log.error("preferences could not be saved: \(error.localizedDescription, privacy: .private)")
             }
         }
         writer = nil
