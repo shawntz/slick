@@ -12,7 +12,7 @@
 #   make test-<Pkg>       one Swift package's tests, for example make test-Kit
 #   make bench            latency tables from the app bundle (NAME=<bench> picks one)
 #   make scenario S=<f>   scripted UI run from scenario file <f>
-#   make lint             rustfmt, clippy, swift format, manifest and brand checks
+#   make lint             rustfmt, clippy, swift format, manifest, brand and LaunchServices checks
 #   make fmt              format Rust and Swift sources in place
 #   make xcode            generate the optional Xcode project with XcodeGen
 #   make clean            remove every build output
@@ -86,6 +86,8 @@ lint:
 	@swift format lint --strict --recursive $(SWIFT_SOURCES)
 	@$(SCRIPTS)/check-manifests.sh
 	@$(SCRIPTS)/check-brand.sh
+	@$(SCRIPTS)/check-launchservices.sh --self-test
+	@$(SCRIPTS)/check-launchservices.sh
 
 fmt:
 	@$(CARGO) fmt --all

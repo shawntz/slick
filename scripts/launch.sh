@@ -8,9 +8,13 @@
 # "<mode> FAIL ...". LaunchServices does not hand back the exit status, so this script succeeds
 # only when the PASS line appears.
 #
+# A bundle other than build/<name>.app, such as a copy in a mirror or the recording build in
+# build/media, is unregistered from LaunchServices after its run, so the system knows one launcher.
+#
 # Env: LAUNCH_TIMEOUT is the number of seconds to wait before giving up (default 120).
 set -euo pipefail
 . "$(dirname "$0")/lib/env.sh"
+. "$(dirname "$0")/lib/launchservices.sh"
 USAGE="usage: launch.sh <App.app> <mode> [app arguments...]"
 APP=$(cd "${1:?$USAGE}" && pwd)
 MODE=${2:?$USAGE}
@@ -18,7 +22,7 @@ shift 2
 
 mkdir -p "$ROOT/build"
 OUTPUT=$(mktemp -d "$ROOT/build/launch.XXXXXX")
-trap 'rm -rf "$OUTPUT"' EXIT
+trap 'rm -rf "$OUTPUT"; unregister_unless_canonical "$APP"' EXIT
 TIMEOUT=${LAUNCH_TIMEOUT:-120}
 PROCESS="^$APP/Contents/MacOS/"
 

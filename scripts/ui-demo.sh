@@ -10,8 +10,12 @@
 # Env:
 #   UI_DEMO_OUT      where captures and sheets go (default build/ui-demo)
 #   UI_DEMO_TIMEOUT  seconds to wait before giving up (default 300)
+#
+# The demo bundle is unregistered from LaunchServices after its run, as scripts/launch.sh does for
+# every bundle but build/<name>.app.
 set -euo pipefail
 . "$(dirname "$0")/lib/env.sh"
+. "$(dirname "$0")/lib/launchservices.sh"
 USAGE="usage: ui-demo.sh <mode> [key=value ...]"
 MODE=${1:?$USAGE}
 shift
@@ -43,7 +47,7 @@ timeout 20 codesign --force --sign - "$APP" > /dev/null 2>&1
 OUT=${UI_DEMO_OUT:-$ROOT/build/ui-demo}
 mkdir -p "$OUT"
 LOGS=$(mktemp -d "${TMPDIR:-/tmp}/ui-demo.XXXXXX")
-trap 'rm -rf "$LOGS"' EXIT
+trap 'rm -rf "$LOGS"; unregister_unless_canonical "$APP"' EXIT
 TIMEOUT=${UI_DEMO_TIMEOUT:-300}
 PROCESS="^$APP/Contents/MacOS/"
 
