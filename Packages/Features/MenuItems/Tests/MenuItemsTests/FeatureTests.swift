@@ -455,6 +455,20 @@ struct FeatureTests {
         #expect(harness.rows.contains { $0.title == "Duplicate" })
     }
 
+    /// The host counts a busy source as a busy page, so a scenario's idle wait covers the read.
+    @Test func thePageIsBusyExactlyWhileAReadRuns() async throws {
+        let menu = MenuHarness()
+        try await menu.open()
+        let list = try #require(menu.list)
+        let busy = try #require(list as Any as? any BusySource, "the list tells the host it is busy")
+        #expect(!busy.isBusy)
+        menu.harness.closePanel()
+        try await menu.harness.openPanel()
+        #expect(list.isReading && busy.isBusy)
+        await list.readFinished()
+        #expect(!list.isReading && !busy.isBusy)
+    }
+
     @Test func anUnchangedRefreshDoesNotReloadThePage() async throws {
         let menu = MenuHarness()
         let harness = menu.harness

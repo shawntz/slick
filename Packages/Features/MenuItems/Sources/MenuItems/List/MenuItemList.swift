@@ -37,7 +37,9 @@ nonisolated enum MenuTarget: Hashable, Sendable {
 /// - Filtering is the source's own: the search and the rows run off the main thread, a page of
 ///   ``MenuRows/pageSize`` at a time.
 /// - A read stops when the panel closes, when its time limit passes and when the page goes away.
-final class MenuItemList: ListSource, PageEvents {
+/// - The page is busy while a read runs, through ``BusySource``, so a scenario's idle wait sees the
+///   read that the "Reading Menus" state stands for.
+final class MenuItemList: ListSource, PageEvents, BusySource {
     let filtering = ListFiltering.custom(debounce: .milliseconds(20))
     let changes: ChangeSignal? = ChangeSignal()
     var reloadsOnSettings: [AnySettingKey] { MenuItemsSettings.listKeys }
@@ -74,6 +76,9 @@ final class MenuItemList: ListSource, PageEvents {
 
     /// True while a read runs.
     var isReading: Bool { read != nil }
+
+    /// Kit's ``BusySource``: busy exactly while a read runs.
+    var isBusy: Bool { isReading }
 
     /// Returns once the read running now, if any, has ended and its result is in the cache.
     func readFinished() async {

@@ -32,7 +32,7 @@ Feature ID `menu-items`, class `MenuItemsFeature`. One command, `cmd:menu-items.
 
 - Activation does nothing. The first read happens when the user runs the command, which declares Accessibility, so the host shows its grant card first when access is missing.
 - Every Accessibility call runs on one background queue. A walk stops at its time limit, its depth limit and its item limit, when the panel closes, and when its page goes away. The page learns that the panel closed and showed again from the host's page events, not from window notifications.
-- Loads never wait for a read. They return the cached menus or a "Reading Menus" state, and the read signals the page when it ends.
+- Loads never wait for a read. They return the cached menus or a "Reading Menus" state, and the read signals the page when it ends. The list is a `BusySource` that is busy while a read runs, so a scenario's idle wait covers the read.
 - Searching and building rows run in `@concurrent` functions. The list filters for itself, a page of 200 rows at a time.
 - Rows keep nothing in root search: they hold other apps' titles, such as recent documents.
 - A press acts only on the item the row showed. It finds the item by its place, checks the title there, and else looks for the title. A row rebuilt from its ID alone carries its title too, and a press never runs on an item whose title it did not check. Finding the item gives up after 3 seconds.

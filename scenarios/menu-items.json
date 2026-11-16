@@ -10,7 +10,7 @@
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "expect": { "page": "list", "title": "Text Editor" } },
-    { "app": { "waitForRow": "Save" } },
+    { "waitUntilIdle": 3 },
     { "expect": { "rowsInclude": ["Save", "PNG…", "Undo", "Example Editor Help"] } },
     { "type": "export png" },
     { "waitUntilIdle": 3 },
