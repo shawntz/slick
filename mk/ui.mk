@@ -3,7 +3,8 @@
 # "#   make <target>  <what it does>" line, which make help prints.
 #
 # LauncherUI's demo runs as an app through LaunchServices without taking focus. Captures go to
-# UI_DEMO_OUT (default build/ui-demo).
+# UI_DEMO_OUT (default build/ui-demo). UI_ARGS passes options to the mode, such as
+# UI_ARGS="themes=beam states=form".
 #   make ui-shots           LauncherUI capture matrix, contact sheets and contrast table
 #   make ui-components      LauncherUI grid, detail, cards, form, chips, empty state and HUD sheets
 #   make ui-bench           LauncherUI latency tables and budget verdicts, measured as an app
@@ -18,7 +19,7 @@ UI_DEMO_MODES := ui-shots ui-components ui-bench ui-type ui-accessibility ui-leg
 .PHONY: $(UI_DEMO_MODES) test-LauncherUI-budget ui-showcase ui-record
 
 $(UI_DEMO_MODES):
-	@$(SCRIPTS)/ui-demo.sh $(patsubst ui-%,%,$@)
+	@$(SCRIPTS)/ui-demo.sh $(patsubst ui-%,%,$@) $(UI_ARGS)
 
 # Both wait for an idle Mac before anything takes key status, so allow up to 35 minutes.
 ui-showcase:
