@@ -57,13 +57,14 @@ nonisolated final class ResultRowElement: NSAccessibilityElement {
         setAccessibilityParent(list)
         let label = row.accessibilityLabel ?? (row.subtitle.isEmpty ? row.title : "\(row.title), \(row.subtitle)")
         setAccessibilityLabel(label)
-        let help = row.accessories.compactMap { accessory -> String? in
+        var help = row.accessories.compactMap { accessory -> String? in
             switch accessory {
             case .text(let text), .tag(let text, _): text
             case .keycaps(let keys): keys.joined()
             case .icon: nil
             }
         }
+        if let chord = list.runHint(forRow: index) { help.append(chord) }
         if !help.isEmpty { setAccessibilityHelp(help.joined(separator: ", ")) }
     }
 

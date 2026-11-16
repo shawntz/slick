@@ -134,11 +134,18 @@ nonisolated public struct ListContent: Sendable, Equatable {
     /// True while a query is active: unmatched title characters are drawn dimmer than matched
     /// ones. Rows without highlights keep their full colour.
     public var emphasizesMatches: Bool
+    /// Whether the first rows show the Command-digit chord that runs them, in a theme that shows
+    /// run hints. False for a page whose rows no chord runs.
+    public var showsRunHints: Bool
 
-    public init(sections: [ListSection], rowStyle: RowStyle = .oneLine, emphasizesMatches: Bool = false) {
+    public init(
+        sections: [ListSection], rowStyle: RowStyle = .oneLine, emphasizesMatches: Bool = false,
+        showsRunHints: Bool = true
+    ) {
         self.sections = sections
         self.rowStyle = rowStyle
         self.emphasizesMatches = emphasizesMatches
+        self.showsRunHints = showsRunHints
     }
 
     public static let empty = ListContent(sections: [])

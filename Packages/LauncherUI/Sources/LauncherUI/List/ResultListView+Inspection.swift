@@ -11,6 +11,8 @@ import CoreText
     public var accessories: [CGRect]
     /// The text inside tags and keycaps.
     public var capsules: [CGRect]
+    /// The Command-digit hint at the end of the row, when the theme shows one.
+    public var runHint: CGRect?
 }
 
 extension ResultListView {
@@ -53,7 +55,7 @@ extension ResultListView {
         typeset.accessories.forEach(collect)
         return DrawnTextFrames(
             title: offset(typeset.titleFrame), dimmedTitle: dimmed, subtitle: typeset.subtitleFrame.map(offset),
-            accessories: accessories, capsules: capsules
+            accessories: accessories, capsules: capsules, runHint: typeset.runHint.map { frame($0, theme.runHintFont) }
         )
     }
 

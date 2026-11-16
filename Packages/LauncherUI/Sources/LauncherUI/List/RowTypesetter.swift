@@ -26,6 +26,20 @@ struct RowTypeset {
     var subtitle: PlacedLine?
     var subtitleFrame: CGRect?
     var accessories: [Accessory]
+    /// The Command-digit chord that runs the row, at the trailing edge, when the theme shows it.
+    var runHint: PlacedLine?
+}
+
+/// The Command-digit chords that run the first rows of a list, as the keyboard model numbers
+/// them: rows counted across sections, from the top of the content.
+nonisolated enum RunHint {
+    /// Command-1 to Command-9.
+    static let count = 9
+
+    /// The chord for row `index`, such as "⌘1", or nil for a row no chord runs.
+    static func text(forRow index: Int) -> String? {
+        (0..<count).contains(index) ? "\u{2318}" + String(index + 1) : nil
+    }
 }
 
 /// Typesets rows with Core Text. Fonts and colours come from a resolved theme.
@@ -33,10 +47,10 @@ enum RowTypesetter {
     /// Glass rule 5's least contrast for secondary text. A row's own subtitle colour is held to it.
     static let secondaryTextRatio = 3.0
 
-    /// Typesets `row`. With `lines`, lines already made for the same text and style are reused;
-    /// the result is the same either way.
+    /// Typesets `row`, the list's row `index` counted across sections. With `lines`, lines already
+    /// made for the same text and style are reused; the result is the same either way.
     static func typeset(
-        _ row: ListRow, width: CGFloat, height: CGFloat, style: RowStyle, emphasizesMatches: Bool,
+        _ row: ListRow, index: Int? = nil, width: CGFloat, height: CGFloat, style: RowStyle, emphasizesMatches: Bool,
         theme: ResolvedTheme, scale: CGFloat, lines: RowLineCache? = nil
     ) -> RowTypeset {
         let lines = LineSource(cache: lines)
@@ -51,6 +65,18 @@ enum RowTypesetter {
         let centerBaseline = snap(baseline(centering: titleFont, in: height), scale)
         var right = width - CGFloat(metrics.trailingInset)
         let accessoryLimit = right - width * CGFloat(metrics.maxAccessoryFraction)
+        // The run hint takes the trailing edge; the row's own accessories go before it.
+        var runHint: RowTypeset.PlacedLine?
+        if metrics.showsRunHints, let index, let chord = RunHint.text(forRow: index) {
+            let line = lines.line(.init(text: chord, role: .runHint)) {
+                CTLineCreateWithAttributedString(attributed(chord, font: theme.runHintFont, color: theme.runHint))
+            }
+            let x = snap(right - lineWidth(line), scale)
+            runHint = .init(line: line, origin: CGPoint(x: x, y: centerBaseline))
+            // A row's own shortcut beside the hint would read as one chord, so it keeps twice the gap.
+            let ownsShortcut = row.accessories.last.map { if case .keycaps = $0 { true } else { false } } ?? false
+            right = x - CGFloat(metrics.accessoryGap) * (ownsShortcut ? 2 : 1)
+        }
         var accessories: [RowTypeset.Accessory] = []
         for accessory in row.accessories.reversed() {
             guard
@@ -124,7 +150,8 @@ enum RowTypesetter {
             titleFrame: frame(of: title, font: titleFont),
             subtitle: subtitle,
             subtitleFrame: subtitle.map { frame(of: $0, font: theme.subtitleFont) },
-            accessories: accessories
+            accessories: accessories,
+            runHint: runHint
         )
     }
 

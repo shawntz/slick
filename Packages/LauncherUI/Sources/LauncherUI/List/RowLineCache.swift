@@ -19,6 +19,8 @@ final class RowLineCache {
         case accessory
         case tag(ThemeColor)
         case keycap
+        /// The Command-digit chord at the end of a row.
+        case runHint
         /// A section title in a card or menu.
         case header
         /// The truncation mark, in the font and colour of the line it ends.

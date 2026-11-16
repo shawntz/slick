@@ -22,6 +22,7 @@ enum RowRenderer {
             if let subtitle = typeset.subtitle { draw(subtitle, context) }
         }
         for accessory in typeset.accessories { draw(accessory, context: context, theme: theme) }
+        if let runHint = typeset.runHint { withHalo(theme, context) { draw(runHint, context) } }
         context.restoreGState()
     }
 
@@ -44,7 +45,7 @@ enum RowRenderer {
             context.addPath(CGPath(roundedRect: frame, cornerWidth: radius, cornerHeight: radius, transform: nil))
             context.setFillColor(fill)
             context.fillPath()
-            draw(text, context)
+            withHalo(theme, context) { draw(text, context) }
         case .group(let parts):
             for part in parts { draw(part, context: context, theme: theme) }
         case .image(let image, let frame):
@@ -70,7 +71,7 @@ enum RowRenderer {
         context.restoreGState()
     }
 
-    /// Draws `body` with the theme's text halo, when it has one.
+    /// Draws `body` with the theme's text halo, when it has one, once per halo layer.
     static func withHalo(_ theme: ResolvedTheme, _ context: CGContext, _ body: () -> Void) {
         guard let halo = theme.textHalo else {
             body()
@@ -78,7 +79,7 @@ enum RowRenderer {
         }
         context.saveGState()
         context.setShadow(offset: .zero, blur: CGFloat(theme.palette.textHaloRadius), color: halo)
-        body()
+        for _ in 0..<theme.textHaloLayers { body() }
         context.restoreGState()
     }
 }

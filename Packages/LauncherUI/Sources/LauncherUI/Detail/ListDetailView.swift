@@ -20,6 +20,9 @@ public final class ListDetailView: NSView, LauncherContentView {
         super.init(frame: frame)
         divider.wantsLayer = true
         for view in [list, divider, detail] as [NSView] { addSubview(view) }
+        // Beside a detail pane the titles need the room more than the hints do. The chords still
+        // run the rows.
+        list.hidesRunHints = true
         list.contentHeightDidChange = { [weak self] in self?.contentHeightDidChange?() }
         detail.contentHeightDidChange = { [weak self] in self?.contentHeightDidChange?() }
     }

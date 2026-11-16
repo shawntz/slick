@@ -43,6 +43,15 @@ public final class ResultListView: NSView, LauncherContentView {
     /// turn it off to compare.
     let lineCache = RowLineCache()
     @_spi(Testing) public var usesLineCache = true
+    /// Leaves out the Command-digit hints even in a theme that shows them, as a list beside a
+    /// detail pane does.
+    var hidesRunHints = false {
+        didSet {
+            guard hidesRunHints != oldValue else { return }
+            typesets.removeAll(keepingCapacity: true)
+            needsDisplay = true
+        }
+    }
     private let indicator = ScrollIndicatorView()
     var accessibilityCache: [NSAccessibilityElement]?
     /// The visible rows last reported through `onVisibleRowsChange`.
@@ -104,6 +113,7 @@ public final class ResultListView: NSView, LauncherContentView {
         let styleChanged =
             oldContent.rowStyle != newContent.rowStyle
             || oldContent.emphasizesMatches != newContent.emphasizesMatches
+            || oldContent.showsRunHints != newContent.showsRunHints
         if styleChanged || oldOffset != scrollOffset {
             typesets.removeAll(keepingCapacity: true)
             setNeedsDisplay(bounds)
@@ -265,6 +275,7 @@ public final class ResultListView: NSView, LauncherContentView {
         rowsDrawnInLastPass = 0
         guard let theme, let context = NSGraphicsContext.current?.cgContext else { return }
         let viewport = viewportHeight
+        context.touchCorners(of: bounds)
         context.clip(to: CGRect(x: 0, y: 0, width: bounds.width, height: viewport))
         let scale = window?.backingScaleFactor ?? 2
         let minY = Double(max(dirtyRect.minY, 0) + scrollOffset)
@@ -296,6 +307,12 @@ public final class ResultListView: NSView, LauncherContentView {
         layoutModel = ListLayout(content: content, metrics: theme.theme.list, maxHeight: Double(bounds.height))
     }
 
+    /// The Command-digit chord that runs row `index`, when the theme shows run hints.
+    func runHint(forRow index: Int) -> String? {
+        guard theme?.theme.list.showsRunHints == true, showsHints else { return nil }
+        return RunHint.text(forRow: index)
+    }
+
     func typeset(_ index: Int, _ row: ListRow, height: CGFloat, scale: CGFloat) -> RowTypeset {
         if typesetWidth != bounds.width {
             typesets.removeAll(keepingCapacity: true)
@@ -303,13 +320,17 @@ public final class ResultListView: NSView, LauncherContentView {
         }
         if let cached = typesets[index] { return cached }
         let typeset = RowTypesetter.typeset(
-            row, width: bounds.width, height: height, style: content.rowStyle,
+            row, index: showsHints ? index : nil, width: bounds.width, height: height, style: content.rowStyle,
             emphasizesMatches: content.emphasizesMatches, theme: theme ?? fallbackTheme, scale: scale,
             lines: usesLineCache ? lineCache : nil
         )
         typesets[index] = typeset
         return typeset
     }
+
+    /// Whether this list's rows may show run hints: the page runs them by chord and the list is
+    /// not beside a detail pane.
+    private var showsHints: Bool { content.showsRunHints && !hidesRunHints }
 
     private var fallbackTheme: ResolvedTheme {
         ResolvedTheme(theme: .standard, appearance: effectiveAppearance, accessibility: .current)
