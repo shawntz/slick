@@ -1,0 +1,14 @@
+{
+  "name": "The onboarding window opens on its hotkey step while Spotlight holds the hotkey, then on another step, for pictures, and closes",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "systemShortcuts": ["cmd+space"], "setSettings": { "launcherHotkey": "ctrl+opt+k" } } },
+    { "app": { "setSettings": { "launcherHotkey": "cmd+space" }, "hotkeyWaiting": "Spotlight" } },
+    { "app": { "openOnboarding": "hotkey", "captureOnboarding": "onboarding-hotkey" } },
+    { "app": { "openOnboarding": "features", "captureOnboarding": "onboarding-features" } },
+    { "app": { "closeOnboarding": true, "settings": [] } },
+    { "summon": true },
+    { "expect": { "visible": true } },
+    { "dismiss": true }
+  ]
+}

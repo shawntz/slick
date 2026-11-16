@@ -56,7 +56,7 @@ struct ScenarioRunTests {
             file, runner: runner, assembly: assembly, settingsOrigin: Self.offscreen.origin
         ) { lines.append($0) }
         #expect(result.passed, "\(result.reason ?? "")\n\(lines.joined(separator: "\n"))")
-        assembly.settings.existingController?.close()
+        assembly.settings.closeWindows()
         await assembly.shutdown()
     }
 

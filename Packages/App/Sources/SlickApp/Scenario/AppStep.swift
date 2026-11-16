@@ -22,6 +22,8 @@ import Kit
 /// | `setFallbacks` | object | as the root search pane does: `order` lists fallback command IDs in the new order, `on` turns each by ID on or off |
 /// | `onboarding` | object | plays onboarding's Optional Features step: `features` sets each switch by feature ID, then Continue applies them |
 /// | `copyAsOtherApp` | strings | another app copies each text in turn onto the run's private pasteboard |
+/// | `makeFiles` | object | writes each made-up text to its path in the run's home folder, which shows as `~`; a path that climbs out fails |
+/// | `chooseFiles` | strings | the next open dialog hands back these paths in the run's home folder, as if the user chose them; with nothing queued a dialog cancels |
 /// | `pressKeys` | string | plays a press of whatever hotkey is registered for these keys, through the hotkey service |
 /// | `link` | string | opens a deep link; `{scheme}` stands for the app's URL scheme |
 /// | `waitForRow` | string | waits until a row or cell with this title shows on the top page, 5 s at most, for a page that fills itself after its own read |
@@ -30,6 +32,9 @@ import Kit
 /// | `openSettings` | string | opens the real settings window on this pane at a fixed place, without key status and without saving its frame |
 /// | `captureSettings` | string | writes `captures/<name>.png` of the settings window `openSettings` opened |
 /// | `closeSettings` | `true` | closes that window |
+/// | `openOnboarding` | string | opens the real onboarding window on this step, `welcome`, `hotkey`, `features`, `permissions`, `theme` or `done`, at the place `openSettings` uses, without key status; it applies no switch and marks nothing done |
+/// | `captureOnboarding` | string | writes `captures/<name>.png` of the onboarding window `openOnboarding` opened |
+/// | `closeOnboarding` | `true` | closes that window |
 /// | `linkOutcome` | string | the last link was `openedLauncher`, `asked`, `ran`, `openedSettings`, `openedFeatureSettings` or `refused` |
 /// | `launched` | strings | the bundle IDs the workspace was asked to launch, exactly, oldest first |
 /// | `opened` | strings | the URLs the workspace was asked to open, exactly, oldest first |
@@ -38,6 +43,8 @@ import Kit
 /// | `favorites` | strings | the favorites, exactly, in order |
 /// | `hud` | string | the last HUD's title; `{brand}` stands for the app's name |
 /// | `pasteboardText` | string | the text on the run's private pasteboard |
+/// | `homeFiles` | strings | each of these paths exists in the run's home folder |
+/// | `openDialogs` | number | how many open dialogs were asked for in the run so far |
 /// | `hotkeyBound` | bool | a launcher hotkey is bound |
 /// | `hotkeyWaiting` | string | the owner of the macOS shortcut the launcher hotkey waits behind, `""` for none |
 /// | `launcherHotkey` | string | the launcher hotkey bound now, as `KeyCombo` writes it |
@@ -59,6 +66,8 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var setFallbacks: FallbackRequest?
     var onboarding: OnboardingRequest?
     var copyAsOtherApp: [String]?
+    var makeFiles: [String: String]?
+    var chooseFiles: [String]?
     var pressKeys: String?
     var link: String?
     var waitForRow: String?
@@ -67,6 +76,9 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var openSettings: String?
     var captureSettings: String?
     var closeSettings: Bool?
+    var openOnboarding: String?
+    var captureOnboarding: String?
+    var closeOnboarding: Bool?
     var linkOutcome: String?
     var launched: [String]?
     var opened: [String]?
@@ -75,6 +87,8 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var favorites: [String]?
     var hud: String?
     var pasteboardText: String?
+    var homeFiles: [String]?
+    var openDialogs: Int?
     var hotkeyBound: Bool?
     var hotkeyWaiting: String?
     var launcherHotkey: String?
@@ -127,11 +141,13 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey, CaseIterable {
         case setTime, advanceClock, sessionStart, frontApp
         case pressHotkey, systemShortcuts, setFeatures, setSettings, setHotkey, setFallbacks, onboarding
-        case copyAsOtherApp, pressKeys, link
+        case copyAsOtherApp, makeFiles, chooseFiles, pressKeys, link
         case waitForRow, select, waitUntilReady, openSettings, captureSettings, closeSettings
+        case openOnboarding, captureOnboarding, closeOnboarding
         case linkOutcome, launched, opened
         case settings
-        case aliases, favorites, hud, pasteboardText, hotkeyBound, hotkeyWaiting, launcherHotkey, hotkeyRefused
+        case aliases, favorites, hud, pasteboardText, homeFiles, openDialogs
+        case hotkeyBound, hotkeyWaiting, launcherHotkey, hotkeyRefused
         case itemHotkeys
         case theme, featuresActive, fallbacksOn
     }
@@ -170,6 +186,8 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         setFallbacks = try container.decodeIfPresent(FallbackRequest.self, forKey: .setFallbacks)
         onboarding = try container.decodeIfPresent(OnboardingRequest.self, forKey: .onboarding)
         copyAsOtherApp = try container.decodeIfPresent([String].self, forKey: .copyAsOtherApp)
+        makeFiles = try container.decodeIfPresent([String: String].self, forKey: .makeFiles)
+        chooseFiles = try container.decodeIfPresent([String].self, forKey: .chooseFiles)
         pressKeys = try container.decodeIfPresent(String.self, forKey: .pressKeys)
         link = try container.decodeIfPresent(String.self, forKey: .link)
         waitForRow = try container.decodeIfPresent(String.self, forKey: .waitForRow)
@@ -178,6 +196,9 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         openSettings = try container.decodeIfPresent(String.self, forKey: .openSettings)
         captureSettings = try container.decodeIfPresent(String.self, forKey: .captureSettings)
         closeSettings = try container.decodeIfPresent(Bool.self, forKey: .closeSettings)
+        openOnboarding = try container.decodeIfPresent(String.self, forKey: .openOnboarding)
+        captureOnboarding = try container.decodeIfPresent(String.self, forKey: .captureOnboarding)
+        closeOnboarding = try container.decodeIfPresent(Bool.self, forKey: .closeOnboarding)
         linkOutcome = try container.decodeIfPresent(String.self, forKey: .linkOutcome)
         launched = try container.decodeIfPresent([String].self, forKey: .launched)
         opened = try container.decodeIfPresent([String].self, forKey: .opened)
@@ -186,6 +207,8 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         favorites = try container.decodeIfPresent([String].self, forKey: .favorites)
         hud = try container.decodeIfPresent(String.self, forKey: .hud)
         pasteboardText = try container.decodeIfPresent(String.self, forKey: .pasteboardText)
+        homeFiles = try container.decodeIfPresent([String].self, forKey: .homeFiles)
+        openDialogs = try container.decodeIfPresent(Int.self, forKey: .openDialogs)
         hotkeyBound = try container.decodeIfPresent(Bool.self, forKey: .hotkeyBound)
         hotkeyWaiting = try container.decodeIfPresent(String.self, forKey: .hotkeyWaiting)
         launcherHotkey = try container.decodeIfPresent(String.self, forKey: .launcherHotkey)

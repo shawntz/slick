@@ -134,7 +134,8 @@ enum ScenarioMode {
     ]
 
     /// How a scenario run is built: the scenario environment, a workspace that records, a clock
-    /// the file can move and, for `systemApps`, the system's own apps and icons. Prepares the data
+    /// the file can move, file dialogs that hand back what the file queued and, for `systemApps`,
+    /// the system's own apps and icons. Prepares the data
     /// folder for them. `surface` places the panel; tests put it off screen.
     static func configuration(
         for file: File, dataRoot: URL, surface: LauncherSurface? = nil
@@ -143,6 +144,7 @@ enum ScenarioMode {
             environment: .scenario, dataRoot: dataRoot, workspace: { RecordingWorkspace(wrapping: $0) },
             surface: surface)
         configuration.clock = ScenarioClock(startingAt: file.startTime)
+        configuration.fileDialogs = ScenarioFileDialogs()
         if file.systemApps {
             try SystemApps.prepare(dataRoot: dataRoot)
             configuration.icons = { SystemApps.icons(platform: $0) }
@@ -191,7 +193,7 @@ enum ScenarioMode {
                 captures: [], steps: [])
         }
         write(result, to: output)
-        assembly.settings.existingController?.close()
+        assembly.settings.closeWindows()
         await assembly.shutdown()
         folders.removeIfTemporary()
         print("output \(output.path)")
@@ -200,8 +202,9 @@ enum ScenarioMode {
     }
 
     /// Runs the steps in order: each stretch of Host steps through the runner, each app step here.
-    /// `settingsOrigin` is where `openSettings` puts the settings window's bottom-left corner; nil
-    /// puts it in the bottom-left corner of the main screen, inside the area clips record.
+    /// `settingsOrigin` is where `openSettings` and `openOnboarding` put their window's bottom-left
+    /// corner; nil puts it in the bottom-left corner of the main screen, inside the area clips
+    /// record.
     static func run(
         _ file: File, runner: ScenarioRunner, assembly: Assembly, settingsOrigin: CGPoint? = nil,
         log: (String) -> Void = { print($0) }
@@ -310,6 +313,20 @@ enum ScenarioMode {
             await assembly.platform.copyAsAnotherApp(text)
             if let problem = await waitForHistory(text, assembly: assembly) { problems.append(problem) }
         }
+        let home = assembly.platform.storage.homeDirectory
+        if let files = step.makeFiles {
+            problems += ScenarioHomeFiles.write(files, in: home)
+        }
+        if let paths = step.chooseFiles {
+            let files = paths.compactMap { ScenarioHomeFiles.resolve($0, in: home) }
+            if files.count != paths.count {
+                problems.append("chooseFiles takes paths inside the run's home folder, not \(paths)")
+            } else if let dialogs = assembly.scenarioFileDialogs {
+                dialogs.queue(files)
+            } else {
+                problems.append("chooseFiles needs the scenario's file dialogs")
+            }
+        }
         if let keys = step.pressKeys {
             if let problem = press(keys, hotkeys: assembly.platform.hotkeys) { problems.append(problem) }
             // Let the run the hotkey starts reach its handler.
@@ -354,6 +371,8 @@ enum ScenarioMode {
         }
         problems += await settingsWindow(
             step, assembly: assembly, runner: runner, origin: settingsOrigin, captures: &captures)
+        problems += await onboardingWindow(
+            step, assembly: assembly, runner: runner, origin: settingsOrigin, captures: &captures)
         if let expected = step.linkOutcome {
             let last = assembly.links.outcomes.last.map(outcomeName) ?? "none"
             if last != expected { problems.append("the last link was \(last), expected \(expected)") }
@@ -388,6 +407,16 @@ enum ScenarioMode {
         if let expected = step.pasteboardText {
             let text = await assembly.services.pasteboard.recentText(offset: 0)
             if text != expected { problems.append("the pasteboard held \(text ?? "nothing"), expected \(expected)") }
+        }
+        for path in step.homeFiles ?? [] {
+            let file = ScenarioHomeFiles.resolve(path, in: home)
+            if !(file.map { FileManager.default.fileExists(atPath: $0.path) } ?? false) {
+                problems.append("no file \(path) in the run's home folder")
+            }
+        }
+        if let expected = step.openDialogs {
+            let asked = assembly.scenarioFileDialogs?.openRequests.count ?? 0
+            if asked != expected { problems.append("\(asked) open dialogs were asked for, expected \(expected)") }
         }
         if let expected = step.hotkeyBound, (assembly.hotkey.bound != nil) != expected {
             problems.append(expected ? "no launcher hotkey is bound" : "a launcher hotkey is bound")
@@ -579,6 +608,49 @@ enum ScenarioMode {
         }
         if step.closeSettings == true {
             assembly.settings.existingController?.close()
+        }
+        return problems
+    }
+
+    /// Opens, captures and closes the real onboarding window for `openOnboarding`,
+    /// `captureOnboarding` and `closeOnboarding`, as ``settingsWindow(_:assembly:runner:origin:captures:)``
+    /// does for settings. Returns the problems.
+    static func onboardingWindow(
+        _ step: AppStep, assembly: Assembly, runner: ScenarioRunner?, origin: CGPoint?, captures: inout [String]
+    ) async -> [String] {
+        var problems: [String] = []
+        if let name = step.openOnboarding {
+            let onboarding = assembly.settings.onboardingForCapture
+            if let id = OnboardingStepID(rawValue: name) {
+                let place = origin ?? defaultSettingsOrigin()
+                if !onboarding.canShow(id) {
+                    problems.append("onboarding has nothing to show on its \(name) step")
+                } else if onboarding.showForCapture(id, at: place) == nil {
+                    problems.append("the onboarding window could not be put at \(place)")
+                }
+                // Let SwiftUI lay the step out before anything captures it.
+                for _ in 0..<10 { await Task.yield() }
+            } else {
+                let names = OnboardingStepID.allCases.map(\.rawValue).joined(separator: ", ")
+                problems.append("no onboarding step \(name); the steps are \(names)")
+            }
+        }
+        if let name = step.captureOnboarding {
+            if let frame = assembly.settings.existingOnboarding?.captureFrame, let runner {
+                do {
+                    let image = try await runner.capture(frame)
+                    let url = runner.output.appending(path: "captures/\(name).png")
+                    try PanelSnapshot.writePNG(image, to: url)
+                    captures.append(url.path)
+                } catch {
+                    problems.append("cannot capture the onboarding window: \(error)")
+                }
+            } else {
+                problems.append("no onboarding window to capture; open one with openOnboarding first")
+            }
+        }
+        if step.closeOnboarding == true {
+            assembly.settings.existingOnboarding?.close()
         }
         return problems
     }

@@ -45,6 +45,8 @@ import os
         var hotkeys: (any HotkeyService)?
         /// Replaces the clock every package reads, as scenarios do to move time.
         var clock: (any ClockService)?
+        /// Replaces the file dialogs, as scenarios do to hand back made-up files.
+        var fileDialogs: (any FileDialogService)?
         /// Makes the icons the panel and settings draw in place of Platform's, as a scenario that
         /// shows the system's own apps does.
         var icons: (@MainActor (PlatformServices) -> any IconProvider)?
@@ -70,6 +72,8 @@ import os
     let recordingWorkspace: RecordingWorkspace?
     /// HUDs outside the live app, which are written down instead of shown.
     let recordingHUD: RecordingHUD?
+    /// The file dialogs a scenario queues answers for.
+    let scenarioFileDialogs: ScenarioFileDialogs?
     /// The clock a scenario moves, when the run has one.
     var scenarioClock: ScenarioClock? { services.clock as? ScenarioClock }
 
@@ -92,8 +96,10 @@ import os
         if let makeWorkspace = configuration.workspace { services.workspace = makeWorkspace(services.workspace) }
         if let hotkeys = configuration.hotkeys { services.hotkeys = hotkeys }
         if let clock = configuration.clock { services.clock = clock }
+        if let fileDialogs = configuration.fileDialogs { services.fileDialogs = fileDialogs }
         self.services = services
         recordingWorkspace = services.workspace as? RecordingWorkspace
+        scenarioFileDialogs = services.fileDialogs as? ScenarioFileDialogs
 
         let hostFolder = platform.storage.dataDirectory(for: Self.hostFolderName)
         let runtime = FeatureRuntime(services: services, environment: environment, dataDirectory: hostFolder)
@@ -133,10 +139,12 @@ import os
         let dependencies = SettingsDependencies(
             services: services, features: runtime, preferences: runtime.preferences, learning: root.inspector,
             icons: icons, loginItem: platform.loginItem, themes: themes, dataDirectory: configuration.dataRoot,
+            about: AboutInfo.fromMainBundle(links: ProjectLinks.about),
             lookUpItem: { [weak root] id in root?.row(for: id) }, launcherHotkey: hotkey)
         settings = SettingsOpener(
             showsWindows: configuration.showsWindows, onOpen: { [weak hotkey] in hotkey?.checkNow() },
-            makeController: { SettingsController(dependencies: dependencies) })
+            makeController: { SettingsController(dependencies: dependencies) },
+            makeOnboarding: { OnboardingController(dependencies: dependencies) })
         self.dependencies = dependencies
         links = DeepLinkRouter(runtime: runtime, panel: panel, settings: settings)
 
