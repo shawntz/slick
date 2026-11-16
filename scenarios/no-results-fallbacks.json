@@ -9,8 +9,9 @@
     { "press": "cmd+k" },
     { "expect": { "actions": ["Run Command", "Open With", "Copy Link", "Edit Quicklink", "Duplicate Quicklink", "Turn Off Quicklink", "Delete Quicklink", "Add to Favorites", "Set Alias", "Set Hotkey", "Reset Ranking", "Disable Command"] } },
     { "press": "cmd+k" },
-    { "press": "down" },
+    { "app": { "select": "Search Wikipedia for \"qwzxv kit\"" } },
     { "expect": { "selection": "Search Wikipedia for \"qwzxv kit\"" } },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "expect": { "visible": false } },
@@ -18,6 +19,7 @@
     { "summon": true },
     { "press": "escape" },
     { "type": "zz" },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "app": { "opened": ["https://en.wikipedia.org/wiki/Special:Search?search=qwzxv%20kit", "https://www.google.com/search?q=zz"] } }

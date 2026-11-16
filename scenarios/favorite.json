@@ -2,11 +2,13 @@
   "name": "A favorite shows in the empty state",
   "timeLimit": 20,
   "steps": [
+    { "app": { "setFeatures": { "schedule": false }, "featuresActive": { "schedule": false } } },
     { "summon": true },
     { "expect": { "rowCount": 0, "query": "" } },
     { "type": "calendar" },
     { "press": "cmd+k" },
     { "type": "favorites" },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 2 },
     { "app": { "favorites": ["app:com.example.calendar"] } },

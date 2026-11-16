@@ -7,6 +7,7 @@
     { "expect": { "selection": "Search Wikipedia" } },
     { "press": "tab" },
     { "type": "Ada Lovelace" },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "expect": { "visible": false } },

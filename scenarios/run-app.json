@@ -6,6 +6,7 @@
     { "summon": true },
     { "type": "web" },
     { "expect": { "selection": "Web Browser" } },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "expect": { "visible": false } },
@@ -15,6 +16,7 @@
     { "press": "escape" },
     { "expect": { "query": "", "visible": true } },
     { "type": "cal" },
+    { "waitUntilIdle": 3 },
     { "press": "cmd+1" },
     { "waitUntilIdle": 3 },
     { "app": { "launched": ["com.example.browser", "com.example.calendar"] } }

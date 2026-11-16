@@ -17,6 +17,7 @@
     { "expect": { "visible": true, "query": "no", "selection": "Notes" } },
     { "type": "tes" },
     { "expect": { "query": "notes", "selection": "Notes" } },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "summon": true },
     { "waitUntilIdle": 3 },

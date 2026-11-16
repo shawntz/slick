@@ -1,11 +1,21 @@
 {
-  "name": "Emoji fill a grid and answer a colon in root search",
+  "name": "Emoji answer a colon in root search and fill a grid",
   "timeLimit": 30,
   "steps": [
     { "app": { "setSettings": { "app.general.resetToRootAfter": 0 } } },
     { "summon": true },
+    { "type": ":thumbs" },
+    { "expect": { "rows": ["Thumbs Up", "Thumbs Down", "Search Google for \":thumbs\"", "Search Wikipedia for \":thumbs\""], "selection": "Thumbs Up" } },
+    { "waitUntilIdle": 3 },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "pasteboardText": "👍" } },
+    { "summon": true },
+    { "expect": { "page": "root", "query": "" } },
     { "type": "search emoji" },
     { "expect": { "selection": "Search Emoji and Symbols" } },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "expect": { "page": "grid" } },
@@ -17,17 +27,10 @@
     { "waitUntilIdle": 2 },
     { "expect": { "selection": "Star-Struck" } },
     { "capture": { "name": "grid", "key": true } },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 3 },
     { "expect": { "visible": false } },
-    { "app": { "pasteboardText": "🤩" } },
-    { "summon": true },
-    { "expect": { "page": "root", "query": "" } },
-    { "type": ":thumbs" },
-    { "expect": { "rows": ["Thumbs Up", "Thumbs Down", "Search Google for \":thumbs\"", "Search Wikipedia for \":thumbs\""], "selection": "Thumbs Up" } },
-    { "press": "return" },
-    { "waitUntilIdle": 3 },
-    { "expect": { "visible": false } },
-    { "app": { "pasteboardText": "👍" } }
+    { "app": { "pasteboardText": "🤩" } }
   ]
 }

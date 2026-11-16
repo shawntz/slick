@@ -1,17 +1,27 @@
 {
   "name": "Picking the second result twice makes it first",
   "timeLimit": 110,
+  "systemApps": true,
   "media": {
     "file": "clip-learn-light",
     "appearance": "light",
-    "caption": "Pick the second result twice, and it becomes the first.",
-    "alt": "A recording of Slick's search panel in light mode. Typing “cad” lists Cadence Calendar first and Cascade Mail second. Cascade Mail is picked with the down arrow and Return, and the panel closes. When the panel opens again it suggests Cascade Mail, and “cad” still lists Cadence Calendar first, so Cascade Mail is picked a second time. On the third search for “cad”, Cascade Mail is first. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares.",
-    "posterAlt": "Slick's search panel in light mode with “cad” typed. Cascade Mail is the first result and Cadence Calendar the second. A frame from a recording of the assembled app over made-up sample apps.",
-    "gifAlt": "A recording of Slick's search panel in light mode. Typing “cad” lists Cadence Calendar first and Cascade Mail second. Cascade Mail is picked with the down arrow and Return, and the panel closes. When the panel opens again it suggests Cascade Mail, and “cad” still lists Cadence Calendar first, so Cascade Mail is picked a second time. On the third search for “cad”, Cascade Mail is first. Recorded from the assembled app running a scripted scenario, over made-up sample apps whose icons are plain colored squares."
+    "caption": "Pick a lower result twice for the same query, and it becomes the first.",
+    "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "gifAlt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
+    "posterAlt": "Slick's search panel in light mode with “bo” typed. Font Book is the first result and Books the second. A frame from a recording of the assembled app with Apple's own apps."
   },
   "steps": [
     {
       "app": {
+        "setFeatures": {
+          "contacts": false,
+          "schedule": false,
+          "bookmarks": false,
+          "ai": false,
+          "snippets": false,
+          "scripts": false,
+          "menu-items": false
+        },
         "setSettings": {
           "visibleRows": 7,
           "app.general.resetToRootAfter": 0
@@ -35,22 +45,24 @@
       }
     },
     {
-      "type": "cad"
+      "type": "bo"
     },
     {
       "expect": {
-        "selection": "Cadence Calendar"
+        "selection": "Books"
       }
     },
     {
       "wait": 0.3
     },
     {
-      "press": "down"
+      "app": {
+        "select": "Font Book"
+      }
     },
     {
       "expect": {
-        "selection": "Cascade Mail"
+        "selection": "Font Book"
       }
     },
     {
@@ -76,22 +88,24 @@
       }
     },
     {
-      "type": "cad"
+      "type": "bo"
     },
     {
       "expect": {
-        "selection": "Cadence Calendar"
+        "selection": "Books"
       }
     },
     {
       "wait": 0.3
     },
     {
-      "press": "down"
+      "app": {
+        "select": "Font Book"
+      }
     },
     {
       "expect": {
-        "selection": "Cascade Mail"
+        "selection": "Font Book"
       }
     },
     {
@@ -112,13 +126,13 @@
       "summon": true
     },
     {
-      "type": "cad"
+      "type": "bo"
     },
     {
       "expect": {
-        "selection": "Cascade Mail",
+        "selection": "Font Book",
         "rowsInclude": [
-          "Cadence Calendar"
+          "Books"
         ]
       }
     },

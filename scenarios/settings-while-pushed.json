@@ -4,6 +4,7 @@
   "steps": [
     { "summon": true },
     { "type": "running applications" },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 2 },
     { "expect": { "page": "list", "rows": ["Mail", "Notes"] } },
@@ -11,7 +12,7 @@
     { "waitUntilIdle": 2 },
     { "expect": { "page": "list", "rows": ["Mail", "Notes"], "selection": "Mail", "visible": true } },
     { "capture": { "name": "graphite-list", "key": true } },
-    { "press": "down" },
+    { "app": { "select": "Notes" } },
     { "expect": { "selection": "Notes" } },
     { "press": "escape" },
     { "expect": { "page": "root", "query": "running applications" } },

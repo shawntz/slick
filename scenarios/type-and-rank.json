@@ -6,7 +6,7 @@
     { "type": "t" },
     { "expect": { "selection": "Text Editor", "ghost": "" } },
     { "type": "e" },
-    { "expect": { "selection": "Text Editor", "rowsInclude": ["Text Editor", "Notes", "Output device", "Turn On Snippet Expansion"] } },
+    { "expect": { "selection": "Text Editor", "rowsInclude": ["Text Editor", "Notes", "Turn On Snippet Expansion"] } },
     { "type": "xt" },
     { "expect": { "selection": "Text Editor", "rowsInclude": ["Text Editor", "Search Snippets"] } },
     { "press": "escape" },

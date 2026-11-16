@@ -19,6 +19,7 @@
     { "expect": { "selection": "Notes" } },
     { "press": "escape" },
     { "type": "running applications" },
+    { "waitUntilIdle": 3 },
     { "press": "return" },
     { "waitUntilIdle": 2 },
     { "expect": { "page": "list", "rows": ["Mail", "Notes"] } },
