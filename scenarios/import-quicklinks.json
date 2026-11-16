@@ -1,0 +1,29 @@
+{
+  "name": "Import Quicklinks reads a made-up Raycast file and imports a link that is not for the web turned off",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "makeFiles": { "Imports/team-quicklinks.json": "[{\"name\": \"Example Docs Search\", \"link\": \"https://docs.example.com/search?q={argument}\"}, {\"name\": \"Example App Item\", \"link\": \"exampleapp://open?item=7\"}]" } } },
+    { "app": { "chooseFiles": ["Imports/team-quicklinks.json"] } },
+    { "summon": true },
+    { "type": "import quicklinks" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "Import Quicklinks" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "list", "title": "Import Quicklinks", "rows": ["Example Docs Search", "Example App Item"] } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "toast": "Imported 2 Quicklinks: Turned 1 off, because its link is not a web link." } },
+    { "expect": { "page": "root" } },
+    { "press": "escape" },
+    { "expect": { "query": "" } },
+    { "type": "example docs search" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rowsInclude": ["Example Docs Search"] } },
+    { "press": "escape" },
+    { "type": "example app item" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rows": ["Search Google for \"example app item\"", "Search Wikipedia for \"example app item\""] } },
+    { "dismiss": true }
+  ]
+}

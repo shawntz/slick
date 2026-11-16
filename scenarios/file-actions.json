@@ -1,0 +1,24 @@
+{
+  "name": "File Search duplicates a made-up file in the run's own home folder and never replaces one",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "setFeatures": { "files": true }, "featuresActive": { "files": true } } },
+    { "app": { "makeFiles": { "docs/plan.rs": "fn main() {}\n" } } },
+    { "summon": true },
+    { "type": "~/docs/plan" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "plan.rs" } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Open", "Show in Finder", "Open With", "Quick Look", "Get Info", "Share…", "Copy File", "Copy Path", "Copy Name", "Rename…", "Duplicate", "Compress", "Move To…", "Copy To…", "Move to Trash", "Add to Favorites", "Set Alias", "Set Hotkey", "Reset Ranking"] } },
+    { "press": "cmd+k" },
+    { "press": "cmd+d" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "toast": "Duplicated “plan.rs”: The copy is named “plan copy.rs”." } },
+    { "app": { "homeFiles": ["docs/plan.rs", "docs/plan copy.rs"] } },
+    { "press": "cmd+d" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "toast": "Duplicated “plan.rs”: The copy is named “plan copy 2.rs”." } },
+    { "app": { "homeFiles": ["docs/plan copy 2.rs"] } },
+    { "dismiss": true }
+  ]
+}

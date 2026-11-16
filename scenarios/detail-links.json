@@ -1,0 +1,25 @@
+{
+  "name": "A link in a detail opens a web address at once and asks first for any other scheme",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "setSettings": { "tabCommand": "cmd:ai.ask" } } },
+    { "summon": true },
+    { "type": "Compare [the guide](https://docs.example.com/guide) with [the app](exampleapp://open?item=7)" },
+    { "waitUntilIdle": 3 },
+    { "press": "tab" },
+    { "waitUntilIdle": 5 },
+    { "expect": { "page": "detail", "title": "Ask AI" } },
+    { "clickLink": "https://docs.example.com/guide" },
+    { "waitUntilIdle": 2 },
+    { "app": { "opened": ["https://docs.example.com/guide"] } },
+    { "clickLink": "exampleapp://open?item=7" },
+    { "expect": { "toast": "Not a Web Link: exampleapp://open?item=7" } },
+    { "app": { "opened": ["https://docs.example.com/guide"] } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Open", "Copy Answer", "Paste Answer", "Regenerate", "Continue in Chat"] } },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "app": { "opened": ["https://docs.example.com/guide", "exampleapp://open?item=7"] } },
+    { "dismiss": true }
+  ]
+}

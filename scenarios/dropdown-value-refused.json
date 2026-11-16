@@ -1,0 +1,24 @@
+{
+  "name": "A link's value for a dropdown argument that is not one of its options is refused before anything runs",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "setFeatures": { "clipboard": true }, "featuresActive": { "clipboard": true } } },
+    { "app": { "copyAsOtherApp": ["first synthetic copy"] } },
+    { "app": { "link": "{scheme}://commands/clipboard/clear-recent?period=forever", "linkOutcome": "asked" } },
+    { "waitUntilIdle": 2 },
+    { "app": { "select": "Run Clear Recent Clipboard History" } },
+    { "app": { "advanceClock": 1 } },
+    { "waitUntilIdle": 3 },
+    { "press": "return" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "card": "", "toast": "Not an Option for Period: Choose one of its options and run the command again." } },
+    { "dismiss": true },
+    { "summon": true },
+    { "type": "clipboard history" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "Clipboard History" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rows": ["first synthetic copy"] } }
+  ]
+}

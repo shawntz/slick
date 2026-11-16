@@ -50,6 +50,7 @@ Each step is an object with exactly one key, the step's name. An unknown name, o
 | `waitUntilIdle` | seconds | Waits until nothing loads, streams, submits, runs or animates, checked twice in a row 10 ms apart. Fails with what is still busy when the time runs out. |
 | `wait` | seconds | Waits. Use `waitUntilIdle` when you can. |
 | `expect` | object | Checks what the panel shows. See "Expectations". |
+| `clickLink` | string | Clicks the link with this target in the detail shown, on a detail page or in the pane beside a list, as a person would. Fails when the detail shows no such link. |
 | `fill` | `{ "field": id, "value": text }` | Sets a form field as if the user had entered it. A checkbox takes `"true"` or `"false"`, a dropdown an option's value, a tags field words separated by commas, and a files field one path. Fails when the top page is not a form or has no such field. |
 | `capture` | name, or `{ "name": name, "key": true }` | Writes `captures/<name>.png` in the output folder. With `key`, the panel takes key status for about 120 ms so the glass shows its key look. Fails when the panel is hidden or the capture takes longer than 5 s. |
 | `record` | object | Starts a clip. See "Recording a clip". |
@@ -80,7 +81,7 @@ Every key is optional. Each key present must hold, and the step reports every on
 | `rowsInclude` | strings | Each of these titles is among the shown rows or cells. |
 | `rowCount` | number | This many rows or cells show. |
 | `selection` | string | The selected row's or cell's title. `""` means nothing is selected. |
-| `toast` | string | The action bar shows this toast text. A toast with a message reads `Title: message`. |
+| `toast` | string | The action bar shows this toast text. A toast with a message reads `Title: message`. `{brand}` stands for the app's name, which a file never writes out. |
 | `noToast` | `true` | No toast shows. |
 | `title` | string | The top page's title, as the breadcrumb shows it. Empty for root search. |
 | `ghost` | string | The ghost completion after the typed text. |
@@ -91,6 +92,7 @@ Every key is optional. Each key present must hold, and the step reports every on
 | `visible` | bool | The panel is on screen, or hidden. |
 | `fieldErrors` | strings | Exactly these form field IDs show an error, in any order. `[]` means none. |
 | `card` | string | The title of the confirmation or permission card waiting for an answer. `""` means none. |
+| `largeType` | string | The text Large Type showed last in the run. `""` when it showed nothing. Large Type is recorded, never shown, outside the live app. |
 
 ## Recording a clip
 
@@ -124,7 +126,7 @@ What happens:
 - The panel takes key status for the whole clip, so the glass shows its key look, and every summon makes it key. After each step the recorder checks that a visible panel is key. A clip where it was not fails, because its glass looked flat.
 - The pauses are a person's: 0.3 s before typing starts, then about eight characters a second at uneven gaps, 0.42 s before a key press, 0.24 s between repeats of the same key, 0.5 s before a Command chord, 0.55 s before a summon and 0.5 s before a dismiss. `wait` steps add holds. Expectations and `waitUntilIdle` add none.
 - A capture during a clip keeps the clip's wallpaper and key status.
-- A window of this app that is open inside the recorded area when the clip starts, such as the settings window from `openSettings`, stays in front: the wallpaper takes its level, just below it, and a `still` step pictures it over the wallpaper. Open it before `record`. A window opened during the clip sits behind the wallpaper. When input arrives, such windows are put away with the panel.
+- A window of this app that is open inside the recorded area when the clip starts, such as the settings window from `openSettings` or the onboarding window from `openOnboarding`, stays in front: the wallpaper takes its level, just below it, and a `still` step pictures it over the wallpaper. Open it before `record`. A window opened during the clip sits behind the wallpaper. When input arrives, such windows are put away with the panel.
 - The moment anyone touches the keyboard, mouse or trackpad, the panel is put away, key status goes back, and the run fails with "input arrived during the clip, so it was thrown out". A failed step also throws the clip out. So does a file that ends while a clip records.
 
 `stopRecording` takes `tail`, the seconds recorded after the last step, 0.8 by default, and `poster`, the second of the clip for the poster picture, the last frame by default. `webMaxBytes`, 3,000,000, `gifWidth`, 940, and `gifMaxBytes`, 6,000,000, set the budgets. It writes into `clips/` in the output folder:
@@ -166,6 +168,8 @@ App adds steps of its own for what only the app can see or do, written `{ "app":
 - `waitForRow`: waits, 5 s at most, until a row shows on a page that fills itself after its own read.
 - `setTime`, `sessionStart` and `frontApp`: move the run's clock, play a wake and put an app in front, so suggestions before typing can be proved. The run's clock reads UTC and US English.
 - `openSettings`, `captureSettings` and `closeSettings`: open the real settings window on a pane at a fixed place without key status or a saved frame, capture it and close it.
+- `makeFiles` and `chooseFiles`: write made-up files in the run's own home folder, which shows as `~`, and hand them to the next open dialog, as for an import. `homeFiles` checks that files exist there, and `openDialogs` counts the open dialogs asked for.
+- `openOnboarding`, `captureOnboarding` and `closeOnboarding`: the same for the onboarding window on a named step, such as `hotkey`. It applies no switch and marks onboarding not done. To picture the hotkey step with the Spotlight walkthrough, first make the hotkey wait: play `systemShortcuts` with `cmd+space`, then set `launcherHotkey` to another combination and back.
 
 ## Examples
 

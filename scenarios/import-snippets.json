@@ -1,0 +1,26 @@
+{
+  "name": "Import Snippets reads a made-up Raycast file, shows what it will do and saves on confirm",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "makeFiles": { "Imports/team-snippets.json": "[{\"name\": \"Example Greeting\", \"text\": \"Hello from the example team\", \"keyword\": \"exg\"}, {\"name\": \"Example Sign-off\", \"text\": \"Best wishes,\\nThe Example Team\", \"keyword\": \"exs\"}, {\"name\": \"\", \"text\": \"no name\"}]" } } },
+    { "app": { "chooseFiles": ["Imports/team-snippets.json"] } },
+    { "summon": true },
+    { "type": "import snippets" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "Import Snippets" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "list", "title": "Import Snippets", "rows": ["Example Greeting", "Example Sign-off", "Entry 3"] } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "toast": "Imported 2 Snippets: Skipped 1 entry that was not valid." } },
+    { "app": { "openDialogs": 1 } },
+    { "expect": { "page": "root" } },
+    { "press": "escape" },
+    { "expect": { "query": "" } },
+    { "type": "example greeting" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rowsInclude": ["Example Greeting"] } },
+    { "dismiss": true }
+  ]
+}

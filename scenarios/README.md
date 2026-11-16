@@ -36,14 +36,19 @@ An app step is `{ "app": { ... } }`. Its actions run first, in the order of this
 | `setFallbacks` | object | as the root search pane does: `order` lists fallback command IDs, such as `cmd:quicklinks.open.wikipedia`, in the new order, and `on` turns each by ID on or off |
 | `onboarding` | object | plays onboarding's Optional Features step through its own model: `features` sets each switch by feature ID, then Continue applies them. Onboarding is not marked done |
 | `copyAsOtherApp` | strings | another app copies each text in turn onto the run's private pasteboard |
+| `makeFiles` | object | writes each made-up text to its path in the run's own home folder, which shows as `~`, making folders on the way. A path that is absolute or climbs out fails, and so does one that is already there |
+| `chooseFiles` | strings | the next open dialog hands back these paths in the run's home folder, as if the user chose them there. Each dialog takes the next answer queued; with none left it cancels, and a save dialog always cancels |
 | `pressKeys` | string | plays a press of whatever hotkey is registered for these keys |
 | `link` | string | opens a deep link; `{scheme}` stands for the app's URL scheme |
-| `waitForRow` | string | waits until a row or cell with this title shows on the top page, 5 s at most. For a page that fills itself after its own read, which `waitUntilIdle` does not see, such as Search Menu Items |
+| `waitForRow` | string | waits until a row or cell with this title shows on the top page, 5 s at most. For a page that fills itself after its own read and does not say it is busy. Search Menu Items does, so `waitUntilIdle` covers its read |
 | `select` | string | selects the row or cell with this title on the top page by pressing Down, then Up, through the runner, as a person would. Fails when no such row shows |
 | `waitUntilReady` | `true` | waits until every feature finished the loading its activation started and root search is ready |
 | `openSettings` | string | opens the real settings window on this pane at a fixed place: the bottom-left corner of the main screen, inside the area a clip records. The app does not come forward, the window never takes key status and its frame is not saved. Headless runs put it off screen |
 | `captureSettings` | string | writes `captures/<name>.png` of the window `openSettings` opened |
 | `closeSettings` | `true` | closes that window |
+| `openOnboarding` | string | opens the real onboarding window on this step, `welcome`, `hotkey`, `features`, `permissions`, `theme` or `done`, at the place `openSettings` uses, in the same way: the app does not come forward and the window never takes key status. It applies no switch and marks onboarding not done. The launcher hotkey checks at once whether a macOS shortcut holds it, so the hotkey step shows the wait. Fails for a step with nothing to show, such as permissions when no feature that is on needs one |
+| `captureOnboarding` | string | writes `captures/<name>.png` of the window `openOnboarding` opened |
+| `closeOnboarding` | `true` | closes that window |
 | `linkOutcome` | string | the last link was `openedLauncher`, `asked`, `ran`, `openedSettings`, `openedFeatureSettings` or `refused` |
 | `launched` | strings | the bundle IDs the workspace was asked to launch, exactly, oldest first |
 | `opened` | strings | the URLs the workspace was asked to open, exactly, oldest first |
@@ -52,6 +57,8 @@ An app step is `{ "app": { ... } }`. Its actions run first, in the order of this
 | `favorites` | strings | the favorites, exactly, in order |
 | `hud` | string | the last HUD's title; HUDs are recorded, never shown; `{brand}` stands for the app's name |
 | `pasteboardText` | string | the text on the run's private pasteboard |
+| `homeFiles` | strings | each of these paths exists in the run's home folder |
+| `openDialogs` | number | how many open dialogs were asked for in the run so far |
 | `hotkeyBound` | bool | a launcher hotkey is bound |
 | `hotkeyWaiting` | string | the owner of the macOS shortcut the launcher hotkey waits behind, `""` for none |
 | `launcherHotkey` | string | the launcher hotkey bound now, such as `cmd+space` |
@@ -61,7 +68,7 @@ An app step is `{ "app": { ... } }`. Its actions run first, in the order of this
 | `featuresActive` | object | each feature, by ID, is active or not |
 | `fallbacksOn` | strings | the IDs of the fallbacks that are on, in the order root search shows them |
 
-Host's expectations include `card`: the title of the confirmation or permission card waiting for an answer, `""` for none. A `tab` press moves into a command's argument chips when they show, as the search field does.
+Host's expectations include `card`: the title of the confirmation or permission card waiting for an answer, `""` for none, and `largeType`: the text Large Type showed last, `""` for none. A `toast` expectation writes `{brand}` for the app's name. Host's `clickLink` step clicks a link the detail shows, by its target. A `tab` press moves into a command's argument chips when they show, as the search field does.
 
 ## Apple's own apps
 
@@ -115,6 +122,7 @@ A file with `"systemApps": true` shows Apple's own apps with their real icons an
 | menu-items.json | Search Menu Items lists the menus of the app in front, filters to one item and runs it |
 | system-apps.json | with `systemApps`, TextEdit shows by its own name and launches by Apple's bundle ID |
 | settings-window.json | the settings window opens on two panes for captures and closes, and the panel still opens after |
+| onboarding-window.json | the onboarding window opens on its hotkey step while Spotlight holds the hotkey, then on Optional Features, for captures, and closes, and the panel still opens after |
 | two-features-one-query.json | "calendar" shows the Calendar app and Schedule's commands; each row's action panel and Return belong to its own feature |
 | onboarding-then-settings.json | File Search switched off in onboarding stays off: no folder listing, no Search Files. Turned on later, both work |
 | fallbacks-reordered-and-off.json | the user's fallback order and switches show in root search; a fallback that starts off can be turned on; the choices survive the feature turning off and on |
@@ -122,5 +130,12 @@ A file with `"systemApps": true` shows Apple's own apps with their real icons an
 | deep-links-new-features.json | a link to each command of Calculator, Dictionary, Schedule, Contacts, Bookmarks, AI, Menu Items and File Search asks before it runs; a link to a feature that is off is refused. None of these eight has a hidden command |
 | calculator-and-app.json | with `systemApps`, Apple's Calculator app leads "calculator" and launches, the calculator still answers "12 * 12", and "time" leads with Time Machine while the current time answers in its own section |
 | typing-at-launch.json | with `startsBeforeReady`, "cal" typed before the apps are scanned keeps the text and shows what is ready; the next keystroke finds Calendar and Return launches it |
+| link-session-refusals.json | links to Import Snippets and Import Quicklinks are refused; in a session a search link opened, Return on Import Snippets is refused with a toast and asks for no file, while the next session the user opens runs it; a destructive question in a link session starts on Cancel, so Return cancels it |
+| dropdown-value-refused.json | a link that gives Clear Recent Clipboard History a period it does not offer asks first, then is refused with a toast that names the argument, and the history keeps its item |
+| detail-links.json | in an Ask AI answer, a web link opens at once and a link to another app's scheme shows its full target in a toast first; the toast's Open, first in the action panel, opens it |
+| large-type.json | a calculator answer offers Show in Large Type, and Command-L closes the panel and shows "144" in Large Type |
+| file-actions.json | with File Search on, a made-up file in the run's home folder offers every file action, and Command-D duplicates it twice as "plan copy.rs" and "plan copy 2.rs", never over another file |
+| import-snippets.json | Import Snippets reads a made-up Raycast file from the open dialog, lists two to add and one not valid, imports on Return with a toast of the counts, and the new snippet is found in root search |
+| import-quicklinks.json | Import Quicklinks reads a made-up Raycast file, imports the web link and turns off the one for another app, which root search then does not offer |
 
 `FastTypingTests` in App's tests adds a slow async provider to the joined app and types faster than it answers. `OneItemTwoRowsTests` adds a file search that finds an app's own bundle, which the scenario environment's file index cannot hold, and checks that the app shows once.

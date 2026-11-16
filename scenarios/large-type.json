@@ -1,0 +1,16 @@
+{
+  "name": "Command-L shows a calculator answer in Large Type and closes the panel",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "12 * 12" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "selection": "144", "largeType": "" } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Copy Answer", "Paste Answer", "Copy as Plain Number", "Copy Question and Answer", "Show in Large Type", "Open Calculator History", "Add to Favorites", "Set Alias", "Set Hotkey", "Reset Ranking"] } },
+    { "press": "cmd+k" },
+    { "press": "cmd+l" },
+    { "waitUntilIdle": 2 },
+    { "expect": { "visible": false, "largeType": "144" } }
+  ]
+}
