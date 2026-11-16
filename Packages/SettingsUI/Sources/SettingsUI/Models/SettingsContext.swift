@@ -11,13 +11,18 @@ final class SettingsContext {
     let toasts = ToastCenter()
     let confirmations = ConfirmationCenter()
     let permissions: PermissionGrant
+    /// Tells the features about grants made here. Grant buttons use it through ``permissions``, and
+    /// panes that follow a status use it directly.
+    let grants: GrantAnnouncer
     let icons: IconResolver
 
     init(_ dependencies: SettingsDependencies) {
         self.dependencies = dependencies
         general = HostSettings.settings(dependencies.services.settings)
+        let grants = GrantAnnouncer(service: dependencies.services.permissions, directory: dependencies.features)
+        self.grants = grants
         permissions = PermissionGrant(
-            service: dependencies.services.permissions, custom: dependencies.grantPermission)
+            service: dependencies.services.permissions, custom: dependencies.grantPermission, announcer: grants)
         icons = IconResolver(provider: dependencies.icons)
     }
 

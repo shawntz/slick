@@ -119,3 +119,41 @@ final class HelperFeature: Feature {
         ]
     }
 }
+
+/// A made-up feature that is off by default and suggested in onboarding.
+final class SuggestedFeature: Feature {
+    static let manifest = FeatureManifest(
+        id: "suggested", name: "Suggested Helper", icon: .symbol("star"), summary: "Helps by default.",
+        isEnabledByDefault: false, isSuggestedInOnboarding: true)
+
+    init(context: FeatureContext) {}
+
+    var commands: [Command] { [] }
+}
+
+/// A made-up feature with a history picker that asks before a smaller choice deletes items.
+final class HistoryPickerFeature: Feature {
+    static let manifest = FeatureManifest(id: "history-picker", name: "History Picker", icon: .symbol("clock"))
+    static let keep = SettingKey("keep", default: 100)
+
+    init(context: FeatureContext) {}
+
+    var commands: [Command] { [] }
+
+    var settingsPane: SettingsPane? {
+        SettingsPane([
+            SettingsSection(
+                "History",
+                items: [
+                    .picker(
+                        "Keep at most", key: Self.keep, options: [(100, "100 items"), (10, "10 items")],
+                        confirm: { stored, chosen in
+                            chosen < stored
+                                ? Confirmation(
+                                    "Keep Only \(chosen) Items?", message: "Older items are deleted now.",
+                                    confirmTitle: "Delete", isDestructive: true) : nil
+                        })
+                ])
+        ])
+    }
+}

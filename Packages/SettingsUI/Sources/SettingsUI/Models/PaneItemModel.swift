@@ -104,7 +104,8 @@ import Observation
         return []
     }
 
-    /// The index of the chosen option, or nil when the stored value matches none.
+    /// The index of the chosen option, or nil when the stored value matches none. Setting it
+    /// chooses that option through ``choose(_:)``.
     var pickerIndex: Int? {
         get {
             let value = storage
@@ -112,7 +113,35 @@ import Observation
         }
         set {
             guard let newValue, options.indices.contains(newValue) else { return }
-            storage = options[newValue].value
+            choose(options[newValue].value)
+        }
+    }
+
+    /// The question open for a picker choice, while the user has not answered it.
+    private(set) var pendingChoice: Confirmation?
+
+    /// Stores a picker choice. A choice the feature asks about first, such as a shorter history that
+    /// deletes items at once, is stored only when the user goes ahead. Until the answer, and after
+    /// a no, the picker shows the stored choice.
+    func choose(_ value: SettingStorage) {
+        guard let key = control.key, let entry else { return }
+        let stored = context.services.settings.storage(for: entry.context.settings.storageName(for: key.name))
+        guard let confirmation = item.confirmation(choosing: value, stored: stored) else {
+            storage = value
+            return
+        }
+        pendingChoice = confirmation
+        page.settingsRevision.bump()
+        let confirmations = context.confirmations
+        Task { [weak self] in
+            let goAhead = await confirmations.ask(confirmation)
+            guard let self else { return }
+            self.pendingChoice = nil
+            if goAhead {
+                self.storage = value
+            } else {
+                self.page.settingsRevision.bump()
+            }
         }
     }
 
@@ -323,8 +352,11 @@ import Observation
         page.settingsRevision.bump()
     }
 
+    /// Opens the permission's pane in System Settings. When the page shows again with the permission
+    /// granted there, the features hear of it.
     func openPermissionSettings() async {
         guard let permission else { return }
+        context.grants.watch(permission)
         await context.permissions.openSettings(for: permission)
     }
 
@@ -335,7 +367,9 @@ import Observation
         switch control {
         case .multiSelect: await loadChoices()
         case .secret: await loadSecret()
-        case .permission: page.settingsRevision.bump()
+        case .permission:
+            page.settingsRevision.bump()
+            if let permission { await context.grants.check(permission) }
         default: break
         }
     }

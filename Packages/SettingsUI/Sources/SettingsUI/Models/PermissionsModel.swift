@@ -58,7 +58,10 @@ import Observation
         revision.bump()
     }
 
+    /// Opens the permission's pane in System Settings. The pane's status streams announce a grant
+    /// made there.
     func openSettings(for permission: Permission) async {
+        context.grants.watch(permission)
         await context.permissions.openSettings(for: permission)
     }
 
@@ -69,17 +72,25 @@ import Observation
 
     /// Follows status changes of every listed permission while the pane is visible. The live
     /// service checks only while a stream is open, so the view runs this in a task that ends when
-    /// the pane goes away.
+    /// the pane goes away. A permission the user granted in System Settings while the pane watched
+    /// is announced to the features.
     func watch() async {
         let permissions = entries.map(\.permission)
+        for permission in permissions { context.grants.watch(permission) }
         await withTaskGroup(of: Void.self) { group in
             for permission in permissions {
                 let stream = context.services.permissions.changes(of: permission)
                 group.addTask { [weak self] in
-                    for await _ in stream { await self?.refresh() }
+                    for await _ in stream { await self?.statusChanged(permission) }
                 }
             }
         }
+    }
+
+    /// Reads every status again and tells the features when this one turned granted.
+    func statusChanged(_ permission: Permission) async {
+        refresh()
+        await context.grants.check(permission)
     }
 }
 
