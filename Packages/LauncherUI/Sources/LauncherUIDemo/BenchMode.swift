@@ -7,7 +7,7 @@ import LauncherUITesting
 /// changed rows, a keystroke split into its parts, the lens glide, the glass height animation and
 /// the components.
 ///
-/// `themes=standard,beam,clear` picks the themes; all three run by default. Standard's summon runs
+/// `themes=standard,spotlight,glass` picks the themes; all three run by default. Standard's summon runs
 /// every strategy; the others run the default one. The grid and detail measures run for Standard
 /// alone, because no theme changes how they draw beyond its metrics; the action card, the glass
 /// height and the first results after a compact summon run per theme.
@@ -29,7 +29,8 @@ enum BenchMode {
     static func run(_ options: DemoOptions) async -> Bool {
         let cycles = options.int("summons", 18)
         let parts = Set(options.string("parts", allParts.joined(separator: ",")).split(separator: ",").map(String.init))
-        let names = options.string("themes", ShotsMode.defaultThemes).split(separator: ",").map { $0.lowercased() }
+        let names = options.string("themes", ShotsMode.defaultThemes).split(separator: ",")
+            .map { ThemeStore.currentName(for: String($0)).lowercased() }
         let themes = names.compactMap { name in ThemeStore.builtInThemes.first { $0.name.lowercased() == name } }
         guard themes.count == names.count, !themes.isEmpty else {
             say("bench: unknown theme in \(names)")

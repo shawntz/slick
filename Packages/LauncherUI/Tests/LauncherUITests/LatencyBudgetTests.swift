@@ -34,7 +34,7 @@ struct LatencyBudgetTests {
         return surface
     }
 
-    nonisolated static let themes = ["Standard", "Beam", "Clear"]
+    nonisolated static let themes = ["Standard", "Spotlight", "Glass"]
 
     @Test(arguments: themes)
     func nineChangedRowsFitTheRowUpdateBudget(theme: String) {
@@ -297,7 +297,7 @@ struct LatencyBudgetTests {
             CATransaction.flush()
         }
         print("field editor keystroke, \(theme), insert + draw + commit (ms): \(summary)")
-        #expect(surface.queryField.caretGlow.hasGlow == (theme == "Beam"))
+        #expect(surface.queryField.caretGlow.hasGlow == (theme == "Spotlight"))
         #expect(LatencyBudget.rowUpdate.violation(summary, label: "field keystroke", scale: scale) == nil)
     }
 

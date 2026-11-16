@@ -30,7 +30,7 @@ struct ThemeStoreTests {
     }
 
     @Test func builtInsComeInOrderWithASummaryEach() {
-        #expect(Self.builtInNames == ["Standard", "Graphite", "Ocean", "Ember", "Violet", "Beam", "Clear"])
+        #expect(Self.builtInNames == ["Standard", "Graphite", "Ocean", "Ember", "Violet", "Spotlight", "Glass"])
         for named in ThemeStore.builtInThemes {
             #expect(named.isBuiltIn && named.summary.hasSuffix(".") && named.summary.count > 20, "\(named.name)")
         }
@@ -56,25 +56,25 @@ struct ThemeStoreTests {
         #expect(violet.light.focusRing.description.hasPrefix("#8743FA@"))
     }
 
-    /// Beam and Clear change the glass itself, not its colour, and keep the system accent.
-    @Test func beamAndClearChangeTheGlass() {
-        let clear = Theme.clear
+    /// Spotlight and Glass change the glass itself, not its colour, and keep the system accent.
+    @Test func spotlightAndGlassChangeTheGlass() {
+        let clear = Theme.glass
         #expect(clear.panel.glassStyle == .clear && clear.panel.layout == .single)
         #expect(clear.light.glassTint.alpha == 0 && clear.dark.glassTint.alpha == 0)
         #expect(clear.clarity == 1, "clarity also scales the card and HUD tints")
         #expect(clear.light.textHalo != nil && clear.dark.textHalo != nil)
         #expect(
             clear.panel.width == Theme.standard.panel.width && clear.list.rowHeight == Theme.standard.list.rowHeight)
-        let beam = Theme.beam
-        #expect(beam.panel.layout == .split && beam.panel.glassStyle == .regular)
-        #expect(beam.list.showsRunHints && !beam.queryRow.showsRootGlyph)
-        #expect(beam.fieldCornerRadius == beam.queryRow.height / 2, "the query row is a capsule")
-        for palette in [beam.light, beam.dark] {
+        let spotlight = Theme.spotlight
+        #expect(spotlight.panel.layout == .split && spotlight.panel.glassStyle == .regular)
+        #expect(spotlight.list.showsRunHints && !spotlight.queryRow.showsRootGlyph)
+        #expect(spotlight.fieldCornerRadius == spotlight.queryRow.height / 2, "the query row is a capsule")
+        for palette in [spotlight.light, spotlight.dark] {
             for color in [palette.glassTint, palette.fieldTint, palette.fieldShade, palette.lensFill] {
                 #expect([.system(.black), .system(.white)].contains(color.source), "neutral glass: \(color)")
             }
         }
-        for theme in [beam, clear] { #expect(theme.light.prominent.source == .system(.accent)) }
+        for theme in [spotlight, clear] { #expect(theme.light.prominent.source == .system(.accent)) }
     }
 
     /// White text on every built-in accent reaches 4.5:1, so a prominent button stays readable.
@@ -163,6 +163,39 @@ struct ThemeStoreTests {
         store.removeObserver(observer)
         store.select("Standard")
         #expect(seen == [.current])
+    }
+
+    @Test func aNameAnEarlierBuildStoredSelectsTheRenamedTheme() {
+        let folder = Folder()
+        let spotlight = ThemeStore(folder: folder.url, selecting: "Beam")
+        #expect(spotlight.selectedName == "Spotlight" && spotlight.current == .spotlight)
+        let glass = ThemeStore(folder: folder.url, selecting: "clear")
+        #expect(glass.selectedName == "Glass" && glass.current == .glass)
+        #expect(glass.select("Beam"))
+        #expect(glass.selectedName == "Spotlight")
+        #expect(ThemeStore.currentName(for: "BEAM") == "Spotlight")
+        #expect(ThemeStore.currentName(for: "Ocean") == "Ocean")
+        #expect(
+            ThemeStore.builtInThemes.first { $0.name == "Spotlight" }?.summary
+                == "Looks like Spotlight in macOS 27. The search field is a capsule of glass, and the results show in "
+                + "a separate panel below it.")
+        let glassSummary = ThemeStore.builtInThemes.first { $0.name == "Glass" }?.summary ?? ""
+        #expect(glassSummary.hasPrefix("The system's clear glass with no tint"))
+        #expect(glassSummary.contains("harder to read over a busy or bright window"))
+    }
+
+    @Test func userThemesWithABuiltInNameOldOrNewAreSkipped() throws {
+        let folder = Folder()
+        let file = String(decoding: try JSONEncoder().encode(Theme.graphite), as: UTF8.self)
+        for name in ["Spotlight", "glass", "Beam", "Clear", "Mine"] {
+            try folder.write(file, to: "\(name).json")
+        }
+        let store = ThemeStore(folder: folder.url)
+        #expect(store.themes.map(\.name) == Self.builtInNames + ["Mine"])
+        #expect(
+            Set(store.problems.map(\.file.lastPathComponent))
+                == ["Spotlight.json", "glass.json", "Beam.json", "Clear.json"])
+        #expect(store.theme(named: "Beam")?.isBuiltIn == true)
     }
 
     @Test func missingSelectionFallsBackToStandard() {

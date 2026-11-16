@@ -57,7 +57,7 @@ struct LightLensTests {
     }
 
     /// Among the themes that share Standard's slab and glass, the lens is what tells them apart.
-    /// Beam and Clear differ in the glass itself.
+    /// Spotlight and Glass differ in the glass itself.
     @Test func everyRecolourLensReadsAsItsOwnInLightMode() throws {
         var lenses: [(String, (Double, Double, Double))] = []
         for named in ThemeStore.builtInThemes

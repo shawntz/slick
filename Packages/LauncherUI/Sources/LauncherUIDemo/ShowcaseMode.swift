@@ -53,13 +53,16 @@ enum ShowcaseMode {
         Shot(name: "theme-ocean", theme: .ocean, darkOnly: true) { $0.showHero() },
         Shot(name: "theme-ember", theme: .ember, darkOnly: true) { $0.showHero() },
         Shot(name: "theme-violet", theme: .violet, darkOnly: true) { $0.showHero() },
-        // Beam and Clear change the glass itself, so both tones show.
-        Shot(name: "theme-beam", theme: .beam) { $0.showSuggestions() },
-        Shot(name: "theme-beam-typed", theme: .beam) { $0.showHero() },
-        Shot(name: "theme-clear", theme: .clear) { $0.showHero() },
-        // Beam at the reference's 520 pt over a light editor window, before anything is typed, to
+        // Spotlight and Glass change the glass itself, so both tones show.
+        Shot(name: "theme-spotlight", theme: .spotlight) { $0.showSuggestions() },
+        Shot(name: "theme-spotlight-typed", theme: .spotlight) { $0.showHero() },
+        Shot(name: "theme-glass", theme: .glass) { $0.showHero() },
+        // Spotlight at the reference's 520 pt over a light editor window, before anything is typed, to
         // put beside the reference.
-        Shot(name: "beam-reference", theme: ShowcaseStage.beamAtReferenceWidth, darkOnly: true, backdrop: .document) {
+        Shot(
+            name: "spotlight-reference", theme: ShowcaseStage.spotlightAtReferenceWidth, darkOnly: true,
+            backdrop: .document
+        ) {
             $0.showCategories()
         },
     ]
@@ -326,9 +329,9 @@ final class ShowcaseStage {
         surface.actionBar.apply(ActionBarContent(viewTitle: "Search", primaryTitle: "Open Application"))
     }
 
-    /// Beam at the reference's width; every other value is Beam's own.
-    static let beamAtReferenceWidth: Theme = {
-        var theme = Theme.beam
+    /// Spotlight at the reference's width; every other value is Spotlight's own.
+    static let spotlightAtReferenceWidth: Theme = {
+        var theme = Theme.spotlight
         theme.panel.width = 520
         return theme
     }()

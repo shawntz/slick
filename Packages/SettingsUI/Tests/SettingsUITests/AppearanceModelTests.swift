@@ -31,13 +31,13 @@ import Testing
         model.layout = .split
         #expect(model.draft.panel.glassStyle == .clear && model.draft.panel.layout == .split)
         #expect(model.isEdited && bed.themes.current == Theme.standard)
-        model.select("Beam")
+        model.select("Spotlight")
         #expect(model.layout == .split && model.glassStyle == .regular)
         #expect(!model.summary.isEmpty)
-        model.select("Clear")
+        model.select("Glass")
         #expect(model.glassStyle == .clear && model.layout == .single)
-        // Clear's sentence says where its text falls short, so the user reads it before choosing.
-        #expect(model.summary.contains("4.5"))
+        // Glass's sentence warns that its text is harder to read, so the user reads it before choosing.
+        #expect(model.summary.contains("harder to read"))
     }
 
     @Test func editsChangeTheDraftOnly() {

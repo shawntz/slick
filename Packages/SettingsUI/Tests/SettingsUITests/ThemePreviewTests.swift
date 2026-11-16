@@ -24,29 +24,29 @@ struct ThemePreviewTests {
     }
 
     @Test func aSplitThemeShowsTheQueryRowApartFromTheResults() throws {
-        let (view, window) = preview(.beam)
+        let (view, window) = preview(.spotlight)
         defer { window.close() }
         let pieces = view.glassPieces
         try #require(pieces.count == 2)
         let field = pieces[0].frame
         let results = pieces[1].frame
-        #expect(Double(field.height) == Theme.beam.queryRow.height)
-        #expect(Double(pieces[0].cornerRadius) == Theme.beam.fieldCornerRadius)
-        #expect(Double(results.minY - field.maxY) == Theme.beam.panel.fieldGap)
+        #expect(Double(field.height) == Theme.spotlight.queryRow.height)
+        #expect(Double(pieces[0].cornerRadius) == Theme.spotlight.fieldCornerRadius)
+        #expect(Double(results.minY - field.maxY) == Theme.spotlight.panel.fieldGap)
         #expect(view.queryField.isDescendant(of: pieces[0]))
         #expect(view.list.isDescendant(of: pieces[1]) && view.lens.view.isDescendant(of: pieces[1]))
-        // Beam shows its action bar only for a toast, so the preview has none.
+        // Spotlight shows its action bar only for a toast, so the preview has none.
         #expect(view.actionBar.isHidden)
         #expect(view.list.frame.maxY <= results.height)
     }
 
     @Test func clearGlassAndOnePieceForClearAndBackAgain() throws {
-        let (view, window) = preview(.clear)
+        let (view, window) = preview(.glass)
         defer { window.close() }
         #expect(view.glassPieces.count == 1)
         #expect(view.glassPieces[0].style == .clear)
         #expect(view.glassPieces[0].tintColor == nil)
-        view.apply(theme: .beam)
+        view.apply(theme: .spotlight)
         #expect(view.glassPieces.count == 2 && view.glassPieces.allSatisfy { $0.style == .regular })
         view.apply(theme: .standard)
         #expect(view.glassPieces.count == 1 && view.glassPieces[0].style == .regular)
@@ -55,7 +55,7 @@ struct ThemePreviewTests {
     }
 
     @Test func reduceTransparencyDrawsEveryThemeInRegularGlassWithNoTint() throws {
-        let (view, window) = preview(.clear)
+        let (view, window) = preview(.glass)
         defer { window.close() }
         view.accessibilityOverride = DisplayAccessibility(reduceTransparency: true)
         #expect(view.glassPieces[0].style == .regular && view.glassPieces[0].tintColor == nil)

@@ -4,19 +4,19 @@ import Testing
 
 @_spi(Testing) @testable import LauncherUI
 
-/// The Command-digit hints at the end of the first nine rows, as Beam shows them.
+/// The Command-digit hints at the end of the first nine rows, as Spotlight shows them.
 @Suite(.timeLimit(.minutes(1)))
 struct RunHintTests {
-    static var beam: ResolvedTheme {
+    static var spotlight: ResolvedTheme {
         _ = NSApplication.shared
         return ResolvedTheme(
-            theme: .beam, appearance: NSAppearance(named: .darkAqua)!, accessibility: DisplayAccessibility())
+            theme: .spotlight, appearance: NSAppearance(named: .darkAqua)!, accessibility: DisplayAccessibility())
     }
 
     static func titles(_ count: Int) -> [String] { (1...count).map { "Item \($0)" } }
 
     @Test func theFirstNineRowsAcrossSectionsShowTheirChord() throws {
-        let (list, window) = TestSupport.makeList(theme: Self.beam)
+        let (list, window) = TestSupport.makeList(theme: Self.spotlight)
         defer { window.close() }
         list.apply(
             ListContent(sections: [
@@ -38,7 +38,7 @@ struct RunHintTests {
     /// A page whose rows no chord runs, such as the one that asks for a command's argument, shows
     /// no hint even in a theme that shows them.
     @Test func aPageThatRunsNoRowByChordShowsNone() {
-        let (list, window) = TestSupport.makeList(theme: Self.beam)
+        let (list, window) = TestSupport.makeList(theme: Self.spotlight)
         defer { window.close() }
         list.apply(ListContent(sections: [ListSection(rows: TestSupport.rows(["Set Volume"]))], showsRunHints: false))
         #expect(list.textFrames(row: 0)?.runHint == nil)
@@ -49,13 +49,13 @@ struct RunHintTests {
 
     /// A row's own shortcut beside the hint would read as one chord, so it keeps twice the gap.
     @Test func aRowsOwnShortcutKeepsItsDistanceFromTheHint() throws {
-        let (list, window) = TestSupport.makeList(theme: Self.beam)
+        let (list, window) = TestSupport.makeList(theme: Self.spotlight)
         defer { window.close() }
         var rows = TestSupport.rows(["Window Left", "Window Right"])
         rows[0].accessories = [.keycaps(["\u{2318}", "4"])]
         rows[1].accessories = [.text("Yesterday")]
         list.apply(ListContent(sections: [ListSection(rows: rows)]))
-        let gap = CGFloat(Theme.beam.list.accessoryGap)
+        let gap = CGFloat(Theme.spotlight.list.accessoryGap)
         let keyed = try #require(list.textFrames(row: 0))
         let hint = try #require(keyed.runHint)
         let keys = try #require(keyed.capsules.map(\.maxX).max())
@@ -74,7 +74,7 @@ struct RunHintTests {
     }
 
     @Test func theRowsOwnAccessoriesGoBeforeTheHint() throws {
-        let (list, window) = TestSupport.makeList(theme: Self.beam)
+        let (list, window) = TestSupport.makeList(theme: Self.spotlight)
         defer { window.close() }
         var row = ListRow(id: 1, title: "Clipboard History", subtitle: "Command")
         row.accessories = [.text("Pinned"), .keycaps(["⌥", "V"])]
@@ -88,7 +88,7 @@ struct RunHintTests {
     }
 
     @Test func aRowThatMovesUpGainsItsHint() throws {
-        let (list, window) = TestSupport.makeList(theme: Self.beam)
+        let (list, window) = TestSupport.makeList(theme: Self.spotlight)
         defer { window.close() }
         let rows = TestSupport.rows(Self.titles(12))
         list.apply(ListContent(sections: [ListSection(rows: rows)]))
@@ -104,7 +104,7 @@ struct RunHintTests {
     }
 
     @Test func accessibilityReadsTheChordAsHelp() throws {
-        let (list, window) = TestSupport.makeList(theme: Self.beam)
+        let (list, window) = TestSupport.makeList(theme: Self.spotlight)
         defer { window.close() }
         var row = ListRow(id: 1, title: "Notes", subtitle: "Application")
         row.accessories = [.text("Running")]
@@ -116,7 +116,7 @@ struct RunHintTests {
     }
 
     @Test func nineHintLinesAreMadeOnceAndReused() {
-        let (list, window) = TestSupport.makeList(theme: Self.beam)
+        let (list, window) = TestSupport.makeList(theme: Self.spotlight)
         defer { window.close() }
         list.apply(ListContent(sections: [ListSection(rows: TestSupport.rows(Self.titles(9)))]))
         list.displayIfNeeded()

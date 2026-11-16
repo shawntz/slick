@@ -50,7 +50,7 @@ struct SummonOrderTests {
     @Test func everyPieceOfGlassIsLaidOutBeforeTheFirstFrame() {
         let surface = TestSupport.makeSurface()
         defer { surface.panel.close() }
-        surface.theme = .beam
+        surface.theme = .spotlight
         let summoner = Summoner(surface: surface)
         summoner.followsPointerScreen = false
         var opacityAtKey: Float = -1

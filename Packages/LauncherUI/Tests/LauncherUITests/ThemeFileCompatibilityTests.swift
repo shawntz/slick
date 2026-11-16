@@ -9,7 +9,7 @@ import Testing
 /// existed still load, and today's files hold every key.
 @Suite(.timeLimit(.minutes(1)))
 struct ThemeFileCompatibilityTests {
-    /// Every key added for Beam and Clear, by the part of the file it sits in.
+    /// Every key added for Spotlight and Glass, by the part of the file it sits in.
     static let addedKeys: [String: [String]] = [
         "panel": ["glassStyle", "layout", "fieldGap", "fieldCornerRadius", "rimWidth", "shadowRadius", "shadowOffset"],
         "queryRow": ["showsRootGlyph"],
@@ -82,11 +82,11 @@ struct ThemeFileCompatibilityTests {
         #expect(!loaded.actionBar.showsOnlyForToasts)
     }
 
-    @Test func beamAndClearSurviveJSON() throws {
-        for theme in [Theme.beam, .clear] {
+    @Test func spotlightAndGlassSurviveJSON() throws {
+        for theme in [Theme.spotlight, .glass] {
             #expect(try JSONDecoder().decode(Theme.self, from: JSONEncoder().encode(theme)) == theme)
         }
-        let file = String(decoding: try JSONEncoder().encode(Theme.beam), as: UTF8.self)
+        let file = String(decoding: try JSONEncoder().encode(Theme.spotlight), as: UTF8.self)
         #expect(file.contains(##""layout":"split""##))
         #expect(file.contains(##""caretGlow":["#A3DBFF@0.6","##))
     }
@@ -106,13 +106,13 @@ struct ThemeFileCompatibilityTests {
     }
 
     @Test func theSplitStackHoldsTheGap() {
-        let beam = Theme.beam
-        #expect(beam.glassHeight(contentHeight: 0) == 87)
+        let spotlight = Theme.spotlight
+        #expect(spotlight.glassHeight(contentHeight: 0) == 87)
         // Four rows of the reference: its stack exactly, with no action bar until a toast shows.
-        #expect(beam.glassHeight(contentHeight: 214) == 87 + 10 + 214)
-        #expect(beam.glassHeight(contentHeight: 214, showsToast: true) == 87 + 10 + 214 + 40)
-        #expect(beam.maxGlassHeight == 87 + 10 + beam.panel.maxContentHeight + 40)
-        var tall = beam
+        #expect(spotlight.glassHeight(contentHeight: 214) == 87 + 10 + 214)
+        #expect(spotlight.glassHeight(contentHeight: 214, showsToast: true) == 87 + 10 + 214 + 40)
+        #expect(spotlight.maxGlassHeight == 87 + 10 + spotlight.panel.maxContentHeight + 40)
+        var tall = spotlight
         tall.panel.fieldCornerRadius = 100
         #expect(tall.fieldCornerRadius == 43.5)
     }
@@ -121,12 +121,12 @@ struct ThemeFileCompatibilityTests {
         _ = NSApplication.shared
         for name in [NSAppearance.Name.aqua, .darkAqua] {
             let appearance = NSAppearance(named: name)!
-            let clear = ResolvedTheme(theme: .clear, appearance: appearance, accessibility: DisplayAccessibility())
+            let clear = ResolvedTheme(theme: .glass, appearance: appearance, accessibility: DisplayAccessibility())
             #expect(clear.glassStyle == .clear)
             #expect(clear.glassTint == nil && clear.fieldTint == nil)
             #expect(clear.card.tint != nil, "cards keep their tint")
             let opaque = ResolvedTheme(
-                theme: .clear, appearance: appearance, accessibility: DisplayAccessibility(reduceTransparency: true))
+                theme: .glass, appearance: appearance, accessibility: DisplayAccessibility(reduceTransparency: true))
             #expect(opaque.glassStyle == .regular && opaque.glassTint == nil)
             let standard = ResolvedTheme(
                 theme: .standard, appearance: appearance, accessibility: DisplayAccessibility())
@@ -135,18 +135,18 @@ struct ThemeFileCompatibilityTests {
         }
     }
 
-    @Test func beamResolvesItsDecorationAndDropsTheShadeUnderReduceTransparency() {
+    @Test func spotlightResolvesItsDecorationAndDropsTheShadeUnderReduceTransparency() {
         _ = NSApplication.shared
         let dark = NSAppearance(named: .darkAqua)!
-        let beam = ResolvedTheme(theme: .beam, appearance: dark, accessibility: DisplayAccessibility())
-        #expect(beam.fieldShade != nil && beam.rim != nil && beam.shadow != nil)
-        #expect(beam.caretGlow.count == 3)
-        #expect(abs((beam.fieldTint?.alphaComponent ?? 0) - 0.2) < 0.001)
+        let spotlight = ResolvedTheme(theme: .spotlight, appearance: dark, accessibility: DisplayAccessibility())
+        #expect(spotlight.fieldShade != nil && spotlight.rim != nil && spotlight.shadow != nil)
+        #expect(spotlight.caretGlow.count == 3)
+        #expect(abs((spotlight.fieldTint?.alphaComponent ?? 0) - 0.2) < 0.001)
         let opaque = ResolvedTheme(
-            theme: .beam, appearance: dark, accessibility: DisplayAccessibility(reduceTransparency: true))
+            theme: .spotlight, appearance: dark, accessibility: DisplayAccessibility(reduceTransparency: true))
         #expect(opaque.fieldShade == nil && opaque.fieldTint == nil && opaque.glassTint == nil)
         let still = ResolvedTheme(
-            theme: .beam, appearance: dark, accessibility: DisplayAccessibility(reduceMotion: true))
+            theme: .spotlight, appearance: dark, accessibility: DisplayAccessibility(reduceMotion: true))
         #expect(still.motion.heightChange == 0 && still.motion.lensGlide == 0)
     }
 }

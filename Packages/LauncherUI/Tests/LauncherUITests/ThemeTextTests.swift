@@ -4,7 +4,7 @@ import Testing
 
 @_spi(Testing) @testable import LauncherUI
 
-/// How Beam and Clear treat text outside the rows: the query field, the empty state, the
+/// How Spotlight and Glass treat text outside the rows: the query field, the empty state, the
 /// metadata table and the list beside a detail pane. Windows stay off every screen.
 @Suite(.timeLimit(.minutes(1)))
 struct ThemeTextTests {
@@ -15,16 +15,16 @@ struct ThemeTextTests {
             accessibility: DisplayAccessibility())
     }
 
-    /// Clear's query field carries the halo the rows carry, on the typed text, the placeholder,
+    /// Glass's query field carries the halo the rows carry, on the typed text, the placeholder,
     /// the ghost and the magnifier. Over a white page in dark mode they vanished without it.
     @Test func clearsQueryFieldTakesTheHalo() throws {
         let field = QueryField(frame: CGRect(x: 0, y: 0, width: 600, height: 60))
-        let clear = Self.resolved(.clear, dark: true)
+        let clear = Self.resolved(.glass, dark: true)
         field.apply(clear)
         for view in [field.textField, field.glyphView] as [NSView] {
             let shadow = try #require(view.shadow)
-            #expect(shadow.shadowColor?.alphaComponent == CGFloat(Theme.clear.dark.textHalo?.alpha ?? 0))
-            #expect(shadow.shadowBlurRadius == CGFloat(Theme.clear.dark.textHaloRadius) && shadow.shadowOffset == .zero)
+            #expect(shadow.shadowColor?.alphaComponent == CGFloat(Theme.glass.dark.textHalo?.alpha ?? 0))
+            #expect(shadow.shadowBlurRadius == CGFloat(Theme.glass.dark.textHaloRadius) && shadow.shadowOffset == .zero)
         }
         // Vibrant text cannot carry a dark halo, so under one the field takes the theme's colours.
         #expect(field.textField.textColor != .labelColor)
@@ -34,22 +34,22 @@ struct ThemeTextTests {
         #expect(field.textField.textColor == .labelColor && field.glyphView.contentTintColor == .secondaryLabelColor)
     }
 
-    /// Beam's placeholder is brighter than the system's tertiary label, as the reference's is,
+    /// Spotlight's placeholder is brighter than the system's tertiary label, as the reference's is,
     /// and stays a system colour so the field keeps its vibrancy.
     @Test func theThemeSetsThePlaceholderAndTheEmptySymbol() throws {
         let field = QueryField(frame: CGRect(x: 0, y: 0, width: 600, height: 87))
         field.placeholder = "Search"
-        field.apply(Self.resolved(.beam, dark: true))
-        let beamColor = try #require(
+        field.apply(Self.resolved(.spotlight, dark: true))
+        let spotlightColor = try #require(
             field.textField.placeholderAttributedString?.attribute(.foregroundColor, at: 0, effectiveRange: nil)
                 as? NSColor)
-        #expect(beamColor == .secondaryLabelColor)
+        #expect(spotlightColor == .secondaryLabelColor)
         field.apply(Self.resolved(.standard, dark: true))
         let standardColor = try #require(
             field.textField.placeholderAttributedString?.attribute(.foregroundColor, at: 0, effectiveRange: nil)
                 as? NSColor)
         #expect(standardColor == .tertiaryLabelColor)
-        #expect(Self.resolved(.beam, dark: true).emptySymbol == .labelColor)
+        #expect(Self.resolved(.spotlight, dark: true).emptySymbol == .labelColor)
         #expect(Self.resolved(.standard, dark: true).emptySymbol == .tertiaryLabelColor)
     }
 
@@ -64,7 +64,7 @@ struct ThemeTextTests {
         window.isReleasedWhenClosed = false
         defer { window.close() }
         window.contentView = view
-        view.apply(Self.resolved(.clear, dark: false))
+        view.apply(Self.resolved(.glass, dark: false))
         view.items = [.color("Color", ThemeColor(red: 1, green: 0, blue: 0, alpha: 0.5), text: "Red")]
         let rep = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
         view.cacheDisplay(in: view.bounds, to: rep)
@@ -81,9 +81,9 @@ struct ThemeTextTests {
         #expect(abs(best.alpha - 0.5) < 0.06, "drawn once, no halo under it: alpha \(best.alpha)")
     }
 
-    /// Beside a detail pane Beam's rows lose 81 pt to their indent and more to the run hint, so
+    /// Beside a detail pane Spotlight's rows lose 81 pt to their indent and more to the run hint, so
     /// its list takes a larger share of the width: its titles keep at least Standard's room.
-    @Test func beamsTitlesBesideADetailPaneHaveStandardsRoom() throws {
+    @Test func spotlightsTitlesBesideADetailPaneHaveStandardsRoom() throws {
         func room(_ theme: Theme) throws -> CGFloat {
             let split = ListDetailView(frame: CGRect(x: 0, y: 0, width: theme.panel.width, height: 400))
             let window = NSWindow(
@@ -101,6 +101,6 @@ struct ThemeTextTests {
             #expect(frames.runHint == nil, "no hint beside a detail pane")
             return frames.title.width
         }
-        #expect(try room(.beam) >= room(.standard) - 1)
+        #expect(try room(.spotlight) >= room(.standard) - 1)
     }
 }

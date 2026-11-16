@@ -4,7 +4,7 @@
 #
 # LauncherUI's demo runs as an app through LaunchServices without taking focus. Captures go to
 # UI_DEMO_OUT (default build/ui-demo). UI_ARGS passes options to the mode, such as
-# UI_ARGS="themes=beam states=form".
+# UI_ARGS="themes=spotlight states=form".
 #   make ui-shots           LauncherUI capture matrix, contact sheets and contrast table
 #   make ui-components      LauncherUI grid, detail, cards, form, chips, empty state and HUD sheets
 #   make ui-bench           LauncherUI latency tables and budget verdicts, measured as an app

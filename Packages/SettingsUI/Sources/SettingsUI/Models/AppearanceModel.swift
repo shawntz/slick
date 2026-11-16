@@ -84,7 +84,7 @@ import Observation
         return store.theme(named: store.selectedName)?.isBuiltIn ?? true
     }
 
-    /// What the selected theme is, in a sentence, such as where Clear's text falls short. Empty
+    /// What the selected theme is, in a sentence, such as where Glass's text falls short. Empty
     /// for a theme of the user's own.
     var summary: String {
         revision.track()

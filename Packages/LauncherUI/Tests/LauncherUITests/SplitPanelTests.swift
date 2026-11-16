@@ -8,11 +8,11 @@ import Testing
 /// clear glass style. Windows stay off every screen and never take key status.
 @Suite(.timeLimit(.minutes(1)))
 struct SplitPanelTests {
-    /// A Beam surface with its query field focused and no animation.
+    /// A Spotlight surface with its query field focused and no animation.
     func makeSurface(content: Bool = true) -> (LauncherSurface, ResultListView) {
         let surface = TestSupport.makeSurface()
         surface.accessibilityOverride = DisplayAccessibility(reduceMotion: true)
-        surface.theme = .beam
+        surface.theme = .spotlight
         surface.panel.orderFrontRegardless()
         surface.queryField.installEditor()
         let list = ResultListView()
@@ -39,7 +39,7 @@ struct SplitPanelTests {
         #expect(surface.actionBar.superview === surface.resultsGlass.contentView)
         #expect(surface.overlaySpace === surface.resultsGlass.contentView)
         #expect(Double(surface.glass.cornerRadius) == 43.5)
-        #expect(Double(surface.resultsGlass.cornerRadius) == Theme.beam.panel.cornerRadius)
+        #expect(Double(surface.resultsGlass.cornerRadius) == Theme.spotlight.panel.cornerRadius)
         #expect(surface.glass.style == .regular && surface.resultsGlass.style == .regular)
     }
 
@@ -49,17 +49,17 @@ struct SplitPanelTests {
         let field = surface.glass.frame
         let results = surface.resultsGlass.frame
         #expect(field == surface.geometry.fieldFrame)
-        #expect(Double(field.height) == Theme.beam.queryRow.height)
-        #expect(Double(results.minY - field.maxY) == Theme.beam.panel.fieldGap)
+        #expect(Double(field.height) == Theme.spotlight.queryRow.height)
+        #expect(Double(results.minY - field.maxY) == Theme.spotlight.panel.fieldGap)
         #expect(results.minX == field.minX && results.width == field.width)
         #expect(results.maxY - field.minY == surface.targetGlassHeight)
         #expect(surface.resultsGlass.alphaValue == 1)
-        // Beam shows its action bar only for a toast; GlassPiecesTests covers the toast.
+        // Spotlight shows its action bar only for a toast; GlassPiecesTests covers the toast.
         #expect(surface.actionBar.isHidden)
         // The window holds the tallest stack, gap included.
-        let insets = Theme.beam.panel.shadowInsets
+        let insets = Theme.spotlight.panel.shadowInsets
         #expect(
-            Double(surface.geometry.windowFrame.height) == Theme.beam.maxGlassHeight + insets.top + insets.bottom)
+            Double(surface.geometry.windowFrame.height) == Theme.spotlight.maxGlassHeight + insets.top + insets.bottom)
     }
 
     @Test func noContentHidesTheContainerByOpacityAndTheFieldStaysPut() {
@@ -103,7 +103,7 @@ struct SplitPanelTests {
         surface.queryField.openFilterMenu()
         let menu = try #require(surface.overlay)
         #expect(menu.superview === surface.resultsGlass.contentView)
-        #expect(menu.frame.minY >= CGFloat(Theme.beam.card.margin) - 0.5)
+        #expect(menu.frame.minY >= CGFloat(Theme.spotlight.card.margin) - 0.5)
         #expect(menu.frame.maxY <= surface.resultsGlass.frame.height)
         // A click on the query row's piece closes the menu, as a click outside a menu does.
         #expect(surface.fieldShield.superview === surface.glass.contentView)
@@ -144,7 +144,7 @@ struct SplitPanelTests {
         // Lens and content stay under the query field in one piece.
         let order = surface.glass.contentView!.subviews
         #expect(order.firstIndex(of: list)! < order.firstIndex(of: surface.queryField)!)
-        surface.theme = .beam
+        surface.theme = .spotlight
         #expect(list.superview === surface.resultsGlass.contentView && list.frame.minY == 0)
         #expect(surface.panel.firstResponder === surface.panel.queryFieldEditor)
     }
@@ -158,7 +158,7 @@ struct SplitPanelTests {
             ]))
         surface.present(card)
         let focus = surface.panel.firstResponder
-        surface.theme = .clear
+        surface.theme = .glass
         #expect(card.superview === surface.glass.contentView)
         #expect(surface.panel.firstResponder === focus)
         surface.dismissOverlay()
@@ -194,7 +194,7 @@ struct SplitPanelTests {
         let surface = TestSupport.makeSurface()
         defer { surface.panel.close() }
         surface.accessibilityOverride = DisplayAccessibility()
-        surface.theme = .clear
+        surface.theme = .glass
         #expect(surface.layout == .single)
         #expect(surface.glass.style == .clear)
         #expect(surface.glass.tintColor == nil)
@@ -223,7 +223,7 @@ struct CaretGlowTests {
     @Test func theGlowSitsOnTheCaretAndHidesWithASelection() throws {
         let surface = TestSupport.makeSurface()
         defer { surface.panel.close() }
-        surface.theme = .beam
+        surface.theme = .spotlight
         surface.panel.orderFrontRegardless()
         surface.queryField.installEditor()
         surface.rootView.layoutSubtreeIfNeeded()

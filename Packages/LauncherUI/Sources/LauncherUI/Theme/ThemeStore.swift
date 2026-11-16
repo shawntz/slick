@@ -49,9 +49,19 @@ public final class ThemeStore {
         NamedTheme(
             name: "Violet", theme: .violet, isBuiltIn: true,
             summary: "The app icon's ink and violet, with a magenta lens."),
-        NamedTheme(name: "Beam", theme: .beam, isBuiltIn: true, summary: Theme.beamSummary),
-        NamedTheme(name: "Clear", theme: .clear, isBuiltIn: true, summary: Theme.clearSummary),
+        NamedTheme(name: "Spotlight", theme: .spotlight, isBuiltIn: true, summary: Theme.spotlightSummary),
+        NamedTheme(name: "Glass", theme: .glass, isBuiltIn: true, summary: Theme.glassSummary),
     ]
+
+    /// Names earlier builds gave built-in themes, with the name each has now. A name an earlier
+    /// build stored selects the renamed theme, and a user theme file with one of these names is
+    /// skipped, as it was then, so the old name always means the built-in theme.
+    nonisolated public static let formerNames: [String: String] = ["Beam": "Spotlight", "Clear": "Glass"]
+
+    /// The name a built-in theme has now for a name it had in an earlier build, or the name itself.
+    nonisolated public static func currentName(for name: String) -> String {
+        formerNames.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value ?? name
+    }
 
     /// The folder of user theme files. Created on the first save.
     public let folder: URL
@@ -81,9 +91,10 @@ public final class ThemeStore {
         }
     }
 
-    /// The theme with this name, ignoring case.
+    /// The theme with this name, ignoring case. A built-in theme's former name finds it too.
     public func theme(named name: String) -> NamedTheme? {
-        themes.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+        let current = Self.currentName(for: name)
+        return themes.first { $0.name.caseInsensitiveCompare(current) == .orderedSame }
     }
 
     /// Selects a theme by name, ignoring case. Returns false and changes nothing when no theme has
@@ -210,8 +221,8 @@ public final class ThemeStore {
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
         for file in themeFiles {
             let name = file.deletingPathExtension().lastPathComponent
-            let taken = Self.builtInThemes + found
-            if taken.contains(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+            let taken = Self.builtInThemes.map(\.name) + Array(Self.formerNames.keys) + found.map(\.name)
+            if taken.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) {
                 skipped.append(ThemeFileProblem(file: file, reason: "another theme already has the name \(name)"))
                 continue
             }

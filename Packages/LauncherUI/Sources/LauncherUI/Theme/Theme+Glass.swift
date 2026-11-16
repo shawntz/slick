@@ -4,7 +4,7 @@ extension Theme {
     /// legibility itself: semibold titles, stronger secondary text and a soft halo in the opposite
     /// tone. The lens, cards, menus and the HUD stay regular glass. Under Reduce Transparency the
     /// panel falls back to the system's opaque regular glass.
-    public static let clear: Theme = {
+    public static let glass: Theme = {
         var theme = Theme.standard
         theme.panel.glassStyle = .clear
         theme.fonts.title = ThemeFont(size: 14.5, weight: .semibold)
@@ -17,14 +17,10 @@ extension Theme {
         return theme
     }()
 
-    /// What the settings window says about Clear. The numbers are the worst case `make ui-shots`
-    /// measures: a title against the least favourable backdrop right beside it.
-    static let clearSummary =
-        "Standard's slab in clear glass with no tint, the most translucent the glass can be. Nothing frosts "
-        + "the backdrop, so text carries a soft halo instead. Where backdrop text or color sits right beside a "
-        + "title, it can fall to 1 to 1, far below the 4.5 to 1 of the other themes: over every test backdrop "
-        + "but a dark one in dark mode the worst cases run from 1.0 to 3.7 to 1. The typed query fades the same "
-        + "way over a page of text."
+    /// What the settings window says about Glass, with the plain warning about its text.
+    static let glassSummary =
+        "The system's clear glass with no tint. The window behind the panel shows through. Text is harder to "
+        + "read over a busy or bright window."
 }
 
 extension ThemePalette {
@@ -49,4 +45,10 @@ extension ThemePalette {
         palette.cardTint = ThemeColor(dark ? .black : .white, alpha: dark ? 0.78 : 0.72)
         return palette
     }
+}
+
+extension Theme {
+    /// The Glass theme under the name an earlier build gave it. The glass style is still `.clear`.
+    @available(*, deprecated, renamed: "glass")
+    public static var clear: Theme { glass }
 }

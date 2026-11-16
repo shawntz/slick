@@ -7,7 +7,7 @@ import LauncherUITesting
 /// chips with the filter chip, the filter menu, the empty state with the loading bar, and the HUD.
 /// Prints the contrast of the text each one draws itself.
 ///
-/// `themes=standard,beam,clear` picks the built-in themes, those three by default. `states=a,b` and
+/// `themes=standard,spotlight,glass` picks the built-in themes, those three by default. `states=a,b` and
 /// `backdrops=busy,white` narrow the matrix while iterating on one component.
 ///
 /// Each capture holds key status for about a quarter of a second, and a backdrop stays on screen
@@ -27,7 +27,8 @@ enum ComponentsMode {
 
     static func run(_ options: DemoOptions) async -> Bool {
         let out = options.outputDirectory
-        let themeNames = options.string("themes", ShotsMode.defaultThemes).split(separator: ",").map { $0.lowercased() }
+        let themeNames = options.string("themes", ShotsMode.defaultThemes).split(separator: ",")
+            .map { ThemeStore.currentName(for: String($0)).lowercased() }
         let themes = themeNames.compactMap { name in ThemeStore.builtInThemes.first { $0.name.lowercased() == name } }
         guard themes.count == themeNames.count, !themes.isEmpty else {
             say(

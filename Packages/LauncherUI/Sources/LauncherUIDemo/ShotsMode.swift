@@ -5,10 +5,10 @@ import LauncherUITesting
 /// Writes the capture matrix: backdrops by two appearances, with and without a query, in both
 /// lens styles, plus a sheet of other states per theme. Prints the contrast of every capture.
 ///
-///   shots [themes=standard,beam,clear] [backdrops=busy,white,dark,document,wallpaper-dark,wallpaper-light]
+///   shots [themes=standard,spotlight,glass] [backdrops=busy,white,dark,document,wallpaper-dark,wallpaper-light]
 ///         [lenses=auto|both|own] [appearances=light,dark] [extras=1] [idle=15]
 ///
-/// `themes` takes the built-in theme names; Standard, Beam and Clear run by default. `lenses=auto`
+/// `themes` takes the built-in theme names; Standard, Spotlight and Glass run by default. `lenses=auto`
 /// tries both lens styles on Standard and keeps every other theme's own lens; `both` and `own`
 /// apply to every theme. The default backdrops are the three of glass rule 5. `document` is a
 /// light editor window, and the wallpaper backdrops are the two generated product-shot wallpapers.
@@ -30,13 +30,14 @@ enum ShotsMode {
     static let appearances: [(name: String, appearance: NSAppearance.Name)] = [("light", .aqua), ("dark", .darkAqua)]
     static let query = "co"
     static let syntheticBackdrops = BackdropKind.allCases.map(\.rawValue)
-    static let defaultThemes = "standard,beam,clear"
+    static let defaultThemes = "standard,spotlight,glass"
     static let wallpaperBackdrops = ["wallpaper-dark", "wallpaper-light"]
     private static var wallpapers: [String: CGImage?] = [:]
 
     static func run(_ options: DemoOptions) async -> Bool {
         let out = options.outputDirectory
-        let themeNames = options.string("themes", defaultThemes).split(separator: ",").map { $0.lowercased() }
+        let themeNames = options.string("themes", defaultThemes).split(separator: ",")
+            .map { ThemeStore.currentName(for: String($0)).lowercased() }
         let themes = themeNames.compactMap { name in
             ThemeStore.builtInThemes.first { $0.name.lowercased() == name }
         }

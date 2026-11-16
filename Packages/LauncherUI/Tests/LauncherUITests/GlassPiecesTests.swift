@@ -4,14 +4,14 @@ import Testing
 
 @_spi(Testing) @testable import LauncherUI
 
-/// Beam's results container and action bar, the hidden glass the summoner renders, and the order
+/// Spotlight's results container and action bar, the hidden glass the summoner renders, and the order
 /// accessibility reads the pieces in. Windows stay off every screen and never take key status.
 @Suite(.timeLimit(.minutes(1)))
 struct GlassPiecesTests {
-    private func beam(content: Bool = true) -> (LauncherSurface, ResultListView) {
+    private func spotlight(content: Bool = true) -> (LauncherSurface, ResultListView) {
         let surface = TestSupport.makeSurface()
         surface.accessibilityOverride = DisplayAccessibility(reduceMotion: true)
-        surface.theme = .beam
+        surface.theme = .spotlight
         surface.panel.orderFrontRegardless()
         surface.queryField.installEditor()
         let list = ResultListView()
@@ -23,24 +23,26 @@ struct GlassPiecesTests {
         return (surface, list)
     }
 
-    /// Beam's results end under the last row, as the reference's do; a toast brings the bar and
+    /// Spotlight's results end under the last row, as the reference's do; a toast brings the bar and
     /// the room for it, and takes both away again.
-    @Test func beamsActionBarShowsOnlyForAToast() {
-        let (surface, list) = beam()
+    @Test func spotlightsActionBarShowsOnlyForAToast() {
+        let (surface, list) = spotlight()
         defer { surface.panel.close() }
         let rows = list.preferredContentHeight(limit: 10_000)
         #expect(surface.actionBar.isHidden)
         #expect(surface.resultsGlass.frame.height == rows)
         surface.actionBar.show(ActionBarToast(.success, "Copied"))
         #expect(!surface.actionBar.isHidden)
-        #expect(surface.resultsGlass.frame.height == rows + CGFloat(Theme.beam.actionBar.height))
+        #expect(surface.resultsGlass.frame.height == rows + CGFloat(Theme.spotlight.actionBar.height))
         #expect(surface.actionBar.frame.maxY == surface.resultsGlass.frame.height)
         surface.actionBar.show(nil)
         #expect(surface.actionBar.isHidden)
         #expect(surface.resultsGlass.frame.height == rows)
         // The window has room for the bar.
-        let tallest = Theme.beam.maxGlassHeight
-        #expect(tallest == Theme.beam.glassHeight(contentHeight: Theme.beam.panel.maxContentHeight, showsToast: true))
+        let tallest = Theme.spotlight.maxGlassHeight
+        #expect(
+            tallest
+                == Theme.spotlight.glassHeight(contentHeight: Theme.spotlight.panel.maxContentHeight, showsToast: true))
     }
 
     @Test func standardKeepsItsBarWithOrWithoutAToast() {
@@ -62,10 +64,10 @@ struct GlassPiecesTests {
     /// The hidden container is laid out at a full height from the start, so the summoner can
     /// render it while the panel is invisible.
     @Test func theHiddenContainerHasAFullFrameFromTheStart() {
-        let (surface, _) = beam(content: false)
+        let (surface, _) = spotlight(content: false)
         defer { surface.panel.close() }
         #expect(surface.resultsGlass.alphaValue == 0)
-        #expect(surface.resultsGlass.frame.height == CGFloat(Theme.beam.panel.maxContentHeight))
+        #expect(surface.resultsGlass.frame.height == CGFloat(Theme.spotlight.panel.maxContentHeight))
         var shown: [CGFloat] = []
         surface.withEveryPieceShown { shown = surface.glassPieces.map(\.alphaValue) }
         #expect(shown == [1, 1])
@@ -84,11 +86,11 @@ struct GlassPiecesTests {
         #expect(summoner.hiddenGlassRenders == 1)
         surface.theme = .graphite
         #expect(summoner.hiddenGlassRenders == 1, "colours alone add no glass")
-        surface.theme = .beam
+        surface.theme = .spotlight
         #expect(summoner.hiddenGlassRenders == 2, "a second piece")
         #expect(surface.rootView.layer?.opacity == 0 && surface.panel.alphaValue == 1, "still invisible")
         summoner.summon()
-        surface.theme = .clear
+        surface.theme = .glass
         #expect(summoner.hiddenGlassRenders == 2, "not while it shows")
         summoner.dismiss(returnFocus: false)
         #expect(summoner.hiddenGlassRenders == 3, "at the next dismiss")
@@ -98,7 +100,7 @@ struct GlassPiecesTests {
     /// Accessibility reads the search field before the results, though the results container
     /// sits under the query row's glass in the view order.
     @Test func accessibilityReadsTheQueryRowFirst() throws {
-        let (surface, list) = beam()
+        let (surface, list) = spotlight()
         defer { surface.panel.close() }
         // AppKit lists the list view and the search field's cell, the list first unless reordered.
         let children = try #require(surface.rootView.accessibilityChildren())
@@ -113,10 +115,10 @@ struct GlassPiecesTests {
         #expect(field < results)
     }
 
-    /// Under Reduce Transparency Beam drops its tints and the query row's shade, so the system's
+    /// Under Reduce Transparency Spotlight drops its tints and the query row's shade, so the system's
     /// opaque glass shows, and keeps its two pieces, its rim and its shadow.
-    @Test func beamUnderReduceTransparency() {
-        let (surface, _) = beam()
+    @Test func spotlightUnderReduceTransparency() {
+        let (surface, _) = spotlight()
         defer { surface.panel.close() }
         surface.accessibilityOverride = DisplayAccessibility(reduceTransparency: true)
         #expect(surface.glassPieces.count == 2)

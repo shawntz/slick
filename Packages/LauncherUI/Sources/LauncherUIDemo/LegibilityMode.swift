@@ -5,11 +5,11 @@ import LauncherUITesting
 /// Measures contrast over a sweep of one setting per theme, to find the least that meets glass
 /// rule 5 over every backdrop in each appearance:
 /// - Standard: the glass tint's alpha.
-/// - Beam: the results container's tint alpha.
-/// - Clear: the text halo's alpha, with the glass left untinted. Clear's verdicts are expected to
+/// - Spotlight: the results container's tint alpha.
+/// - Glass: the text halo's alpha, with the glass left untinted. Glass's verdicts are expected to
 ///   fail over a busy backdrop; the numbers go into its description.
 ///
-/// Options: `themes=standard,beam,clear` picks the sweeps, all three by default. `light=` and
+/// Options: `themes=standard,spotlight,glass` picks the sweeps, all three by default. `light=` and
 /// `dark=` list the values to try for every sweep; `lightSecondary=` and `darkSecondary=` replace
 /// Standard's subtitle, accessory and header colour (a theme colour string); `halo=1` adds a soft
 /// opposite-luminance halo behind Standard's row text. Each backdrop batch waits for `idle`
@@ -25,10 +25,11 @@ enum LegibilityMode {
     }
 
     static func run(_ options: DemoOptions) async -> Bool {
-        let names = options.string("themes", ShotsMode.defaultThemes).split(separator: ",").map { $0.lowercased() }
+        let names = options.string("themes", ShotsMode.defaultThemes).split(separator: ",")
+            .map { ThemeStore.currentName(for: String($0)).lowercased() }
         let sweeps = names.compactMap { sweep($0, options) }
         guard sweeps.count == names.count else {
-            say("legibility: themes are standard, beam and clear")
+            say("legibility: themes are standard, spotlight and glass")
             return false
         }
         let idle = options.double("idle", 15)
@@ -94,14 +95,15 @@ enum LegibilityMode {
             ) { theme, dark, value in
                 if dark { theme.dark.glassTint.alpha = value } else { theme.light.glassTint.alpha = value }
             }
-        case "beam":
+        case "spotlight":
             return Sweep(
-                theme: name, setting: "results tint", base: .beam, values: values([0.15, 0.3, 0.45], [0.3, 0.4, 0.5])
+                theme: name, setting: "results tint", base: .spotlight,
+                values: values([0.15, 0.3, 0.45], [0.3, 0.4, 0.5])
             ) { theme, dark, value in
                 if dark { theme.dark.glassTint.alpha = value } else { theme.light.glassTint.alpha = value }
             }
-        case "clear":
-            return Sweep(theme: name, setting: "halo", base: .clear, values: values([0, 0.6, 0.95], [0, 0.6, 0.95])) {
+        case "glass":
+            return Sweep(theme: name, setting: "halo", base: .glass, values: values([0, 0.6, 0.95], [0, 0.6, 0.95])) {
                 theme, dark, value in
                 if dark { theme.dark.textHalo?.alpha = value } else { theme.light.textHalo?.alpha = value }
             }

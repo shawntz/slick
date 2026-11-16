@@ -5,11 +5,11 @@ extension Theme {
     /// the lower half of each piece and one soft shadow under both. The action bar shows only for
     /// a toast; Command-K still opens the action panel.
     ///
-    /// The proportions, type sizes and row rhythm follow a measured reference at 520 pt wide. Beam
-    /// is 680 pt wide with every other value kept, so a list beside a detail pane and a grid still
-    /// have room. The results glass is darker than the reference, whose titles fell to 2:1 over a
+    /// The proportions, type sizes and row rhythm follow a measured reference at 520 pt wide. The
+    /// Spotlight theme is 680 pt wide with every other value kept, so a list beside a detail pane
+    /// and a grid still have room. The results glass is darker than the reference, whose titles fell to 2:1 over a
     /// white backdrop, so that titles keep 4.5:1 and secondary text 3:1.
-    public static let beam = Theme(
+    public static let spotlight = Theme(
         panel: PanelMetrics(
             width: 680,
             cornerRadius: 36,
@@ -234,22 +234,22 @@ extension Theme {
             hud: ThemeFont(size: 14.5, weight: .medium),
             runHint: ThemeFont(size: 17)
         ),
-        light: Theme.standard.light.beam(dark: false),
-        dark: Theme.standard.dark.beam(dark: true),
+        light: Theme.standard.light.spotlight(dark: false),
+        dark: Theme.standard.dark.spotlight(dark: true),
         clarity: 1
     )
 
-    /// What the settings window says about Beam. The one place in the app that says what it is
-    /// modeled on.
-    static let beamSummary =
-        "Modeled on the macOS 27 system search: a glass capsule for the query above a separate "
-        + "results container, with large type and Command-digit hints."
+    /// What the settings window says about the Spotlight theme. The one place in the app that says
+    /// what it is modeled on.
+    static let spotlightSummary =
+        "Looks like Spotlight in macOS 27. The search field is a capsule of glass, and the results show in a "
+        + "separate panel below it."
 }
 
 extension ThemePalette {
-    /// Beam's neutral colours on Standard's palette. The capsule is darker at its top and the
+    /// Spotlight's neutral colours on Standard's palette. The capsule is darker at its top and the
     /// results glass is tinted toward the appearance's base colour, both neutral.
-    fileprivate func beam(dark: Bool) -> ThemePalette {
+    fileprivate func spotlight(dark: Bool) -> ThemePalette {
         var palette = self
         let base: ThemeColor.System = dark ? .black : .white
         // The lightest results tint that keeps rule 5 over every test backdrop, so the container
@@ -299,4 +299,10 @@ extension ThemePalette {
         palette.emptySymbol = ThemeColor(.label)
         return palette
     }
+}
+
+extension Theme {
+    /// The Spotlight theme under the name an earlier build gave it.
+    @available(*, deprecated, renamed: "spotlight")
+    public static var beam: Theme { spotlight }
 }
