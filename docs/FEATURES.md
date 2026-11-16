@@ -71,7 +71,7 @@ Every feature follows these. Review checks each one.
 
 **No downloads when a row draws.** A row never makes the host fetch an icon. `.favicon(domain:)` draws only from the favicon cache, and a globe until something fills it. Do not give a row `.remote(url)`: the host downloads such an icon the first time a row shows it. Download an icon after something the user did, keep it in your cache folder and use `.image(path:)`.
 
-**Deep links.** Any web page can fire a deep link, and once the user chose Always Allow for a command and those exact arguments, a link with the same arguments runs it without a word. A hidden command that acts at once, such as one that pastes, declares `allowsDeepLinks: false`. `harness.issues` reports a hidden command with no confirmation that still allows them, and the host refuses to register that feature.
+**Deep links.** Any web page can fire a deep link, and once the user chose Always Allow for a command and those exact arguments, a link with the same arguments runs it without a word. A link's text with an invisible format character or a run of more than three spaces is refused, and the page that asks shows every argument in full. A hidden command that acts at once, such as one that pastes, declares `allowsDeepLinks: false`. A command that opens a file dialog, such as an import or export, sets `allowsDeepLinks: false` too. A run in a panel session a link opened, or handed off from a run a link started, has `context.startedByLink` set whatever its `launch` says, because the app in front may be the page that fired the link. A command that would read the selection or the clipboard, or send text to a service, asks first for such a run, as AI's commands show their form. `harness.issues` reports a hidden command with no confirmation that still allows them, and the host refuses to register that feature.
 
 **Loading after activation.** A feature that loads an index or data in the background after `activate()` returns implements `waitUntilReady()`, which returns once that loading is done. Scenarios, the selftest and benchmarks wait for it. The live launcher never does.
 
@@ -252,11 +252,11 @@ Text that someone else chose can hold a line break, or a right-to-left override 
 
 `titleHighlights` are the matched ranges of the title in UTF-16 offsets, for rows the host does not filter: custom-filtered lists and async providers. Host filtering computes its own.
 
-`rankHint` orders rows inside one match tier under host filtering, higher first. Use it for recency, pins or your own order; a weaker tier never outranks a stronger one.
+`rankHint` orders rows inside one match tier under host filtering, after the rows whose title matched, higher first. Use it for recency, pins or your own order; a weaker tier never outranks a stronger one.
 
 `memory` says what root search keeps after the user runs the row: `.remember` (a snapshot joins the catalog), `.learnOnly`, or `.never` for answers to one query and one-off occurrences. `expires` drops a catalog row when, say, its meeting has ended.
 
-`represents` is the text, URL or files the row stands for. The host then offers every feature's universal actions for it in the action panel, as it does for a selection in another app.
+`represents` is the text, URL or files the row stands for. The host then offers every feature's universal actions for it in the action panel, as it does for a selection in another app, and Show in Large Type, Command-L, when it is text. A `Detail` has `represents` too, for a detail page. Set it only when every feature's actions for that kind fit the row. A calculator answer is a number, so it returns `.showInLargeType(answer)` itself, and Define Word and Translate stay off it.
 
 `Icon` is a description, never an image: an SF Symbol, a glyph, an app by bundle ID, a file's icon by path, a type's icon, a local image file, a color swatch, a favicon, a remote `https` image, or a light and dark pair. The host resolves icons from its atlas or loads them off the main thread. Keep `.remote` off rows, as the house rules say.
 
@@ -264,7 +264,7 @@ Text that someone else chose can hold a line break, or a right-to-left override 
 
 An `Action` has a title, an optional icon, shortcut, section, style, `Confirmation`, required permissions, an optional `requiresCommand`, a `RunPolicy`, and either a handler or a submenu loader. Handlers run on the main actor and receive an `ActionContext`.
 
-`ActionContext` gives the action every member of the feature's context (`context.pasteboard`, `context.usage`, `context.secrets` and so on), the query, the arguments, how it was launched (`launch`) and the row. It also reaches the panel: `showToast`, `reload`, `setQuery`, `quickLook`, `share`, `confirm`, `dismiss`, and `requestPermission`, which only an action may call because only an action follows something the user did.
+`ActionContext` gives the action every member of the feature's context (`context.pasteboard`, `context.usage`, `context.secrets` and so on), the query, the arguments, how it was launched (`launch`), whether a deep link started it (`startedByLink`) and the row. It also reaches the panel: `showToast`, `reload`, `setQuery`, `quickLook`, `share`, `confirm`, `dismiss`, and `requestPermission`, which only an action may call because only an action follows something the user did.
 
 A handler returns an `ActionOutcome`:
 
@@ -277,6 +277,7 @@ A handler returns an `ActionOutcome`:
 | `.pop`, `.popToRoot` | goes back |
 | `.showRoot(query:)` | goes back to root search with the text in the field, as "Use Again" does |
 | `.run(id, arguments:)` | runs another command, possibly another feature's |
+| `.showLargeType(text)` | closes the panel and shows the text in very large letters; the host offers it itself for rows and details that represent text |
 | `.needsPermission(p)` | the handler found a permission missing; the host shows its card and runs again after a grant |
 
 What the host does around a handler:
@@ -301,12 +302,13 @@ Standard actions, all adjustable with `with(id:)`, `with(title:)`, `with(shortcu
 | `.quickLook(url)` or `.quickLook(urls)` | Command-Y | preview inside the panel |
 | `.moveToTrash(urls)` | Control-X | confirms with the file named through `DisplayText.fileName`, reloads, shows a toast, forgets the row |
 | `.share(items)` | | system share menu |
+| `.showInLargeType(text)` | Command-L | for text no row or detail represents, such as a calculator answer or one field of a contact |
 | `.push(title) { page }` | | |
 | `.runCommand(id, title:)` | | hidden while the command is unavailable |
 
 Two modifiers compose: `.then { context in ... }` runs a step after the handler succeeds, such as recording calculator history after `.copy`, and reaches a submenu's entries too. `.recordingUse()` records a use of the row in `UsageService` when the action runs from one of your pages; root records its own.
 
-The usual shortcuts are constants on `KeyCombo`: `.open`, `.openWith`, `.reveal`, `.quickLook`, `.copy`, `.copyPath`, `.remove`, `.removeAll`, `.edit`, `.duplicate`, `.new`, `.pin`, `.refresh`, `.primaryAction` and `.secondaryAction`. Use them so one key means one thing everywhere. Command-Y goes to an action whose shortcut is Command-Y, then to the row's `quickLookURL`.
+The usual shortcuts are constants on `KeyCombo`: `.open`, `.openWith`, `.reveal`, `.quickLook`, `.copy`, `.copyPath`, `.remove`, `.removeAll`, `.edit`, `.duplicate`, `.new`, `.pin`, `.refresh`, `.largeType`, `.primaryAction` and `.secondaryAction`. Use them so one key means one thing everywhere. Command-Y goes to an action whose shortcut is Command-Y, then to the row's `quickLookURL`.
 
 Build other combinations from `Key` constants: the letters `.a` to `.z`, the digits `.zero` to `.nine`, `.minus`, `.equal`, `.period`, `.comma`, the arrows, `.return`, `.tab`, `.space`, `.delete`, `.forwardDelete` and `.escape`, as in `KeyCombo(.minus, [.control, .option])`. `Key(name:)` finds the rest, such as `Key(name: "f5")`. A key is stored by its virtual key code, so a combination stays on the same physical key in every layout.
 
@@ -314,15 +316,15 @@ Destructive actions take `style: .destructive` and a `Confirmation`; the confirm
 
 ## Commands
 
-A `Command` has an ID unique in the feature, a title, keywords, up to three `CommandArgument`s, required permissions, a `Confirmation`, a suggested hotkey, a `Fallback`, `takesRootQueryOnTab`, a `LiveSubtitle`, `showsInRoot`, a `RunPolicy`, `allowsDeepLinks`, and row actions from `.withRowActions { ... }`. An argument is text, a password or a dropdown, each optional or required with a default. The suggested hotkey is almost always nil.
+A `Command` has an ID unique in the feature, a title, keywords, up to three `CommandArgument`s, required permissions, a `Confirmation`, a suggested hotkey, a `Fallback`, `takesRootQueryOnTab`, a `LiveSubtitle`, `showsInRoot`, a `RunPolicy`, `allowsDeepLinks`, and row actions from `.withRowActions { ... }`. An argument is text, a password or a dropdown, each optional or required with a default. A dropdown argument's value must be one of its options: the host refuses any other, from a link, a hand-off or a script. The suggested hotkey is almost always nil.
 
 A `Fallback` puts the command in the fallback list, under root results for every typed query. Each fallback is a switch the user owns in root search settings, with an order the user sets. Until the user sets it, the switch follows `Fallback.startsOn`, which is false by default: a fallback that starts on sits under everything the user types. Pass `Fallback(startsOn: true) { ... }` only for the feature's own default web search, or for an item the user marked as a fallback inside the feature, such as a quicklink. Define, Ask AI and a script's search start off.
 
-`showsInRoot: false` hides a command from root search. Another command, a hotkey, a typed keyword or a deep link can still start it. `allowsDeepLinks: false` keeps it out of deep links: the app refuses a link that names it, even after Always Allow. Set it on a hidden command that acts at once. Until the app's router reads it, also guard the handler, as Snippets' Fill In Snippet does: it pastes at once only when `launch == .textExpansion`, and shows its form for every other launch.
+`showsInRoot: false` hides a command from root search. Another command, a hotkey, a typed keyword or a deep link can still start it. `allowsDeepLinks: false` keeps it out of deep links: the app refuses a link that names it, even after Always Allow. The host also refuses it for a hand-off from a link's run and for any run in a panel session a link opened. Set it on a hidden command that acts at once. Guard the handler too, as Snippets' Fill In Snippet does: it pastes at once only when `launch == .textExpansion`, and shows its form for every other launch.
 
 Commands are read at registration and again each time `declarationChanges` fires, never per keystroke. To add or remove commands at runtime, as script commands and quicklinks do, keep the current list and send the signal after it changes. When a command disappears, the host keeps its alias and hotkey for 30 days. `Command.stableID(_:name:uniqueKey:)` makes a valid, stable ID from free text such as a file name.
 
-`ActionContext.launch` says how a command started: `.root`, `.page`, `.hotkey`, `.fallback`, `.tabFromRoot`, `.deeplink`, `.suggestion`, `.command`, `.selection`, `.textExpansion` or `.settings`. For a fallback or a Tab handoff, `context.query` is the typed text, which also fills the first argument when the command declares one.
+`ActionContext.launch` says how a command started: `.root`, `.page`, `.hotkey`, `.fallback`, `.tabFromRoot`, `.deeplink`, `.suggestion`, `.command`, `.selection`, `.textExpansion` or `.settings`. For a fallback or a Tab handoff, `context.query` is the typed text, which also fills the first argument when the command declares one. `launch` says how this run started, and `startedByLink` says whether a link stands behind it: a `.deeplink` launch, a hand-off from such a run, or any run in a panel session a link opened. Check both before reading the selection or the clipboard, as AI does.
 
 Declare an argument only for a value the user types. To hand data to a command from code, pass it in `.run(id, arguments:)`: undeclared values reach `context.arguments` too. When the target command is unavailable, the host shows a failure toast, and a `.runCommand` action pointing at it is hidden.
 
@@ -343,7 +345,7 @@ A `HotkeyPreset` is a named set of hotkeys for the feature's commands, such as a
 
 `ListSource` has `filtering`, `load(_:)`, `actions(for:)`, `detail(for:)`, `changes` and `reloadsOnSettings`. The last two come from `RowSource`, which list, catalog and suggestion sources share, so one object can be several of them.
 
-With `.host` filtering, `load` runs once per filter value and again when `changes` fires or a setting in `reloadsOnSettings` changes. The host matches titles and keywords, keeps sections in order, hides empty ones and those whose `visibility` says so (`.whenQueryEmpty` for "Pinned" or "Recently Used"), and orders rows inside a section by tier, then `rankHint`. One row may appear in more than one section; the selection is keyed by section and ID. `showsCount` draws the visible count after a heading.
+With `.host` filtering, `load` runs once per filter value and again when `changes` fires or a setting in `reloadsOnSettings` changes. The host matches titles and keywords, keeps sections in order, hides empty ones and those whose `visibility` says so (`.whenQueryEmpty` for "Pinned" or "Recently Used"), and orders rows inside a section by tier, then a title match before a keyword match, then `rankHint`. A keyword that equals the query after folding is in the exact tier: it comes before a title that only starts with the query and after a title equal to it. One row may appear in more than one section; the selection is keyed by section and ID. `showsCount` draws the visible count after a heading.
 
 With `.custom(debounce:)`, `load` runs for each query after the debounce, in a task the host cancels when the query changes. Call `try Task.checkCancellation()` between steps, set `titleHighlights`, and return a `nextPage` token for long results: the host loads the next page when the user scrolls near the end and appends it. `ListRequest.reason` says why a load happens (`.open`, `.query`, `.filter`, `.nextPage`, `.refresh`, `.reload`).
 
@@ -359,6 +361,8 @@ A page does no work while the panel is hidden, and a page under another page is 
 - `panelDidClose()` runs once per close, for every page in the stack, top first. Stop work that only makes sense while the user looks, such as a read of another app's menus.
 
 Both run on the main actor outside the summon path. Keep them short: set a flag, cancel a task, send the signal. Do not watch window notifications to learn the same thing.
+
+A source that works in the background between loads, such as a read whose end sends the change signal, adopts `BusySource` and returns `isBusy` while the work runs. Scenarios, the selftest and benchmarks then wait for the work; the live launcher never does.
 
 ### Details
 
@@ -445,7 +449,7 @@ Every service is a `Sendable` protocol reached through `FeatureContext`. Copy on
 | `fuzzyIndex` | the engine's matcher over your own strings | `FakeFuzzyIndexService` |
 | `selection` | what is selected in the frontmost app | `FakeSelection` |
 | `fileWatcher` | changes under folders | `FakeFileWatcher` with `simulateChange` |
-| `fileDialogs` | open and save dialogs | `FakeFileDialogs` |
+| `fileDialogs` | open and save dialogs; `canChooseFiles: false` offers folders only | `FakeFileDialogs` |
 | `textExpansion` | keyword expansion in any app, and its status | `FakeTextExpansion` with `type` and `simulateStatus` |
 | `log` | an `os.Logger` with your feature ID as category | |
 
@@ -486,7 +490,7 @@ Modifiers follow a pipe and apply left to right: `{clipboard | trim | uppercase}
 
 Offsets are signed steps with units `s`, `m` (minutes), `h`, `d`, `w`, `M` (months) and `y`: `{date offset="+2y -3d" format="yyyy-MM-dd"}`. `format` takes a Unicode date pattern; `locale` takes a BCP 47 identifier for the default format. Using both is a mistake.
 
-The style decides default formatting. `.plain` inserts values as they are and honors `{cursor}`. `.url` percent-encodes every value. `.prompt` wraps clipboard, selection, argument and snippet values in triple quotes. `raw` turns the default off for one placeholder.
+The style decides default formatting. `.plain` inserts values as they are and honors `{cursor}`. `.url` percent-encodes every value. `.prompt` puts clipboard, selection, argument and snippet values between fences of double quotes, each at least three long and one longer than any run of quotes in the value, so quoted text cannot close its fence. `raw` turns the default off for one placeholder.
 
 `Template(link, shorthands: .query)` accepts `{query}`, as links written for Alfred do. It is off by default, because `{query}` is common in code such as a JavaScript snippet. It shares its value with `{argument name="Query"}`, under the key `TemplateShorthands.queryArgumentName`.
 
@@ -586,7 +590,7 @@ What it can do:
 | settings | `pressSettingsButton(_:)`, `chooseSetting(_:option:)`, `grantInSettings(_:)` |
 | what happened | `toasts`, `visibleToast`, `huds`, `isClosed`, `queryChanges`, `quickLooks`, `shares`, `confirmations`, `commandRuns`, `rootQueries`, `actionErrors`, `droppedRuns`, and every fake under `fakes` |
 
-It follows the host's rules: host filtering through the fuzzy index with section visibility and rank hints, the first row selected after a load, permissions checked before anything runs and after `.needsPermission`, confirmations asked (`confirmationAnswer`), required form fields before `validate`, runs ordered by `RunPolicy`, toasts drawn as HUDs while the panel is closed, actions hidden while their command is in `unavailableCommands`, and a page loaded again after an action when it called `reload()`, when its source's signal fired or when a setting in `reloadsOnSettings` changed. Missing permissions throw `HarnessError.permissionRequired` unless `grantsMissingPermissions` is set, in which case the harness asks the fake permission center as if the user pressed Grant. Thrown errors reach the test unless `throwsActionErrors` is false, in which case the harness shows them as the host does. Debounces are skipped. Compare outcomes with `outcome.kind == .keepOpen`.
+It follows the host's rules: host filtering through the fuzzy index with section visibility, title matches before keyword matches, and rank hints, the first row selected after a load, permissions checked before anything runs and after `.needsPermission`, confirmations asked (`confirmationAnswer`), required form fields before `validate`, runs ordered by `RunPolicy`, toasts drawn as HUDs while the panel is closed, actions hidden while their command is in `unavailableCommands`, and a page loaded again after an action when it called `reload()`, when its source's signal fired or when a setting in `reloadsOnSettings` changed. A `.deeplink` launch sets `startedByLink`, and so does every run while `inLinkSession` is true, as in a panel session a link opened. Missing permissions throw `HarnessError.permissionRequired` unless `grantsMissingPermissions` is set, in which case the harness asks the fake permission center as if the user pressed Grant. Thrown errors reach the test unless `throwsActionErrors` is false, in which case the harness shows them as the host does. Debounces are skipped. Compare outcomes with `outcome.kind == .keepOpen`.
 
 `issues` must be empty. `pendingIssues` lists problems under rules newer than some features. They do not fail registration yet, but a new feature keeps them empty too. No rule is pending now: the last one, a hidden command that still allows deep links, is part of `issues`.
 
@@ -622,23 +626,23 @@ Test data is synthetic: no real file names, paths under the home folder, clipboa
 
 ## Recipes
 
-Each built-in feature maps onto Kit as below. The first eight have packages under `Packages/Features` that the app registers; read the package next to its row. Eight more have packages that wait to be joined: AI, Bookmarks, Calc, Define, FileSearch, MenuItems, People and Schedule. Rows that name a sketch in `Packages/Kit/Tests/KitTests/Capabilities` run the recipe through the harness.
+Each built-in feature maps onto Kit as below. All sixteen have packages under `Packages/Features` that the app registers; read the package next to its row. Rows that name a sketch in `Packages/Kit/Tests/KitTests/Capabilities` run the recipe through the harness.
 
 | Feature | How | Read |
 |---|---|---|
 | Applications | two catalog sources, `app` and `setting`, that share one change signal; rows with a payload, `represents` and `memory: .learnOnly`, built in `@concurrent` functions; two services of its own behind `FeatureServiceKey`s; `fileWatcher` on the app folders outside the system; actions from the row alone, standard ones adjusted with `with(id:)` and `.then`; Quit All behind a confirmation with a suppression key. Only this feature may use the `app` namespace | `Features/Apps` |
 | Clipboard history | `activate()` follows `pasteboard.entries()` in a detached task and records in a `@concurrent` function; an actor over SQLite with a full-text index; a `.custom` list with paging, highlights, a type `FilterDropdown`, Pinned and then `DaySections`; rows carry a small payload and `represent` their content; actions load the content when they run; `provides: [.clipboardHistory]`; a `recent-copy` suggestion trigger; a permission watch only while Paste from Other Apps is missing. On by default | `Features/Clipboard` |
-| Snippets | one `JSONFileStore`; one object as catalog source and instant provider; `textExpansion.start` with `ExpansionResult`, and `.runCommand` for a snippet with arguments; `statusChanges()` and permission changes into `Feature.status` and `declarationChanges`; a form with `highlightsPlaceholders`; `KitTemplates`; Save as Snippet as a universal action | `Features/Snippets` |
-| Quicklinks | a `JSONFileStore` with `fileWatcher`; a catalog row per quicklink without arguments and a command per quicklink with them, with `template.commandArguments` and `.withRowActions`; `.openWith(title:resolving:)`; an editor form; `Fallback` for searches; an instant provider for typed addresses that refuses on the first byte; `.favicon` icons; universal actions for text and links; parsing and rows off the main thread | `Features/Quicklinks` |
+| Snippets | one `JSONFileStore`; one object as catalog source and instant provider; `textExpansion.start` with `ExpansionResult`, and `.runCommand` for a snippet with arguments; `statusChanges()` and permission changes into `Feature.status` and `declarationChanges`; a form with `highlightsPlaceholders`; `KitTemplates`; Save as Snippet as a universal action; Import Snippets reads Raycast's JSON and Alfred's archive through `ZipArchive`, shows a page of what it will do and saves on confirm; an expansion with a line break returns `.runCommand` to Fill In Snippet, which pastes; Show in Large Type renders the snippet when it runs, for snippets that ask for nothing | `Features/Snippets` |
+| Quicklinks | a `JSONFileStore` with `fileWatcher`; a catalog row per quicklink without arguments and a command per quicklink with them, with `template.commandArguments` and `.withRowActions`; `.openWith(title:resolving:)`; an editor form; `Fallback` for searches; an instant provider for typed addresses that refuses on the first byte; `.favicon` icons; universal actions for text and links; parsing and rows off the main thread; Import Quicklinks shows the same page, imports turned off the links that are not for the web and the web links that send the clipboard or the selection, and keeps no fallback mark | `Features/Quicklinks` |
 | Emoji | a `GridPage` with host filtering; Pinned and Recently Used sections `.whenQueryEmpty`, with pins and use as `rankHint`; recents from `context.usage`; the skin tone in `reloadsOnSettings`; `.paste(...).recordingUse()`; a colon instant provider with caps on length and words; data as generated Swift source | `Features/Emoji` |
 | Window management | a table of no-view commands with `requires: [.accessibility]`, serial by default so cycling works; the window service through a `FeatureServiceKey`, simulated outside `live`; `.needsPermission` when access goes away; `hotkeyPresets`; Switch Windows rows built in a `@concurrent` function | `Features/Windows` |
 | System commands | five services, each behind a `FeatureServiceKey` with a live and a simulated implementation and `@concurrent` calls; declared confirmations for Log Out, Restart and Shut Down; `context.confirm` with a count and a suppression key for Empty Trash and Eject All Disks; `.needsPermission` for Apple Events; Kill Process as a list with `refreshAfter` that checks the process again before it signals | `Features/System` |
 | Script commands and filters | a `ScriptLibrary` service, scanned in a `@concurrent` function; `fileWatcher` and `declarationChanges`; `Command.stableID`; silent mode `dismiss()`es then reports; `textStream` into a streamed `DetailPage`; inline output through `LiveSubtitle.background` with a color; a Script Filter list with `.custom` filtering, `alternates` and `refreshAfter`; a `Fallback` for scripts that take typed text | `Features/Scripts` |
-| File search | an `AsyncProvider` with `takesOver` for "/" and "~" and a per-query title; a `.custom` list with a `.preview` detail and a `notice` while access is limited; rows `represent` their files and are named through `DisplayText`; recents from usage snapshots | `Features/FileSearch`, `FileSearchSketch.swift` |
-| Calculator | an `InstantProvider` with `claimsTop`, `completion` and `memory: .never`; `answersChanged` when exchange rates arrive; copy with `.then` to record history; a history page with `DaySections` and `.showRoot(query:)` | `Features/Calc`, `CalculatorAndEmojiSketch.swift`, `RatesSketch` in `Kit/NewContractTests.swift` |
+| File search | an `AsyncProvider` with `takesOver` for "/" and "~" and a per-query title; a `.custom` list with a `.preview` detail and a `notice` while access is limited; rows `represent` their files and are named through `DisplayText`; recents from usage snapshots; file actions through a service of its own behind a `FeatureServiceKey`, with a twin confined to a temporary tree for tests; a one-field rename form; Move To and Copy To through `fileDialogs`, folders only; Get Info as a detail page; mount notifications only while volumes are searched | `Features/FileSearch`, `FileSearchSketch.swift` |
+| Calculator | an `InstantProvider` with `claimsTop`, `completion` and `memory: .never`; `answersChanged` when exchange rates arrive; copy with `.then` to record history; Show in Large Type as its own action rather than `represents`; a history page with `DaySections` and `.showRoot(query:)` | `Features/Calc`, `CalculatorAndEmojiSketch.swift`, `RatesSketch` in `Kit/NewContractTests.swift` |
 | AI | a command with `takesRootQueryOnTab`; a `DetailSource` reading `serverSentEvents` off the main thread; `actions(for:)` from the shown detail; `followUp`; the key in `secrets`; `.replace` after setup; a fallback that starts off | `Features/AI`, `AICalendarSnippetsSketch.swift` |
 | Calendar | a `SuggestionTrigger` with its own namespace, an urgency ramp, `imminentFrom` and `memory: .never`; `DaySections(direction: .future)`; `permissions.changes(of: .calendars)`; `.multiSelect` of calendars | `Features/Schedule`, `AICalendarSnippetsSketch.swift` |
-| Menu items | a `.custom` list over the app in front, searched in `@concurrent` functions; a source that adopts `PageEvents` stops a read when the panel closes and reads again when its page shows, as `FrontAppList` does | `Features/MenuItems`, `FrontAppList` in `Testing/PanelEventsTests.swift` |
+| Menu items | a `.custom` list over the app in front, searched in `@concurrent` functions; a source that adopts `PageEvents` stops a read when the panel closes and reads again when its page shows, as `FrontAppList` does, and adopts `BusySource` while it reads | `Features/MenuItems`, `FrontAppList` in `Testing/PanelEventsTests.swift` |
 | Contacts | a catalog source that reads contacts only after a grant; `permissionGranted(_:)` starts that read after a grant made in settings or onboarding, with no stream held | `Features/People`, and `FrontAppFeature` in `Testing/PanelEventsTests.swift` for the grant |
 | Universal actions | `.text`, `.url` and `.files` providers, for selections and for rows that `represent` them | `Features/Quicklinks`, `Features/Snippets`, `Examples/BookmarksFeature.swift` |
 | Settings | `SettingKey`s in a `nonisolated enum` and a `SettingsPane` | `Examples/BookmarksFeature.swift`, `Kit/SettingsTests.swift` |
@@ -653,7 +657,11 @@ Safety:
 - A destructive action trusted the row. A stale or crafted payload could name a protected process. Check the target again on live state just before acting.
 - A clean-up step followed a link out of the Trash. Never change flags or files through a symbolic link.
 - A mistyped `needsConfirmation` ran a script without asking, and automatic refresh skipped the question. Read a doubtful value as the safe one, and let no automatic path skip a confirmation.
-- Script output could set `BASH_ENV`, `NODE_OPTIONS` and similar names for the next run. Never let untrusted text choose variables that load code, and drop NUL characters before a process sees them.
+- Script output could set `BASH_ENV`, `NODE_OPTIONS`, `GIT_SSH_COMMAND` and similar names for the next run. Let untrusted text set only names with a lower case letter, never the ones that load code or choose where to connect, and drop NUL characters before a process sees them.
+- A list script's output made Return open any local path, an app included. Open only web links on your own; show a path in Finder unless the item says it is a file that cannot start a program.
+- An import saved at once and could bring in a link that opened an app on the first Return, or a snippet whose lines a terminal ran. Show what an import does before saving, import links that are not for the web turned off, and paste any expansion with a line break.
+- AI checked only for the `.deeplink` launch, so Tab after a search link sent the link's text to the provider, and a text command in that session read the selection of the page that fired the link. Check `startedByLink` as well.
+- An import kept a web link that sends the clipboard to its own host turned on, and kept the file's fallback mark, so a shared file could sit under root search and send what the user copied. Import such links turned off, and fallback marks off.
 - A confirmation said "Close this window?" about a list that can go stale. Name the item and its app.
 
 Data:
