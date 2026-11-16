@@ -32,7 +32,8 @@ extension RootSearch {
     /// Runs the engine and builds the sections, inside the keystroke.
     ///
     /// Order: instant answers that claim the top, engine results, instant answers in their own
-    /// sections, the async provider sections that fill in later, then fallbacks. An item shows once:
+    /// sections, the async provider sections that fill in later, then fallbacks. A query an async
+    /// provider takes over shows that provider alone, unless an answer claims the top. An item shows once:
     /// an engine result whose ID an instant answer already shows is left out. Async providers that
     /// were running for the previous query are cancelled, and the ones this query wants start.
     public func update(query: String) -> RootSnapshot {
@@ -51,20 +52,7 @@ extension RootSearch {
         }
         if sessionTypedAt == nil, sessionBeganAt != nil { sessionTypedAt = configuration.clock.now }
 
-        // A provider that claims the query shows alone, without a limit.
-        for entry in plan.asyncProviders where entry.provider.takesOver(query) {
-            pendingProviders.append(
-                PendingProvider(
-                    provider: entry.provider, namespace: entry.namespace, sectionID: entry.sectionID,
-                    takesOver: true, title: "", maximumRows: Int.max))
-        }
-        if !pendingProviders.isEmpty {
-            startProviders(for: query)
-            let snapshot = publish(RootSnapshot(query: query, isLoading: true))
-            refreshLiveSubtitles()
-            return snapshot
-        }
-
+        let takenOver = plan.asyncProviders.contains { $0.provider.takesOver(query) }
         var topRows: [Row] = []
         var answerSections: [RootSection] = []
         for entry in plan.instantProviders {
@@ -78,6 +66,22 @@ extension RootSearch {
                         id: entry.sectionID, title: answer.sectionTitle, rows: answer.rows,
                         kind: .provider(namespace: entry.namespace)))
             }
+        }
+
+        // A provider that claims the query shows alone, without a limit, unless an instant answer
+        // claims the top for it, as a snippet keyword the user put behind ">" does.
+        if takenOver, topRows.isEmpty {
+            answerKeys.removeAll(keepingCapacity: true)
+            for entry in plan.asyncProviders where entry.provider.takesOver(query) {
+                pendingProviders.append(
+                    PendingProvider(
+                        provider: entry.provider, namespace: entry.namespace, sectionID: entry.sectionID,
+                        takesOver: true, title: "", maximumRows: Int.max))
+            }
+            startProviders(for: query)
+            let snapshot = publish(RootSnapshot(query: query, isLoading: true))
+            refreshLiveSubtitles()
+            return snapshot
         }
 
         let results = engineResults(for: query)
@@ -186,12 +190,24 @@ extension RootSearch {
         return engineCompletion(for: query)
     }
 
-    /// The engine's completion for its top hit, as the full text the query becomes.
+    /// The engine's completion for its top hit, as the full text the query becomes. The engine
+    /// matches the query without its last spaces, so its text continues that. A query that ends in
+    /// a space keeps the completion only when the completed text has the space there too: "text "
+    /// completes to "text Editor", and "note " gets nothing rather than "note s".
     private func engineCompletion(for query: String) -> RootCompletion? {
         guard let engine, let buffer, let found = (try? engine.completion(in: buffer)) ?? nil,
             let entry = table[found.key.rawValue]
         else { return nil }
-        return RootCompletion(id: entry.row.id, text: query + found.text)
+        guard query.last?.isWhitespace == true else {
+            return RootCompletion(id: entry.row.id, text: query + found.text)
+        }
+        var typed = Substring(query)
+        while typed.last?.isWhitespace == true { typed = typed.dropLast() }
+        let full = typed + found.text
+        guard full.count > query.count,
+            full.prefix(query.count).compare(query, options: .caseInsensitive) == .orderedSame
+        else { return nil }
+        return RootCompletion(id: entry.row.id, text: query + full.dropFirst(query.count))
     }
 
     static func highlights(engine: Engine, buffer: QueryBuffer, key: ItemKey) -> [Range<Int>] {
