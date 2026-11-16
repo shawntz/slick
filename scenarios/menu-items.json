@@ -1,0 +1,25 @@
+{
+  "name": "Search Menu Items lists the menus of the app in front",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "frontApp": "com.example.text-editor" } },
+    { "summon": true },
+    { "type": "search menu items" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "Search Menu Items" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "list", "title": "Text Editor" } },
+    { "app": { "waitForRow": "Save" } },
+    { "expect": { "rowsInclude": ["Save", "PNG…", "Undo", "Example Editor Help"] } },
+    { "type": "export png" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rows": ["PNG…"], "selection": "PNG…" } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Run Menu Item", "Read Menus Again"] } },
+    { "press": "escape" },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } }
+  ]
+}

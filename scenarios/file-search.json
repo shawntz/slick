@@ -1,0 +1,20 @@
+{
+  "name": "File search, once turned on, browses the home folder with Tab",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "setFeatures": { "files": true }, "featuresActive": { "files": true } } },
+    { "summon": true },
+    { "type": "~/" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rowsInclude": ["docs", "notes.csv"] } },
+    { "app": { "select": "docs" } },
+    { "press": "tab" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "query": "~/docs/", "rowsInclude": ["plan.rs", "schedule.swift", "Review letter.pdf"] } },
+    { "press": "escape" },
+    { "type": "plan.rs" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rowsInclude": ["plan.rs"] } },
+    { "dismiss": true }
+  ]
+}

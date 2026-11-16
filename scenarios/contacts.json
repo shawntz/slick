@@ -1,0 +1,33 @@
+{
+  "name": "Contacts are found by name in any script and by company, and called on the chosen number",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "ivanova" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "selection": "Дарья Иванова" } },
+    { "press": "escape" },
+    { "type": "bakery" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "selection": "Example Bakery" } },
+    { "press": "escape" },
+    { "type": "search contacts" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "Search Contacts" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "type": "lima" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rows": ["Ana Lima"], "selection": "Ana Lima" } },
+    { "press": "cmd+k" },
+    { "press": "down" },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "actions": ["Mobile: +1 (555) 010-0101", "Work: +1 555 010 0102 ext. 7"] } },
+    { "press": "down" },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "app": { "opened": ["tel:+15550100102,7"] } },
+    { "dismiss": true }
+  ]
+}

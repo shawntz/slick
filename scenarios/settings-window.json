@@ -1,0 +1,12 @@
+{
+  "name": "The settings window opens on a pane for a capture and closes",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "openSettings": "rootSearch", "captureSettings": "settings-root-search" } },
+    { "app": { "openSettings": "features", "captureSettings": "settings-features" } },
+    { "app": { "closeSettings": true, "settings": [] } },
+    { "summon": true },
+    { "expect": { "visible": true } },
+    { "dismiss": true }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Tab asks AI about the typed text on this Mac",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "setSettings": { "tabCommand": "cmd:ai.ask" } } },
+    { "summon": true },
+    { "type": "why is the sky blue" },
+    { "waitUntilIdle": 3 },
+    { "press": "tab" },
+    { "waitUntilIdle": 5 },
+    { "expect": { "page": "detail", "title": "Ask AI", "detailIncludes": "This is a sample answer from the simulated on-device model." } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Copy Answer", "Paste Answer", "Regenerate", "Continue in Chat"] } },
+    { "press": "escape" },
+    { "press": "escape" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "root" } },
+    { "dismiss": true }
+  ]
+}

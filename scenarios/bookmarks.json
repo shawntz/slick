@@ -1,0 +1,24 @@
+{
+  "name": "A browser's bookmarks join root search once chosen",
+  "timeLimit": 30,
+  "steps": [
+    { "app": { "setSettings": { "bookmarks.browser.chrome": true, "bookmarks.showsInRootSearch": true } } },
+    { "summon": true },
+    { "type": "release" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "selection": "Release Checklist" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "opened": ["https://wiki.example.org/release"] } },
+    { "summon": true },
+    { "press": "escape" },
+    { "type": "search bookmarks" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "Search Bookmarks" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "list", "rows": ["Team Wiki", "Release Checklist", "Example Domain", "Garden Planner"] } },
+    { "dismiss": true }
+  ]
+}

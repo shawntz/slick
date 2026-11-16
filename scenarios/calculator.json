@@ -1,0 +1,23 @@
+{
+  "name": "The calculator answers as you type and keeps what you copied",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "1234567 * 2" },
+    { "expect": { "selection": "2,469,134" } },
+    { "waitUntilIdle": 3 },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "hud": "Copied 2,469,134", "pasteboardText": "2,469,134" } },
+    { "summon": true },
+    { "press": "escape" },
+    { "type": "calculator history" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "Calculator History" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "list", "title": "Calculator History", "rows": ["2,469,134"] } },
+    { "dismiss": true }
+  ]
+}

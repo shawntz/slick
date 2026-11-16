@@ -1,0 +1,17 @@
+{
+  "name": "Apple's own apps show with their real names and icons",
+  "timeLimit": 30,
+  "systemApps": true,
+  "steps": [
+    { "summon": true },
+    { "type": "textedit" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "selection": "TextEdit" } },
+    { "capture": { "name": "system-apps", "key": true } },
+    { "waitUntilIdle": 3 },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "launched": ["com.apple.TextEdit"] } }
+  ]
+}

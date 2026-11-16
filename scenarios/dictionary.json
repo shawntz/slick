@@ -1,0 +1,17 @@
+{
+  "name": "The define keyword shows a definition and copies it",
+  "timeLimit": 30,
+  "steps": [
+    { "summon": true },
+    { "type": "define lantern" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "rows": ["lantern"], "selection": "lantern" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "detail", "title": "lantern", "detailIncludes": "a lamp in a case" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "hud": "Copied Definition" } }
+  ]
+}

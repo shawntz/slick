@@ -1,0 +1,24 @@
+{
+  "name": "A meeting about to start is suggested before typing",
+  "timeLimit": 30,
+  "startTime": "2026-11-16T14:00:00Z",
+  "steps": [
+    { "summon": true },
+    { "expect": { "rows": ["Join Design Review"], "selection": "Join Design Review" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "visible": false } },
+    { "app": { "opened": ["https://meet.google.com/abc-defg-hij"] } },
+    { "summon": true },
+    { "type": "my schedule" },
+    { "waitUntilIdle": 3 },
+    { "app": { "select": "My Schedule" } },
+    { "press": "return" },
+    { "waitUntilIdle": 3 },
+    { "expect": { "page": "list", "title": "My Schedule", "selection": "Design Review", "rowsInclude": ["Design Review", "Planning"] } },
+    { "press": "cmd+k" },
+    { "expect": { "actions": ["Join Meeting", "Open in Calendar", "Copy Details", "Copy Meeting Link"] } },
+    { "press": "escape" },
+    { "dismiss": true }
+  ]
+}
