@@ -114,6 +114,10 @@ import LauncherUI
         feed.panelDidShow()
     }
 
+    public func panelDidClose() {
+        feed.panelDidClose()
+    }
+
     public func pageWillClose() {
         feed.close()
     }
@@ -187,9 +191,11 @@ import LauncherUI
         let entries = runtime.visible(emptyState.actions).map {
             ActionEntry($0, featureID: origin.featureID, context: origin.feature)
         }
-        return ActionTarget(
+        var target = ActionTarget(
             row: nil, entries: entries, featureID: origin.featureID, context: origin.feature, launch: .page,
             query: feed.query)
+        target.panelExtras = noticeEntries(runtime)
+        return target
     }
 
     public func target(at index: Int) -> ActionTarget? {
@@ -200,10 +206,14 @@ import LauncherUI
         var target = ActionTarget(
             row: row, entries: entries, featureID: origin.featureID, context: origin.feature, launch: .page,
             query: feed.query)
-        if let action = feed.notice?.action, !runtime.visible([action]).isEmpty {
-            target.panelExtras = [ActionEntry(action, featureID: origin.featureID, context: origin.feature)]
-        }
+        target.panelExtras = noticeEntries(runtime)
         return target
+    }
+
+    /// The notice's button as an action panel entry, so the keyboard reaches it too.
+    private func noticeEntries(_ runtime: FeatureRuntime) -> [ActionEntry] {
+        guard let action = feed.notice?.action, !runtime.visible([action]).isEmpty else { return [] }
+        return [ActionEntry(action, featureID: origin.featureID, context: origin.feature)]
     }
 
     public func iconsDidChange() {

@@ -7,7 +7,8 @@ import LauncherUI
 extension PanelController {
     /// Opens the action panel for the top page's target: the toast's button when one shows, the
     /// row's entries, universal actions for what the row stands for that the row does not already
-    /// offer under the same title, then the host's own entries for a root row.
+    /// offer under the same title, the host's own entries for a root row, then the page's extras,
+    /// such as a notice's button, unless an entry above has the same title.
     public func openActionPanel() {
         guard let target = top.target else { return }
         let entries = actionPanelEntries(for: target)
@@ -31,7 +32,9 @@ extension PanelController {
         }
         entries += target.entries[split...]
         if target.isRoot, let row = target.row { entries += hostEntries(for: row) }
-        entries += target.panelExtras
+        // A notice and an empty state often carry the same action, such as an import: show it once.
+        var titles = Set(entries.map(\.title))
+        entries += target.panelExtras.filter { titles.insert($0.title).inserted }
         return entries
     }
 

@@ -176,4 +176,25 @@ import Testing
         #expect(await waitUntil { grid.loadCount == 1 })
         #expect((grid.contentView.child as? EmptyStateView)?.content.title == "No Images")
     }
+
+    /// Bookmarks carries "Import Bookmarks" on its notice and its empty state. The action panel of
+    /// the empty list shows it once.
+    @Test(arguments: [true, false])
+    func anActionTheNoticeAndTheEmptyStateBothCarryShowsOnce(grid: Bool) async throws {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let importer = Action("Import Bookmarks", id: "import") { _ in .keepOpen }
+        let source = GatedSource(titles: [])
+        source.notice = Notice(title: "No Bookmarks Yet", action: importer)
+        let empty = EmptyState(title: "No Bookmarks", actions: [importer])
+        let page =
+            grid
+            ? fixture.open(.grid(GridPage(source, title: "Bookmarks", emptyState: empty)))
+            : fixture.open(.list(ListPage(source, title: "Bookmarks", emptyState: empty)))
+        #expect(await waitUntil { !page.isBusy && page.target != nil })
+        let target = try #require(page.target)
+        #expect(target.panelExtras.map(\.title) == ["Import Bookmarks"], "the notice's button is an extra")
+        let titles = fixture.panel.actionPanelEntries(for: target).map(\.title)
+        #expect(titles == ["Import Bookmarks"])
+    }
 }
