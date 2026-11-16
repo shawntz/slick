@@ -6,6 +6,24 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 
 ## Unreleased
 
+### Added
+
+- Notes: quick notes kept as Markdown files that any editor opens. Save one from root search with
+  `note` and your text, search titles and text, append, pin, tag, rename and paste them.
+
+### Fixed
+
+- Settings panes weigh as much as commands in search, so a pane whose name starts with what you
+  typed comes before a command whose words it only covers, as Network does for `net`.
+- Tab after a query that ends in a space no longer adds the rest of a name after the space, as in
+  "note s". It completes only when the name has a space there too.
+- When a link opened the launcher, closing it clears the link's text and pages, so the next time
+  you open it, nothing the link typed is there to run.
+- A question that a feature asks goes away when you switch that feature off.
+
+Shell commands, the color picker, Translate and media controls are still in progress and are not
+listed here.
+
 ## 0.1.0
 
 The first release. It needs macOS 26 or later on Apple silicon.

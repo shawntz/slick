@@ -4,7 +4,7 @@ A feature is one Swift package under `Packages/Features/<Name>` that depends on 
 
 This guide is enough to write one. It starts with the house rules and three complete examples, from a dozen lines to a full feature. Then it covers each part of Kit, the rules that keep Slick fast, testing, a recipe for each built-in feature, and the mistakes review found in the first seven.
 
-The examples compile and run. They live in `Packages/Kit/Tests/KitTests/Examples`, and the sketches mentioned under "Recipes" live in `Packages/Kit/Tests/KitTests/Capabilities`. The sixteen features under `Packages/Features` are real code to copy from; Apps is the reference. Read them next to this page.
+The examples compile and run. They live in `Packages/Kit/Tests/KitTests/Examples`, and the sketches mentioned under "Recipes" live in `Packages/Kit/Tests/KitTests/Capabilities`. The twenty-one features under `Packages/Features` are real code to copy from; Apps is the reference. Read them next to this page.
 
 ## Setting up the package
 
@@ -436,10 +436,10 @@ Every service is a `Sendable` protocol reached through `FeatureContext`. Copy on
 | On the context | Does | Fake in KitTesting |
 |---|---|---|
 | `pasteboard` | copy, paste with a cursor position, read, recent text, watch other apps' copies | `FakePasteboard` with `simulateCopy` |
-| `workspace` | open, open with, reveal, trash, apps for a URL, an app's name, frontmost app, launch | `FakeWorkspace` |
+| `workspace` | open, open with, reveal, trash, apps for a URL, an app's name, frontmost app, launch | `FakeWorkspace` with `failsToOpen` and `refusesToLaunch` |
 | `hotkeys` | hotkeys that are not commands | `FakeHotkeys` with `press` |
 | `permissions` | read status and its changes; asking happens from actions | `FakePermissions` with `set` |
-| `processes` | run subprocesses, streamed as bytes or as text | `FakeProcesses` with `stub` |
+| `processes` | run subprocesses, streamed as bytes or as text; stopping ends the process and every process it started | `FakeProcesses` with `stub` |
 | `http` | requests and streamed responses, as lines or server-sent events | `FakeHTTP` with `stub` |
 | `storage` | the feature's data and cache folders and the home folder, as paths | `FakeStorage`, a temporary folder |
 | `settings` | typed settings | `FakeSettings` |
@@ -470,6 +470,8 @@ Slick never prompts by surprise.
 5. Services that would need a permission never prompt: `textExpansion.start` returns `.needsPermission`, `selection` returns `nil`, a paste throws `PasteError.permissionMissing`.
 
 `.protectedFolder(.desktop)` and its siblings name folders macOS guards with its own prompt on the first read.
+
+Automation can be asked only while its app runs. Nothing starts the app to ask; macOS asks the first time the user controls it while it is open. The one exception is System Events, a faceless helper that Platform starts hidden to ask.
 
 ## Templates
 
@@ -596,6 +598,8 @@ It follows the host's rules: host filtering through the fuzzy index with section
 
 Background work is never awaited by itself. After a fake plays something, such as `simulateCopy`, `permissions.set`, a settings write or `simulateChange`, call `try await harness.settle()`: it returns once every consumer of the fakes' streams has handled what it received, and reloads the open page if its source changed. `waitForChange()` waits for the page's source to signal and reloads. A stream a feature makes and never reads holds `settle()` until the test's time limit, so give every suite `.timeLimit(.minutes(1))`.
 
+Cancelling the task that called `run(_:)` cancels a serial handler, as turning the feature off does.
+
 `FakeSettings` sends a change only when a write changes the stored value, as the live service does. A test that writes the value already stored sees no change, and `settle()` has nothing to wait for.
 
 `chooseSetting(_:option:)` picks a picker option by its title, as the settings window does. When the choice asks first, the question lands in `confirmations` and `confirmationAnswer` answers it. It returns whether the value was stored.
@@ -626,7 +630,7 @@ Test data is synthetic: no real file names, paths under the home folder, clipboa
 
 ## Recipes
 
-Each built-in feature maps onto Kit as below. All sixteen have packages under `Packages/Features` that the app registers; read the package next to its row. Rows that name a sketch in `Packages/Kit/Tests/KitTests/Capabilities` run the recipe through the harness.
+Each built-in feature maps onto Kit as below. All twenty-one have packages under `Packages/Features` that the app registers; read the package next to its row. Rows that name a sketch in `Packages/Kit/Tests/KitTests/Capabilities` run the recipe through the harness.
 
 | Feature | How | Read |
 |---|---|---|
@@ -644,6 +648,11 @@ Each built-in feature maps onto Kit as below. All sixteen have packages under `P
 | Calendar | a `SuggestionTrigger` with its own namespace, an urgency ramp, `imminentFrom` and `memory: .never`; `DaySections(direction: .future)`; `permissions.changes(of: .calendars)`; `.multiSelect` of calendars | `Features/Schedule`, `AICalendarSnippetsSketch.swift` |
 | Menu items | a `.custom` list over the app in front, searched in `@concurrent` functions; a source that adopts `PageEvents` stops a read when the panel closes and reads again when its page shows, as `FrontAppList` does, and adopts `BusySource` while it reads | `Features/MenuItems`, `FrontAppList` in `Testing/PanelEventsTests.swift` |
 | Contacts | a catalog source that reads contacts only after a grant; `permissionGranted(_:)` starts that read after a grant made in settings or onboarding, with no stream held | `Features/People`, and `FrontAppFeature` in `Testing/PanelEventsTests.swift` for the grant |
+| Shell commands | an `AsyncProvider` that takes over ">" with one `memory: .never` row, a hint when no command follows, and a check that refuses a command that could hide part of itself, such as one with a long run of spaces; the row's Return hands the text to its own command through `.run` with a private token; runs owned by the feature, not the page, so they outlive the panel and the reset to root; a `DetailSource` whose stream pulls from the run's locked output with `AsyncThrowingStream(unfolding:)`, everything since the last pull as one update, and adopts `PageEvents` to know whether the user saw it end; the end reported through the starting handler's context, a HUD while closed; a capped output buffer; Copy Output that strips escape sequences by the host's rules; the process service behind a `FeatureServiceKey` with a simulated shell; a 0700 script that deletes itself, opened with Terminal | `Features/Shell` |
+| Notes | Markdown files in a folder of its own, read and written by an actor over POSIX calls that never follow links or open pipes; atomic exclusive writes; changes only to notes whose bytes are exactly UTF-8; `fileWatcher` filtered to the folder itself; a `.custom` list with Pinned and `DaySections`, title-first search with highlights and snippets, a Markdown detail; an editor form that saves beside a note changed elsewhere; a `note` instant provider that refuses on the first byte and caps what it reads; Append to Note as a host-filtered picker; a catalog behind a setting that starts off; pins in a sidecar file; a folder setting whose guarded folders are read only after the user chose them in a folders-only open dialog, switched and read in one actor step; a `FeatureServiceKey` that confines file work outside `live` | `Features/Notes` |
+| Colors | a sampler service behind a `FeatureServiceKey`, `NSColorSampler` live and a simulated sampler that returns the color a test chose; `dismiss()` before the sampler, and nothing kept when the run was cancelled meanwhile; an `InstantProvider` that claims the top, decides from at most nine bytes and keeps nothing; `.showInLargeType` for a color's value rather than `represents`; a `JSONFileStore` history with pins, names, a limit picker that asks first and a read-only status for a newer file; a list with a `.color` detail and WCAG tags | `Features/Colors` |
+| Translate | an engine behind a `FeatureServiceKey`, Apple's Translation framework with installed languages only in the app and a table of made-up phrases elsewhere; a `.custom` list with a debounce, a language dropdown and `PageEvents` that translate again after a download; an `InstantProvider` that refuses on the first byte, translates after a pause in a task the next query cancels, and fills its row through `answersChanged`; rows that `represent` their translation, so the host offers Show in Large Type; Translate Selection with `requires` and `allowsDeepLinks: false` | `Features/Translate` |
+| Media controls | a table of no-view commands over a service of their own behind a `FeatureServiceKey`, with a Pause that sends nothing to a player that does not play: Apple Events by process ID in the app, a simulated queue elsewhere; `.needsPermission` for Automation per player; `context.confirm` before `workspace.launch` of the preferred player; a check for cancellation after every wait; a `LiveSubtitle.background` whose fetch a monitor caps at one ask every two seconds; `hotkeyPresets` | `Features/Music` |
 | Universal actions | `.text`, `.url` and `.files` providers, for selections and for rows that `represent` them | `Features/Quicklinks`, `Features/Snippets`, `Examples/BookmarksFeature.swift` |
 | Settings | `SettingKey`s in a `nonisolated enum` and a `SettingsPane` | `Examples/BookmarksFeature.swift`, `Kit/SettingsTests.swift` |
 
