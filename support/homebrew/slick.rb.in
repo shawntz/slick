@@ -3,9 +3,11 @@
 # template: target in scripts/lib/env.sh and dist/release.env. docs/RELEASING.md says how the cask
 # template: reaches the tap.
 # template:
-# template: The zap list names what the app writes. Its caches live inside the data folder, and no
-# template: code writes under ~/Library/Caches. Secrets stay in the login keychain, which zap cannot
-# template: reach. Homebrew now deprecates the url's verified parameter, so there is none.
+# template: The zap list names what the app writes. Its own caches live inside the data folder.
+# template: Sparkle keeps downloaded updates and its installer's work under ~/Library/Caches in a
+# template: folder named after the bundle ID, and the update choices in the preferences file.
+# template: Secrets stay in the login keychain, which zap cannot reach. Homebrew now deprecates the
+# template: url's verified parameter, so there is none.
 cask "@TOKEN@" do
   version "@VERSION@"
   sha256 "@SHA256@"
@@ -15,19 +17,14 @@ cask "@TOKEN@" do
   desc "Keyboard launcher for apps, settings, clipboard history and more"
   homepage "https://slick.computer/"
 
-  # Every release so far is a pre-release, and the default strategy skips those.
+  # Releases are not pre-releases, so GitHub's latest release is the newest version.
   livecheck do
     url :url
-    regex(/^v?(\d+(?:\.\d+)+)$/i)
-    strategy :github_releases do |json, regex|
-      json.filter_map do |release|
-        next if release["draft"]
-
-        release["tag_name"]&.[](regex, 1)
-      end
-    end
+    strategy :github_latest
   end
 
+  # The app updates itself with Sparkle, so brew upgrade leaves it alone unless told --greedy.
+  auto_updates true
   @DEPENDS_ON_ARCH@
   depends_on macos: :@MACOS@
 
@@ -37,6 +34,7 @@ cask "@TOKEN@" do
 
   zap trash: [
     "~/Library/Application Support/@BRAND_DATA_DIR@",
+    "~/Library/Caches/@BRAND_BUNDLE_ID@",
     "~/Library/Preferences/@BRAND_BUNDLE_ID@.plist",
     "~/Library/Saved Application State/@BRAND_BUNDLE_ID@.savedState",
   ]

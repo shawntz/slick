@@ -7,10 +7,12 @@
 # zap lists paths joined by "|". scripts/check-release.sh passes them.
 #
 # The cask runs against a small stand-in for Homebrew's DSL that records each stanza. A stanza this
-# file does not know fails the check, so a new stanza needs a line here too. The livecheck block
-# runs against made-up release data. The checks follow Homebrew's own rules for the order of
-# stanzas, the description and the homepage, as found in Homebrew's rubocops. On a Mac with
-# Homebrew, brew style on a copy of the cask under a Casks folder runs the real rules.
+# file does not know fails the check, so a new stanza needs a line here too. The livecheck must use
+# the plain latest-release strategy, because releases are not pre-releases and the update feed is
+# the latest release. The cask must say auto_updates true, because the app updates itself. The
+# checks follow Homebrew's own rules for the order of stanzas, the description and the homepage, as
+# found in Homebrew's rubocops. On a Mac with Homebrew, brew style on a copy of the cask under a
+# Casks folder runs the real rules.
 
 PROBLEMS = []
 
@@ -182,22 +184,13 @@ problem("the homepage needs a slash after the domain") if homepage.to_s.match?(%
 livecheck = one(stub, :livecheck)
 if livecheck
   same("livecheck's url", livecheck.url_value, :url)
-  same("livecheck's strategy", livecheck.strategy_name, :github_releases)
-  if livecheck.strategy_block.nil? || livecheck.regex_value.nil?
-    problem("livecheck needs a regex and a strategy block")
-  else
-    releases = [
-      { "tag_name" => "v9.2.0", "draft" => true, "prerelease" => false },
-      { "tag_name" => "v9.1.0", "draft" => false, "prerelease" => true },
-      { "tag_name" => "v9.0.0", "draft" => false, "prerelease" => false },
-      { "tag_name" => "nightly", "draft" => false, "prerelease" => true },
-    ]
-    found = Array(livecheck.strategy_block.call(releases, livecheck.regex_value)).compact.map(&:to_s).uniq
-    same("livecheck's versions from sample releases", found, ["9.1.0", "9.0.0"])
-  end
+  same("livecheck's strategy", livecheck.strategy_name, :github_latest)
+  problem("livecheck's strategy takes no block: the latest release is the version") unless livecheck.strategy_block.nil?
+  problem("livecheck needs no regex: the latest release's tag is the version") unless livecheck.regex_value.nil?
 end
 
-problem("the cask must not claim auto_updates: the app has no updater") unless stub.values[:auto_updates].empty?
+# The app updates itself with Sparkle, so Homebrew must not replace a copy that already did.
+same("auto_updates", one(stub, :auto_updates), true)
 
 depends = stub.values[:depends_on].reduce({}) { |all, options| all.merge(options) }
 same("depends_on macos", depends[:macos], expect.fetch("macos").to_sym)
