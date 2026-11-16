@@ -53,6 +53,9 @@ import Kit
 /// | `theme` | string | the selected theme, and the panel draws it |
 /// | `featuresActive` | object | each feature, by ID, is active or not |
 /// | `fallbacksOn` | strings | the IDs of the fallbacks that are on, in the order root search shows them |
+/// | `selectedSubtitle` | string | the selected row's subtitle on the top page, `""` for none |
+/// | `detailMetadata` | object | each label of the top detail page's metadata shows exactly this text |
+/// | `filter` | string | the title of the option the top list's dropdown shows |
 nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var setTime: Date?
     var advanceClock: Double?
@@ -97,6 +100,9 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
     var theme: String?
     var featuresActive: [String: Bool]?
     var fallbacksOn: [String]?
+    var selectedSubtitle: String?
+    var detailMetadata: [String: String]?
+    var filter: String?
 
     /// An item hotkey to set.
     struct HotkeyRequest: Decodable, Equatable, Sendable {
@@ -150,6 +156,7 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         case hotkeyBound, hotkeyWaiting, launcherHotkey, hotkeyRefused
         case itemHotkeys
         case theme, featuresActive, fallbacksOn
+        case selectedSubtitle, detailMetadata, filter
     }
 
     init(from decoder: any Decoder) throws {
@@ -217,6 +224,9 @@ nonisolated struct AppStep: Decodable, Equatable, Sendable {
         theme = try container.decodeIfPresent(String.self, forKey: .theme)
         featuresActive = try container.decodeIfPresent([String: Bool].self, forKey: .featuresActive)
         fallbacksOn = try container.decodeIfPresent([String].self, forKey: .fallbacksOn)
+        selectedSubtitle = try container.decodeIfPresent(String.self, forKey: .selectedSubtitle)
+        detailMetadata = try container.decodeIfPresent([String: String].self, forKey: .detailMetadata)
+        filter = try container.decodeIfPresent(String.self, forKey: .filter)
     }
 
     /// The expected HUD title with the app's name put in.

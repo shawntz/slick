@@ -448,6 +448,7 @@ enum ScenarioMode {
                 .map(\.id.rawValue)
             if on != expected { problems.append("the fallbacks on were \(on), expected \(expected)") }
         }
+        problems += panelChecks(step, panel: assembly.panel)
         return problems.isEmpty ? nil : problems.joined(separator: "; ")
     }
 
