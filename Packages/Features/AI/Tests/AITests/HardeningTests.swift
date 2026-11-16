@@ -72,7 +72,7 @@ struct HardeningTests {
         ai.fakes.clock.advance(by: .seconds(10 * 86_400))
 
         ai.harness.confirmationAnswer = false
-        #expect(try ai.harness.chooseSetting("Keep chats", option: "For 1 week") == false)
+        #expect(try ai.harness.chooseSetting("Keep chats", option: "For 1 Week") == false)
         #expect(ai.harness.confirmations.last?.title == "Delete Older Chats?")
         #expect(ai.harness.confirmations.last?.isDestructive == true)
         try await ai.harness.settle()
@@ -80,17 +80,17 @@ struct HardeningTests {
         #expect(try await ai.feature.store.all().count == 1, "declining keeps every chat")
 
         ai.harness.confirmationAnswer = true
-        #expect(try ai.harness.chooseSetting("Keep chats", option: "For 1 week"))
+        #expect(try ai.harness.chooseSetting("Keep chats", option: "For 1 Week"))
         try await ai.harness.settle()
         #expect(try await ai.feature.store.all().isEmpty)
 
         let asked = ai.harness.confirmations.count
-        #expect(try ai.harness.chooseSetting("Keep chats", option: "For 1 year"))
+        #expect(try ai.harness.chooseSetting("Keep chats", option: "For 1 Year"))
         #expect(ai.harness.confirmations.count == asked, "a longer time deletes nothing, so it does not ask")
-        #expect(try ai.harness.chooseSetting("Keep chats", option: "Until you delete them"))
+        #expect(try ai.harness.chooseSetting("Keep chats", option: "Until You Delete Them"))
         #expect(ai.harness.confirmations.count == asked)
 
-        #expect(try ai.harness.chooseSetting("Keep chats", option: "Don't keep chats"))
+        #expect(try ai.harness.chooseSetting("Keep chats", option: "Don't Keep Chats"))
         #expect(ai.harness.confirmations.last?.title == "Delete All Chats?")
         #expect(ai.harness.confirmations.last?.message?.contains("every kept chat is deleted now") == true)
     }

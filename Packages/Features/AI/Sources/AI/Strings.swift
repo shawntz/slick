@@ -262,9 +262,9 @@ nonisolated enum Strings {
 
         static func providerTitle(_ kind: ProviderKind) -> String {
             switch kind {
-            case .onDevice: "Apple on-device model"
+            case .onDevice: "Apple On-Device Model"
             case .anthropic: "Anthropic"
-            case .openAICompatible: "OpenAI-compatible server"
+            case .openAICompatible: "OpenAI-Compatible Server"
             }
         }
     }
@@ -350,12 +350,12 @@ nonisolated enum Strings {
 
         static func retentionTitle(_ retention: ChatRetention) -> String {
             switch retention {
-            case .none: "Don't keep chats"
-            case .day: "For 1 day"
-            case .week: "For 1 week"
-            case .month: "For 30 days"
-            case .year: "For 1 year"
-            case .forever: "Until you delete them"
+            case .none: "Don't Keep Chats"
+            case .day: "For 1 Day"
+            case .week: "For 1 Week"
+            case .month: "For 30 Days"
+            case .year: "For 1 Year"
+            case .forever: "Until You Delete Them"
             }
         }
 
@@ -504,6 +504,17 @@ nonisolated enum Strings {
                 "Address Needs HTTPS",
                 message: "macOS allows plain http only on this Mac and the local network. Use an https address for "
                     + "\(host).")
+        }
+
+        /// The server answered with a redirect to another host, which the request does not follow, so
+        /// the key and the prompt never reach it. The base address is the one setting that can be
+        /// wrong; Anthropic's address is fixed.
+        static func redirectRefused(from host: String, to target: URL, checksAddress: Bool) -> AIFailure {
+            let other = DisplayText.oneLine(target.host(percentEncoded: false) ?? target.absoluteString)
+            let next = checksAddress ? "Check the base address in AI settings." : "Try again in a moment."
+            return AIFailure(
+                "Request Not Forwarded",
+                message: "\(host) tried to send the request on to \(other), so it was not sent there. " + next)
         }
 
         static func requestFailed(_ host: String) -> AIFailure {

@@ -36,6 +36,9 @@ nonisolated struct OpenAICompatibleProvider: ModelProvider {
             let task = Task {
                 do {
                     let response = try await http.stream(try httpRequest.get())
+                    if let target = response.refusedRedirect {
+                        throw Strings.Failures.redirectRefused(from: host, to: target, checksAddress: true)
+                    }
                     guard (200..<300).contains(response.status) else {
                         let body = try await response.boundedText()
                         throw HTTPFailures.compatible(
