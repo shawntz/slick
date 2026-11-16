@@ -25,3 +25,16 @@ reasons live here instead of in the `.entitlements` files.
   back to the login keychain.
 - `debug.entitlements` is used for debug builds. It adds `com.apple.security.get-task-allow` so
   lldb and Instruments can attach under the hardened runtime. Notarization rejects it.
+- Neither file turns off library validation. Under the hardened runtime the app may load only code
+  signed with its own Team ID, and `Sparkle.framework` in `Contents/Frameworks` is signed with the
+  app's identity, so Apple Development and Developer ID builds load it. Ad hoc code has no Team ID,
+  so `scripts/bundle.sh` and the release dry run add `com.apple.security.cs.disable-library-validation`
+  to an ad hoc build when they sign it. `scripts/release.sh` refuses `release.entitlements` with it,
+  and `scripts/check-release.sh` fails a Developer ID release that carries it. With library
+  validation off, any ad hoc framework put in place of Sparkle's loads with the app's permission
+  grants, so an ad hoc build must not hold Accessibility or Input Monitoring for daily use.
+  `scripts/bundle.sh` says so whenever it signs ad hoc, also when it falls back to ad hoc.
+- Sparkle's helpers, its two XPC services, its Updater app and Autoupdate, are signed with no
+  entitlements. Sparkle's own ad hoc signature gives Autoupdate an application identifier
+  entitlement, and re-signing drops it, as the owner's other app's build does. Autoupdate runs only
+  while an update installs, which no test or dry run reaches, so that has not run here.

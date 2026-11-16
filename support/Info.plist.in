@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Template. scripts/info-plist.sh replaces each name between at signs with its value. -->
+<!-- Template. scripts/info-plist.sh replaces each name between at signs with its value, and adds
+     SUFeedURL and SUPublicEDKey only for a release. SUEnableAutomaticChecks false means Sparkle
+     never asks its own question and checks nothing until the person turns checks on, and
+     SUScheduledCheckInterval is then one day. SUAllowsAutomaticUpdates false means Sparkle never
+     offers to download and install updates on its own: an update downloads only when the person
+     chooses to install it. -->
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
@@ -50,6 +55,12 @@
 	<false/>
 	<key>NSSupportsSuddenTermination</key>
 	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<false/>
+	<key>SUAllowsAutomaticUpdates</key>
+	<false/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 	<key>NSHumanReadableCopyright</key>
 	<string>Open source under the MIT license.</string>
 	<key>NSAppleEventsUsageDescription</key>

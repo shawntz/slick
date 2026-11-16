@@ -2,7 +2,8 @@
 # Shared setup for every script in scripts/. Source it; do not run it.
 #
 # Sets ROOT to the repository root, puts the Rust toolchain on PATH, pins the macOS deployment
-# target and exports the BRAND_* values from support/brand.env.
+# target and exports the BRAND_* values from support/brand.env, among them the repository's address
+# and the public key that checks updates.
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 export ROOT
@@ -13,9 +14,11 @@ export PATH="/opt/homebrew/opt/rustup/bin:$HOME/.cargo/bin:$PATH"
 # The oldest macOS the app supports. Rust objects, the icon and Info.plist all use it.
 export MACOSX_DEPLOYMENT_TARGET=26.0
 
-while IFS='=' read -r key value; do
-    case $key in
-        BRAND_*) export "$key=$value" ;;
+# Each line is split at its first "=" by hand. read with IFS='=' would drop a single "=" at the end
+# of the value, and a base64 key such as BRAND_UPDATE_PUBLIC_KEY ends in one.
+while IFS= read -r line || [ -n "$line" ]; do
+    case $line in
+        BRAND_*=*) export "${line%%=*}=${line#*=}" ;;
     esac
 done < "$ROOT/support/brand.env"
 

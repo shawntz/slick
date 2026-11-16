@@ -32,6 +32,7 @@ let package = Package(
         .package(path: "../Root"),
         .package(path: "../SettingsUI"),
         .package(path: "../CoreBridge"),
+        .package(path: "../Updates"),
         // Features, one line each, in the order of Sources/SlickApp/Features.swift.
         .package(path: "../Features/Apps"),
         .package(path: "../Features/Clipboard"),
@@ -62,6 +63,7 @@ let package = Package(
                 .product(name: "Root", package: "Root"),
                 .product(name: "SettingsUI", package: "SettingsUI"),
                 .product(name: "CoreBridge", package: "CoreBridge"),
+                .product(name: "Updates", package: "Updates"),
                 .product(name: "Apps", package: "Apps"),
                 .product(name: "Clipboard", package: "Clipboard"),
                 .product(name: "Snippets", package: "Snippets"),
@@ -81,7 +83,12 @@ let package = Package(
             ],
             swiftSettings: mainActorSettings
         ),
-        .executableTarget(name: "Slick", dependencies: ["SlickApp"], swiftSettings: mainActorSettings),
+        // The bundle carries Sparkle.framework in Contents/Frameworks, which scripts/bundle.sh copies
+        // from the Updates package's SwiftPM artifacts. This runpath is how the executable finds it.
+        .executableTarget(
+            name: "Slick", dependencies: ["SlickApp"], swiftSettings: mainActorSettings,
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
+        ),
         .testTarget(
             name: "SlickAppTests",
             dependencies: [
@@ -94,6 +101,7 @@ let package = Package(
                 .product(name: "Platform", package: "Platform"),
                 .product(name: "SettingsUI", package: "SettingsUI"),
                 .product(name: "LauncherUI", package: "LauncherUI"),
+                .product(name: "Updates", package: "Updates"),
             ],
             swiftSettings: mainActorSettings
         ),

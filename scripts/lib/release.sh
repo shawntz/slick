@@ -84,11 +84,15 @@ macos_symbol() { # <version>
 
 # Reads <file> and sets every RELEASE_* variable it names. Other lines are ignored.
 read_release_env() { # <file>
-    local key value
+    local line key
     [ -f "$1" ] || fail "$1 is missing. Run make release first."
-    while IFS='=' read -r key value; do
+    # Split at the first "=" by hand: read with IFS='=' drops a single "=" at the end of a value, and
+    # a base64 public key ends in one.
+    while IFS= read -r line || [ -n "$line" ]; do
+        key=${line%%=*}
+        [ "$key" != "$line" ] || continue
         case $key in
-            RELEASE_[A-Z0-9_]*) printf -v "$key" '%s' "$value" ;;
+            RELEASE_[A-Z0-9_]*) printf -v "$key" '%s' "${line#*=}" ;;
         esac
     done < "$1"
 }
@@ -168,4 +172,101 @@ $identities"
 $identities"
     fi
     printf '%s' "$matches"
+}
+
+# --- Updates ---------------------------------------------------------------------------------------
+
+# Prints the address of the update feed: the appcast.xml of the latest release of the repository in
+# support/brand.env. GitHub's latest release skips drafts and pre-releases.
+update_feed_url() {
+    printf '%s/releases/latest/download/appcast.xml' "${BRAND_REPOSITORY%/}"
+}
+
+# Prints, one per line, why the copies that the release tagged v<last> installed would not take a
+# release from HEAD, or nothing when they would. Sparkle offers and installs an update only when its
+# build number, the commit count, is higher than the installed copy's, and checks the update against
+# the public key that copy carries. A history rewritten after the last release can lower the count,
+# and a new key passes only through Sparkle's Developer ID fallback. UPDATE_KEY_ROTATION=1 allows a
+# new key on purpose, as docs/RELEASING.md says under "If the key is lost".
+follows_release_problems() { # <last version> <update public key>
+    local last_build build last_key
+    if ! last_build=$(git -C "$ROOT" rev-list --count "v$1" 2> /dev/null); then
+        printf 'the tag v%s names no commit in this clone. Run: git fetch --tags\n' "$1"
+        return 0
+    fi
+    build=$(git -C "$ROOT" rev-list --count HEAD) || return 1
+    if [ "$build" -le "$last_build" ]; then
+        printf 'HEAD has build number %s, the number of commits in its history, and v%s has %s. Sparkle installs only a higher build number, so the copies v%s installed would never take this release. The history of main was rewritten after v%s, or HEAD is that release.\n' \
+            "$build" "$1" "$last_build" "$1" "$1"
+    fi
+    last_key=$(git -C "$ROOT" show "v$1:support/brand.env" 2> /dev/null | sed -n 's/^BRAND_UPDATE_PUBLIC_KEY=//p' | tail -1)
+    if [ -n "$last_key" ] && [ "$last_key" != "$2" ] && [ "${UPDATE_KEY_ROTATION:-0}" != 1 ]; then
+        printf 'support/brand.env names another update key than v%s did. The copies v%s installed check each update against the old key, and take one signed with a new key only when its app carries the same Developer ID team. If you replaced a lost key on purpose, run again with UPDATE_KEY_ROTATION=1. docs/RELEASING.md says more under "If the key is lost".\n' \
+            "$1" "$1"
+    fi
+}
+
+# True when the text is base64 of exactly 32 bytes, the size of an Ed25519 public key.
+is_update_key() { # <base64>
+    local bytes
+    [ -n "$1" ] || return 1
+    bytes=$(printf '%s' "$1" | base64 -D 2> /dev/null | wc -c | tr -d ' ') || return 1
+    [ "$bytes" = 32 ] && [ "$(printf '%s' "$1" | tr -d 'A-Za-z0-9+/=')" = "" ]
+}
+
+# Prints the folder of Sparkle's SwiftPM artifact, which holds the framework and the signing tools,
+# found by walking up from a path inside a SwiftPM build folder, such as the executable it built.
+# SPARKLE_ARTIFACTS names the folder instead.
+sparkle_artifacts() { # <path inside a SwiftPM build folder>
+    local dir
+    if [ -n "${SPARKLE_ARTIFACTS:-}" ]; then
+        [ -d "$SPARKLE_ARTIFACTS/Sparkle.xcframework" ] \
+            || fail "SPARKLE_ARTIFACTS=$SPARKLE_ARTIFACTS holds no Sparkle.xcframework."
+        printf '%s' "$SPARKLE_ARTIFACTS"
+        return
+    fi
+    dir=$(cd "$(dirname "$1")" && pwd -P) || fail "no folder for $1."
+    while [ "$dir" != / ]; do
+        if [ -d "$dir/artifacts/sparkle/Sparkle/Sparkle.xcframework" ]; then
+            printf '%s' "$dir/artifacts/sparkle/Sparkle"
+            return
+        fi
+        dir=$(dirname "$dir")
+    done
+    fail "found no Sparkle artifact above $1. Build the App package with SwiftPM first, which resolves the Updates package's Sparkle."
+}
+
+# Prints the macOS framework inside Sparkle's artifact folder.
+sparkle_framework() { # <artifact folder>
+    local found
+    found=$(find "$1/Sparkle.xcframework" -maxdepth 2 -type d -path '*/macos-*/Sparkle.framework' | head -1)
+    [ -n "$found" ] || fail "$1 holds no macOS Sparkle.framework."
+    printf '%s' "$found"
+}
+
+# Writes the entitlements to sign the app with for an identity, and prints their path. Ad hoc code
+# has no Team ID, so library validation under the hardened runtime refuses the ad hoc framework the
+# app links. An ad hoc build therefore also carries com.apple.security.cs.disable-library-validation.
+# Apple Development and Developer ID builds sign the app and the framework with one identity, so one
+# Team ID, and get the entitlements unchanged.
+signing_entitlements() { # <identity> <entitlements file> <output file>
+    cp "$2" "$3" || fail "could not copy $2."
+    if [ "$1" = - ]; then
+        # plutil reads a dot as a step into a dictionary, so the key's own dots are escaped.
+        plutil -insert 'com\.apple\.security\.cs\.disable-library-validation' -bool YES "$3" \
+            || fail "could not add the ad hoc library validation exception to $3."
+    fi
+    printf '%s' "$3"
+}
+
+# Prints the files a release uploads, one per line: the zip, the dSYM zip, SHA256SUMS.txt and
+# appcast.xml. Fails when one is missing or empty. Reads RELEASE_ZIP and RELEASE_DSYM_ZIP, which
+# read_release_env sets.
+release_assets() { # <release dir>
+    local file
+    for file in "${RELEASE_ZIP:-}" "${RELEASE_DSYM_ZIP:-}" SHA256SUMS.txt appcast.xml; do
+        [ -n "$file" ] && [ -s "$1/$file" ] \
+            || fail "${file:-a file release.env names} is missing or empty in $1. Run make release again."
+        printf '%s\n' "$1/$file"
+    done
 }

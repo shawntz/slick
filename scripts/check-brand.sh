@@ -1,7 +1,9 @@
 #!/bin/bash
 # Keeps the product's identity in two places: support/brand.env for scripts and
 # Packages/Kit/Sources/Kit/Brand.swift for code. Fails when the two disagree, or when the product
-# name, bundle identifier, data folder or URL scheme is written out anywhere else.
+# name, bundle identifier, data folder or URL scheme is written out anywhere else. The repository's
+# address is the one value brand.env shares with the App package's ProjectLinks instead, and it
+# must agree there too.
 #   scripts/check-brand.sh
 #
 # Scope: code, scripts, templates and configuration that git tracks or would track. Prose is not
@@ -35,6 +37,12 @@ compare BRAND_NAME name
 compare BRAND_BUNDLE_ID bundleID
 compare BRAND_DATA_DIR dataDirectoryName
 compare BRAND_URL_SCHEME urlScheme
+# The repository's address: brand.env's for the scripts and the update feed, ProjectLinks' for the
+# About pane.
+PROJECT_LINKS="Packages/App/Sources/SlickApp/ProjectLinks.swift"
+links_repository=$(sed -n 's/.*static let repository = link("\(.*\)").*/\1/p' "$ROOT/$PROJECT_LINKS")
+[ "${BRAND_REPOSITORY%/}" = "$links_repository" ] \
+    || problem "BRAND_REPOSITORY=$BRAND_REPOSITORY in support/brand.env but ProjectLinks.repository is \"$links_repository\""
 
 # 2. Nothing else writes the values out.
 cd "$ROOT"
