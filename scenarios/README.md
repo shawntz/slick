@@ -102,6 +102,7 @@ A file with `"systemApps": true` shows Apple's own apps with their real icons an
 | hotkey-conflicts.json | item and launcher hotkey conflicts, takeover, retry, and pressing an item hotkey |
 | launcher-hotkey-waits.json | while Spotlight holds Command-Space the launcher binds nothing and items are refused; once it is free, opening settings binds it with a HUD |
 | theme-switch-while-open.json | a theme switch while the panel and the action panel show |
+| themes-beam-and-clear.json | Beam and Clear each draw root search, the action panel, a toast, a pushed list and a form |
 | settings-while-pushed.json | settings changed while a list is pushed keep the page and its selection |
 | hostile-links-more.json | more hostile links are refused; a command kept out of links is refused without asking; a destructive command by link asks twice, with Cancel selected first |
 | two-summons.json | summons and hotkey presses in quick succession |
