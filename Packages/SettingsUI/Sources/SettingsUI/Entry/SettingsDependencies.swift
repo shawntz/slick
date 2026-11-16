@@ -23,6 +23,9 @@ import LauncherUI
 /// - `dataDirectory`: the app's data folder, revealed from the advanced pane.
 /// - `launcherHotkey`: whether the launcher hotkey is bound or waits behind a macOS shortcut. App's
 ///   launcher hotkey implements it. Nil shows no waiting notice.
+/// - `updates`: whether this build updates itself, for the General pane and onboarding. The Updates
+///   package implements it for the live launcher of a release. Every other run passes, or defaults
+///   to, `NoUpdates`.
 public struct SettingsDependencies {
     public var services: Services
     public var features: any FeatureDirectory
@@ -47,6 +50,8 @@ public struct SettingsDependencies {
     public var bundleIdentifier: @MainActor (URL) -> String?
     /// The launcher hotkey's binding, for the notice that it waits behind a macOS shortcut.
     public var launcherHotkey: (any LauncherHotkeyStatus)?
+    /// Whether this build updates itself, and the person's choices about it.
+    public var updates: any UpdateControl
 
     public init(
         services: Services,
@@ -61,7 +66,8 @@ public struct SettingsDependencies {
         lookUpItem: @escaping @MainActor (ItemID) -> Row? = { _ in nil },
         grantPermission: (@MainActor (Permission) async -> PermissionStatus)? = nil,
         bundleIdentifier: @escaping @MainActor (URL) -> String? = { Bundle(url: $0)?.bundleIdentifier },
-        launcherHotkey: (any LauncherHotkeyStatus)? = nil
+        launcherHotkey: (any LauncherHotkeyStatus)? = nil,
+        updates: any UpdateControl = NoUpdates()
     ) {
         self.services = services
         self.features = features
@@ -76,6 +82,7 @@ public struct SettingsDependencies {
         self.grantPermission = grantPermission
         self.bundleIdentifier = bundleIdentifier
         self.launcherHotkey = launcherHotkey
+        self.updates = updates
     }
 }
 

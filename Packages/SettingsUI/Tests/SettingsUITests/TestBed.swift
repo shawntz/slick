@@ -23,6 +23,8 @@ import LauncherUI
     var grants: [Permission] = []
     /// The launcher hotkey's binding, as App would report it.
     let hotkeyStatus = FakeLauncherHotkeyStatus()
+    /// The updater. A build from source by default; a test that needs one that updates sets it.
+    var updates: any UpdateControl = NoUpdates()
 
     init(permissions: PermissionStatus = .granted) {
         root = FileManager.default.temporaryDirectory.appending(path: "settingsui-\(UUID().uuidString)")
@@ -49,7 +51,7 @@ import LauncherUI
                 links: [AboutInfo.Link(title: "Source", url: URL(string: "https://example.com/source")!)]),
             lookUpItem: { [weak self] id in self?.lookUp[id] },
             bundleIdentifier: { url in "com.example." + url.deletingPathExtension().lastPathComponent.lowercased() },
-            launcherHotkey: hotkeyStatus)
+            launcherHotkey: hotkeyStatus, updates: updates)
     }
 
     func context() -> SettingsContext {

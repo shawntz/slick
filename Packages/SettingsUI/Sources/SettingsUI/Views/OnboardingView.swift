@@ -310,6 +310,22 @@ private struct DoneStep: View {
             )
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+            if model.offersUpdates {
+                Toggle(
+                    isOn: Binding(get: { model.checksForUpdates }, set: { model.checksForUpdates = $0 })
+                ) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(UpdateStrings.automaticTitle).fontWeight(.medium)
+                        Text(UpdateStrings.whatIsSent)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .toggleStyle(.switch)
+                .padding(12)
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+            }
         }
     }
 }

@@ -11,7 +11,9 @@ import Observation
 /// feature that is off until the user turns it on. A feature whose manifest suggests it starts with
 /// its switch on, and the switches take effect when the user continues past the step. The
 /// permissions step shows only what the features that are on need. It never asks the system for a
-/// permission the user did not press Allow for. Finishing sets ``HostSettings/onboardingDone``.
+/// permission the user did not press Allow for. In a build that updates itself, the done step has
+/// the automatic check switch, which starts on. Finishing stores that choice and sets
+/// ``HostSettings/onboardingDone``.
 /// Closing the window before that is finishing later: onboarding opens again at the next launch,
 /// and switches the user did not continue past are not applied.
 @Observable final class OnboardingModel {
@@ -151,11 +153,20 @@ import Observation
         }
     }
 
-    /// Marks onboarding done and closes the flow.
+    /// Stores the update choice, marks onboarding done and closes the flow.
     func finish() {
+        if offersUpdates { context.dependencies.updates.setChecksAutomatically(checksForUpdates) }
         context.general[HostSettings.onboardingDone] = true
         onFinish()
     }
+
+    // MARK: Updates
+
+    /// True when the done step offers the automatic check switch: only a build that updates itself.
+    var offersUpdates: Bool { context.dependencies.updates.isAvailable }
+
+    /// The done step's switch. It starts on, and nothing is checked until finishing stores it.
+    var checksForUpdates = true
 
     // MARK: Hotkey
 

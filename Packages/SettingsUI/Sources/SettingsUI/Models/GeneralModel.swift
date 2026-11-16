@@ -3,8 +3,10 @@ import KitHosting
 import Observation
 
 /// The general pane: the launcher hotkey, open at login, the menu bar item, where and how big the
-/// panel opens, and when it returns to root search. While a macOS shortcut holds the launcher
-/// hotkey, the pane says so under the recorder, with a button that opens Keyboard settings.
+/// panel opens, when it returns to root search, and updates. While a macOS shortcut holds the
+/// launcher hotkey, the pane says so under the recorder, with a button that opens Keyboard settings.
+/// A build that updates itself shows the automatic check switch, an update a scheduled check found,
+/// the time of the last check and Check Now. A build from source says that git updates it.
 @Observable final class GeneralModel {
     /// A choice for how long the panel keeps the page the user left.
     struct ResetChoice: Hashable, Identifiable {
@@ -44,6 +46,7 @@ import Observation
         if let status = context.launcherHotkey {
             tasks.follow(status.statusChanges, bumping: revision)
         }
+        tasks.follow(context.dependencies.updates.changes, bumping: revision)
     }
 
     // MARK: Launcher hotkey
@@ -104,6 +107,53 @@ import Observation
     /// True when the launcher has no hotkey and no menu bar item, so nothing opens it.
     var isUnreachable: Bool {
         !showStatusItem && launcherHotkey.combo == nil
+    }
+
+    // MARK: Updates
+
+    private var updates: any UpdateControl { context.dependencies.updates }
+
+    /// True when this build updates itself. A build from source does not.
+    var updatesAvailable: Bool {
+        revision.track()
+        return updates.isAvailable
+    }
+
+    /// The automatic check switch. Only the person's choice here or in onboarding turns it on.
+    var checksForUpdates: Bool {
+        get {
+            revision.track()
+            return updates.checksAutomatically
+        }
+        set {
+            updates.setChecksAutomatically(newValue)
+            revision.bump()
+        }
+    }
+
+    /// When the last check was, or that there was none.
+    var lastCheckText: String {
+        revision.track()
+        return UpdateStrings.lastCheck(updates.lastCheck)
+    }
+
+    /// Names the update a scheduled check found, until the person looks at it, or nil. The menu bar
+    /// menu offers it too, but the person may have hidden the menu bar item.
+    var waitingUpdateText: String? {
+        revision.track()
+        return updates.waitingVersion.map(UpdateStrings.waiting)
+    }
+
+    /// False while a check cannot start, as while an update downloads in the background.
+    var canCheckForUpdates: Bool {
+        revision.track()
+        return updates.canCheckNow
+    }
+
+    /// Shows the updater's own window: the update that waits, or the result of a check it starts
+    /// now. Only Check Now and Show Update call it.
+    func checkForUpdatesNow() {
+        updates.checkNow()
     }
 
     // MARK: Panel

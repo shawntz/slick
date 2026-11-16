@@ -61,6 +61,28 @@ struct GeneralPane: View {
                     Text("How long the launcher keeps the page you left.")
                 }
             }
+            Section(UpdateStrings.section) {
+                if model.updatesAvailable {
+                    Toggle(isOn: $model.checksForUpdates) {
+                        Text(UpdateStrings.automaticTitle)
+                        Text(UpdateStrings.whatIsSent)
+                    }
+                    if let waiting = model.waitingUpdateText {
+                        LabeledContent(waiting) {
+                            Button(UpdateStrings.showUpdate) { model.checkForUpdatesNow() }
+                                .disabled(!model.canCheckForUpdates)
+                        }
+                    }
+                    LabeledContent(model.lastCheckText) {
+                        Button(UpdateStrings.checkNow) { model.checkForUpdatesNow() }
+                            .disabled(!model.canCheckForUpdates)
+                    }
+                } else {
+                    Text(UpdateStrings.builtFromSource)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
         .formStyle(.grouped)
     }
