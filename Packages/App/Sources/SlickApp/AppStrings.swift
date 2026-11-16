@@ -14,10 +14,15 @@ enum AppStrings {
     static let linkSection = "A link asks to run this command"
     static func linkRunOnce(_ title: String) -> String { "Run \(title)" }
     static let linkAlwaysAllow = "Always Allow"
-    static func linkAlwaysAllowDetail(_ title: String) -> String {
-        "Run \(title) from links from now on without asking"
+    /// What Always Allow allows: the command with no arguments, or with exactly the ones shown.
+    static func linkAlwaysAllowDetail(_ title: String, hasArguments: Bool) -> String {
+        hasArguments
+            ? "Run \(title) from links with exactly these arguments, without asking"
+            : "Run \(title) from links with no arguments, without asking"
     }
     static let linkCancel = "Cancel"
+    static let linkWait = "Wait a Moment"
+    static let linkWaitMessage = "Run and Always Allow work once this page has been open for a second."
 
     /// The arguments a link passes, as one line, or a note that it passes none.
     static func linkArguments(_ arguments: [String: String]) -> String {
