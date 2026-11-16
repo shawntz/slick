@@ -71,7 +71,8 @@ public enum TemplateStyle: Hashable, Sendable {
     /// Every value is percent-encoded unless it already is. For quicklinks.
     case url
     /// Clipboard, selection, argument and snippet values are wrapped in `"""` so a model can tell them
-    /// from the instructions. For AI prompts.
+    /// from the instructions. A value that holds a run of double quotes gets a longer fence, one
+    /// quote more than its longest run, so it cannot close the fence. For AI prompts.
     case prompt
 }
 

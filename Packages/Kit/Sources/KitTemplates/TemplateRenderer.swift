@@ -116,10 +116,31 @@ extension Template {
             return placeholder.modifiers.contains(.percentEncode) ? value : percentEncode(value)
         case .prompt:
             switch placeholder.kind {
-            case .clipboard, .selection, .argument, .snippet: return "\"\"\"" + value + "\"\"\""
+            case .clipboard, .selection, .argument, .snippet: return fenced(value)
             default: return value
             }
         }
+    }
+
+    /// The value between two fences of double quotes, each one longer than the longest run of
+    /// double quotes in the value and at least three, so text from a web page or an email cannot
+    /// close the fence and go on as if it were the instruction. A quote at either end of the value
+    /// gets a space between it and the fence, so the two never join into one longer run.
+    private static func fenced(_ value: String) -> String {
+        var longest = 0
+        var run = 0
+        for scalar in value.unicodeScalars {
+            if scalar == "\"" {
+                run += 1
+                longest = max(longest, run)
+            } else {
+                run = 0
+            }
+        }
+        let fence = String(repeating: "\"", count: max(3, longest + 1))
+        let start = value.hasPrefix("\"") ? " " : ""
+        let end = value.hasSuffix("\"") ? " " : ""
+        return fence + start + value + end + fence
     }
 
     private static let unreserved = CharacterSet(
