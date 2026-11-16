@@ -6,16 +6,28 @@
 # It unpacks the zip that ships, not the bundle it was made from, and checks:
 # - the checksums in SHA256SUMS.txt and release.env
 # - the zip holds exactly one bundle, whose signature passes strict verification, with the hardened
-#   runtime on every piece of code and exactly the entitlements in support/release.entitlements
-# - Info.plist carries the version, build number, bundle id and oldest macOS of the release
+#   runtime on every piece of code, every piece of nested code signed like the bundle, and exactly
+#   the entitlements in support/release.entitlements
+# - Sparkle.framework in Contents/Frameworks with its symbolic links, found through the
+#   executable's runpath, and no runpath into a build folder
+# - Info.plist carries the version, build number, bundle id, oldest macOS, the update feed, the
+#   update key, automatic checks off and no automatic installs
+# - the executable starts: run with --version, it prints the name, the version and the build number
+#   and exits before it makes any window. dyld loads every linked framework before that, so a
+#   missing or wrongly signed framework fails here
 # - the executable's architectures, the third-party notices in Resources, and a dSYM whose UUIDs
 #   match the executable
+# - appcast.xml is well-formed with one item and every field, the zip's length, and a signature
+#   that scripts/update-signature.swift verifies against the update key
 # - the cask renders, parses as Ruby and declares what scripts/check-cask.rb expects
-# A real release must also carry a Developer ID signature with a secure timestamp, a stapled
-# ticket, and pass Gatekeeper's assessment. A dry run must be signed ad hoc.
+# A real release must also carry a Developer ID signature with a secure timestamp on every piece of
+# code, a stapled ticket, pass Gatekeeper's assessment, and sign the update with the key in
+# support/brand.env. A dry run must be signed ad hoc, with the library validation exception an ad
+# hoc build needs, and signs the update with a throwaway key.
 #
-# It reads files and runs codesign, plutil, lipo, dwarfdump and ruby. It changes nothing in the
-# release folder and makes no network request.
+# It reads files and runs codesign, plutil, lipo, otool, dwarfdump, python3, swiftc and ruby, and
+# the unpacked executable with --version only. It changes nothing in the release folder and makes
+# no network request.
 #
 # Env: RUBY names the Ruby interpreter. Default: ruby on PATH.
 set -euo pipefail
@@ -29,7 +41,7 @@ DIR=$(cd "$DIR" && pwd) || fail "no release folder at $1"
 
 read_release_env "$DIR/release.env"
 for key in RELEASE_MODE RELEASE_VERSION RELEASE_BUILD_NUMBER RELEASE_ZIP RELEASE_DSYM_ZIP \
-    RELEASE_SHA256 RELEASE_ARCHS RELEASE_MIN_MACOS; do
+    RELEASE_SHA256 RELEASE_ARCHS RELEASE_MIN_MACOS RELEASE_APPCAST RELEASE_FEED RELEASE_UPDATE_PUBLIC_KEY; do
     [ -n "${!key:-}" ] || fail "$DIR/release.env has no $key."
 done
 case $RELEASE_MODE in
@@ -46,7 +58,7 @@ checked() {
 }
 
 # 1. Files and checksums.
-for file in "$RELEASE_ZIP" "$RELEASE_DSYM_ZIP" SHA256SUMS.txt release-notes.md; do
+for file in "$RELEASE_ZIP" "$RELEASE_DSYM_ZIP" SHA256SUMS.txt release-notes.md "$RELEASE_APPCAST"; do
     [ -s "$DIR/$file" ] || fail "$file is missing or empty in $DIR."
 done
 (cd "$DIR" && shasum -a 256 --check --status SHA256SUMS.txt) || fail "SHA256SUMS.txt does not match the files in $DIR."
@@ -95,10 +107,35 @@ done < <(find "$APP/Contents" -type f -print0)
 [ "$COUNT" -ge 1 ] || fail "found no Mach-O file in the bundle."
 checked "hardened runtime on all $COUNT Mach-O files"
 
-# The entitlements are exactly support/release.entitlements.
+# Every piece of nested code is signed like the bundle: ad hoc in a dry run, and in a release with
+# the bundle's Developer ID team and a secure timestamp. Library validation loads only code of the
+# app's own team.
+TEAM=$(sed -n 's/^TeamIdentifier=//p' <<< "$SIG")
+NESTED=$(nested_code "$APP") || fail "could not list the code nested in the bundle."
+NESTED_COUNT=0
+while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    nested=$(signature "$path")
+    name=${path#"$APP"/}
+    grep -q '^CodeDirectory .*flags=.*runtime' <<< "$nested" || fail "$name is not signed with the hardened runtime."
+    if [ "$RELEASE_MODE" = release ]; then
+        [ "$(sed -n 's/^TeamIdentifier=//p' <<< "$nested")" = "$TEAM" ] \
+            || fail "$name is not signed with the bundle's team, $TEAM."
+        grep -q '^Authority=Developer ID Application: ' <<< "$nested" || fail "$name is not signed with Developer ID."
+        grep -q '^Timestamp=' <<< "$nested" || fail "$name has no secure timestamp."
+    else
+        grep -q '^Signature=adhoc' <<< "$nested" || fail "$name is not signed ad hoc, as the dry run's bundle is."
+    fi
+    NESTED_COUNT=$((NESTED_COUNT + 1))
+done <<< "$NESTED"
+[ "$NESTED_COUNT" -ge 1 ] || fail "found no nested code, and Sparkle.framework should bring some."
+checked "all $NESTED_COUNT pieces of nested code signed like the bundle"
+
+# The entitlements are exactly support/release.entitlements. An ad hoc dry run also carries the
+# library validation exception, without which it could not load the ad hoc framework.
 codesign --display --entitlements - --xml "$APP" > "$TMP/entitlements.plist" 2> /dev/null \
     || fail "could not read the bundle's entitlements."
-python3 -I - "$TMP/entitlements.plist" "$ROOT/support/release.entitlements" << 'PY' || fail "the entitlements are wrong; see above."
+python3 -I - "$TMP/entitlements.plist" "$ROOT/support/release.entitlements" "$RELEASE_MODE" << 'PY' || fail "the entitlements are wrong; see above."
 import plistlib, sys
 with open(sys.argv[1], "rb") as f:
     signed = plistlib.load(f)
@@ -106,10 +143,31 @@ with open(sys.argv[2], "rb") as f:
     wanted = plistlib.load(f)
 if "com.apple.security.get-task-allow" in signed:
     sys.exit("check-release: the bundle carries get-task-allow, which notarization rejects.")
+if sys.argv[3] == "dry-run":
+    wanted["com.apple.security.cs.disable-library-validation"] = True
 if signed != wanted:
     sys.exit("check-release: the signed entitlements differ from support/release.entitlements.")
 PY
-checked "entitlements match support/release.entitlements"
+if [ "$RELEASE_MODE" = release ]; then
+    checked "entitlements match support/release.entitlements"
+else
+    checked "entitlements match support/release.entitlements, with the ad hoc build's library validation exception"
+fi
+
+# Sparkle.framework with its links, found through the runpath, and no runpath into a build folder.
+FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
+[ -d "$FRAMEWORK" ] || fail "the bundle has no Contents/Frameworks/Sparkle.framework."
+for link in Versions/Current Sparkle Autoupdate Updater.app XPCServices Resources; do
+    [ -L "$FRAMEWORK/$link" ] || fail "Sparkle.framework/$link is not a symbolic link. The zip lost the framework's links."
+done
+RPATHS=$(otool -l "$EXE" | awk '/cmd LC_RPATH/ {rpath = 1; next} rpath && $1 == "path" {print; rpath = 0}' \
+    | sed -E 's/^ *path (.*) \(offset [0-9]+\)$/\1/')
+grep -qx '@executable_path/../Frameworks' <<< "$RPATHS" || fail "the executable has no runpath to Contents/Frameworks."
+if grep -v '^@' <<< "$RPATHS" | grep -q .; then
+    fail "the executable keeps a runpath outside the bundle: $(grep -v '^@' <<< "$RPATHS" | head -1)"
+fi
+otool -L "$EXE" | grep -q '@rpath/Sparkle.framework/' || fail "the executable does not link Sparkle.framework."
+checked "Sparkle.framework with its links, found through the executable's runpath"
 
 # 3. Info.plist.
 plist_value() { # <key>
@@ -126,6 +184,25 @@ expect_plist CFBundleIdentifier "$BRAND_BUNDLE_ID"
 expect_plist CFBundleExecutable "$BRAND_NAME"
 expect_plist LSMinimumSystemVersion "$RELEASE_MIN_MACOS"
 checked "Info.plist: version $RELEASE_VERSION, build $RELEASE_BUILD_NUMBER, macOS $RELEASE_MIN_MACOS or later"
+[ "$RELEASE_FEED" = "$(update_feed_url)" ] || fail "release.env names the feed $RELEASE_FEED, not $(update_feed_url)."
+expect_plist SUFeedURL "$RELEASE_FEED"
+expect_plist SUEnableAutomaticChecks false
+expect_plist SUAllowsAutomaticUpdates false
+expect_plist SUScheduledCheckInterval 86400
+if [ "$RELEASE_MODE" = release ]; then
+    [ -n "${BRAND_UPDATE_PUBLIC_KEY:-}" ] || fail "support/brand.env has no BRAND_UPDATE_PUBLIC_KEY."
+    [ "$RELEASE_UPDATE_PUBLIC_KEY" = "$BRAND_UPDATE_PUBLIC_KEY" ] \
+        || fail "the update was signed for another public key than the one in support/brand.env."
+fi
+expect_plist SUPublicEDKey "${BRAND_UPDATE_PUBLIC_KEY:-(missing)}"
+checked "Info.plist: the update feed, ${BRAND_UPDATE_PUBLIC_KEY:+the update key, }automatic checks off and no automatic installs"
+
+# The executable starts and loads its frameworks. --version prints and exits before any window.
+VERSION_LINE=$(timeout 20 "$EXE" --version 2> "$TMP/version.log") \
+    || { cat "$TMP/version.log" >&2; fail "the unpacked executable did not start with --version. A missing or wrongly signed framework stops it before it prints."; }
+[ "$VERSION_LINE" = "$BRAND_NAME $RELEASE_VERSION ($RELEASE_BUILD_NUMBER)" ] \
+    || fail "--version printed '$VERSION_LINE', expected '$BRAND_NAME $RELEASE_VERSION ($RELEASE_BUILD_NUMBER)'."
+checked "the executable starts: $VERSION_LINE"
 
 # 4. Architectures, notices and symbols.
 ARCHS=$(lipo -archs "$EXE")
@@ -156,11 +233,30 @@ if [ "$RELEASE_MODE" = release ]; then
     checked "stapled ticket, and Gatekeeper accepts it as notarized Developer ID"
 fi
 
-# 6. The cask renders, parses and declares what it should.
+# 6. The update feed: one item with every field, the zip's length, and a signature that verifies.
+REPO=$(github_repo)
+DOWNLOAD="https://github.com/$REPO/releases/download/v$RELEASE_VERSION/$RELEASE_ZIP"
+[ "$RELEASE_DOWNLOAD" = "$DOWNLOAD" ] || fail "release.env names the download $RELEASE_DOWNLOAD, not $DOWNLOAD."
+HARDWARE=()
+[ "$RELEASE_ARCHS" != arm64 ] || HARDWARE=(hardware=arm64)
+UPDATE_SIGNATURE=$(python3 -I "$ROOT/scripts/appcast.py" check appcast="$DIR/$RELEASE_APPCAST" name="$BRAND_NAME" \
+    version="$RELEASE_VERSION" build="$RELEASE_BUILD_NUMBER" minimum="$RELEASE_MIN_MACOS" url="$DOWNLOAD" \
+    length="$(stat -f %z "$DIR/$RELEASE_ZIP")" ${HARDWARE[@]+"${HARDWARE[@]}"}) \
+    || fail "$RELEASE_APPCAST does not describe this release; see above."
+xcrun swiftc -O "$ROOT/scripts/update-signature.swift" -o "$TMP/update-signature" 2> "$TMP/swiftc.log" \
+    || { cat "$TMP/swiftc.log" >&2; fail "could not compile scripts/update-signature.swift."; }
+"$TMP/update-signature" verify "$RELEASE_UPDATE_PUBLIC_KEY" "$DIR/$RELEASE_ZIP" "$UPDATE_SIGNATURE" > /dev/null \
+    || fail "the update signature in $RELEASE_APPCAST does not verify against the update key."
+if [ "$RELEASE_MODE" = release ]; then
+    checked "$RELEASE_APPCAST describes $RELEASE_ZIP, and its signature verifies against the update key"
+else
+    checked "$RELEASE_APPCAST describes $RELEASE_ZIP, and its signature verifies against the dry run's throwaway key"
+fi
+
+# 7. The cask renders, parses and declares what it should.
 "$ROOT/scripts/render-cask.sh" "$DIR" "$TMP/cask.rb" 2> "$TMP/render.log" \
     || { cat "$TMP/render.log" >&2; fail "the cask does not render."; }
 "$RUBY" -wc "$TMP/cask.rb" > /dev/null || fail "the rendered cask is not valid Ruby."
-REPO=$(github_repo)
 TOKEN=$(cask_token)
 MACOS=$(macos_symbol "$RELEASE_MIN_MACOS")
 case $RELEASE_ARCHS in
@@ -170,7 +266,7 @@ case $RELEASE_ARCHS in
 esac
 # The zap paths start with a literal tilde, as Homebrew wants them.
 # shellcheck disable=SC2088
-ZAP="~/Library/Application Support/$BRAND_DATA_DIR|~/Library/Preferences/$BRAND_BUNDLE_ID.plist"
+ZAP="~/Library/Application Support/$BRAND_DATA_DIR|~/Library/Caches/$BRAND_BUNDLE_ID|~/Library/Preferences/$BRAND_BUNDLE_ID.plist"
 # shellcheck disable=SC2088
 ZAP="$ZAP|~/Library/Saved Application State/$BRAND_BUNDLE_ID.savedState"
 "$RUBY" "$ROOT/scripts/check-cask.rb" "$TMP/cask.rb" \
