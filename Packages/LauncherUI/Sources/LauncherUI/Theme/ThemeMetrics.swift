@@ -15,7 +15,26 @@ nonisolated public struct ThemeInsets: Codable, Sendable, Equatable, Hashable {
     }
 }
 
-/// The window and the glass slab inside it.
+/// The style of the panel's glass.
+nonisolated public enum GlassStyle: String, Codable, Sendable, CaseIterable {
+    /// The system's standard glass: it blurs and frosts what is behind it.
+    case regular
+    /// The system's clear glass: the most translucent the glass can be. Text over it depends on
+    /// the theme's weight, colour and halo, because the glass hardly evens out the backdrop.
+    case clear
+}
+
+/// How the panel's glass is arranged.
+nonisolated public enum PanelLayout: String, Codable, Sendable, CaseIterable {
+    /// One piece of glass: the query row, then the content and the action bar.
+    case single
+    /// Two pieces of the same width: the query row in its own glass, and below it, `fieldGap`
+    /// apart, a results container with the content and the action bar. The container hides while
+    /// there is no content.
+    case split
+}
+
+/// The window and the glass inside it.
 nonisolated public struct PanelMetrics: Codable, Sendable, Equatable {
     /// Width of the glass.
     public var width: Double
@@ -33,6 +52,23 @@ nonisolated public struct PanelMetrics: Codable, Sendable, Equatable {
     public var minimumScreenMargin: Double
     /// Height of the hairline under the query row, in pixels.
     public var hairlinePixels: Double
+    /// The glass style of the panel body. Cards, menus, the lens and the HUD stay regular glass.
+    public var glassStyle: GlassStyle = .regular
+    /// One piece of glass, or the query row apart from a results container.
+    public var layout: PanelLayout = .single
+    /// In the split layout, the space between the query row's glass and the results container.
+    public var fieldGap: Double = 10
+    /// In the split layout, the corner radius of the query row's glass. It is never more than half
+    /// the row's height, so a large value makes a capsule. `cornerRadius` shapes the results.
+    public var fieldCornerRadius: Double = 30
+    /// Width of a bright line along the lower half of each piece's edge, in the palette's `rim`
+    /// colour. Zero draws none.
+    public var rimWidth: Double = 0
+    /// Blur radius of a shadow under the glass in the palette's `shadow` colour, beyond the shadow
+    /// the glass draws itself. Zero draws none. Leave room for it in `shadowInsets`.
+    public var shadowRadius: Double = 0
+    /// How far that shadow falls below the glass.
+    public var shadowOffset: Double = 0
 }
 
 /// The query row at the top of the glass.
@@ -54,6 +90,9 @@ nonisolated public struct QueryRowMetrics: Codable, Sendable, Equatable {
     public var breadcrumbPadding: Double
     /// Largest share of the row width the breadcrumb may take.
     public var breadcrumbMaxFraction: Double
+    /// Whether the magnifier shows at root. Without it the text starts at `leadingInset`. Inside a
+    /// view the back chevron always shows.
+    public var showsRootGlyph: Bool = true
 }
 
 /// Result rows, section headers and their accessories.
@@ -109,6 +148,10 @@ nonisolated public struct ListMetrics: Codable, Sendable, Equatable {
     public var scrollIndicatorLinger: Double
     /// Points scrolled per line for a mouse wheel that reports whole lines.
     public var wheelLineHeight: Double
+    /// Whether the first nine rows show the Command-digit chord that runs them, at the trailing
+    /// edge in the run hint font and colour. Rows are counted across sections, as the keys count
+    /// them, and scrolling does not renumber them.
+    public var showsRunHints: Bool = false
 }
 
 /// The selection lens behind the selected row.
@@ -147,6 +190,10 @@ nonisolated public struct ActionBarMetrics: Codable, Sendable, Equatable {
     public var keycapSpacing: Double
     /// Largest share of the bar width the primary action title or the actions title may take.
     public var titleMaxFraction: Double
+    /// Whether the bar shows only while a toast shows. The glass then leaves no room for it the
+    /// rest of the time, and grows by the bar's height for a toast. Command-K still opens the
+    /// action panel.
+    public var showsOnlyForToasts: Bool = false
 }
 
 /// Durations and frame counts. Under Reduce Motion every one of them is treated as zero.
@@ -214,4 +261,142 @@ nonisolated public struct ThemeFonts: Codable, Sendable, Equatable {
     public var emptyTitle: ThemeFont
     public var emptyHint: ThemeFont
     public var hud: ThemeFont
+    /// The Command-digit hint at the end of a row, when the list shows them.
+    public var runHint: ThemeFont = ThemeFont(size: 12.5)
+}
+
+extension PanelMetrics {
+    /// Reads a theme file. A file made before the glass style, the layout, the rim and the shadow
+    /// were added loads as one piece of regular glass with neither rim nor extra shadow.
+    nonisolated public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        width = try values.value(.width)
+        cornerRadius = try values.value(.cornerRadius)
+        topFraction = try values.value(.topFraction)
+        shadowInsets = try values.value(.shadowInsets)
+        maxContentHeight = try values.value(.maxContentHeight)
+        minimumScreenMargin = try values.value(.minimumScreenMargin)
+        hairlinePixels = try values.value(.hairlinePixels)
+        glassStyle = try values.value(.glassStyle, or: .regular)
+        layout = try values.value(.layout, or: .single)
+        fieldGap = try values.value(.fieldGap, or: 10)
+        fieldCornerRadius = try values.value(.fieldCornerRadius, or: 30)
+        rimWidth = try values.value(.rimWidth, or: 0)
+        shadowRadius = try values.value(.shadowRadius, or: 0)
+        shadowOffset = try values.value(.shadowOffset, or: 0)
+    }
+}
+
+extension QueryRowMetrics {
+    /// Reads a theme file. A file made before `showsRootGlyph` was added shows the magnifier.
+    nonisolated public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        height = try values.value(.height)
+        leadingInset = try values.value(.leadingInset)
+        glyphSlotWidth = try values.value(.glyphSlotWidth)
+        glyphSize = try values.value(.glyphSize)
+        textGap = try values.value(.textGap)
+        trailingInset = try values.value(.trailingInset)
+        breadcrumbHeight = try values.value(.breadcrumbHeight)
+        breadcrumbPadding = try values.value(.breadcrumbPadding)
+        breadcrumbMaxFraction = try values.value(.breadcrumbMaxFraction)
+        showsRootGlyph = try values.value(.showsRootGlyph, or: true)
+    }
+}
+
+extension ListMetrics {
+    /// Reads a theme file. A file made before `showsRunHints` was added shows no run hints.
+    nonisolated public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        rowHeight = try values.value(.rowHeight)
+        twoLineRowHeight = try values.value(.twoLineRowHeight)
+        twoLineGap = try values.value(.twoLineGap)
+        iconSize = try values.value(.iconSize)
+        iconX = try values.value(.iconX)
+        iconPlaceholderRadius = try values.value(.iconPlaceholderRadius)
+        iconTextGap = try values.value(.iconTextGap)
+        titleSubtitleGap = try values.value(.titleSubtitleGap)
+        minimumSubtitleWidth = try values.value(.minimumSubtitleWidth)
+        trailingInset = try values.value(.trailingInset)
+        accessorySpacing = try values.value(.accessorySpacing)
+        maxAccessoryFraction = try values.value(.maxAccessoryFraction)
+        accessoryGap = try values.value(.accessoryGap)
+        accessoryIconSize = try values.value(.accessoryIconSize)
+        sectionHeaderHeight = try values.value(.sectionHeaderHeight)
+        sectionHeaderX = try values.value(.sectionHeaderX)
+        sectionHeaderBaseline = try values.value(.sectionHeaderBaseline)
+        verticalPadding = try values.value(.verticalPadding)
+        maxVisibleRows = try values.value(.maxVisibleRows)
+        tagHeight = try values.value(.tagHeight)
+        tagPadding = try values.value(.tagPadding)
+        keycapHeight = try values.value(.keycapHeight)
+        keycapMinWidth = try values.value(.keycapMinWidth)
+        keycapPadding = try values.value(.keycapPadding)
+        keycapRadius = try values.value(.keycapRadius)
+        keycapSpacing = try values.value(.keycapSpacing)
+        scrollIndicatorWidth = try values.value(.scrollIndicatorWidth)
+        scrollIndicatorInset = try values.value(.scrollIndicatorInset)
+        scrollIndicatorLinger = try values.value(.scrollIndicatorLinger)
+        wheelLineHeight = try values.value(.wheelLineHeight)
+        showsRunHints = try values.value(.showsRunHints, or: false)
+    }
+}
+
+extension ActionBarMetrics {
+    /// Reads a theme file. A file made before `showsOnlyForToasts` was added always shows the bar.
+    nonisolated public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        height = try values.value(.height)
+        horizontalInset = try values.value(.horizontalInset)
+        iconSize = try values.value(.iconSize)
+        itemSpacing = try values.value(.itemSpacing)
+        dividerSpacing = try values.value(.dividerSpacing)
+        dividerHeight = try values.value(.dividerHeight)
+        keycapHeight = try values.value(.keycapHeight)
+        keycapMinWidth = try values.value(.keycapMinWidth)
+        keycapPadding = try values.value(.keycapPadding)
+        keycapRadius = try values.value(.keycapRadius)
+        keycapSpacing = try values.value(.keycapSpacing)
+        titleMaxFraction = try values.value(.titleMaxFraction)
+        showsOnlyForToasts = try values.value(.showsOnlyForToasts, or: false)
+    }
+}
+
+extension ThemeFonts {
+    /// Reads a theme file. A file made before `runHint` was added takes its own accessory font.
+    nonisolated public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        query = try values.value(.query)
+        title = try values.value(.title)
+        subtitle = try values.value(.subtitle)
+        accessory = try values.value(.accessory)
+        sectionHeader = try values.value(.sectionHeader)
+        tag = try values.value(.tag)
+        keycap = try values.value(.keycap)
+        breadcrumb = try values.value(.breadcrumb)
+        actionBar = try values.value(.actionBar)
+        actionBarPrimary = try values.value(.actionBarPrimary)
+        actionBarKeycap = try values.value(.actionBarKeycap)
+        gridTitle = try values.value(.gridTitle)
+        gridSubtitle = try values.value(.gridSubtitle)
+        detailText = try values.value(.detailText)
+        detailMonospaced = try values.value(.detailMonospaced)
+        markdownHeadings = try values.value(.markdownHeadings)
+        metadataLabel = try values.value(.metadataLabel)
+        metadataValue = try values.value(.metadataValue)
+        cardFilter = try values.value(.cardFilter)
+        cardRow = try values.value(.cardRow)
+        cardSection = try values.value(.cardSection)
+        confirmTitle = try values.value(.confirmTitle)
+        confirmMessage = try values.value(.confirmMessage)
+        button = try values.value(.button)
+        formLabel = try values.value(.formLabel)
+        formControl = try values.value(.formControl)
+        formMessage = try values.value(.formMessage)
+        chip = try values.value(.chip)
+        emptyTitle = try values.value(.emptyTitle)
+        emptyHint = try values.value(.emptyHint)
+        hud = try values.value(.hud)
+        runHint = try values.value(.runHint, or: accessory)
+    }
 }

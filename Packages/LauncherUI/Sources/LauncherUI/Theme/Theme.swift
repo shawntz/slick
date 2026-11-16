@@ -50,13 +50,29 @@ nonisolated public struct Theme: Codable, Sendable, Equatable {
     /// The palette for an appearance.
     public func palette(dark isDark: Bool) -> ThemePalette { isDark ? dark : light }
 
-    /// Height of the glass for a given content height. Zero content shows the query row alone,
-    /// with no hairline and no action bar (the compact look).
-    public func glassHeight(contentHeight: Double) -> Double {
+    /// Height of the glass for a given content height: from the top of the query row to the
+    /// bottom of the action bar, and in the split layout the gap between the pieces too. Zero
+    /// content shows the query row alone, with no hairline, no action bar and no results
+    /// container (the compact look). `showsToast` says whether a toast shows, for a theme whose
+    /// action bar shows only then.
+    public func glassHeight(contentHeight: Double, showsToast: Bool = false) -> Double {
         guard contentHeight > 0 else { return queryRow.height }
-        return queryRow.height + min(contentHeight, panel.maxContentHeight) + actionBar.height
+        return queryRow.height + resultsOffset + min(contentHeight, panel.maxContentHeight)
+            + actionBarHeight(showsToast: showsToast)
     }
 
-    /// The tallest the glass can be. The window is sized for this once.
-    public var maxGlassHeight: Double { glassHeight(contentHeight: panel.maxContentHeight) }
+    /// The room the action bar takes under the content: its height, or nothing while a theme that
+    /// shows the bar only for toasts has none to show.
+    public func actionBarHeight(showsToast: Bool) -> Double {
+        actionBar.showsOnlyForToasts && !showsToast ? 0 : actionBar.height
+    }
+
+    /// The gap above the content: zero in one piece, `fieldGap` between the split pieces.
+    var resultsOffset: Double { panel.layout == .split ? panel.fieldGap : 0 }
+
+    /// The query row glass's corner radius in the split layout: never more than half its height.
+    public var fieldCornerRadius: Double { min(panel.fieldCornerRadius, queryRow.height / 2) }
+
+    /// The tallest the glass can be, a toast included. The window is sized for this once.
+    public var maxGlassHeight: Double { glassHeight(contentHeight: panel.maxContentHeight, showsToast: true) }
 }

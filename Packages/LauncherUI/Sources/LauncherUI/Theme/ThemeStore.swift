@@ -33,13 +33,24 @@ public final class ThemeStore {
     /// The name of ``Theme/standard``, the theme used when nothing else is selected.
     nonisolated public static let standardName = "Standard"
 
-    /// Every built-in theme, Standard first.
+    /// Every built-in theme, Standard first, with a sentence each for the settings window.
     public static let builtInThemes: [NamedTheme] = [
-        NamedTheme(name: standardName, theme: .standard, isBuiltIn: true),
-        NamedTheme(name: "Graphite", theme: .graphite, isBuiltIn: true),
-        NamedTheme(name: "Ocean", theme: .ocean, isBuiltIn: true),
-        NamedTheme(name: "Ember", theme: .ember, isBuiltIn: true),
-        NamedTheme(name: "Violet", theme: .violet, isBuiltIn: true),
+        NamedTheme(
+            name: standardName, theme: .standard, isBuiltIn: true,
+            summary: "One slab of frosted glass with a lens in the system accent color."),
+        NamedTheme(
+            name: "Graphite", theme: .graphite, isBuiltIn: true,
+            summary: "Neutral grey glass with a flat graphite lens."),
+        NamedTheme(
+            name: "Ocean", theme: .ocean, isBuiltIn: true,
+            summary: "Glass tinted toward blue-green with a rounder teal lens."),
+        NamedTheme(
+            name: "Ember", theme: .ember, isBuiltIn: true, summary: "Warm glass with a wide orange lens."),
+        NamedTheme(
+            name: "Violet", theme: .violet, isBuiltIn: true,
+            summary: "The app icon's ink and violet, with a magenta lens."),
+        NamedTheme(name: "Beam", theme: .beam, isBuiltIn: true, summary: Theme.beamSummary),
+        NamedTheme(name: "Clear", theme: .clear, isBuiltIn: true, summary: Theme.clearSummary),
     ]
 
     /// The folder of user theme files. Created on the first save.
@@ -278,13 +289,17 @@ nonisolated public struct NamedTheme: Identifiable, Sendable, Equatable {
     public var theme: Theme
     /// True for a theme that ships with the app. Built-in themes cannot be saved over or deleted.
     public var isBuiltIn: Bool
+    /// One or two sentences on what the theme looks like, for the settings window. Empty for a
+    /// user theme.
+    public var summary: String
 
     public var id: String { name }
 
-    public init(name: String, theme: Theme, isBuiltIn: Bool) {
+    public init(name: String, theme: Theme, isBuiltIn: Bool, summary: String = "") {
         self.name = name
         self.theme = theme
         self.isBuiltIn = isBuiltIn
+        self.summary = summary
     }
 }
 
@@ -396,6 +411,8 @@ extension ThemePalette {
         }
         var palette = self
         palette.glassTint = tint
+        palette.fieldTint = tint
+        palette.caret = swap(caret)
         palette.lensGlassTint = swap(lensGlassTint)
         palette.link = swap(link)
         palette.focusRing = swap(focusRing)

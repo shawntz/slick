@@ -22,6 +22,7 @@ public struct ResolvedTheme {
     public let sectionHeaderFont: CTFont
     public let tagFont: CTFont
     public let keycapFont: CTFont
+    public let runHintFont: CTFont
 
     public let title: CGColor
     /// Title characters that did not match while a query is active.
@@ -37,10 +38,34 @@ public struct ResolvedTheme {
     public let keycapText: CGColor
     public let scrollIndicator: CGColor
     public let textHalo: CGColor?
-    /// The theme's accent at full strength: the prominent fill. The text caret takes it.
+    /// How many times the halo is laid down, at least one.
+    public let textHaloLayers: Int
+    /// The theme's accent at full strength: the prominent fill.
     public let accent: CGColor
-    /// The tint for the panel glass, or nil under Reduce Transparency.
+    /// The text caret of every field in the panel.
+    public let caret: CGColor
+    /// The glow around the query field's caret, top to bottom. Empty for none.
+    public let caretGlow: [CGColor]
+    public let runHint: CGColor
+    /// The query field's placeholder, left dynamic so the field keeps its vibrancy.
+    public let placeholder: NSColor
+    /// The large symbol of an empty state, left dynamic as the placeholder is.
+    public let emptySymbol: NSColor
+    /// The panel glass's style: the theme's, or regular under Reduce Transparency, where the
+    /// system makes the regular glass opaque.
+    public let glassStyle: NSGlassEffectView.Style
+    /// The tint for the panel glass, or the results container in the split layout. Nil under
+    /// Reduce Transparency and for a tint with no alpha.
     public let glassTint: NSColor?
+    /// The tint for the query row's glass in the split layout. Nil as `glassTint` is.
+    public let fieldTint: NSColor?
+    /// The shade over the query row's glass in the split layout, at its top edge. Nil under
+    /// Reduce Transparency and when the theme has none.
+    public let fieldShade: CGColor?
+    /// The bright line on the lower half of the glass's edge, or nil for none.
+    public let rim: CGColor?
+    /// The shadow under the glass, or nil for none.
+    public let shadow: CGColor?
     public let lensGlassTint: NSColor
 
     public let grid: ResolvedGridStyle
@@ -79,6 +104,7 @@ public struct ResolvedTheme {
         sectionHeaderFont = fonts.sectionHeader.ctFont
         tagFont = fonts.tag.ctFont
         keycapFont = fonts.keycap.ctFont
+        runHintFont = fonts.runHint.ctFont
 
         // Increase Contrast: no dimmed text, and stronger strokes and fills.
         let contrast = accessibility.increaseContrast
@@ -96,13 +122,26 @@ public struct ResolvedTheme {
         keycapText = resolve(palette.keycapText, boost: 1.25)
         scrollIndicator = resolve(palette.scrollIndicator, boost: 1.5)
         textHalo = palette.textHalo.map { resolve($0) }
+        textHaloLayers = max(1, min(4, palette.textHaloLayers))
         accent = resolve(palette.prominent)
+        caret = resolve(palette.caret)
+        caretGlow = palette.caretGlow.filter { $0.alpha > 0 }.map { resolve($0) }
+        runHint = resolve(palette.runHint, boost: 1.25)
+        placeholder = palette.placeholder.nsColor
+        emptySymbol = palette.emptySymbol.nsColor
 
-        var tint: NSColor?
-        if !accessibility.reduceTransparency {
-            tint = palette.glassTint.scaled(by: theme.clarity).nsColor
+        let opaque = accessibility.reduceTransparency
+        glassStyle = !opaque && theme.panel.glassStyle == .clear ? .clear : .regular
+        // A tint that would be invisible is no tint at all, so clear glass gets none.
+        func tint(_ color: ThemeColor) -> NSColor? {
+            let scaled = color.scaled(by: theme.clarity)
+            return opaque || scaled.alpha <= 0 ? nil : scaled.nsColor
         }
-        glassTint = tint
+        glassTint = tint(palette.glassTint)
+        fieldTint = tint(palette.fieldTint)
+        fieldShade = opaque || palette.fieldShade.alpha <= 0 ? nil : resolve(palette.fieldShade)
+        rim = theme.panel.rimWidth > 0 && palette.rim.alpha > 0 ? resolve(palette.rim) : nil
+        shadow = theme.panel.shadowRadius > 0 && palette.shadow.alpha > 0 ? resolve(palette.shadow) : nil
         lensGlassTint = palette.lensGlassTint.nsColor
 
         let clear = accessibility.reduceTransparency

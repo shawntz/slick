@@ -221,7 +221,8 @@ extension Theme {
             chip: ThemeFont(size: 14),
             emptyTitle: ThemeFont(size: 15, weight: .medium),
             emptyHint: ThemeFont(size: 13),
-            hud: ThemeFont(size: 13.5, weight: .medium)
+            hud: ThemeFont(size: 13.5, weight: .medium),
+            runHint: ThemeFont(size: 12.5)
         ),
         light: ThemePalette(
             glassTint: ThemeColor(.white, alpha: 0.25),
@@ -256,7 +257,10 @@ extension Theme {
             onProminent: ThemeColor(.white),
             onProminentKeycap: ThemeColor(.white, alpha: 0.22),
             loadingBar: ThemeColor(.accent),
-            hudTint: ThemeColor(.white, alpha: 0.75)
+            hudTint: ThemeColor(.white, alpha: 0.75),
+            fieldTint: ThemeColor(.white, alpha: 0.25),
+            caret: ThemeColor(.accent),
+            runHint: ThemeColor(.label, alpha: 0.72)
         ),
         dark: ThemePalette(
             glassTint: ThemeColor(.black, alpha: 0.5),
@@ -291,7 +295,10 @@ extension Theme {
             onProminent: ThemeColor(.white),
             onProminentKeycap: ThemeColor(.white, alpha: 0.22),
             loadingBar: ThemeColor(.accent),
-            hudTint: ThemeColor(.black, alpha: 0.7)
+            hudTint: ThemeColor(.black, alpha: 0.7),
+            fieldTint: ThemeColor(.black, alpha: 0.5),
+            caret: ThemeColor(.accent),
+            runHint: ThemeColor(.label, alpha: 0.75)
         ),
         clarity: 1
     )

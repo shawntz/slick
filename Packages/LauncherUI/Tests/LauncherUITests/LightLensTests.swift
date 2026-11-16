@@ -17,8 +17,12 @@ struct LightLensTests {
     static let systemBlue = ThemeColor(red: 0, green: 0x7A / 255, blue: 1)
 
     static func components(_ color: ThemeColor) -> (RGB, Double)? {
-        guard case .srgb(let red, let green, let blue) = color.source else { return nil }
-        return ((red, green, blue), color.alpha)
+        switch color.source {
+        case .srgb(let red, let green, let blue): return ((red, green, blue), color.alpha)
+        case .system(.black): return ((0, 0, 0), color.alpha)
+        case .system(.white): return ((1, 1, 1), color.alpha)
+        default: return nil
+        }
     }
 
     static func over(_ top: RGB, _ alpha: Double, _ bottom: RGB) -> RGB {
@@ -52,9 +56,12 @@ struct LightLensTests {
         }
     }
 
-    @Test func everyBuiltInLensReadsAsItsOwnInLightMode() throws {
+    /// Among the themes that share Standard's slab and glass, the lens is what tells them apart.
+    /// Beam and Clear differ in the glass itself.
+    @Test func everyRecolourLensReadsAsItsOwnInLightMode() throws {
         var lenses: [(String, (Double, Double, Double))] = []
-        for named in ThemeStore.builtInThemes {
+        for named in ThemeStore.builtInThemes
+        where named.theme.panel.layout == .single && named.theme.panel.glassStyle == .regular {
             let lens = try #require(Self.lensOverWhite(named.theme), "\(named.name)")
             lenses.append((named.name, Self.lab(lens)))
         }
@@ -74,7 +81,10 @@ struct LightLensTests {
         for named in ThemeStore.builtInThemes where named.theme.lens.style == .fill {
             let (color, alpha) = try #require(Self.components(named.theme.light.lensFill), "\(named.name)")
             let lens = Self.over(color, alpha, glass)
-            let title = Self.over((0, 0, 0), 0.8471, lens)
+            // The system's label is black at 0.8471 in light mode; a theme may ask for pure black.
+            let titleColor = named.theme.light.title
+            let titleAlpha = titleColor.alpha * (titleColor.source == .system(.label) ? 0.8471 : 1)
+            let title = Self.over((0, 0, 0), titleAlpha, lens)
             let ratio = LegibleColor.ratio(
                 LegibleColor.luminance(red: title.red, green: title.green, blue: title.blue),
                 LegibleColor.luminance(red: lens.red, green: lens.green, blue: lens.blue))

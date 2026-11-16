@@ -24,9 +24,21 @@ struct ThemeStoreTests {
 
     // MARK: Built-in themes
 
-    @Test func builtInsDifferInTintLensAndAccent() {
-        let themes = ThemeStore.builtInThemes.map(\.theme)
-        #expect(Self.builtInNames == ["Standard", "Graphite", "Ocean", "Ember", "Violet"])
+    /// The themes that share Standard's one slab of regular glass and differ in colour alone.
+    static var recolours: [Theme] {
+        ThemeStore.builtInThemes.map(\.theme).filter { $0.panel.layout == .single && $0.panel.glassStyle == .regular }
+    }
+
+    @Test func builtInsComeInOrderWithASummaryEach() {
+        #expect(Self.builtInNames == ["Standard", "Graphite", "Ocean", "Ember", "Violet", "Beam", "Clear"])
+        for named in ThemeStore.builtInThemes {
+            #expect(named.isBuiltIn && named.summary.hasSuffix(".") && named.summary.count > 20, "\(named.name)")
+        }
+    }
+
+    @Test func recoloursDifferInTintLensAndAccent() {
+        let themes = Self.recolours
+        #expect(themes.count == 5)
         #expect(Set(themes.map(\.dark.glassTint)).count == themes.count)
         // Coloured light tints missed glass rule 5 over a dark backdrop, so light glass stays white.
         #expect(Set(themes.map(\.light.glassTint)) == [Theme.standard.light.glassTint])
@@ -44,12 +56,34 @@ struct ThemeStoreTests {
         #expect(violet.light.focusRing.description.hasPrefix("#8743FA@"))
     }
 
+    /// Beam and Clear change the glass itself, not its colour, and keep the system accent.
+    @Test func beamAndClearChangeTheGlass() {
+        let clear = Theme.clear
+        #expect(clear.panel.glassStyle == .clear && clear.panel.layout == .single)
+        #expect(clear.light.glassTint.alpha == 0 && clear.dark.glassTint.alpha == 0)
+        #expect(clear.clarity == 1, "clarity also scales the card and HUD tints")
+        #expect(clear.light.textHalo != nil && clear.dark.textHalo != nil)
+        #expect(
+            clear.panel.width == Theme.standard.panel.width && clear.list.rowHeight == Theme.standard.list.rowHeight)
+        let beam = Theme.beam
+        #expect(beam.panel.layout == .split && beam.panel.glassStyle == .regular)
+        #expect(beam.list.showsRunHints && !beam.queryRow.showsRootGlyph)
+        #expect(beam.fieldCornerRadius == beam.queryRow.height / 2, "the query row is a capsule")
+        for palette in [beam.light, beam.dark] {
+            for color in [palette.glassTint, palette.fieldTint, palette.fieldShade, palette.lensFill] {
+                #expect([.system(.black), .system(.white)].contains(color.source), "neutral glass: \(color)")
+            }
+        }
+        for theme in [beam, clear] { #expect(theme.light.prominent.source == .system(.accent)) }
+    }
+
     /// White text on every built-in accent reaches 4.5:1, so a prominent button stays readable.
+    /// Themes that follow the system accent, as Standard does, are left to the system.
     @Test func builtInAccentsCarryWhiteText() {
         func linear(_ value: Double) -> Double {
             value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
         }
-        for named in ThemeStore.builtInThemes.dropFirst() {
+        for named in ThemeStore.builtInThemes where named.theme.light.prominent.source != .system(.accent) {
             guard case .srgb(let red, let green, let blue) = named.theme.light.prominent.source else {
                 Issue.record("\(named.name) has no sRGB accent")
                 continue
@@ -76,7 +110,7 @@ struct ThemeStoreTests {
     private func checkRules(_ named: NamedTheme) {
         var theme = named.theme
         #expect(theme.glassHeight(contentHeight: 0) == theme.queryRow.height)
-        #expect(theme.glassHeight(contentHeight: 10_000) == theme.maxGlassHeight)
+        #expect(theme.glassHeight(contentHeight: 10_000, showsToast: true) == theme.maxGlassHeight)
         let dark = NSAppearance(named: .darkAqua)!
         let light = NSAppearance(named: .aqua)!
         theme.clarity = 2
