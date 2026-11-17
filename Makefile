@@ -39,6 +39,11 @@ PACKAGES := $(notdir $(PACKAGE_DIRS))
 TEST_TARGETS := $(addprefix test-,$(PACKAGES))
 # Packages that link the Rust static library, so their tests need it built first.
 RUST_LINKED_TESTS := test-CoreBridge test-Root test-App
+# Packages whose tests all run on the main actor, most of them with a window off screen. Swift
+# Testing starts every test at once, so these tests wait in line for the main actor, and a suite's
+# time limit counts the wait. On a slow machine the last tests in line then fail once the whole run
+# passes a minute, though no test is slow. Run one at a time, a time limit measures its own test.
+SERIAL_TESTS := LauncherUI SettingsUI Host App
 SWIFT_SOURCES = $(foreach d,$(PACKAGE_DIRS),$(wildcard $(d)/Package.swift $(d)/Sources $(d)/Tests))
 
 .DEFAULT_GOAL := app
@@ -80,7 +85,7 @@ $(RUST_LINKED_TESTS): core
 
 # Static pattern rule: make never applies a plain pattern rule to a .PHONY target.
 $(TEST_TARGETS): test-%:
-	@$(SWIFTPM) $(filter %/$*,$(PACKAGE_DIRS)) test
+	@$(SWIFTPM) $(filter %/$*,$(PACKAGE_DIRS)) test $(if $(filter $*,$(SERIAL_TESTS)),--no-parallel)
 
 bench: app
 	@$(SCRIPTS)/bench.sh "$(APP)" $(NAME)
