@@ -1,4 +1,5 @@
 import AppKit
+import KitHosting
 import LauncherUI
 import SwiftUI
 
@@ -11,6 +12,12 @@ struct AppearancePane: View {
         Form {
             Section {
                 preview
+                Picker("Appearance", selection: $model.appearance) {
+                    Text("Match System").tag(HostSettings.Appearance.system)
+                    Text("Light").tag(HostSettings.Appearance.light)
+                    Text("Dark").tag(HostSettings.Appearance.dark)
+                }
+                .pickerStyle(.segmented)
             }
             Section("Theme") {
                 Picker("Theme", selection: Binding(get: { model.selectedName }, set: { model.select($0) })) {
@@ -25,16 +32,14 @@ struct AppearancePane: View {
                     }
                 }
                 HStack {
-                    if !model.isBuiltIn {
-                        Button("Save") { model.save() }
-                            .disabled(!model.isEdited)
-                    }
                     Button("Save as New Theme…") {
                         newName = model.suggestedNewName
                         isNaming = true
                     }
-                    Button("Revert") { model.revert() }
-                        .disabled(!model.isEdited)
+                    if model.isBuiltIn {
+                        Button("Reset to Default") { Task { await model.resetToDefault() } }
+                            .disabled(!model.isCustomized)
+                    }
                     Spacer()
                     Menu("More") {
                         Button("Import Theme…") { Task { await model.importTheme() } }
@@ -52,15 +57,6 @@ struct AppearancePane: View {
                     Text(model.summary)
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                }
-                if model.isEdited {
-                    Text(
-                        model.isBuiltIn
-                            ? "Built-in themes stay as they ship. Save your changes as a new theme."
-                            : "The launcher keeps the saved theme until you save."
-                    )
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
                 }
                 ForEach(model.problems, id: \.file) { problem in
                     Label(
@@ -126,6 +122,7 @@ struct AppearancePane: View {
         }
         .formStyle(.grouped)
         .task { model.reload() }
+        .onDisappear { model.flush() }
         .alert("Save as New Theme", isPresented: $isNaming) {
             TextField("Name", text: $newName)
             Button("Save") { model.saveAsNew(named: newName) }
@@ -135,30 +132,20 @@ struct AppearancePane: View {
         }
     }
 
+    /// The launcher drawn with the theme as edited, in the appearance the launcher uses.
     private var preview: some View {
-        VStack(alignment: .trailing, spacing: 8) {
-            // Every theme draws in a frame of Standard's proportions, so the pane keeps its height
-            // when the person picks a theme whose panel is taller.
-            let size = ThemePreviewView.logicalSize(for: model.draft)
-            let frame = ThemePreviewView.logicalSize(for: .standard)
-            Color.clear
-                .aspectRatio(frame.width / frame.height, contentMode: .fit)
-                .overlay {
-                    ThemePreview(theme: model.draft, dark: model.previewDark)
-                        .aspectRatio(size.width / size.height, contentMode: .fit)
-                }
-                .background(.quaternary.opacity(0.6))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            Picker("Preview", selection: $model.previewDark) {
-                Text("Match System").tag(Bool?.none)
-                Text("Light").tag(Bool?.some(false))
-                Text("Dark").tag(Bool?.some(true))
+        // Every theme draws in a frame of Standard's proportions, so the pane keeps its height
+        // when the person picks a theme whose panel is taller.
+        let size = ThemePreviewView.logicalSize(for: model.draft)
+        let frame = ThemePreviewView.logicalSize(for: .standard)
+        return Color.clear
+            .aspectRatio(frame.width / frame.height, contentMode: .fit)
+            .overlay {
+                ThemePreview(theme: model.draft, dark: model.previewDark)
+                    .aspectRatio(size.width / size.height, contentMode: .fit)
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .accessibilityLabel("Preview appearance")
-        }
+            .background(.quaternary.opacity(0.6))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     /// The width of the tint and clarity sliders, the same for all three so they line up.

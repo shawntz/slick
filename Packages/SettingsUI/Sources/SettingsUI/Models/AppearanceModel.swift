@@ -4,12 +4,14 @@ import KitHosting
 import LauncherUI
 import Observation
 
-/// The appearance pane: pick a theme, edit it live in the preview, save it as a theme of the
-/// user's own, import, export and revert.
+/// The appearance pane: whether the launcher draws light, dark or as the system does, the theme,
+/// its values, a copy of it as a new theme, import, export and, for a built-in theme, a reset.
 ///
-/// Edits change ``draft``, which the preview draws at once. The panel keeps the stored theme until
-/// the user saves: ``save()`` writes over a user theme, and a built-in theme is saved under a new
-/// name with ``saveAsNew(named:)``.
+/// Every control changes the launcher. An edit changes ``draft``, which the preview draws at once,
+/// and a moment after the last edit, ``commitDelay``, the model hands the draft to the theme store,
+/// which restyles the panel and keeps the theme's file. A slider or color drag therefore restyles
+/// the hidden panel and writes the file once it pauses, not on every tick. ``flush()`` commits at
+/// once, before anything else changes the store, and when the pane goes away.
 @Observable final class AppearanceModel {
     /// The ranges the pane's sliders and steppers allow.
     enum Limits {
@@ -25,39 +27,122 @@ import Observation
 
     @ObservationIgnored private let context: SettingsContext
     @ObservationIgnored private var observer: ThemeStore.ObserverID?
+    @ObservationIgnored private let tasks = TaskBag()
+    /// The commit that waits for edits to pause.
+    @ObservationIgnored private var pendingCommit: Task<Void, Never>?
+    /// True while the model hands the draft to the store, so the store's change is not taken for
+    /// one made elsewhere.
+    @ObservationIgnored private var isCommitting = false
+    /// How long after the last edit the draft reaches the store.
+    @ObservationIgnored var commitDelay: Duration = .milliseconds(100)
+    /// The clock that measures ``commitDelay``. A test sets a fake one to say when the time passed.
+    @ObservationIgnored var clock: any ClockService = SystemClock()
     private let revision = Revision()
 
-    /// The theme as edited, which the preview draws.
-    var draft: Theme
-    /// Which appearance the preview shows. Nil follows the window.
-    var previewDark: Bool?
+    /// The theme as edited, which the preview draws. It reaches the store a moment after each edit.
+    private(set) var draft: Theme
 
     init(context: SettingsContext) {
         self.context = context
         draft = context.dependencies.themes.current
-        draftBase = context.dependencies.themes.current
         observer = context.dependencies.themes.addObserver { [weak self] changes in
             self?.storeChanged(changes)
         }
+        tasks.follow([HostSettings.appearance.erased], in: context.general, bumping: revision)
     }
 
     isolated deinit {
+        pendingCommit?.cancel()
         if let observer { context.dependencies.themes.removeObserver(observer) }
     }
 
     private var store: ThemeStore { context.dependencies.themes }
 
+    /// A change the model did not make, such as a selection made in onboarding, drops what waits
+    /// to be committed and shows the store's theme.
     private func storeChanged(_ changes: ThemeStore.Changes) {
-        if changes.contains(.current), !isEdited(against: draftBase) { draft = store.current }
-        draftBase = store.current
+        if changes.contains(.current), !isCommitting { adopt(store.current) }
         revision.bump()
     }
 
-    /// The stored theme the draft started from.
-    @ObservationIgnored private var draftBase: Theme?
+    /// Shows a theme from the store and drops the commit that waits.
+    private func adopt(_ theme: Theme) {
+        pendingCommit?.cancel()
+        pendingCommit = nil
+        if draft != theme { draft = theme }
+    }
 
-    private func isEdited(against base: Theme?) -> Bool {
-        draft != (base ?? store.current)
+    /// Changes the draft and commits it a moment later.
+    private func edit(_ change: (inout Theme) -> Void) {
+        var theme = draft
+        change(&theme)
+        guard theme != draft else { return }
+        draft = theme
+        pendingCommit?.cancel()
+        let delay = commitDelay
+        let clock = clock
+        pendingCommit = Task { [weak self] in
+            try? await clock.sleep(for: delay)
+            guard !Task.isCancelled, let self else { return }
+            pendingCommit = nil
+            commit()
+        }
+    }
+
+    /// Commits the draft now, without waiting for the edits to pause.
+    func flush() {
+        pendingCommit?.cancel()
+        pendingCommit = nil
+        commit()
+    }
+
+    /// Hands the draft to the store for the selected theme, which applies it to the launcher and
+    /// keeps it. Nothing happens when the store has it already. A file that cannot be written shows
+    /// a failure toast, and the draft stays: the launcher shows it until the store reads the folder
+    /// again.
+    private func commit() {
+        let name = store.selectedName
+        guard let stored = store.theme(named: name), stored.theme != draft else { return }
+        isCommitting = true
+        defer {
+            isCommitting = false
+            revision.bump()
+        }
+        do {
+            try store.update(draft, for: name)
+        } catch {
+            showFailure("Could not save the theme", error)
+        }
+    }
+
+    /// A failure toast that says what failed, with the error's own words under it when it has some,
+    /// such as a theme file the store could not read and so left alone.
+    private func showFailure(_ title: String, _ error: any Error) {
+        context.toasts.show(.failure(title, message: (error as? any LocalizedError)?.errorDescription))
+    }
+
+    // MARK: Appearance
+
+    /// Whether the launcher draws light, dark or as the system does. The preview draws in it too.
+    var appearance: HostSettings.Appearance {
+        get {
+            revision.track()
+            return context.general[HostSettings.appearance]
+        }
+        set {
+            context.general[HostSettings.appearance] = newValue
+            revision.bump()
+        }
+    }
+
+    /// Which appearance the preview shows: nil follows the window, as the launcher follows the
+    /// system.
+    var previewDark: Bool? {
+        switch appearance {
+        case .system: nil
+        case .light: false
+        case .dark: true
+        }
     }
 
     // MARK: Themes
@@ -84,49 +169,57 @@ import Observation
         return store.theme(named: store.selectedName)?.isBuiltIn ?? true
     }
 
+    /// True while the selected theme is built in and differs from the one that ships, counting an
+    /// edit that waits to be committed.
+    var isCustomized: Bool {
+        revision.track()
+        guard let shipped = ThemeStore.builtInTheme(named: store.selectedName) else { return false }
+        return draft != shipped.theme
+    }
+
     /// What the selected theme is, in a sentence, such as where Glass's text falls short. Empty
-    /// for a theme of the user's own.
+    /// for a theme of the user's own. A built-in theme the user changed says so instead, because
+    /// the sentence describes the theme as it ships.
     var summary: String {
         revision.track()
-        return store.theme(named: store.selectedName)?.summary ?? ""
+        let name = store.selectedName
+        if isCustomized { return "You changed \(name). Reset to Default undoes your changes." }
+        return store.theme(named: name)?.summary ?? ""
     }
 
-    /// True when the draft differs from the stored theme.
-    var isEdited: Bool {
-        revision.track()
-        return draft != store.current
-    }
-
-    /// Selects a theme for the panel and stores the choice. Unsaved edits are dropped.
+    /// Selects a theme for the panel and stores the choice. An edit that waits is committed to the
+    /// theme that was selected first.
     func select(_ name: String) {
+        flush()
         guard store.select(name) else { return }
         context.general[HostSettings.themeName] = store.selectedName
-        draft = store.current
-        draftBase = store.current
+        adopt(store.current)
         revision.bump()
     }
 
     /// Reads the theme folder again, as when the pane appears.
     func reload() {
+        flush()
         store.reload()
         revision.bump()
     }
 
-    /// Drops the edits.
-    func revert() {
-        draft = store.current
-    }
-
-    /// Saves the edits over the selected user theme.
-    func save() {
-        guard !isBuiltIn else { return }
+    /// Puts the selected built-in theme back as it ships, after the user confirms.
+    func resetToDefault() async {
+        flush()
+        let name = store.selectedName
+        guard isBuiltIn, isCustomized else { return }
+        let confirmed = await context.confirmations.ask(
+            Confirmation(
+                "Reset \(name)?", message: "Your changes to \(name) are removed. This cannot be undone.",
+                confirmTitle: "Reset", isDestructive: true))
+        guard confirmed else { return }
         do {
-            try store.save(draft, as: store.selectedName)
-            draftBase = store.current
-            context.toasts.show(.success("Saved \(store.selectedName)"))
+            try store.reset(name)
         } catch {
-            context.toasts.show(error, title: "Could not save the theme")
+            showFailure("Could not reset the theme", error)
         }
+        adopt(store.current)
         revision.bump()
     }
 
@@ -142,10 +235,19 @@ import Observation
         return name
     }
 
-    /// Saves the draft as a new user theme and selects it. Returns false when the name is taken
-    /// by a built-in theme or cannot be a file name.
+    /// Copies the selected theme as it is now under a new name, as a theme of the user's own, and
+    /// selects the copy. Returns false when a theme already has the name or it cannot be a file
+    /// name, so the copy never replaces a theme.
     @discardableResult
     func saveAsNew(named name: String) -> Bool {
+        flush()
+        if let existing = store.theme(named: name.trimmingCharacters(in: .whitespacesAndNewlines)),
+            !existing.isBuiltIn
+        {
+            context.toasts.show(
+                .failure("You already have a theme named \(existing.name). Save it under another name."))
+            return false
+        }
         do {
             try store.save(draft, as: name)
             select(name.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -159,6 +261,7 @@ import Observation
 
     /// Deletes a user theme. Standard takes over when it was selected.
     func delete(_ name: String) async {
+        flush()
         let confirmed = await context.confirmations.ask(
             Confirmation(
                 "Delete \(name)?", message: "The theme file is removed. This cannot be undone.",
@@ -176,6 +279,7 @@ import Observation
 
     /// Asks for a theme file and adds it as a user theme, then selects it.
     func importTheme() async {
+        flush()
         let request = OpenDialogRequest(title: "Import Theme", allowedTypes: ["json"])
         guard let url = await context.services.fileDialogs.chooseFiles(request).first else { return }
         do {
@@ -188,19 +292,14 @@ import Observation
         revision.bump()
     }
 
-    /// Asks where to save and writes the selected theme there, with the edits when there are any.
+    /// Asks where to save and writes the selected theme there, as it is now.
     func exportTheme() async {
+        flush()
         let name = selectedName
         let request = SaveDialogRequest(title: "Export Theme", suggestedName: name + ".json", allowedTypes: ["json"])
         guard let url = await context.services.fileDialogs.chooseSaveLocation(request) else { return }
         do {
-            if isEdited {
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-                try encoder.encode(draft).write(to: url, options: .atomic)
-            } else {
-                try store.exportTheme(named: name, to: url)
-            }
+            try store.exportTheme(named: name, to: url)
             context.toasts.show(.success("Exported \(url.lastPathComponent)"))
         } catch {
             context.toasts.show(error, title: "Could not export the theme")
@@ -211,24 +310,24 @@ import Observation
 
     var clarity: Double {
         get { draft.clarity }
-        set { draft.clarity = Self.clamp(newValue, Limits.clarity) }
+        set { edit { $0.clarity = Self.clamp(newValue, Limits.clarity) } }
     }
 
     var lensStyle: LensMetrics.Style {
         get { draft.lens.style }
-        set { draft.lens.style = newValue }
+        set { edit { $0.lens.style = newValue } }
     }
 
     /// Regular glass, which frosts what is behind it, or clear glass, the most translucent.
     var glassStyle: GlassStyle {
         get { draft.panel.glassStyle }
-        set { draft.panel.glassStyle = newValue }
+        set { edit { $0.panel.glassStyle = newValue } }
     }
 
     /// One piece of glass, or the search field apart from the results.
     var layout: PanelLayout {
         get { draft.panel.layout }
-        set { draft.panel.layout = newValue }
+        set { edit { $0.panel.layout = newValue } }
     }
 
     func glassTint(dark: Bool) -> ThemeColor {
@@ -237,8 +336,10 @@ import Observation
 
     /// Sets the tint's colour and keeps its strength.
     func setGlassTintColor(red: Double, green: Double, blue: Double, dark: Bool) {
-        let strength = draft.glassTint(dark: dark).alpha
-        draft.setGlassTint(ThemeColor(red: red, green: green, blue: blue, alpha: strength), dark: dark)
+        edit { theme in
+            let strength = theme.glassTint(dark: dark).alpha
+            theme.setGlassTint(ThemeColor(red: red, green: green, blue: blue, alpha: strength), dark: dark)
+        }
     }
 
     /// The tint's alpha: how strongly the glass leans toward its colour.
@@ -247,50 +348,54 @@ import Observation
     }
 
     func setTintStrength(_ strength: Double, dark: Bool) {
-        var tint = draft.glassTint(dark: dark)
-        tint.alpha = Self.clamp(strength, Limits.tintStrength)
-        draft.setGlassTint(tint, dark: dark)
+        edit { theme in
+            var tint = theme.glassTint(dark: dark)
+            tint.alpha = Self.clamp(strength, Limits.tintStrength)
+            theme.setGlassTint(tint, dark: dark)
+        }
     }
 
     /// True while the accent follows the system's.
     var followsSystemAccent: Bool {
         get { draft.accent == nil }
-        set { draft.setAccent(newValue ? nil : (draft.accent ?? ThemeColor(red: 0.04, green: 0.43, blue: 0.54))) }
+        set {
+            edit { $0.setAccent(newValue ? nil : ($0.accent ?? ThemeColor(red: 0.04, green: 0.43, blue: 0.54))) }
+        }
     }
 
     var accent: ThemeColor? {
         get { draft.accent }
-        set { draft.setAccent(newValue) }
+        set { edit { $0.setAccent(newValue) } }
     }
 
     var titleSize: Double {
         get { draft.titleSize }
-        set { draft.titleSize = Self.clamp(newValue, Limits.titleSize) }
+        set { edit { $0.titleSize = Self.clamp(newValue, Limits.titleSize) } }
     }
 
     var subtitleSize: Double {
         get { draft.subtitleSize }
-        set { draft.subtitleSize = Self.clamp(newValue, Limits.subtitleSize) }
+        set { edit { $0.subtitleSize = Self.clamp(newValue, Limits.subtitleSize) } }
     }
 
     var querySize: Double {
         get { draft.querySize }
-        set { draft.querySize = Self.clamp(newValue, Limits.querySize) }
+        set { edit { $0.querySize = Self.clamp(newValue, Limits.querySize) } }
     }
 
     var rowHeight: Double {
         get { draft.rowHeight }
-        set { draft.rowHeight = Self.clamp(newValue, Limits.rowHeight).rounded() }
+        set { edit { $0.rowHeight = Self.clamp(newValue, Limits.rowHeight).rounded() } }
     }
 
     var cornerRadius: Double {
         get { draft.panel.cornerRadius }
-        set { draft.panel.cornerRadius = Self.clamp(newValue, Limits.cornerRadius).rounded() }
+        set { edit { $0.panel.cornerRadius = Self.clamp(newValue, Limits.cornerRadius).rounded() } }
     }
 
     var lensCornerRadius: Double {
         get { draft.lens.cornerRadius }
-        set { draft.lens.cornerRadius = Self.clamp(newValue, Limits.lensRadius).rounded() }
+        set { edit { $0.lens.cornerRadius = Self.clamp(newValue, Limits.lensRadius).rounded() } }
     }
 
     private static func clamp(_ value: Double, _ range: ClosedRange<Double>) -> Double {
