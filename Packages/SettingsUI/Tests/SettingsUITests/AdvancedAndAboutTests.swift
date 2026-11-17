@@ -40,6 +40,7 @@ import Testing
         bed.general[HostSettings.visibleRows] = 4
         bed.general[HostSettings.onboardingDone] = true
         bed.general[HostSettings.themeName] = "Ocean"
+        bed.general[HostSettings.appearance] = .dark
         bed.themes.select("Ocean")
         bed.sampleSettings()[SampleSettings.limit] = 45
         bed.preferences.setAlias("os", for: TestBed.open)
@@ -47,11 +48,14 @@ import Testing
 
         let reset = Task { await model.resetAllSettings() }
         #expect(await eventually { context.confirmations.pending != nil })
+        let message = try #require(context.confirmations.pending?.confirmation.message)
+        #expect(message.contains("Appearance goes back to Match System"), "the question names every change")
         context.confirmations.answer(true)
         await reset.value
 
         #expect(bed.general[HostSettings.visibleRows] == 9)
         #expect(bed.general[HostSettings.themeName] == "Standard")
+        #expect(bed.general[HostSettings.appearance] == .system)
         #expect(bed.themes.selectedName == "Standard")
         #expect(bed.general[HostSettings.onboardingDone])
         #expect(bed.sampleSettings()[SampleSettings.limit] == 20)
