@@ -14,8 +14,8 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 ### Fixed
 
 - Recording a hotkey: a click on a hotkey field in settings or onboarding now starts recording
-  every time, and a second click or a click anywhere else in the window stops it. Before, a click
-  on the field never started a recording.
+  every time, and a second click or a click anywhere else in the window stops it. Before, the
+  field took one shortcut after settings opened, then ignored clicks.
 - Theme changes in settings: switching appearance, moving a slider or picking a color in the
   Appearance pane now changes the launcher, and Slick keeps the change. A change to a built-in
   theme stays until you press Reset to Default.
