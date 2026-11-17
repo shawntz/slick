@@ -14,7 +14,7 @@
 
 <sub>Two typed letters find Notes, and the field completes its name. Recorded from the assembled app with Apple's own apps.</sub>
 
-<p><strong>Version 0.1.0 is out, and it is early.</strong> Install it with <code>brew install --cask shawntz/tap/slick</code>, or <a href="https://github.com/shawntz/slick/releases/latest">download it</a>. The assembled app passes all of its end-to-end scenarios against made-up data. The live launcher first ran on a real Mac on 16 November 2026, and most of its features have not been tried there yet.</p>
+<p><strong>Version 0.1.1 is out, and it is early.</strong> Install it with <code>brew install --cask shawntz/tap/slick</code>, or <a href="https://github.com/shawntz/slick/releases/latest">download it</a>. The assembled app passes all of its end-to-end scenarios against made-up data. The live launcher first ran on a real Mac on 16 November 2026, and most of its features have not been tried there yet.</p>
 
 <p>
   <a href="#speed-measured-inside-the-app">Speed</a> ·
@@ -187,7 +187,7 @@ As of 2026-11-16, 12 of 30 features are available and 18 are in progress.
 | In progress | What it does |
 |---|---|
 | Themes | Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height. The preview shows each change, and the launcher uses it at once. Save a copy under a new name, and share any theme as a file. Keep the launcher light or dark, or let it follow the system. Switching themes works in the launcher. The editor, sharing and the light or dark choice are not tested in the app yet. |
-| Updates | Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. Version 0.1.0 is the first release with the updater, so no update has reached anyone through it yet. |
+| Updates | Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. Version 0.1.1 is the first update it offers to people who installed 0.1.0. |
 
 #### Built-in tools
 
@@ -228,7 +228,7 @@ As of 2026-11-16, 12 of 30 features are available and 18 are in progress.
 brew install --cask shawntz/tap/slick
 ```
 
-Or download `Slick-0.1.0.zip` from the [latest release](https://github.com/shawntz/slick/releases/latest), unzip it and move Slick to your Applications folder.
+Or download `Slick-0.1.1.zip` from the [latest release](https://github.com/shawntz/slick/releases/latest), unzip it and move Slick to your Applications folder.
 
 The app is signed with a Developer ID and notarized by Apple. It needs macOS 26 or later on Apple silicon, and it has been tested only on macOS 27. Once you agree, it checks GitHub once a day for a new version and installs one only when you choose to.
 
