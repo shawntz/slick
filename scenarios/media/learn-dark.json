@@ -5,10 +5,10 @@
   "media": {
     "file": "clip-learn-dark",
     "appearance": "dark",
-    "caption": "Pick a lower result twice for the same query, and it becomes the first.",
-    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens, and typing “bo” lists Books first, then three window commands, Font Book and Photo Booth. The selection moves down to Font Book, Return picks it and the panel closes. The panel opens again and suggests Font Book, but “bo” still lists Books first, so Font Book is picked a second time. On the third search for “bo”, Font Book is first and Books second. Each time the panel opens, its first frame already shows the finished glass. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "posterAlt": "Slick's search panel in dark mode with “bo” typed. Font Book is the first result and Books the second. A frame from a recording of the assembled app with Apple's own apps."
+    "caption": "Pick Font Book twice for “bo” and it moves above Books.",
+    "alt": "Slick in dark mode. Font Book is selected twice for “bo”. On the next search it appears above Books.",
+    "gifAlt": "Slick in dark mode. Font Book is selected twice for “bo”. On the next search it appears above Books.",
+    "posterAlt": "Slick in dark mode. Font Book appears above Books for the search “bo”."
   },
   "steps": [
     {

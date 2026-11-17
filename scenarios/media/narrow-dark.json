@@ -5,10 +5,10 @@
   "media": {
     "file": "clip-narrow-dark",
     "appearance": "dark",
-    "caption": "The list narrows as the query grows, and the selection glides between rows.",
-    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “c” lists seven apps, from Calendar to ColorSync Utility, and completes the field to “calendar”. Typing “a” narrows the list to Calendar, Calculator, Calculator History, Image Capture, Photo Booth, a crates.io search and Quit All Applications. The selection glides down three rows to Image Capture and back up one. Typing “lc” leaves Calculator at the top, above Calculator History and three web searches for “calc”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “c” lists seven apps, from Calendar to ColorSync Utility, and completes the field to “calendar”. Typing “a” narrows the list to Calendar, Calculator, Calculator History, Image Capture, Photo Booth, a crates.io search and Quit All Applications. The selection glides down three rows to Image Capture and back up one. Typing “lc” leaves Calculator at the top, above Calculator History and three web searches for “calc”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "posterAlt": "Slick's search panel in dark mode with “ca” typed and the fourth result, Image Capture, selected. A frame from a recording of the assembled app with Apple's own apps."
+    "caption": "Type “calc” to find Calculator.",
+    "alt": "Slick in dark mode. Typing “ca” narrows the app list. Arrow keys move the selection, then typing “lc” selects Calculator.",
+    "gifAlt": "Slick in dark mode. Typing “ca” narrows the app list. Arrow keys move the selection, then typing “lc” selects Calculator.",
+    "posterAlt": "Slick in dark mode. The search “ca” with Image Capture selected in the results."
   },
   "steps": [
     {

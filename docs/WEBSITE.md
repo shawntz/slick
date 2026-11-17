@@ -168,7 +168,7 @@ Edit `site/data/release.json`:
 
 With the switch on, `main.js` adds the download button first in the hero and makes the GitHub button the second one. It also sets the line above the name to the version. The URL must be HTTPS or on this site. Both need JavaScript.
 
-Everything else about a release is plain HTML, so readers without JavaScript see it too. For each release, edit these by hand in `index.html`: the version line above the name, the "Can I download it?" answer, and the Try it section with its Homebrew command. In the README, edit the line under the hero and the Install section. They were last edited for 0.1.1 on 16 November 2026.
+Everything else about a release is plain HTML, so readers without JavaScript see it too. For each release, edit these by hand in `index.html`: the version line above the name and the Install section with its download link and Homebrew command. In the README, edit the line under the hero and the Install section. They were last edited for 0.1.1 on 16 November 2026.
 
 ### Clip slots
 
@@ -207,11 +207,11 @@ The Built in section shows one frame at a time and a row of radio buttons, so it
 
 ### Spotlight and Glass
 
-Under the themes clip, the Themes section shows two built-in themes on their own. Each has a heading, its text and its clip, which follows the reader's appearance. Glass also has a pair of dark stills, `compare-standard-dark.png` and `compare-glass-dark.png`, side by side with the manifest caption under each.
+Under the themes clip, the Themes section shows two built-in themes on their own. Each has a heading, its text and its clip, which follows the reader's appearance. The comparison stills remain in `media/` for the README.
 
 - The Spotlight theme's text is the only place on the page that says what it is modeled on. Say it once, as "Spotlight is modeled on Spotlight in macOS 27." The footer says that Spotlight is a trademark of Apple Inc. and that Slick is not affiliated with Apple. Keep that line while a theme carries the name.
-- The Glass theme's text says that text over a busy window is harder to read, with numbers. They come from `make ui-shots` on 15 November 2026, under the theme's earlier name. Today's argument is `UI_ARGS="themes=glass"`. The numbers are the lowest contrast of any title over each of six test backdrops, by the worst-case meter. Five of them read 1.0 to 2.4 to 1, and only a dark backdrop in dark mode clears 4.5 to 1. The theme's summary in LauncherUI, which the Appearance pane shows under the picker, gives no numbers. It says that text is harder to read over a busy or bright window. When the theme changes, measure again and change the site's numbers.
-- The recorder's wallpaper has no detail, so clear and frosted glass would look alike over it. The Glass clips and the pair show the panel over the settings window's About page instead, and the caption says so.
+- The Glass theme’s text notes that it can be harder to read over bright or busy windows. Contrast measurements belong in the project reports.
+- The recorder's wallpaper has no detail, so clear and frosted glass would look alike over it. The Glass clips show the panel over the settings window’s About page instead.
 
 ### The social image
 
@@ -223,7 +223,7 @@ The card shows a crop of `media/hero-dark-poster.png`, the poster of the hero re
 
 ### Words on the page
 
-Every claim on the site must be backed by `support/features.json` or by a measurement in the project's reports. The numbers on the page were measured on 15 November 2026 inside the release app bundle with sixteen features registered, on an Apple M5 with macOS 27.2 and a 120 Hz display, while other builds kept the load average at 6 to 8. `docs/ARCHITECTURE.md`, under "Latency rules", carries the same numbers. Quote them with those conditions. Do not say the app is faster than another launcher, because nobody has measured one on that machine. The page says what Slick does and not how far along it is, so it never names a feature's status. Alt text and captions come from `media/manifest.json`. Change the manifest first, then copy the text into `index.html`.
+Every claim on the site must be backed by `support/features.json` or the project reports. Keep the landing page focused on what Slick does. Link to benchmark methods, build instructions and setup details in the repository instead of repeating them on the page. Alt text and captions come from `media/manifest.json`. Update the source storyboard in `scenarios/media/` and the manifest together, then copy the text into `index.html`.
 
 The owner's rules for words apply to every sentence on the page. Say what happens, in the order it happens, in the words a person would use out loud. Write short sentences with one idea each, in the active voice, and name who does it. Use no colon in the middle of a sentence, no semicolon, no dash as punctuation, no parentheses and no "and more". Praise nothing. Say what the thing does and give the number. Headings on the page use sentence case.
 

@@ -5,10 +5,10 @@
   "media": {
     "file": "clip-calc-dark",
     "appearance": "dark",
-    "caption": "The calculator answers as you type, and Return copies the answer.",
-    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “1250 * 1.08” shows only web searches until the expression is complete, then the answer 1,350 at the top. Escape clears the field. Typing “5 km in mi” shows “5 km” on the way, then the answer 3.10686 mi. Return copies the answer and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. Typing “1250 * 1.08” shows only web searches until the expression is complete, then the answer 1,350 at the top. Escape clears the field. Typing “5 km in mi” shows “5 km” on the way, then the answer 3.10686 mi. Return copies the answer and the panel closes. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "posterAlt": "Slick's search panel in dark mode with “1250 * 1.08” typed and the answer 1,350 selected at the top, above searches on Google and Wikipedia. A frame from a recording of the assembled app."
+    "caption": "Calculate as you type. Press Return to copy the answer.",
+    "alt": "Slick in dark mode. The calculator solves 1250 × 1.08 as 1,350 and converts 5 kilometers to 3.10686 miles.",
+    "gifAlt": "Slick in dark mode. The calculator solves 1250 × 1.08 as 1,350 and converts 5 kilometers to 3.10686 miles.",
+    "posterAlt": "Slick in dark mode. The calculator shows 1,350 for the expression 1250 × 1.08."
   },
   "steps": [
     {
