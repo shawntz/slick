@@ -89,7 +89,7 @@ public final class SettingsController {
         let hosting = NSHostingController(rootView: SettingsRootView(model: model))
         hosting.sceneBridgingOptions = [.title, .toolbars]
         let window =
-            savesFrame ? NSWindow(contentViewController: hosting) : PlacedWindow(contentViewController: hosting)
+            savesFrame ? SettingsWindow(contentViewController: hosting) : PlacedWindow(contentViewController: hosting)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.title = "\(Brand.name) Settings"
         window.toolbarStyle = .unified
@@ -103,10 +103,24 @@ public final class SettingsController {
     }
 }
 
+/// The window that settings and onboarding show in. While a hotkey recorder records, a click
+/// anywhere else in the window ends the recording.
+class SettingsWindow: NSWindow {
+    override func sendEvent(_ event: NSEvent) {
+        switch event.type {
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            (firstResponder as? HotkeyRecorderField)?.windowWillHandleMouseDown(at: event.locationInWindow)
+        default:
+            break
+        }
+        super.sendEvent(event)
+    }
+}
+
 /// A window that stays where it is put. AppKit moves a titled window back onto a screen when it
 /// orders in; a capture window must stay at the place a scenario gives it, which tests put off
 /// every screen.
-final class PlacedWindow: NSWindow {
+final class PlacedWindow: SettingsWindow {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         frameRect
     }
@@ -216,7 +230,8 @@ public final class OnboardingController {
     /// key status, which it never takes.
     private func makeWindow(placed: Bool = false) -> NSWindow {
         let hosting = NSHostingController(rootView: OnboardingView(model: model, toasts: context.toasts))
-        let window = placed ? PlacedWindow(contentViewController: hosting) : NSWindow(contentViewController: hosting)
+        let window =
+            placed ? PlacedWindow(contentViewController: hosting) : SettingsWindow(contentViewController: hosting)
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
