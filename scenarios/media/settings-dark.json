@@ -15,7 +15,7 @@
           1880,
           1480
         ],
-        "caption": "Appearance: a live preview of the panel above the theme and its settings. The theme editor is still in progress.",
+        "caption": "Appearance: a live preview of the panel above the theme and its settings.",
         "alt": "Slick's settings window in dark mode over a purple gradient wallpaper, on the Appearance pane. At the top, a preview draws the search panel with “cal” typed and five sample rows over colored shapes, with Match System, Light and Dark buttons under it. Below are the Theme section, set to Standard, with Save as New Theme, Revert and More, and the start of the Glass section. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
       },
       {

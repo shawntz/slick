@@ -178,7 +178,7 @@
       "width": 1880,
       "height": 1360,
       "appearance": "dark",
-      "caption": "Appearance: a live preview of the panel above the theme and its settings. The theme editor is still in progress.",
+      "caption": "Appearance: a live preview of the panel above the theme and its settings.",
       "still": "scenarios/media/settings-dark.json",
       "alt": "Slick's settings window in dark mode over a purple gradient wallpaper, on the Appearance pane. At the top, a preview draws the search panel with “cal” typed and five sample rows over colored shapes, with Match System, Light and Dark buttons under it. Below are the Theme section, set to Standard, with Save as New Theme, Revert and More, and the start of the Glass section. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
     },
@@ -214,7 +214,7 @@
       "width": 1880,
       "height": 1360,
       "appearance": "light",
-      "caption": "Appearance: a live preview of the panel above the theme and its settings. The theme editor is still in progress.",
+      "caption": "Appearance: a live preview of the panel above the theme and its settings.",
       "still": "scenarios/media/settings-light.json",
       "alt": "Slick's settings window in light mode over a pale lilac gradient wallpaper, on the Appearance pane. At the top, a preview draws the search panel with “cal” typed and five sample rows over colored shapes, with Match System, Light and Dark buttons under it. Below are the Theme section, set to Standard, with Save as New Theme, Revert and More, and the start of the Glass section. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario."
     },
@@ -469,7 +469,7 @@
       "appearance": "light",
       "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
       "clip": "scenarios/media/files-light.json",
-      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress. It is proven over a sample index, and indexing real folders has not run on a Mac yet."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "clip-files-light.mp4",
@@ -480,7 +480,7 @@
       "appearance": "light",
       "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
       "clip": "scenarios/media/files-light.json",
-      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons. File search is still in progress. It is proven over a sample index, and indexing real folders has not run on a Mac yet."
+      "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons."
     },
     {
       "file": "clip-glass-dark-poster.png",
