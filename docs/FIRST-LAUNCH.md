@@ -135,7 +135,7 @@ Stores, all under `~/Library/Application Support/Slick`:
 - `Features/<feature>`, which holds each feature's own files, such as `snippets.json`, `quicklinks.json`, the script folder and AI chats. The clipboard history database appears only once Clipboard History is on.
 - `Features/notes/Notes`, an empty folder at first. Each note you save is a Markdown file there.
 - `Caches`, which holds the icon atlas.
-- `Themes`, which holds your own theme files.
+- `Themes`, which holds your own theme files and your changes to the built-in themes.
 
 Later, as you use the new features:
 
