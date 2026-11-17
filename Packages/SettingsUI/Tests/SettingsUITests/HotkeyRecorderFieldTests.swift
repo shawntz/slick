@@ -67,6 +67,81 @@ import Testing
         #expect(bench.model.isRecording)
         bench.click()
         #expect(!bench.model.isRecording, "a single click after it stops the recording")
+        // A quick click after a recording ended starts the next one, whatever its click count.
+        bench.click(count: 2)
+        #expect(bench.model.isRecording, "a quick click after a stop records")
+        bench.type(.k, "k", [.command, .option])
+        #expect(!bench.model.isRecording)
+        bench.click(count: 2)
+        #expect(bench.model.isRecording, "a quick click after a recorded shortcut records")
+        bench.type(.escape, "\u{1b}")
+        #expect(!bench.model.isRecording)
+        bench.click(count: 3)
+        #expect(bench.model.isRecording, "a quick click after Escape records")
+        // A recording the keyboard started stops on a click of any count.
+        bench.type(.escape, "\u{1b}")
+        #expect(bench.window.makeFirstResponder(bench.field))
+        bench.type(.space, " ")
+        #expect(bench.model.isRecording)
+        bench.click(count: 2)
+        #expect(!bench.model.isRecording)
+    }
+
+    @Test func aCommandClickInAWindowThatIsNotKeyStartsNothing() {
+        let bench = RecorderBench()
+        defer { bench.close() }
+        bench.click(flags: [.command])
+        #expect(!bench.model.isRecording, "the window stays in the background, so no key would arrive")
+        bench.click()
+        #expect(bench.model.isRecording, "a plain click still records")
+        bench.click()
+        #expect(!bench.model.isRecording)
+        // In the key window a Command-click is a click like any other.
+        bench.window.claimsKey = true
+        bench.click(flags: [.command])
+        #expect(bench.model.isRecording)
+    }
+
+    /// The window tells a recording field about every mouse-down, whatever the button and however
+    /// the recording started.
+    @Test func anyButtonPressedElsewhereEndsARecordingHoweverItStarted() {
+        let bench = RecorderBench()
+        defer { bench.close() }
+        let away = CGPoint(x: 300, y: 80)
+        #expect(bench.hit(at: away).map { !$0.isDescendant(of: bench.field) } == true)
+        bench.click()
+        #expect(bench.model.isRecording)
+        bench.window.sendEvent(Events.mouse(.rightMouseDown, at: away, in: bench.window))
+        #expect(!bench.model.isRecording, "a right click elsewhere ends it")
+        #expect(bench.window.firstResponder !== bench.field, "a click's recording gives up focus")
+
+        #expect(bench.window.makeFirstResponder(bench.field))
+        bench.type(.space, " ")
+        #expect(bench.model.isRecording)
+        bench.window.sendEvent(Events.mouse(.otherMouseDown, at: away, in: bench.window))
+        #expect(!bench.model.isRecording, "a third button elsewhere ends a recording the keyboard started")
+        #expect(bench.window.firstResponder === bench.field, "and the field keeps focus")
+
+        // A press on the field itself is the field's own business.
+        bench.click()
+        #expect(bench.model.isRecording)
+        bench.window.sendEvent(Events.mouse(.rightMouseDown, at: bench.middle, in: bench.window))
+        #expect(bench.model.isRecording, "a right click on the field leaves the recording alone")
+    }
+
+    @Test func aNewModelEndsTheRecordingOfTheOldOne() {
+        let bench = RecorderBench()
+        defer { bench.close() }
+        bench.click()
+        #expect(bench.model.isRecording)
+        let other = bench.bed.context().recorder(
+            HotkeyTargets.item(TestBed.open, title: "Open again", preferences: bench.bed.preferences))
+        bench.field.model = other
+        #expect(!bench.model.isRecording, "the old model stops recording")
+        #expect(!other.isRecording)
+        bench.click()
+        #expect(other.isRecording, "a click records on the new model")
+        #expect(!bench.model.isRecording)
     }
 
     @Test func focusAloneRecordsNothing() {
@@ -331,6 +406,28 @@ import Testing
         #expect(await eventually { model.step != .hotkey })
         #expect(bench.window.unanswered == 0)
     }
+
+    /// Return presses Continue while the recorder shows a refusal or asks to replace a hotkey.
+    /// Nobody is left to answer on the next step, so the note goes.
+    @Test func leavingTheHotkeyStepDropsANoteNobodyAnswered() async throws {
+        let bed = TestBed()
+        let model = OnboardingModel(context: bed.context()) {}
+        try #require(model.show(.hotkey))
+        model.hotkey.beginRecording()
+        model.hotkey.handle(key: .k, modifiers: [])
+        #expect(model.hotkey.note != nil, "a key alone is refused with a note")
+        await model.next()
+        #expect(model.step != .hotkey)
+        #expect(model.hotkey.state == .idle)
+
+        try #require(model.show(.hotkey))
+        model.hotkey.beginRecording()
+        model.hotkey.handle(key: .k, modifiers: [])
+        #expect(model.hotkey.note != nil)
+        model.back()
+        #expect(model.step == .welcome)
+        #expect(model.hotkey.state == .idle)
+    }
 }
 
 /// Clicks and keys routed through `NSWindow.sendEvent` into the real settings window, ordered in
@@ -535,19 +632,29 @@ final class TestWindow: SettingsWindow {
         window.close()
     }
 
-    func mouse(_ type: NSEvent.EventType, count: Int = 1) -> NSEvent {
-        let point = field.convert(CGPoint(x: field.bounds.midX, y: field.bounds.midY), to: nil)
-        return Events.mouse(type, at: point, in: window, count: count)
+    /// The middle of the field, in the window.
+    var middle: CGPoint {
+        field.convert(CGPoint(x: field.bounds.midX, y: field.bounds.midY), to: nil)
+    }
+
+    /// The view a click at a point in the window lands on.
+    func hit(at point: CGPoint) -> NSView? {
+        (window.contentView?.superview ?? window.contentView)?.hitTest(point)
+    }
+
+    func mouse(_ type: NSEvent.EventType, count: Int = 1, flags: NSEvent.ModifierFlags = []) -> NSEvent {
+        Events.mouse(type, at: middle, in: window, count: count, flags: flags)
     }
 
     /// Clicks the field. As the window does, it first makes the field first responder, unless
-    /// `asTheWindowDoes` is false. A `count` of 2 is the second click of a double-click.
-    func click(asTheWindowDoes: Bool = true, count: Int = 1) {
+    /// `asTheWindowDoes` is false. A `count` of 2 is the second click of a double-click, and
+    /// `flags` are the modifier keys held.
+    func click(asTheWindowDoes: Bool = true, count: Int = 1, flags: NSEvent.ModifierFlags = []) {
         if asTheWindowDoes, field.acceptsFirstResponder, window.firstResponder !== field {
             window.makeFirstResponder(field)
         }
-        field.mouseDown(with: mouse(.leftMouseDown, count: count))
-        field.mouseUp(with: mouse(.leftMouseUp, count: count))
+        field.mouseDown(with: mouse(.leftMouseDown, count: count, flags: flags))
+        field.mouseUp(with: mouse(.leftMouseUp, count: count, flags: flags))
     }
 
     func type(_ key: Key, _ characters: String, _ flags: NSEvent.ModifierFlags = [], repeating: Bool = false) {
@@ -709,9 +816,12 @@ final class TestWindow: SettingsWindow {
 
 /// Made-up events for a window. None is posted to the system.
 @MainActor enum Events {
-    static func mouse(_ type: NSEvent.EventType, at point: CGPoint, in window: NSWindow, count: Int = 1) -> NSEvent {
+    static func mouse(
+        _ type: NSEvent.EventType, at point: CGPoint, in window: NSWindow, count: Int = 1,
+        flags: NSEvent.ModifierFlags = []
+    ) -> NSEvent {
         NSEvent.mouseEvent(
-            with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+            with: type, location: point, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
             windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: count,
             pressure: type == .leftMouseDown ? 1 : 0)!
     }

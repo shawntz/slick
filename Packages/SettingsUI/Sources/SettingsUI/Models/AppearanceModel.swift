@@ -110,15 +110,26 @@ import Observation
         }
         do {
             try store.update(draft, for: name)
+        } catch ThemeStoreError.unreadable(let file, _) {
+            // The store left alone a file it could not read. The line under the theme picker says
+            // why it was skipped, so this says what to do.
+            context.toasts.show(
+                .failure(
+                    "Could not save the theme",
+                    message: "\(Brand.name) won't write over \(file.lastPathComponent) until you fix or remove it."))
         } catch {
             showFailure("Could not save the theme", error)
         }
     }
 
     /// A failure toast that says what failed, with the error's own words under it when it has some,
-    /// such as a theme file the store could not read and so left alone.
+    /// such as the file system's reason a theme file could not be written.
     private func showFailure(_ title: String, _ error: any Error) {
-        context.toasts.show(.failure(title, message: (error as? any LocalizedError)?.errorDescription))
+        var message = (error as? any LocalizedError)?.errorDescription
+        if message == nil, (error as NSError).domain == NSCocoaErrorDomain {
+            message = (error as NSError).localizedDescription
+        }
+        context.toasts.show(.failure(title, message: message))
     }
 
     // MARK: Appearance

@@ -46,6 +46,12 @@ struct ThemeTests {
         theme.dark.cardTint = label
         theme.light.hudTint = label
         theme.dark.hudTint = label
+        theme.light.fieldTint = label
+        theme.dark.fieldTint = label
+        theme.light.placeholder = label
+        theme.dark.placeholder = label
+        theme.light.emptySymbol = label
+        theme.dark.emptySymbol = label
         let resolved = ResolvedTheme(theme: theme, appearance: appearance, accessibility: DisplayAccessibility())
         func components(_ color: NSColor?) -> [CGFloat] {
             var cg: CGColor?
@@ -57,7 +63,10 @@ struct ThemeTests {
         #expect(components(resolved.glassTint) == expected)
         #expect(components(resolved.card.tint) == expected)
         #expect(components(resolved.feedback.hudTint) == expected)
+        #expect(components(resolved.fieldTint) == expected)
         #expect(components(resolved.lensGlassTint) == label.cgColor(in: appearance).components)
+        #expect(components(resolved.placeholder) == label.cgColor(in: appearance).components)
+        #expect(components(resolved.emptySymbol) == label.cgColor(in: appearance).components)
     }
 
     @Test func glassHeightIsQueryRowAloneWithoutContent() {

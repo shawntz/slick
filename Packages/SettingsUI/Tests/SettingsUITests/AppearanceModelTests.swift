@@ -332,6 +332,7 @@ import Testing
         let toast = try #require(context.toasts.current)
         #expect(toast.toast.style == .failure)
         #expect(toast.toast.title == "Could not save the theme")
+        #expect(toast.toast.message?.isEmpty == false, "the file system's own reason shows under the title")
         #expect(model.draft.clarity == 1.2)
         #expect(bed.themes.current.clarity == 1.2)
 
@@ -451,8 +452,9 @@ import Testing
     }
 
     /// A theme file the store could not read stays as the user left it. An edit to that theme
-    /// shows for this run, and the failure toast names the file.
-    @Test func anEditLeavesAThemeFileThatCannotBeReadAlone() throws {
+    /// shows for this run, and the failure toast names the file and says what to do. A reset puts
+    /// the theme back, which needs no file, so it reports no failure.
+    @Test func anEditLeavesAThemeFileThatCannotBeReadAlone() async throws {
         let bed = TestBed()
         let file = bed.themes.folder.appending(path: "Standard.json")
         try FileManager.default.createDirectory(at: bed.themes.folder, withIntermediateDirectories: true)
@@ -467,9 +469,20 @@ import Testing
         let toast = try #require(context.toasts.current?.toast)
         #expect(toast.style == .failure)
         #expect(toast.title == "Could not save the theme")
-        #expect(toast.message == "Standard.json is not a theme: not JSON.")
+        #expect(toast.message == "\(Brand.name) won't write over Standard.json until you fix or remove it.")
         #expect(try String(contentsOf: file, encoding: .utf8) == "{ oops")
         #expect(bed.themes.current.panel.cornerRadius == 30)
+
+        context.toasts.dismissCurrent()
+        let reset = Task { await model.resetToDefault() }
+        #expect(await eventually { context.confirmations.pending != nil })
+        context.confirmations.answer(true)
+        await reset.value
+        #expect(context.toasts.current == nil, "the reset worked, so nothing reports a failure")
+        #expect(bed.themes.current == .standard)
+        #expect(model.draft == .standard)
+        #expect(!model.isCustomized)
+        #expect(try String(contentsOf: file, encoding: .utf8) == "{ oops")
     }
 }
 

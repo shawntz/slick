@@ -49,7 +49,8 @@ import Testing
         let reset = Task { await model.resetAllSettings() }
         #expect(await eventually { context.confirmations.pending != nil })
         let message = try #require(context.confirmations.pending?.confirmation.message)
-        #expect(message.contains("Appearance goes back to Match System"), "the question names every change")
+        #expect(message.contains("sets Appearance to Match System"), "the question names every change")
+        #expect(message.contains("theme changes"), "and says the changes to built-in themes stay")
         context.confirmations.answer(true)
         await reset.value
 

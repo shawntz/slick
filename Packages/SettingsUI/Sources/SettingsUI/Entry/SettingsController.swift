@@ -12,8 +12,8 @@ import SwiftUI
 public final class SettingsController {
     private let model: SettingsModel
     private let launcherHotkey: (any LauncherHotkeyStatus)?
-    private var window: NSWindow?
-    private var captureWindow: NSWindow?
+    private var window: SettingsWindow?
+    private var captureWindow: SettingsWindow?
     private var keyObserver: (any NSObjectProtocol)?
 
     public init(dependencies: SettingsDependencies) {
@@ -85,10 +85,10 @@ public final class SettingsController {
         window.orderFrontRegardless()
     }
 
-    private func makeWindow(savesFrame: Bool) -> NSWindow {
+    private func makeWindow(savesFrame: Bool) -> SettingsWindow {
         let hosting = NSHostingController(rootView: SettingsRootView(model: model))
         hosting.sceneBridgingOptions = [.title, .toolbars]
-        let window =
+        let window: SettingsWindow =
             savesFrame ? SettingsWindow(contentViewController: hosting) : PlacedWindow(contentViewController: hosting)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.title = "\(Brand.name) Settings"
@@ -104,7 +104,8 @@ public final class SettingsController {
 }
 
 /// The window that settings and onboarding show in. While a hotkey recorder records, a click
-/// anywhere else in the window ends the recording.
+/// anywhere else in the window ends the recording. Both controllers hold their windows as this
+/// type, so a recorder never ends up in a window without it.
 class SettingsWindow: NSWindow {
     override func sendEvent(_ event: NSEvent) {
         switch event.type {
@@ -130,8 +131,8 @@ final class PlacedWindow: SettingsWindow {
 public final class OnboardingController {
     private let context: SettingsContext
     private let model: OnboardingModel
-    private var window: NSWindow?
-    private var captureWindow: NSWindow?
+    private var window: SettingsWindow?
+    private var captureWindow: SettingsWindow?
     private var keyObserver: (any NSObjectProtocol)?
 
     /// - Parameter onFinish: Called after the user pressed Start and ``HostSettings/onboardingDone``
@@ -228,9 +229,9 @@ public final class OnboardingController {
 
     /// The window. A placed one is for captures: it stays where it is put and never watches for
     /// key status, which it never takes.
-    private func makeWindow(placed: Bool = false) -> NSWindow {
+    private func makeWindow(placed: Bool = false) -> SettingsWindow {
         let hosting = NSHostingController(rootView: OnboardingView(model: model, toasts: context.toasts))
-        let window =
+        let window: SettingsWindow =
             placed ? PlacedWindow(contentViewController: hosting) : SettingsWindow(contentViewController: hosting)
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true

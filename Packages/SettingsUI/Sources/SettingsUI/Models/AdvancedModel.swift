@@ -104,7 +104,7 @@ import Observation
             Confirmation(
                 "Reset all settings?",
                 message:
-                    "General, root search and feature settings go back to their defaults. The Standard theme is selected, and Appearance goes back to Match System. Reset keeps your aliases, hotkeys, favorites, theme files and what root search learned.",
+                    "General, root search and feature settings go back to their defaults. \(Brand.name) selects Standard and sets Appearance to Match System. Reset keeps your aliases, hotkeys, favorites, themes, theme changes and what root search learned.",
                 confirmTitle: "Reset", isDestructive: true))
         guard confirmed else { return }
         let general = context.general
