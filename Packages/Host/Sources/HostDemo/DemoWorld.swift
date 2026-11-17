@@ -42,6 +42,7 @@ import LauncherUITesting
     func show(_ hud: HUD) {}
     func prewarm() {}
     func apply(_ theme: Theme) {}
+    var appearance: NSAppearance?
 }
 
 /// An invented feature: a clipboard-like history list, a copy command that reports with a toast,

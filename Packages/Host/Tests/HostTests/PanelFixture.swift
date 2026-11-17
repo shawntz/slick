@@ -48,13 +48,15 @@ import LauncherUI
     }
 
     /// A started runtime, with `features` besides the test features, and a panel prewarmed and
-    /// summoned.
+    /// summoned. The panel draws in light, through the appearance setting, unless `settings` says
+    /// otherwise, so what a test sees does not depend on the Mac's appearance.
     static func make(
         rows: [Row] = SampleRows.all, fallbacks: [Row] = [], settings: [String: SettingStorage] = [:],
         themes: ThemeStore? = nil, summon: Bool = true, features: [FeatureRegistration] = []
     ) async -> PanelFixture {
         _ = NSApplication.shared
         let runtime = RuntimeFixture()
+        HostSettings.settings(runtime.fakes.settings)[HostSettings.appearance] = .light
         for (name, value) in settings { runtime.fakes.settings.set(value, for: HostSettings.namespace + "." + name) }
         await runtime.start(more: features)
         let fixture = PanelFixture(

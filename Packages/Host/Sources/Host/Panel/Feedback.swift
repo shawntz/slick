@@ -9,6 +9,9 @@ import LauncherUI
     /// Renders once while hidden, so the first HUD costs what later ones do.
     func prewarm()
     func apply(_ theme: Theme)
+    /// The appearance HUDs draw in, light or dark, or nil to follow the system's. A HUD resolves
+    /// its theme for it each time it shows.
+    var appearance: NSAppearance? { get set }
 }
 
 /// HUDs in LauncherUI's ``HUDWindow``.
@@ -29,6 +32,11 @@ import LauncherUI
 
     public func apply(_ theme: Theme) {
         window.theme = theme
+    }
+
+    public var appearance: NSAppearance? {
+        get { window.appearance }
+        set { window.appearance = newValue }
     }
 
     /// The symbol a HUD of this style shows.

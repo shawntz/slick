@@ -10,6 +10,9 @@ import LauncherUI
     func show(_ text: String)
     /// The theme the backing follows.
     func apply(_ theme: Theme)
+    /// The appearance the window draws in, light or dark, or nil to follow the system's. The
+    /// backing stays dark either way.
+    var appearance: NSAppearance? { get set }
 }
 
 /// Large Type in LauncherUI's ``LargeTypeWindow``, for the live launcher.
@@ -29,6 +32,11 @@ import LauncherUI
     public func apply(_ theme: Theme) {
         window.theme = theme
     }
+
+    public var appearance: NSAppearance? {
+        get { window.appearance }
+        set { window.appearance = newValue }
+    }
 }
 
 /// Large Type recorded instead of shown, outside the live launcher.
@@ -43,4 +51,7 @@ import LauncherUI
     }
 
     public func apply(_ theme: Theme) {}
+
+    /// The appearance the panel last gave it.
+    public var appearance: NSAppearance?
 }
