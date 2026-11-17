@@ -186,7 +186,7 @@ As of 2026-11-16, 12 of 30 features are available and 18 are in progress.
 
 | In progress | What it does |
 |---|---|
-| Themes | Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, and the launcher shows each change as you make it. Save a copy under a new name, and share any theme as a file. Keep the launcher light or dark, or let it follow the system. Switching themes works in the launcher. The editor, sharing and the light or dark choice are not tested in the app yet. |
+| Themes | Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height. The preview shows each change, and the launcher uses it at once. Save a copy under a new name, and share any theme as a file. Keep the launcher light or dark, or let it follow the system. Switching themes works in the launcher. The editor, sharing and the light or dark choice are not tested in the app yet. |
 | Updates | Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. Version 0.1.0 is the first release with the updater, so no update has reached anyone through it yet. |
 
 #### Built-in tools
