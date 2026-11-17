@@ -59,6 +59,22 @@ import Testing
             try write(name, size: size, view)
         }
 
+        // The same pane after the person changed the built-in theme: the note under the picker
+        // and Reset to Default.
+        model.appearance.cornerRadius = 22
+        model.appearance.titleSize = 15
+        model.appearance.flush()
+        #expect(model.appearance.isCustomized)
+        try write(
+            "Appearance changed", size: CGSize(width: 760, height: 1480),
+            AnyView(AppearancePane(model: model.appearance)))
+        // With Dark chosen, the preview draws dark in a light window too.
+        model.appearance.appearance = .dark
+        try write(
+            "Appearance set to dark", size: CGSize(width: 760, height: 1480),
+            AnyView(AppearancePane(model: model.appearance)))
+        model.appearance.appearance = .system
+
         // A toast and a hotkey review, as they look over a pane.
         model.general.launcherHotkey.beginRecording()
         model.general.launcherHotkey.handle(key: .l, modifiers: [.control, .option])

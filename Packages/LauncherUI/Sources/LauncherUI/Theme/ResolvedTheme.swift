@@ -127,22 +127,22 @@ public struct ResolvedTheme {
         caret = resolve(palette.caret)
         caretGlow = palette.caretGlow.filter { $0.alpha > 0 }.map { resolve($0) }
         runHint = resolve(palette.runHint, boost: 1.25)
-        placeholder = palette.placeholder.nsColor
-        emptySymbol = palette.emptySymbol.nsColor
+        placeholder = resolve.appKit(palette.placeholder)
+        emptySymbol = resolve.appKit(palette.emptySymbol)
 
         let opaque = accessibility.reduceTransparency
         glassStyle = !opaque && theme.panel.glassStyle == .clear ? .clear : .regular
         // A tint that would be invisible is no tint at all, so clear glass gets none.
         func tint(_ color: ThemeColor) -> NSColor? {
             let scaled = color.scaled(by: theme.clarity)
-            return opaque || scaled.alpha <= 0 ? nil : scaled.nsColor
+            return opaque || scaled.alpha <= 0 ? nil : resolve.appKit(scaled)
         }
         glassTint = tint(palette.glassTint)
         fieldTint = tint(palette.fieldTint)
         fieldShade = opaque || palette.fieldShade.alpha <= 0 ? nil : resolve(palette.fieldShade)
         rim = theme.panel.rimWidth > 0 && palette.rim.alpha > 0 ? resolve(palette.rim) : nil
         shadow = theme.panel.shadowRadius > 0 && palette.shadow.alpha > 0 ? resolve(palette.shadow) : nil
-        lensGlassTint = palette.lensGlassTint.nsColor
+        lensGlassTint = resolve.appKit(palette.lensGlassTint)
 
         let clear = accessibility.reduceTransparency
         grid = ResolvedGridStyle(theme, palette, resolve)

@@ -38,7 +38,6 @@
             let canvas: CGRect
             let placedOrigin: CGPoint
             let restoreOrigin: CGPoint
-            let restoreAppearance: NSAppearance?
             let backdrop: NSWindow?
             let watch: IdleGuard.Watch
             let capture: ClipRecorder
@@ -50,7 +49,7 @@
 
             init(
                 recording: ScenarioRecording, panel: PanelController, folder: URL, master: URL, canvas: CGRect,
-                placedOrigin: CGPoint, restoreOrigin: CGPoint, restoreAppearance: NSAppearance?, backdrop: NSWindow?,
+                placedOrigin: CGPoint, restoreOrigin: CGPoint, backdrop: NSWindow?,
                 watch: IdleGuard.Watch, capture: ClipRecorder, writer: MP4ClipWriter, frames: FrameLog,
                 idleAtStart: Double
             ) {
@@ -61,7 +60,6 @@
                 self.canvas = canvas
                 self.placedOrigin = placedOrigin
                 self.restoreOrigin = restoreOrigin
-                self.restoreAppearance = restoreAppearance
                 self.backdrop = backdrop
                 self.watch = watch
                 self.capture = capture
@@ -88,7 +86,8 @@
                 origin: CGPoint(x: visible.minX.rounded(), y: visible.minY.rounded()),
                 size: ScenarioRecording.canvasSize)
             let restoreOrigin = window.frame.origin
-            let restoreAppearance = window.appearance
+            // The clip's appearance replaces the one the panel's appearance setting asks for, until
+            // the clip ends or a step sets the setting to light or dark.
             if let appearance = recording.appearance {
                 let look = NSAppearance(named: appearance == .dark ? .darkAqua : .aqua)
                 NSApp.appearance = look
@@ -146,7 +145,7 @@
                     url: master, width: pixels.width, height: pixels.height,
                     settings: .init(frameRate: nil, bitRate: 24_000_000, keyFrameInterval: 1))
             } catch {
-                putBack(window: window, panel: panel, origin: restoreOrigin, appearance: restoreAppearance)
+                putBack(window: window, panel: panel, origin: restoreOrigin)
                 backdrop?.close()
                 return "cannot open \(master.lastPathComponent): \(error)"
             }
@@ -154,8 +153,8 @@
             let capture = ClipRecorder(frameRate: recording.frameRate)
             let session = Session(
                 recording: recording, panel: panel, folder: folder, master: master, canvas: canvas,
-                placedOrigin: placedOrigin, restoreOrigin: restoreOrigin, restoreAppearance: restoreAppearance,
-                backdrop: backdrop, watch: watch, capture: capture, writer: writer, frames: frames, idleAtStart: idle)
+                placedOrigin: placedOrigin, restoreOrigin: restoreOrigin, backdrop: backdrop, watch: watch,
+                capture: capture, writer: writer, frames: frames, idleAtStart: idle)
             watch.onInput = { [weak self] in self?.inputDidArrive() }
             watch.start()
             self.session = session
@@ -293,13 +292,13 @@
         private func finish(_ session: Session) {
             if let observer = session.moveObserver { NotificationCenter.default.removeObserver(observer) }
             session.moveObserver = nil
-            putBack(
-                window: session.panel.surface.panel, panel: session.panel, origin: session.restoreOrigin,
-                appearance: session.restoreAppearance)
+            putBack(window: session.panel.surface.panel, panel: session.panel, origin: session.restoreOrigin)
             session.backdrop?.close()
         }
 
-        private func putBack(window: GlassPanel, panel: PanelController, origin: CGPoint, appearance: NSAppearance?) {
+        /// Puts the panel back at `origin`, without key status and in the appearance its setting asks
+        /// for, which a scenario may have changed during the clip.
+        private func putBack(window: GlassPanel, panel: PanelController, origin: CGPoint) {
             panel.summoner.takesKeyStatus = false
             if window.isKeyWindow {
                 // Giving key status back must not dismiss the panel.
@@ -309,11 +308,8 @@
                 window.resignKey()
                 window.onResignKey = handler
             }
-            if window.appearance != appearance {
-                NSApp.appearance = nil
-                window.appearance = appearance
-                panel.surface.refreshTheme()
-            }
+            if NSApp.appearance != nil { NSApp.appearance = nil }
+            panel.applyAppearance()
             panel.surface.place(windowOrigin: origin)
         }
     }

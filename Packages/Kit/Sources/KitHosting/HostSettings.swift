@@ -83,6 +83,9 @@ public enum HostSettings {
     /// The name of the selected theme: a built-in theme or a user theme file.
     public static let themeName = SettingKey("themeName", default: "Standard")
 
+    /// Whether the launcher draws in light or dark, or as the system does.
+    public static let appearance = SettingKey("appearance", default: Appearance.system)
+
     /// True once the user finished onboarding.
     public static let onboardingDone = SettingKey("onboardingDone", default: false)
 
@@ -93,7 +96,7 @@ public enum HostSettings {
             resetToRootAfter.erased, launcherHotkey.erased, showSuggestions.erased, suggestionCount.erased,
             showFavorites.erased, inlineCompletion.erased, fallbackCommands.erased, tabCommand.erased,
             learningPaused.erased, showStatusItem.erased, fetchRemoteIcons.erased, themeName.erased,
-            onboardingDone.erased,
+            appearance.erased, onboardingDone.erased,
         ]
     }
 
@@ -128,5 +131,15 @@ public enum HostSettings {
         case main
         /// The screen of the frontmost app's focused window.
         case activeWindow
+    }
+
+    /// Whether the launcher draws in light or dark.
+    public enum Appearance: String, Hashable, Sendable, CaseIterable, SettingValue {
+        /// Light or dark, as the system is, and switching when the system switches.
+        case system
+        /// Always light.
+        case light
+        /// Always dark.
+        case dark
     }
 }

@@ -186,7 +186,7 @@ As of 2026-11-16, 12 of 30 features are available and 18 are in progress.
 
 | In progress | What it does |
 |---|---|
-| Themes | Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, then save and share the theme as a file. Switching themes works in the launcher. The editor and sharing are not tested in the app yet. |
+| Themes | Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height, and the launcher shows each change as you make it. Save a copy under a new name, and share any theme as a file. Keep the launcher light or dark, or let it follow the system. Switching themes works in the launcher. The editor, sharing and the light or dark choice are not tested in the app yet. |
 | Updates | Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. Version 0.1.0 is the first release with the updater, so no update has reached anyone through it yet. |
 
 #### Built-in tools
@@ -314,7 +314,7 @@ Everything lives in `~/Library/Application Support/Slick`. Settings go to the ap
 
 - `app.root` holds what the launcher learns, as a snapshot and an append-only event log.
 - `Features/<feature>` holds each feature's own files, such as snippets, quicklinks, your scripts and AI chats. The clipboard history database appears there only once you switch Clipboard History on.
-- `Caches` holds the icon cache, and `Themes` holds your own themes.
+- `Caches` holds the icon cache, and `Themes` holds your own themes and your changes to the built-in ones.
 - `launcher.lock` marks the one running copy.
 
 Clipboard history never stores items an app marks as concealed, transient or auto-generated. File search, once you switch it on, indexes the names and dates of the files in your home folder and never reads their contents. It skips Library and packages such as apps, and it leaves out Desktop, Documents, Downloads and iCloud Drive until you include them.

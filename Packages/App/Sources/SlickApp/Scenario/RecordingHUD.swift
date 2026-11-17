@@ -1,3 +1,4 @@
+import AppKit
 import Host
 import Kit
 import LauncherUI
@@ -15,4 +16,7 @@ import LauncherUI
     func prewarm() {}
 
     func apply(_ theme: Theme) {}
+
+    /// The appearance the panel last gave it.
+    var appearance: NSAppearance?
 }

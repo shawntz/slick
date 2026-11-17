@@ -184,7 +184,9 @@ struct ThemeStoreTests {
         #expect(glassSummary.contains("harder to read over a busy or bright window"))
     }
 
-    @Test func userThemesWithABuiltInNameOldOrNewAreSkipped() throws {
+    /// A file with a built-in theme's name holds the user's changes to that theme. A file with a
+    /// name the theme had in an earlier build is still skipped, so the old name never changes it.
+    @Test func aFileWithABuiltInNameChangesItAndAFormerNameIsSkipped() throws {
         let folder = Folder()
         let file = String(decoding: try JSONEncoder().encode(Theme.graphite), as: UTF8.self)
         for name in ["Spotlight", "glass", "Beam", "Clear", "Mine"] {
@@ -192,10 +194,26 @@ struct ThemeStoreTests {
         }
         let store = ThemeStore(folder: folder.url)
         #expect(store.themes.map(\.name) == Self.builtInNames + ["Mine"])
-        #expect(
-            Set(store.problems.map(\.file.lastPathComponent))
-                == ["Spotlight.json", "glass.json", "Beam.json", "Clear.json"])
+        #expect(Set(store.problems.map(\.file.lastPathComponent)) == ["Beam.json", "Clear.json"])
+        for name in ["Spotlight", "Glass"] {
+            let named = try #require(store.theme(named: name))
+            #expect(named.isBuiltIn && named.isCustomized && named.theme == .graphite, "\(name)")
+        }
         #expect(store.theme(named: "Beam")?.isBuiltIn == true)
+        #expect(store.theme(named: "Beam")?.name == "Spotlight")
+        #expect(ThemeStore.builtInThemes.first { $0.name == "Spotlight" }?.theme == .spotlight, "as it ships")
+    }
+
+    /// Before, a file named like a built-in theme was skipped as a duplicate and listed as a
+    /// problem. Now it is the theme's changed version, and the store selects that version.
+    @Test func aFileNamedLikeABuiltInThemeIsNoLongerAProblem() throws {
+        let folder = Folder()
+        try folder.write(String(decoding: try JSONEncoder().encode(Theme.ember), as: UTF8.self), to: "Standard.json")
+        let store = ThemeStore(folder: folder.url)
+        #expect(store.problems.isEmpty)
+        #expect(store.themes.map(\.name) == Self.builtInNames)
+        #expect(store.selectedName == "Standard" && store.current == .ember)
+        #expect(store.theme(named: "Standard")?.theme == .ember)
     }
 
     @Test func missingSelectionFallsBackToStandard() {
@@ -241,6 +259,219 @@ struct ThemeStoreTests {
         #expect(store.theme(named: "Warm") == nil)
         #expect(throws: ThemeStoreError.builtInName("Ocean")) { try store.delete("Ocean") }
         #expect(throws: ThemeStoreError.unknownTheme("Warm")) { try store.delete("Warm") }
+    }
+
+    /// Standard as the store lists it, with the user's changes, takes over, not Standard as it ships.
+    @Test func deletingTheSelectedThemeFallsBackToTheChangedStandard() throws {
+        let folder = Folder()
+        var mine = Theme.standard
+        mine.clarity = 1.7
+        try folder.write(String(decoding: try JSONEncoder().encode(mine), as: UTF8.self), to: "Standard.json")
+        let store = ThemeStore(folder: folder.url)
+        try store.save(.ember, as: "Warm")
+        store.select("Warm")
+        try store.delete("Warm")
+        #expect(store.selectedName == "Standard")
+        #expect(store.current == mine)
+    }
+
+    // MARK: Changing a theme
+
+    static func changedStandard(clarity: Double = 1.5) -> Theme {
+        var theme = Theme.standard
+        theme.clarity = clarity
+        theme.list.rowHeight = 44
+        return theme
+    }
+
+    @Test func updatingABuiltInThemeKeepsTheChangesInAFileNamedAfterIt() throws {
+        let folder = Folder()
+        let store = ThemeStore(folder: folder.url)
+        var seen: [ThemeStore.Changes] = []
+        store.addObserver { seen.append($0) }
+        let changed = Self.changedStandard()
+
+        try store.update(changed, for: "standard")
+        #expect(store.current == changed, "Standard is selected, so the launcher draws the change")
+        #expect(store.selectedName == "Standard")
+        #expect(seen == [[.list, .current]])
+        let named = try #require(store.theme(named: "Standard"))
+        #expect(named.isBuiltIn && named.isCustomized && named.theme == changed)
+        #expect(named.summary == ThemeStore.builtInThemes[0].summary)
+        #expect(ThemeStore.builtInThemes[0].theme == .standard && !ThemeStore.builtInThemes[0].isCustomized)
+        #expect(FileManager.default.fileExists(atPath: folder.url.appending(path: "Standard.json").path))
+        #expect(store.themes.map(\.name) == Self.builtInNames, "no new theme is listed")
+
+        // The next launch reads the change back and selects it.
+        let next = ThemeStore(folder: folder.url, selecting: "Standard")
+        #expect(next.problems.isEmpty)
+        #expect(next.theme(named: "Standard")?.isCustomized == true)
+        #expect(next.current == changed)
+        #expect(next.themes.map(\.name) == Self.builtInNames)
+
+        #expect(throws: ThemeStoreError.unknownTheme("Nope")) { try store.update(changed, for: "Nope") }
+        #expect(throws: ThemeStoreError.builtInName("Standard")) { try store.save(changed, as: "Standard") }
+    }
+
+    @Test func aChangeToAThemeThatIsNotSelectedLeavesTheLauncherAlone() throws {
+        let folder = Folder()
+        let store = ThemeStore(folder: folder.url, selecting: "Graphite")
+        var seen: [ThemeStore.Changes] = []
+        store.addObserver { seen.append($0) }
+        var changed = Theme.ocean
+        changed.clarity = 0.4
+
+        try store.update(changed, for: "Ocean")
+        #expect(store.current == .graphite)
+        #expect(seen == [.list], "only the list changed")
+        #expect(store.select("Ocean"))
+        #expect(store.current == changed)
+        // A name an earlier build used finds the theme it was renamed to.
+        try store.update(.graphite, for: "Beam")
+        #expect(store.theme(named: "Spotlight")?.theme == .graphite)
+        #expect(FileManager.default.fileExists(atPath: folder.url.appending(path: "Spotlight.json").path))
+        #expect(!FileManager.default.fileExists(atPath: folder.url.appending(path: "Beam.json").path))
+    }
+
+    @Test func aBuiltInThemeEqualToTheOneThatShipsHasNoFile() throws {
+        let folder = Folder()
+        let store = ThemeStore(folder: folder.url)
+        let file = folder.url.appending(path: "Standard.json")
+        try store.update(Self.changedStandard(), for: "Standard")
+        #expect(FileManager.default.fileExists(atPath: file.path))
+
+        try store.update(.standard, for: "Standard")
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+        #expect(store.theme(named: "Standard")?.isCustomized == false)
+        #expect(store.current == .standard)
+        #expect(ThemeStore(folder: folder.url).theme(named: "Standard") == ThemeStore.builtInThemes[0])
+    }
+
+    @Test func resetPutsABuiltInThemeBackAsItShips() throws {
+        let folder = Folder()
+        let store = ThemeStore(folder: folder.url, selecting: "Ember")
+        var changed = Theme.ember
+        changed.panel.cornerRadius = 30
+        try store.update(changed, for: "Ember")
+        var seen: [ThemeStore.Changes] = []
+        store.addObserver { seen.append($0) }
+
+        try store.reset("ember")
+        #expect(store.current == .ember)
+        #expect(store.theme(named: "Ember") == ThemeStore.builtInThemes.first { $0.name == "Ember" })
+        #expect(!FileManager.default.fileExists(atPath: folder.url.appending(path: "Ember.json").path))
+        #expect(seen == [[.list, .current]])
+        #expect(ThemeStore(folder: folder.url, selecting: "Ember").current == .ember)
+
+        // Nothing to reset: no change is sent. A theme of the user's own has nothing to reset to.
+        try store.reset("Ember")
+        try store.save(.graphite, as: "Mine")
+        try store.reset("Mine")
+        #expect(store.theme(named: "Mine")?.theme == .graphite)
+        #expect(FileManager.default.fileExists(atPath: folder.url.appending(path: "Mine.json").path))
+        #expect(seen == [[.list, .current], .list])
+        #expect(throws: ThemeStoreError.unknownTheme("Nope")) { try store.reset("Nope") }
+    }
+
+    @Test func updatingAUserThemeRewritesItsFile() throws {
+        let folder = Folder()
+        let store = ThemeStore(folder: folder.url)
+        try store.save(.graphite, as: "Night")
+        var seen: [ThemeStore.Changes] = []
+        store.addObserver { seen.append($0) }
+
+        try store.update(.ember, for: "night")
+        #expect(seen == [.list])
+        #expect(store.theme(named: "Night")?.theme == .ember)
+        #expect(store.theme(named: "Night")?.isCustomized == false)
+        #expect(ThemeStore(folder: folder.url).theme(named: "Night")?.theme == .ember)
+
+        store.select("Night")
+        var changed = Theme.ember
+        changed.clarity = 0.2
+        try store.update(changed, for: "Night")
+        #expect(store.current == changed)
+        #expect(seen.last == [.list, .current])
+        #expect(ThemeStore(folder: folder.url, selecting: "Night").current == changed)
+    }
+
+    /// When the file cannot be written, the change still shows for this run, and the caller learns
+    /// that it was not kept.
+    @Test func aFolderThatCannotBeWrittenStillChangesTheThemeAndThrows() throws {
+        let parent = Folder()
+        try parent.write("not a folder", to: "Themes")
+        let store = ThemeStore(folder: parent.url.appending(path: "Themes"))
+        var seen: [ThemeStore.Changes] = []
+        store.addObserver { seen.append($0) }
+        let changed = Self.changedStandard()
+
+        #expect(throws: (any Error).self) { try store.update(changed, for: "Standard") }
+        #expect(store.current == changed)
+        #expect(store.theme(named: "Standard")?.isCustomized == true)
+        #expect(seen == [[.list, .current]])
+    }
+
+    /// The theme files in a folder, by name as the folder spells them.
+    static func jsonFiles(in folder: Folder) throws -> [String] {
+        try FileManager.default.contentsOfDirectory(atPath: folder.url.path).filter { $0.hasSuffix(".json") }.sorted()
+    }
+
+    /// A file the user named in another case holds the changes, and it is the file an update writes
+    /// and a reset removes. On a volume that tells case apart, writing `Standard.json` beside it
+    /// would leave two files, and the older one would win at the next launch.
+    @Test func aChangesFileSpelledInAnotherCaseIsTheOneUpdatedAndReset() throws {
+        let folder = Folder()
+        try folder.write(String(decoding: try JSONEncoder().encode(Theme.ember), as: UTF8.self), to: "standard.json")
+        let store = ThemeStore(folder: folder.url)
+        #expect(store.current == .ember)
+        let changed = Self.changedStandard()
+
+        try store.update(changed, for: "Standard")
+        #expect(try Self.jsonFiles(in: folder) == ["standard.json"])
+        #expect(ThemeStore(folder: folder.url).current == changed, "the next launch reads the latest change")
+
+        try store.reset("Standard")
+        #expect(try Self.jsonFiles(in: folder).isEmpty)
+        #expect(ThemeStore(folder: folder.url).theme(named: "Standard") == ThemeStore.builtInThemes[0])
+    }
+
+    /// A file named after a built-in theme that does not decode, perhaps after a hand edit with a
+    /// typo, stays as the user left it. The change still shows for this run, and the caller learns
+    /// that it was not kept.
+    @Test func aChangesFileThatCannotBeReadIsNeverWrittenOverOrRemoved() throws {
+        let folder = Folder()
+        let text = "{ \"clarity\": 1.2, oops"
+        try folder.write(text, to: "Standard.json")
+        let file = folder.url.appending(path: "Standard.json")
+        let store = ThemeStore(folder: folder.url)
+        #expect(store.problems.map(\.file.lastPathComponent) == ["Standard.json"])
+        #expect(store.current == .standard)
+        let changed = Self.changedStandard()
+        func leftAlone(_ error: ThemeStoreError?) -> Bool {
+            guard case .unreadable(let url, let reason) = error else { return false }
+            return url.lastPathComponent == "Standard.json" && reason == "not JSON"
+        }
+
+        let edit = #expect(throws: ThemeStoreError.self) { try store.update(changed, for: "Standard") }
+        #expect(leftAlone(edit))
+        #expect(store.current == changed)
+        #expect(try String(contentsOf: file, encoding: .utf8) == text)
+
+        // Back as it ships, through an edit or a reset, removes nothing either.
+        let back = #expect(throws: ThemeStoreError.self) { try store.update(.standard, for: "Standard") }
+        #expect(leftAlone(back))
+        let reset = #expect(throws: ThemeStoreError.self) { try store.reset("Standard") }
+        #expect(leftAlone(reset))
+        #expect(store.current == .standard)
+        #expect(try String(contentsOf: file, encoding: .utf8) == text)
+        #expect(ThemeStore(folder: folder.url).problems.map(\.file.lastPathComponent) == ["Standard.json"])
+
+        // Once the user fixes the file, the store reads it and changes it as any other.
+        try folder.write(String(decoding: try JSONEncoder().encode(Theme.ember), as: UTF8.self), to: "Standard.json")
+        store.reload()
+        #expect(store.problems.isEmpty && store.current == .ember)
+        try store.update(changed, for: "Standard")
+        #expect(ThemeStore(folder: folder.url).current == changed)
     }
 
     @Test func importsWithAUniqueNameAndExportsAReadableFile() throws {

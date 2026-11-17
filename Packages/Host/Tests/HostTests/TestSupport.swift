@@ -82,6 +82,7 @@ import LauncherUI
 /// HUDs recorded instead of shown.
 @MainActor final class RecordingHUD: HUDDisplay {
     private(set) var shown: [HUD] = []
+    var appearance: NSAppearance?
     func show(_ hud: HUD) { shown.append(hud) }
     func prewarm() {}
     func apply(_ theme: Theme) {}

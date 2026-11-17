@@ -24,6 +24,7 @@ import Testing
     private func makePanel() async -> (PanelController, BenchRootSource, RuntimeFixture) {
         _ = NSApplication.shared
         let runtime = RuntimeFixture()
+        HostSettings.settings(runtime.fakes.settings)[HostSettings.appearance] = .light
         await runtime.start()
         let root = BenchRootSource()
         let surface = LauncherSurface(visibleFrame: PanelFixture.offscreen)

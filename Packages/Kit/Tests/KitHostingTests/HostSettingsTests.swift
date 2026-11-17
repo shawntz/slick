@@ -22,6 +22,7 @@ import Testing
         #expect(general[HostSettings.showStatusItem])
         #expect(general[HostSettings.fetchRemoteIcons])
         #expect(general[HostSettings.themeName] == "Standard")
+        #expect(general[HostSettings.appearance] == .system)
         #expect(!general[HostSettings.onboardingDone])
     }
 
@@ -36,6 +37,7 @@ import Testing
         general[HostSettings.fallbackCommands] = ["cmd:web.google", "cmd:web.maps"]
         general[HostSettings.tabCommand] = "cmd:ai.ask"
         general[HostSettings.themeName] = "Graphite"
+        general[HostSettings.appearance] = .dark
 
         let reread = HostSettings.settings(store)
         #expect(reread[HostSettings.panelSizing] == .fitContent)
@@ -46,14 +48,17 @@ import Testing
         #expect(reread[HostSettings.fallbackCommands] == ["cmd:web.google", "cmd:web.maps"])
         #expect(reread[HostSettings.tabCommand] == "cmd:ai.ask")
         #expect(reread[HostSettings.themeName] == "Graphite")
+        #expect(reread[HostSettings.appearance] == .dark)
         #expect(store.values["app.general.panelSizing"] == .string("fitContent"))
+        #expect(store.values["app.general.appearance"] == .string("dark"))
         #expect(store.values["app.general.launcherHotkey"] == .empty)
         #expect(store.values.keys.allSatisfy { $0.hasPrefix(HostSettings.namespace + ".") })
     }
 
     @Test func everyKeyIsListedOnce() {
         let names = HostSettings.allKeys.map(\.name)
-        #expect(names.count == 17)
+        #expect(names.count == 18)
+        #expect(names.contains(HostSettings.appearance.name))
         #expect(Set(names).count == names.count)
         #expect(!FeatureManifestID.isValid(HostSettings.namespace))
     }

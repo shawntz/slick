@@ -3,13 +3,17 @@ import Foundation
 /// The themes the user can pick and the one in use.
 ///
 /// It lists the built-in themes and the user's themes, which are JSON files in a folder it is given,
-/// one ``Theme`` per file, named by the file name without `.json`. It selects one by name, saves an
-/// edited theme as a user theme, imports and exports theme files, and tells observers when anything
-/// changed. The panel observes it to restyle, and the settings window to redraw its list.
+/// one ``Theme`` per file, named by the file name without `.json`. A file named after a built-in
+/// theme, such as `Standard.json`, holds the user's changes to that theme, and the store lists the
+/// changed version in its place. It selects one by name, sets a theme's values with
+/// ``update(_:for:)``, puts a built-in theme back as it ships with ``reset(_:)``, saves a theme
+/// under a new name as a user theme, imports and exports theme files, and tells observers when
+/// anything changed. The panel observes it to restyle, and the settings window to redraw its list.
 ///
 /// Scanning and saving read and write files on the calling thread. Make the store at launch and
 /// change it from settings, never on the summon or keystroke path. A file that does not decode as a
-/// theme is skipped and listed in ``problems``; it never stops the store.
+/// theme is skipped and listed in ``problems``; it never stops the store. When that file is named
+/// after a built-in theme, the store neither writes over it nor removes it.
 public final class ThemeStore {
     /// What changed, as observers receive it.
     nonisolated public struct Changes: OptionSet, Sendable {
@@ -33,7 +37,8 @@ public final class ThemeStore {
     /// The name of ``Theme/standard``, the theme used when nothing else is selected.
     nonisolated public static let standardName = "Standard"
 
-    /// Every built-in theme, Standard first, with a sentence each for the settings window.
+    /// Every built-in theme as it ships, Standard first, with a sentence each for the settings
+    /// window. ``themes`` lists them with the user's changes.
     public static let builtInThemes: [NamedTheme] = [
         NamedTheme(
             name: standardName, theme: .standard, isBuiltIn: true,
@@ -54,8 +59,9 @@ public final class ThemeStore {
     ]
 
     /// Names earlier builds gave built-in themes, with the name each has now. A name an earlier
-    /// build stored selects the renamed theme, and a user theme file with one of these names is
-    /// skipped, as it was then, so the old name always means the built-in theme.
+    /// build stored selects the renamed theme, and a theme file with one of these names is skipped,
+    /// as it was then, so the old name always means the built-in theme. Such a file never holds
+    /// changes to the built-in theme either: only a file with the theme's name now does.
     nonisolated public static let formerNames: [String: String] = ["Beam": "Spotlight", "Clear": "Glass"]
 
     /// The name a built-in theme has now for a name it had in an earlier build, or the name itself.
@@ -63,11 +69,18 @@ public final class ThemeStore {
         formerNames.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value ?? name
     }
 
-    /// The folder of user theme files. Created on the first save.
+    /// The built-in theme with this name as it ships, ignoring case. A former name finds it too.
+    public static func builtInTheme(named name: String) -> NamedTheme? {
+        let current = currentName(for: name)
+        return builtInThemes.first { $0.name.caseInsensitiveCompare(current) == .orderedSame }
+    }
+
+    /// The folder of theme files: the user's themes and the changes to built-in themes. Created on
+    /// the first save.
     public let folder: URL
-    /// The built-in themes, then the user's themes ordered by name.
+    /// The built-in themes, with the user's changes, then the user's themes ordered by name.
     public private(set) var themes: [NamedTheme] = ThemeStore.builtInThemes
-    /// User theme files that were skipped, with the reason, from the last scan.
+    /// Theme files that were skipped, with the reason, from the last scan.
     public private(set) var problems: [ThemeFileProblem] = []
     /// The name of the theme in use.
     public private(set) var selectedName = ThemeStore.standardName
@@ -76,19 +89,25 @@ public final class ThemeStore {
 
     private var observers: [Int: @MainActor (Changes) -> Void] = [:]
     private var nextObserver = 0
+    /// The file each built-in theme's changes came from in the last scan, by the theme's name. On a
+    /// volume that tells case apart it can be spelled unlike the theme, such as `standard.json`, and
+    /// it is the file an update writes and a reset removes.
+    private var changesFiles: [String: URL] = [:]
+    /// The file named after a built-in theme that the last scan could not read, by the theme's name.
+    /// The store neither writes over it nor removes it, so what the user wrote in it by hand stays.
+    private var unreadableChangesFiles: [String: ThemeFileProblem] = [:]
 
     /// Scans the folder and selects a theme.
     ///
     /// - Parameters:
-    ///   - folder: Where user theme files live. It need not exist yet.
+    ///   - folder: Where theme files live. It need not exist yet.
     ///   - name: The theme to select, such as the stored setting. Standard when no theme has it.
     public init(folder: URL, selecting name: String = ThemeStore.standardName) {
         self.folder = folder
         scan()
-        if let named = theme(named: name) {
-            selectedName = named.name
-            current = named.theme
-        }
+        let named = theme(named: name) ?? standard
+        selectedName = named.name
+        current = named.theme
     }
 
     /// The theme with this name, ignoring case. A built-in theme's former name finds it too.
@@ -114,13 +133,63 @@ public final class ThemeStore {
     public func reload() {
         scan()
         var changes: Changes = .list
-        let named = theme(named: selectedName) ?? Self.builtInThemes[0]
+        let named = theme(named: selectedName) ?? standard
         if named.name != selectedName || named.theme != current {
             selectedName = named.name
             current = named.theme
             changes.insert(.current)
         }
         notify(changes)
+    }
+
+    /// Sets the values of the theme with this name, ignoring case, as the settings window does
+    /// while the user changes a theme.
+    ///
+    /// The change takes effect in memory first: the theme is listed with the new values and, when
+    /// it is selected, becomes current, and observers hear of it. Then the file is written: a user
+    /// theme's file, or for a built-in theme the file of its changes, which is removed instead when
+    /// the theme equals the one that ships.
+    ///
+    /// Throws ``ThemeStoreError/unknownTheme(_:)`` when no theme has the name,
+    /// ``ThemeStoreError/unreadable(_:reason:)`` when the file named after a built-in theme could
+    /// not be read in the last scan, which the store leaves as it is, and the file system's error
+    /// when the file cannot be written or removed. Then the change is in place until the store
+    /// reads the folder again, but it was not kept.
+    public func update(_ theme: Theme, for name: String) throws {
+        let wanted = Self.currentName(for: name)
+        guard let index = themes.firstIndex(where: { $0.name.caseInsensitiveCompare(wanted) == .orderedSame })
+        else { throw ThemeStoreError.unknownTheme(name) }
+        var entry = themes[index]
+        entry.theme = theme
+        if entry.isBuiltIn { entry.isCustomized = theme != Self.builtInTheme(named: entry.name)?.theme }
+        themes[index] = entry
+        notify(makeCurrent(entry, changes: .list))
+        guard entry.isBuiltIn else { return try write(theme, to: fileURL(for: entry.name)) }
+        let file = try changesFile(of: entry.name)
+        if entry.isCustomized {
+            try write(theme, to: file)
+            changesFiles[entry.name] = file
+        } else {
+            try removeFile(file)
+            changesFiles[entry.name] = nil
+        }
+    }
+
+    /// Puts a built-in theme back as it ships, ignoring case, and removes the file of its changes.
+    /// Does nothing for a theme of the user's own. Throws ``ThemeStoreError/unknownTheme(_:)`` when
+    /// no theme has the name, ``ThemeStoreError/unreadable(_:reason:)`` when the theme's file could
+    /// not be read in the last scan, which the store leaves as it is, and the file system's error
+    /// when the file cannot be removed. Then the theme is back as it ships until the store reads
+    /// the folder again.
+    public func reset(_ name: String) throws {
+        guard let named = theme(named: name) else { throw ThemeStoreError.unknownTheme(name) }
+        guard named.isBuiltIn, let shipped = Self.builtInTheme(named: named.name) else { return }
+        if let index = themes.firstIndex(where: { $0.name == shipped.name }), themes[index] != shipped {
+            themes[index] = shipped
+            notify(makeCurrent(shipped, changes: .list))
+        }
+        try removeFile(changesFile(of: shipped.name))
+        changesFiles[shipped.name] = nil
     }
 
     /// Saves a theme as a user theme, replacing one with the same name. When that theme is
@@ -135,12 +204,11 @@ public final class ThemeStore {
             throw ThemeStoreError.builtInName(existing.name)
         }
         let stored = self.theme(named: name)?.name ?? name
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try Self.encode(theme).write(to: fileURL(for: stored), options: .atomic)
+        try write(theme, to: fileURL(for: stored))
         let entry = NamedTheme(name: stored, theme: theme, isBuiltIn: false)
         themes.removeAll { $0.name == stored }
         themes.append(entry)
-        themes = Self.builtInThemes + userThemesSorted()
+        themes = themes.filter(\.isBuiltIn) + userThemesSorted()
         var changes: Changes = .list
         if stored == selectedName && theme != current {
             current = theme
@@ -149,8 +217,8 @@ public final class ThemeStore {
         notify(changes)
     }
 
-    /// Deletes a user theme's file. When it was selected, Standard becomes current. Throws
-    /// ``ThemeStoreError/builtInName(_:)`` for a built-in theme and
+    /// Deletes a user theme's file. When it was selected, Standard, with the user's changes,
+    /// becomes current. Throws ``ThemeStoreError/builtInName(_:)`` for a built-in theme and
     /// ``ThemeStoreError/unknownTheme(_:)`` when no theme has the name.
     public func delete(_ name: String) throws {
         guard let named = theme(named: name) else { throw ThemeStoreError.unknownTheme(name) }
@@ -159,8 +227,9 @@ public final class ThemeStore {
         themes.removeAll { $0.name == named.name }
         var changes: Changes = .list
         if named.name == selectedName {
-            selectedName = Self.standardName
-            current = .standard
+            let standard = self.standard
+            selectedName = standard.name
+            current = standard.theme
             changes.insert(.current)
         }
         notify(changes)
@@ -211,9 +280,26 @@ public final class ThemeStore {
         }
     }
 
+    /// Standard as the store lists it, with the user's changes.
+    private var standard: NamedTheme {
+        themes.first { $0.name == Self.standardName } ?? Self.builtInThemes[0]
+    }
+
+    /// Makes a theme that was just listed with new values current when it is the selected one, and
+    /// returns `changes` with ``Changes/current`` added when current changed.
+    private func makeCurrent(_ entry: NamedTheme, changes: Changes) -> Changes {
+        guard entry.name == selectedName, entry.theme != current else { return changes }
+        current = entry.theme
+        return changes.union(.current)
+    }
+
     private func scan() {
+        var builtIns = Self.builtInThemes
+        var changed: Set<String> = []
         var found: [NamedTheme] = []
         var skipped: [ThemeFileProblem] = []
+        changesFiles = [:]
+        unreadableChangesFiles = [:]
         let files =
             (try? FileManager.default.contentsOfDirectory(
                 at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
@@ -221,21 +307,57 @@ public final class ThemeStore {
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
         for file in themeFiles {
             let name = file.deletingPathExtension().lastPathComponent
-            let taken = Self.builtInThemes.map(\.name) + Array(Self.formerNames.keys) + found.map(\.name)
+            let builtIn = builtIns.firstIndex { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+            let taken = Array(Self.formerNames.keys) + found.map(\.name) + Array(changed)
             if taken.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) {
                 skipped.append(ThemeFileProblem(file: file, reason: "another theme already has the name \(name)"))
                 continue
             }
+            let theme: Theme
             do {
-                found.append(NamedTheme(name: name, theme: try Self.decode(file), isBuiltIn: false))
-            } catch let error as ThemeStoreError {
-                skipped.append(ThemeFileProblem(file: file, reason: error.reason))
+                theme = try Self.decode(file)
             } catch {
-                skipped.append(ThemeFileProblem(file: file, reason: error.localizedDescription))
+                let problem = ThemeFileProblem(
+                    file: file, reason: (error as? ThemeStoreError)?.reason ?? error.localizedDescription)
+                skipped.append(problem)
+                if let builtIn, unreadableChangesFiles[builtIns[builtIn].name] == nil {
+                    unreadableChangesFiles[builtIns[builtIn].name] = problem
+                }
+                continue
+            }
+            if let builtIn {
+                // The user's changes to a built-in theme.
+                changed.insert(builtIns[builtIn].name)
+                changesFiles[builtIns[builtIn].name] = file
+                builtIns[builtIn].isCustomized = theme != builtIns[builtIn].theme
+                builtIns[builtIn].theme = theme
+            } else {
+                found.append(NamedTheme(name: name, theme: theme, isBuiltIn: false))
             }
         }
-        themes = Self.builtInThemes + found
+        themes = builtIns + found
         problems = skipped
+    }
+
+    /// The file that holds a built-in theme's changes: the one the last scan read, whatever its
+    /// case, or a new one named after the theme. Throws when the last scan could not read the file
+    /// with the theme's name, so neither an update nor a reset replaces what the user wrote there.
+    private func changesFile(of name: String) throws -> URL {
+        if let file = changesFiles[name] { return file }
+        if let problem = unreadableChangesFiles[name] {
+            throw ThemeStoreError.unreadable(problem.file, reason: problem.reason)
+        }
+        return fileURL(for: name)
+    }
+
+    private func write(_ theme: Theme, to file: URL) throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Self.encode(theme).write(to: file, options: .atomic)
+    }
+
+    private func removeFile(_ file: URL) throws {
+        guard FileManager.default.fileExists(atPath: file.path) else { return }
+        try FileManager.default.removeItem(at: file)
     }
 
     private func userThemesSorted() -> [NamedTheme] {
@@ -295,26 +417,30 @@ public final class ThemeStore {
 
 /// A theme with the name the store lists it under.
 nonisolated public struct NamedTheme: Identifiable, Sendable, Equatable {
-    /// Unique among the store's themes, ignoring case. A user theme's file name without `.json`.
+    /// Unique among the store's themes, ignoring case. A theme file's name without `.json`.
     public var name: String
     public var theme: Theme
-    /// True for a theme that ships with the app. Built-in themes cannot be saved over or deleted.
+    /// True for a theme that ships with the app. Built-in themes cannot be saved over under their
+    /// name or deleted. The user's changes to one are kept apart and can be reset.
     public var isBuiltIn: Bool
-    /// One or two sentences on what the theme looks like, for the settings window. Empty for a
-    /// user theme.
+    /// True for a built-in theme that differs from the one that ships, because the user changed it.
+    public var isCustomized: Bool
+    /// One or two sentences on what the theme looks like as it ships, for the settings window.
+    /// Empty for a user theme.
     public var summary: String
 
     public var id: String { name }
 
-    public init(name: String, theme: Theme, isBuiltIn: Bool, summary: String = "") {
+    public init(name: String, theme: Theme, isBuiltIn: Bool, isCustomized: Bool = false, summary: String = "") {
         self.name = name
         self.theme = theme
         self.isBuiltIn = isBuiltIn
+        self.isCustomized = isCustomized
         self.summary = summary
     }
 }
 
-/// A user theme file the store skipped.
+/// A theme file the store skipped.
 nonisolated public struct ThemeFileProblem: Sendable, Equatable {
     public var file: URL
     /// Why, such as "missing light.title".

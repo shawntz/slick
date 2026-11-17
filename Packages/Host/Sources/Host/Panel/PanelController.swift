@@ -117,6 +117,7 @@ import LauncherUI
         surface.actionBar.onToastButton = { [weak self] in self?.runToastAction() }
         let themeName = general[HostSettings.themeName]
         if let themes, themes.selectedName != themeName { themes.select(themeName) }
+        applyAppearance()
         applyTheme()
         surface.onAppearanceChange = { [weak self] in self?.followAppearance() }
         rootPage.showsCompletion = general[HostSettings.inlineCompletion]
@@ -437,9 +438,33 @@ import LauncherUI
         surface.updateHeight(animated: false)
     }
 
+    /// The appearance the appearance setting asks for, or nil to follow the system's.
+    var settingAppearance: NSAppearance? {
+        switch general[HostSettings.appearance] {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+
+    /// Gives the panel's window, the HUD and Large Type the appearance the setting asks for. Runs
+    /// at launch and when the setting changes, never on the summon or keystroke path. The surface
+    /// resolves its theme for the new appearance, and the pages draw their rows again.
+    func applyAppearance() {
+        let appearance = settingAppearance
+        hud.appearance = appearance
+        largeType.appearance = appearance
+        let window = surface.panel
+        guard window.appearance?.name != appearance?.name else { return }
+        window.appearance = appearance
+        surface.refreshTheme()
+        followAppearance()
+    }
+
     /// Hands the surface's resolved theme to the row mapper, and has every page draw its rows
     /// again when the appearance changed, because glyphs are drawn for one appearance. Runs when
-    /// the theme is applied and when the system switches between light and dark under the panel.
+    /// the theme is applied, when the appearance setting changes and when the system switches
+    /// between light and dark under the panel.
     func followAppearance() {
         let appearanceChanged = rowMapper.isDark != surface.resolvedTheme.isDark
         rowMapper.isDark = surface.resolvedTheme.isDark
@@ -460,7 +485,7 @@ import LauncherUI
             })
         let keys = [
             HostSettings.panelSizing.erased, HostSettings.visibleRows.erased, HostSettings.inlineCompletion.erased,
-            HostSettings.themeName.erased, HostSettings.summonStrategy.erased,
+            HostSettings.themeName.erased, HostSettings.summonStrategy.erased, HostSettings.appearance.erased,
         ]
         let settingChanges = general.changes(ofAny: keys)
         watchers.append(
@@ -495,6 +520,8 @@ import LauncherUI
         } else if name == HostSettings.inlineCompletion.name {
             rootPage.showsCompletion = general[HostSettings.inlineCompletion]
             updateChrome()
+        } else if name == HostSettings.appearance.name {
+            applyAppearance()
         } else {
             applyTheme()
         }
