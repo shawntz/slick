@@ -146,13 +146,13 @@ import Observation
         if step == .features { await applyFeatureChoices() }
         guard let following = nearest(from: step.rawValue + 1, by: 1) else { return }
         step = following
-        hotkey.endRecording()
+        hotkey.leave()
     }
 
     func back() {
         guard let previous = nearest(from: step.rawValue - 1, by: -1) else { return }
         step = previous
-        hotkey.endRecording()
+        hotkey.leave()
     }
 
     /// True when the step has something to show: the optional features step lists a feature and
@@ -167,7 +167,7 @@ import Observation
     func show(_ target: Step) -> Bool {
         guard hasContent(target) else { return false }
         step = target
-        hotkey.endRecording()
+        hotkey.leave()
         return true
     }
 

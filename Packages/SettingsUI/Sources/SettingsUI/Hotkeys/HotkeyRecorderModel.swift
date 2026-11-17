@@ -104,6 +104,14 @@ struct HotkeyTarget {
         if isRecording { state = .idle }
     }
 
+    /// Stops recording and drops a review, a refusal or a message, as when the screen that shows
+    /// the recorder goes away and nobody is left to answer. The note that a macOS shortcut holds
+    /// the stored combination stays, because it describes what is stored.
+    func leave() {
+        if case .held = state { return }
+        state = .idle
+    }
+
     /// Shows the modifiers held while recording.
     func modifiersChanged(_ modifiers: KeyModifiers) {
         guard isRecording else { return }
