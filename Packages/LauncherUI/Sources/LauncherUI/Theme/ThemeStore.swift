@@ -151,10 +151,12 @@ public final class ThemeStore {
     /// the theme equals the one that ships.
     ///
     /// Throws ``ThemeStoreError/unknownTheme(_:)`` when no theme has the name,
-    /// ``ThemeStoreError/unreadable(_:reason:)`` when the file named after a built-in theme could
-    /// not be read in the last scan, which the store leaves as it is, and the file system's error
-    /// when the file cannot be written or removed. Then the change is in place until the store
-    /// reads the folder again, but it was not kept.
+    /// ``ThemeStoreError/unreadable(_:reason:)`` when the change has to go into a file named after
+    /// a built-in theme that the last scan could not read, which the store leaves as it is, and
+    /// the file system's error when the file cannot be written or removed. Then the change is in
+    /// place until the store reads the folder again, but it was not kept. A built-in theme set back
+    /// to the values it ships with needs no file, so that never throws for a file the scan could
+    /// not read.
     public func update(_ theme: Theme, for name: String) throws {
         let wanted = Self.currentName(for: name)
         guard let index = themes.firstIndex(where: { $0.name.caseInsensitiveCompare(wanted) == .orderedSame })
@@ -165,22 +167,21 @@ public final class ThemeStore {
         themes[index] = entry
         notify(makeCurrent(entry, changes: .list))
         guard entry.isBuiltIn else { return try write(theme, to: fileURL(for: entry.name)) }
-        let file = try changesFile(of: entry.name)
         if entry.isCustomized {
+            let file = try changesFile(of: entry.name)
             try write(theme, to: file)
             changesFiles[entry.name] = file
         } else {
-            try removeFile(file)
-            changesFiles[entry.name] = nil
+            try removeChangesFile(of: entry.name)
         }
     }
 
     /// Puts a built-in theme back as it ships, ignoring case, and removes the file of its changes.
-    /// Does nothing for a theme of the user's own. Throws ``ThemeStoreError/unknownTheme(_:)`` when
-    /// no theme has the name, ``ThemeStoreError/unreadable(_:reason:)`` when the theme's file could
-    /// not be read in the last scan, which the store leaves as it is, and the file system's error
-    /// when the file cannot be removed. Then the theme is back as it ships until the store reads
-    /// the folder again.
+    /// Does nothing for a theme of the user's own. A file with the theme's name that the last scan
+    /// could not read stays as it is: the store never listed its changes, so the theme is as it
+    /// ships either way. Throws ``ThemeStoreError/unknownTheme(_:)`` when no theme has the name, and
+    /// the file system's error when the file cannot be removed. Then the theme is back as it ships
+    /// until the store reads the folder again.
     public func reset(_ name: String) throws {
         guard let named = theme(named: name) else { throw ThemeStoreError.unknownTheme(name) }
         guard named.isBuiltIn, let shipped = Self.builtInTheme(named: named.name) else { return }
@@ -188,8 +189,7 @@ public final class ThemeStore {
             themes[index] = shipped
             notify(makeCurrent(shipped, changes: .list))
         }
-        try removeFile(changesFile(of: shipped.name))
-        changesFiles[shipped.name] = nil
+        try removeChangesFile(of: shipped.name)
     }
 
     /// Saves a theme as a user theme, replacing one with the same name. When that theme is
@@ -339,15 +339,27 @@ public final class ThemeStore {
         problems = skipped
     }
 
-    /// The file that holds a built-in theme's changes: the one the last scan read, whatever its
+    /// The file to write a built-in theme's changes to: the one the last scan read, whatever its
     /// case, or a new one named after the theme. Throws when the last scan could not read the file
-    /// with the theme's name, so neither an update nor a reset replaces what the user wrote there.
+    /// with the theme's name, so an update never replaces what the user wrote there.
     private func changesFile(of name: String) throws -> URL {
         if let file = changesFiles[name] { return file }
         if let problem = unreadableChangesFiles[name] {
             throw ThemeStoreError.unreadable(problem.file, reason: problem.reason)
         }
         return fileURL(for: name)
+    }
+
+    /// Removes the file of a built-in theme's changes. A file with the theme's name that the last
+    /// scan could not read is not the store's to remove. It stays as the user left it, and the
+    /// theme is as it ships either way.
+    private func removeChangesFile(of name: String) throws {
+        if let file = changesFiles[name] {
+            try removeFile(file)
+            changesFiles[name] = nil
+        } else if unreadableChangesFiles[name] == nil {
+            try removeFile(fileURL(for: name))
+        }
     }
 
     private func write(_ theme: Theme, to file: URL) throws {

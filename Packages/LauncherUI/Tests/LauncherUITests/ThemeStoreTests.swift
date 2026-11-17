@@ -457,12 +457,17 @@ struct ThemeStoreTests {
         #expect(store.current == changed)
         #expect(try String(contentsOf: file, encoding: .utf8) == text)
 
-        // Back as it ships, through an edit or a reset, removes nothing either.
-        let back = #expect(throws: ThemeStoreError.self) { try store.update(.standard, for: "Standard") }
-        #expect(leftAlone(back))
-        let reset = #expect(throws: ThemeStoreError.self) { try store.reset("Standard") }
-        #expect(leftAlone(reset))
+        // Back as it ships, through an edit or a reset, removes nothing either. Neither fails: the
+        // theme is as it ships, which needs no file, and the file stays as the user left it.
+        try store.update(.standard, for: "Standard")
         #expect(store.current == .standard)
+        #expect(try String(contentsOf: file, encoding: .utf8) == text)
+        let again = #expect(throws: ThemeStoreError.self) { try store.update(changed, for: "Standard") }
+        #expect(leftAlone(again))
+        #expect(store.current == changed)
+        try store.reset("Standard")
+        #expect(store.current == .standard)
+        #expect(store.theme(named: "Standard")?.isCustomized == false)
         #expect(try String(contentsOf: file, encoding: .utf8) == text)
         #expect(ThemeStore(folder: folder.url).problems.map(\.file.lastPathComponent) == ["Standard.json"])
 
