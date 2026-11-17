@@ -6,6 +6,10 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 
 ## Unreleased
 
+## 0.1.1
+
+Two fixes in settings, and a choice of light or dark for the launcher.
+
 ### Added
 
 - Light or dark launcher: in settings, under Appearance, choose Match System, Light or Dark. The
