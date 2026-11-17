@@ -19,7 +19,7 @@ Until the domain is attached, the site is at https://shawntz.github.io/slick/. I
 | `assets/og.png` | The 1200 by 630 picture that link previews show. `assets/og-card.html` is its source. |
 | `CNAME`, `robots.txt`, `sitemap.xml`, `.nojekyll` | Domain record, crawler rules, the one-page sitemap, and a marker that turns Jekyll off for branch publishing. |
 
-The page makes no request to any other server. A Content Security Policy in each page's `<meta>` tag enforces that: scripts, styles, images, media and fetches must come from the site itself. There are no web fonts, no analytics and no cookies. HTML, CSS and JavaScript together must stay under 120 KB. On 16 November 2026 `index.html`, `404.html`, `styles.css` and `main.js` came to 104,200 bytes.
+The home and 404 pages load Seline analytics from `https://cdn.seline.com/seline.js` and send page-view events to `https://api.seline.com`. Each page's Content Security Policy allows these external origins for scripts and connections respectively. Seline uses its default configuration without cookies. Styles, images, media and the site's own JavaScript are served locally, with no web fonts. Local HTML, CSS and JavaScript together must stay under 120 KB.
 
 Recordings do not count toward that limit, but they are the heaviest part of the page. A visitor downloads only the posters of the clips they scroll near and only the recordings that play. The posters are 0.3 to 0.8 MB each and the recordings 0.7 to 2.9 MB.
 
@@ -125,9 +125,13 @@ To check a layout without a browser, `scripts/site-snapshot.swift` loads a page 
 
     swiftc -O scripts/site-snapshot.swift -o build/site-snapshot
 
-Before a change goes live, look at full-page captures at 390, 834 and 1440 pixels wide in dark and in light, and check these by hand or in a test page: no sideways scroll from 320 to 1920 pixels, the section links at every width, the same feature list, item for item and laid out the same inside its section, with JavaScript on and off, the clip picker on each of its clips, the hero's Dark and Light switch, Pause and Play, and no request to another server. Stop the local server afterwards.
+Before a change goes live, look at full-page captures at 390, 834 and 1440 pixels wide in dark and in light, and check these by hand or in a test page: no sideways scroll from 320 to 1920 pixels, the section links at every width, the same feature list, item for item and laid out the same inside its section, with JavaScript on and off, the clip picker on each of its clips, the hero's Dark and Light switch, Pause and Play, and no external requests except Seline's script and API. Stop the local server afterwards.
 
 ## Common changes
+
+### Analytics
+
+`index.html` and `404.html` include the same async Seline script and public project token. Keep both tags in sync. The Content Security Policy must allow `https://cdn.seline.com` in `script-src` and `https://api.seline.com` in `connect-src`. The script tracks page views automatically, with cookies disabled by default. See [Seline's installation instructions](https://seline.com/docs/install-seline).
 
 ### The feature list
 
