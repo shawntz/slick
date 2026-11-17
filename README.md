@@ -176,18 +176,18 @@ As of 2026-11-16, 12 of 30 features are available and 18 are in progress.
 
 | Available | What it does |
 |---|---|
-| Liquid Glass panel | A real system glass panel, not a blur imitation, with a selection lens that glides between rows. |
-| Fuzzy search | An in-house matcher that understands prefixes, acronyms, camelCase, word order and typos. |
-| Learns your habits | Pick a result twice for a query and it becomes the top hit. Everything it learns stays on your Mac. |
-| Suggestions before you type | Ranks what you are likely to open next from the time of day, the app in front and what you just used. |
-| Apps and System Settings | Open, quit, hide or reveal any app, and jump straight to a System Settings pane. |
-| Hotkeys, aliases and favorites | Give any item a global hotkey or a short alias, and pin favorites to the top. |
-| Action panel | Every result has more actions behind Command-K, with their own shortcuts. |
+| Liquid Glass panel | A native macOS Liquid Glass panel. |
+| Fuzzy search | Find results by partial name, abbreviation or typo. |
+| Learns your habits | Choose a result twice for the same search to move it to the top. |
+| Suggestions before you type | Get suggestions based on the time of day and the apps you use. |
+| Apps and System Settings | Open, quit or reveal apps and jump to System Settings panes. |
+| Hotkeys, aliases and favorites | Assign keyboard shortcuts and aliases, or pin items as favorites. |
+| Action panel | Press Command-K for actions on the selected result. |
 
 | In progress | What it does |
 |---|---|
-| Themes | Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system's clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height. The preview shows each change, and the launcher uses it at once. Save a copy under a new name, and share any theme as a file. Keep the launcher light or dark, or let it follow the system. Switching themes works in the launcher. The editor, sharing and the light or dark choice are not tested in the app yet. |
-| Updates | Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead. Version 0.1.1 is the first update it offers to people who installed 0.1.0. |
+| Themes | Choose from seven themes and adjust the glass, colors and text size. Switching themes works in the launcher. The editor, sharing and the light or dark choice are not tested in the app yet. |
+| Updates | Optional daily update checks. You choose when to install. Version 0.1.1 is the first update it offers to people who installed 0.1.0. |
 
 #### Built-in tools
 
@@ -195,30 +195,30 @@ As of 2026-11-16, 12 of 30 features are available and 18 are in progress.
 
 | Available | What it does |
 |---|---|
-| Calculator | Math, percentages, units, dates and time zones, answered as you type and copied with Return. Currency conversions fetch rates the first time you ask for one. |
-| Clipboard history | Search text, links, images and files you copied, and paste them back. |
-| Quicklinks and web search | Open sites and searches with a keyword, and fall back to the web when nothing local matches. |
-| Emoji picker | Search emoji and symbols by name and paste them. |
-| Notes | Quick notes kept as Markdown files that any editor opens. Save one from root search, search titles and text, append, pin, tag, rename and paste them. Proven in the launcher on real files in its own folder. A notes folder you choose in Documents or another folder macOS guards has not been read on a Mac yet. A floating note window is not part of it. |
+| Calculator | Calculate, convert units and currencies, and work with dates and time zones. Return copies the answer. |
+| Clipboard history | Find and paste text, links, images and files you copied. |
+| Quicklinks and web search | Open websites or search the web with a keyword. |
+| Emoji picker | Find emoji and symbols by name, then paste them. |
+| Notes | Write, search and organize notes saved as Markdown files. Proven in the launcher on real files in its own folder. A notes folder you choose in Documents or another folder macOS guards has not been read on a Mac yet. A floating note window is not part of it. |
 
 | In progress | What it does |
 |---|---|
-| File search | Slick keeps its own index of file names, which answers in milliseconds, and lets you browse folders. Proven in the launcher over a sample index. Indexing your real folders has not run on a Mac yet. |
-| Snippets | Saved text with placeholders that you find and paste from the launcher. Expanding a keyword as you type in other apps has not run on a Mac yet. |
-| Window management | Halves, thirds, quarters, centering and moving windows between displays. Proven against simulated windows. Moving real windows has not run on a Mac yet. |
-| System commands | Sleep, lock, restart or shut down the Mac, empty the Trash, eject disks, toggle dark mode, set the volume and quit processes. Proven against simulated services. The real system calls have not run on a Mac yet. |
-| Script commands | Run your own scripts from the launcher, with arguments and live output. The commands and their arguments are proven in the launcher. Running a real script has not been tested in the app. |
-| Universal actions | Act on the text or files selected in any app. The actions show for results in the launcher. Reading the selection in another app has not run on a Mac yet. |
-| Dictionary | Look up a word with define, check its spelling, and copy or paste the definition. Proven in the launcher with sample entries. The Mac's own dictionaries have not been read in the app yet. |
-| Calendar and reminders | Your day's events, a meeting to join when it is about to start, and new events and reminders from the launcher. Proven with a sample day. Reading your real calendars has not run on a Mac yet. |
-| Contacts | Find a person and call, message, email or FaceTime them. Proven with sample contacts. Reading your real contacts has not run on a Mac yet. |
-| Browser bookmarks | Search the bookmarks of Safari, Chrome, Firefox and other browsers and open them. Proven with sample bookmarks. Reading a real browser's files has not run on a Mac yet. |
-| Menu items | Search and run any menu command of the app in front. Proven with a sample app's menus. Reading a real app's menus has not run on a Mac yet. |
-| AI, with your own key | Ask questions with Apple's on-device model or a provider you configure. Nothing is sent unless you ask. Proven in the launcher with a simulated model. A real model has not answered yet. |
-| Shell commands | Type > and a command to run it in your login shell and see its output, with a history of past commands. Proven in the launcher against a simulated shell. Running a real command has not been tested in the app. |
-| Color picker | Pick a color on screen, keep the colors you use, and convert hex, RGB, HSL, HWB and OKLCH as you type, with WCAG contrast. Conversions, contrast and the history work in the launcher. Picking from the screen has not run on a Mac yet. |
-| Translate | Translate typed or selected text with the languages installed on the Mac, on a page or with tr in root search. Translate sends nothing over the network itself. Proven in the launcher with a simulated engine. Apple's Translation framework has not run in the app yet. |
-| Media controls | Play, pause and skip tracks in Music and Spotify, and see what is playing. Proven in the launcher against a simulated player. Controlling the real apps has not run on a Mac yet. |
+| File search | Search files by name and browse folders. Proven in the launcher over a sample index. Indexing your real folders has not run on a Mac yet. |
+| Snippets | Save text with placeholders and paste it when you need it. Expanding a keyword as you type in other apps has not run on a Mac yet. |
+| Window management | Resize, center and move windows between displays. Proven against simulated windows. Moving real windows has not run on a Mac yet. |
+| System commands | Lock or sleep your Mac, adjust volume, eject disks and quit processes. Proven against simulated services. The real system calls have not run on a Mac yet. |
+| Script commands | Run scripts with arguments and view their output. The commands and their arguments are proven in the launcher. Running a real script has not been tested in the app. |
+| Universal actions | Run actions on text or files selected in another app. The actions show for results in the launcher. Reading the selection in another app has not run on a Mac yet. |
+| Dictionary | Look up definitions and check spelling. Proven in the launcher with sample entries. The Mac's own dictionaries have not been read in the app yet. |
+| Calendar and reminders | Check your calendar, join meetings and create events or reminders. Proven with a sample day. Reading your real calendars has not run on a Mac yet. |
+| Contacts | Find contacts to call, message or email. Proven with sample contacts. Reading your real contacts has not run on a Mac yet. |
+| Browser bookmarks | Search and open bookmarks from Safari, Chrome and Firefox. Proven with sample bookmarks. Reading a real browser's files has not run on a Mac yet. |
+| Menu items | Find and run menu commands in the current app. Proven with a sample app's menus. Reading a real app's menus has not run on a Mac yet. |
+| AI | Ask questions using Apple’s on-device model or a provider you configure. Proven in the launcher with a simulated model. A real model has not answered yet. |
+| Shell commands | Type > to run a shell command and see its output. Proven in the launcher against a simulated shell. Running a real command has not been tested in the app. |
+| Color picker | Pick colors from your screen, convert color values and check contrast. Conversions, contrast and the history work in the launcher. Picking from the screen has not run on a Mac yet. |
+| Translate | Translate text using languages installed on your Mac. Proven in the launcher with a simulated engine. Apple's Translation framework has not run in the app yet. |
+| Media controls | Play, pause and skip tracks in Music and Spotify. Proven in the launcher against a simulated player. Controlling the real apps has not run on a Mac yet. |
 
 <!-- features:end -->
 

@@ -5,10 +5,10 @@
   "media": {
     "file": "hero-dark",
     "appearance": "dark",
-    "caption": "The panel opens, two typed letters find the app, the field completes its name, and Return opens it.",
-    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens and suggests Mail, Calendar and Music. Typing “n” lists News, Notes, a window command, two web searches, TextEdit and Sleep. Typing “o” selects Notes and completes the field to “notes”, with the rest of the name in grey, above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information. Return picks Notes and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel opens and suggests Mail, Calendar and Music. Typing “n” lists News, Notes, a window command, two web searches, TextEdit and Sleep. Typing “o” selects Notes and completes the field to “notes”, with the rest of the name in grey, above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information. Return picks Notes and the panel closes. The scenario notes the launch instead of opening the app. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "posterAlt": "Slick's search panel in dark mode with “no” typed and the rest of “notes” in grey after the cursor. Notes is selected above six more apps. A frame from a recording of the assembled app with Apple's own apps."
+    "caption": "Type “no” to find Notes. Press Return to open it.",
+    "alt": "Slick in dark mode. Typing “no” selects Notes and completes its name. Return closes the panel after a simulated app launch.",
+    "gifAlt": "Slick in dark mode. Typing “no” selects Notes and completes its name. Return closes the panel after a simulated app launch.",
+    "posterAlt": "Slick in dark mode. The search “no” selects Notes and completes its name."
   },
   "steps": [
     {

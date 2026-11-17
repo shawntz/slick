@@ -5,10 +5,10 @@
   "media": {
     "file": "clip-files-light",
     "appearance": "light",
-    "caption": "Search Files lists matching files, with each file's kind, size, date and folder beside them.",
-    "alt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "gifAlt": "A recording of Slick's search panel in light mode over a pale lilac gradient wallpaper. Typing “files” selects Search Files, and Return opens it with a note that Desktop, Documents and Downloads are not searched until they are chosen. Typing “budget” lists seven matching files and folders from a made-up home folder. The detail pane beside the list shows a placeholder where a preview would be, because the sample files do not exist on disk, and below it the kind, size, modified date and folder of the selected file. Moving down the list shows the next two files. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "posterAlt": "Slick's Search Files page in light mode with “budget” typed. Matching files are on the left, and the selected file's kind, size, date and folder are on the right. A frame from a recording of the assembled app over a made-up file index."
+    "caption": "Search files by name and see their details.",
+    "alt": "Slick in light mode. Searching a sample file index for “budget” shows matching files and their type, size, date and folder.",
+    "gifAlt": "Slick in light mode. Searching a sample file index for “budget” shows matching files and their type, size, date and folder.",
+    "posterAlt": "Slick in light mode. Sample files matching “budget”, with details for the selected file."
   },
   "steps": [
     {

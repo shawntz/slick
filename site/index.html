@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>Slick, a native macOS launcher</title>
-<meta name="description" content="Slick is an open-source macOS launcher in the class of Raycast and Alfred. Press a hotkey, type, and open any app, file, setting or command. MIT licensed, written in Swift and Rust.">
+<meta name="description" content="Slick is a free, open-source macOS launcher. Open apps, find files, reuse clipboard history and run commands from your keyboard.">
 <link rel="canonical" href="https://slick.computer/">
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0b0520" media="(prefers-color-scheme: dark)">
@@ -19,16 +19,16 @@
 <meta property="og:site_name" content="Slick">
 <meta property="og:url" content="https://slick.computer/">
 <meta property="og:title" content="Slick, a native macOS launcher">
-<meta property="og:description" content="Press a hotkey, type, and open any app, file, setting or command on your Mac. Open source, written in Swift and Rust.">
+<meta property="og:description" content="Slick is a free, open-source macOS launcher. Open apps, find files, reuse clipboard history and run commands from your keyboard.">
 <meta property="og:image" content="https://slick.computer/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="The Slick icon, a purple glass square with a lightning bolt, above the name Slick, the line A native macOS launcher, and the words Open source and slick.computer. On the right, part of Slick&#x27;s search panel from a recording of the app: the query no completes to notes, and Notes is selected above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information.">
+<meta property="og:image:alt" content="Slick, a native macOS launcher. Its search panel shows Notes selected for the query no.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Slick, a native macOS launcher">
-<meta name="twitter:description" content="Press a hotkey, type, and open any app, file, setting or command on your Mac. Open source, written in Swift and Rust.">
+<meta name="twitter:description" content="Slick is a free, open-source macOS launcher. Open apps, find files, reuse clipboard history and run commands from your keyboard.">
 <meta name="twitter:image" content="https://slick.computer/assets/og.png">
-<meta name="twitter:image:alt" content="The Slick icon, a purple glass square with a lightning bolt, above the name Slick, the line A native macOS launcher, and the words Open source and slick.computer. On the right, part of Slick&#x27;s search panel from a recording of the app: the query no completes to notes, and Notes is selected above TextEdit, Console, Font Book, Screenshot, Mission Control and System Information.">
+<meta name="twitter:image:alt" content="Slick, a native macOS launcher. Its search panel shows Notes selected for the query no.">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -41,13 +41,13 @@
     </a>
     <nav class="site-nav" aria-label="Sections">
       <ul>
-        <li><a href="#speed">Speed</a></li>
+        <li><a href="#speed">Search</a></li>
         <li><a href="#built-in">Features</a></li>
         <li><a href="#learning">Learning</a></li>
         <li><a href="#themes">Themes</a></li>
         <li><a href="#keys">Keys</a></li>
         <li><a href="#all-features">All features</a></li>
-        <li><a href="#try">Try it</a></li>
+        <li><a href="#try">Install</a></li>
         <li><a href="#faq">FAQ</a></li>
       </ul>
     </nav>
@@ -66,19 +66,18 @@
         <img class="hero-icon" src="assets/icon/icon-256.png" width="128" height="128" alt="">
         <h1 id="hero-title" class="wordmark">Slick</h1>
       </div>
-      <p class="hero-lede">A native macOS launcher. Press a hotkey, type a few letters, and open the app, file, setting or command you meant.</p>
+      <p class="hero-lede">Open apps, find files and run commands with a few keystrokes. A free, open-source launcher for macOS.</p>
       <div class="cta-row">
         <a class="button button--primary" id="cta-source" href="https://github.com/shawntz/slick"><svg class="icon" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.06-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg><span>Source on GitHub</span></a>
-        <a class="button button--quiet" href="#try"><span>Install or build it</span><svg class="icon icon--arrow" aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h9.5M8.5 4 12.5 8l-4 4"/></svg></a>
+        <a class="button button--quiet" href="#try"><span>Install Slick</span><svg class="icon icon--arrow" aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h9.5M8.5 4 12.5 8l-4 4"/></svg></a>
       </div>
     </div>
     <div class="hero-copy">
-      <p>Inside the app, on an Apple M5, a search over 3,146 items takes 26&nbsp;µs at the median. Slick learns which result you pick for each query, and what it learns stays on your Mac.</p>
+      <p>Search your clipboard, do a calculation or find an emoji without leaving the keyboard. Slick remembers your choices and puts them first.</p>
       <ul class="hero-meta">
-        <li>Apple silicon, macOS 26 or later, tested on 27</li>
+        <li>Apple silicon · macOS 26 or later</li>
         <li>Opens with <span class="keys"><span class="visually-hidden">Command-Space</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>space</kbd></span></span></li>
         <li>MIT license</li>
-        <li><a href="https://github.com/shawntz/slick">Watch the repository for changes</a></li>
       </ul>
     </div>
   </div>
@@ -86,11 +85,11 @@
     <div class="frame" id="hero-shot" data-look="auto" data-crop="panel" data-clip-dark="hero-dark.mp4" data-clip-light="hero-light.mp4">
       <picture>
         <source data-media="hero-light-poster.png" srcset="media/hero-light-poster.png" media="(prefers-color-scheme: light)" width="1880" height="1480">
-        <img data-media="hero-dark-poster.png" src="media/hero-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in dark mode with “no” typed and the rest of “notes” in grey after the cursor. Notes is selected above six more apps. A frame from a recording of the assembled app with Apple&#x27;s own apps." decoding="async" fetchpriority="high">
+        <img data-media="hero-dark-poster.png" src="media/hero-dark-poster.png" width="1880" height="1480" alt="Slick in dark mode. The search “no” selects Notes and completes its name." decoding="async" fetchpriority="high">
       </picture>
     </div>
     <figcaption class="figure-bar">
-      <p><span class="figure-caption">The panel opens, two typed letters find the app, the field completes its name, and Return opens it.</span> <span class="figure-note">Recorded from the assembled app with Apple's own apps. The recording notes the launch instead of opening Notes.</span></p>
+      <p><span class="figure-caption">Type “no” to find Notes. Press Return to open it.</span></p>
       <div class="figure-controls">
         <div class="segmented look-toggle" role="group" aria-label="Clip appearance" hidden>
           <button type="button" data-look-value="dark" aria-pressed="false">Dark</button>
@@ -101,105 +100,20 @@
   </figure>
 </section>
 
-<section class="numbers" aria-labelledby="numbers-title">
-  <div class="wrap">
-    <h2 class="numbers-title" id="numbers-title">Measured inside the app</h2>
-    <ul class="numbers-grid">
-      <li>
-        <p class="num-value">26<span class="num-unit">µs</span></p>
-        <p class="num-text">to search 3,146 items and rank them, at the median. 70&nbsp;µs at p99, against a 500&nbsp;µs budget.</p>
-      </li>
-      <li>
-        <p class="num-value">1.3<span class="num-unit">ms</span></p>
-        <p class="num-text">of main-thread work per keystroke, at the median. 4.6&nbsp;ms at p99, inside the 5&nbsp;ms budget.</p>
-      </li>
-      <li>
-        <p class="num-value">0.024<span class="num-unit">ms</span></p>
-        <p class="num-text">of the launcher's own work to summon the panel, at the median, against a 1&nbsp;ms budget. Making the panel key comes on top.</p>
-      </li>
-      <li>
-        <p class="num-value">26.5<span class="num-unit">ms</span></p>
-        <p class="num-text">from the summon call to the first frame on screen, at the median. 46.8&nbsp;ms at p99. That frame already shows the finished glass.</p>
-      </li>
-    </ul>
-    <p class="numbers-note">Release app bundle with sixteen features registered, on an Apple M5 with macOS 27.2 and a 120&nbsp;Hz display, 15 November 2026. Other builds kept the load average at 6 to 8 while the search and keystroke numbers were taken. The first frame was timed in a recording build with the same summon code.</p>
-  </div>
-</section>
-
 <section class="section split" id="speed" aria-labelledby="speed-title">
   <div class="wrap split-grid">
     <header class="section-head">
-      <p class="kicker">Speed</p>
-      <h2 id="speed-title">How it stays fast</h2>
-      <p class="lede">Every interactive path has a time budget in milliseconds, and <code>make bench</code> measures each one inside the app bundle. Four rules shape the code. Each comes with a measurement from the joined app.</p>
+      <p class="kicker">Search</p>
+      <h2 id="speed-title">Find it with a few letters</h2>
+      <p class="lede">Results update as you type. Slick matches partial names, abbreviations and typos.</p>
     </header>
     <div class="section-body">
       <figure class="shot">
-        <div class="frame" data-crop="panel" data-clip="clip-narrow-dark.mp4"><img data-media="clip-narrow-dark-poster.png" src="media/clip-narrow-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in dark mode with “ca” typed and the fourth result, Image Capture, selected. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
-        <figcaption class="figure-bar"><p>The list narrows as the query grows, and the selection glides between rows.</p></figcaption>
+        <div class="frame" data-crop="panel" data-clip="clip-narrow-dark.mp4"><img data-media="clip-narrow-dark-poster.png" src="media/clip-narrow-dark-poster.png" width="1880" height="1480" alt="Slick in dark mode. The search “ca” with Image Capture selected in the results." loading="lazy" decoding="async"></div>
+        <figcaption class="figure-bar"><p>Type “calc” to find Calculator.</p></figcaption>
       </figure>
 
-      <ol class="rules">
-        <li class="rule">
-          <div class="rule-text">
-            <h3>Nothing slow runs inside a keystroke</h3>
-            <p>No file, network or cross-process call runs on the main thread while you type. The engine allocates no memory on its query path.</p>
-          </div>
-          <p class="rule-metric"><strong>41&nbsp;µs</strong><span>to search 10,146 items at the median. 134&nbsp;µs at p99, against a budget of 1.5&nbsp;ms.</span></p>
-        </li>
-        <li class="rule">
-          <div class="rule-text">
-            <h3>Summoning only changes visibility</h3>
-            <p>The panel stays ready while it is hidden. A summon makes it key and draws the glass's key look while it is still invisible, then shows it.</p>
-          </div>
-          <p class="rule-metric"><strong>2.5&nbsp;ms</strong><span>for macOS to make the panel key, at the median. The key look takes 2.4&nbsp;ms more.</span></p>
-        </li>
-        <li class="rule">
-          <div class="rule-text">
-            <h3>One view draws every result</h3>
-            <p>A single Core Text view draws all the visible rows. Nothing that updates per keystroke uses a table view or SwiftUI.</p>
-          </div>
-          <p class="rule-metric"><strong>2.9&nbsp;ms</strong><span>at p99 to draw the rows and commit them. That is most of a keystroke's 4.6&nbsp;ms.</span></p>
-        </li>
-        <li class="rule">
-          <div class="rule-text">
-            <h3>Nothing opens a second window</h3>
-            <p>Menus, previews, confirmations and forms all draw inside the one glass panel, so the panel keeps key status and its full glass look.</p>
-          </div>
-          <p class="rule-metric"><strong>1.4&nbsp;ms</strong><span>to open the action panel, at the median. The budget is 8&nbsp;ms at p99.</span></p>
-        </li>
-      </ol>
-
-      <figure class="budget" aria-labelledby="budget-caption">
-        <figcaption id="budget-caption">
-          <strong>One keystroke against the display.</strong>
-          The budget for a keystroke is 3&nbsp;ms at the median and 5&nbsp;ms at p99. With 3,146 items the panel measures 1.3&nbsp;ms and 4.6&nbsp;ms. With 10,146 items it measures 1.4&nbsp;ms and 4.7&nbsp;ms. Both pass, with little room at p99, and earlier runs of the same bench missed it.
-        </figcaption>
-        <div class="chart" role="img" aria-label="Chart on a scale of 0 to 18 milliseconds. Main-thread work per keystroke with 3,146 items is 1.3 milliseconds at the median and 4.6 at p99. The budget marks sit at 3 and 5 milliseconds, so both bars end inside their budgets. A 120 hertz display refreshes at 8.3 and 16.7 milliseconds. The screen changes about 17 milliseconds after the key press, at the median.">
-          <div class="chart-plot" aria-hidden="true">
-            <span class="chart-refresh chart-refresh--1"><span>Refresh</span></span>
-            <span class="chart-refresh chart-refresh--2"><span>Refresh</span></span>
-            <span class="chart-screen"><span>Screen changes, about 17&nbsp;ms</span></span>
-            <span class="chart-budget chart-budget--p50"></span>
-            <span class="chart-budget chart-budget--p99"></span>
-            <span class="chart-budget-label">Budget 3 and 5&nbsp;ms</span>
-            <span class="chart-bar chart-bar--p50"></span>
-            <span class="chart-bar chart-bar--p99"></span>
-            <span class="chart-value chart-value--p50">1.3</span>
-            <span class="chart-value chart-value--p99">4.6</span>
-          </div>
-          <div class="chart-axis" aria-hidden="true">
-            <span class="tick tick--0">0</span><span class="tick tick--4">4</span><span class="tick tick--8">8</span><span class="tick tick--12">12</span><span class="tick tick--16">16&nbsp;ms</span>
-          </div>
-          <ul class="chart-legend" aria-hidden="true">
-            <li><span class="swatch swatch--p50"></span>Median</li>
-            <li><span class="swatch swatch--p99"></span>p99</li>
-            <li><span class="swatch swatch--budget"></span>Budget</li>
-            <li><span class="swatch swatch--refresh"></span>120&nbsp;Hz refresh, every 8.3&nbsp;ms</li>
-          </ul>
-        </div>
-        <p class="budget-note">The window server adds one to two display refreshes to any change. On a 120&nbsp;Hz display that puts the time from key press to a changed screen at about 17&nbsp;ms at the median. That floor is the same for every app.</p>
-      </figure>
+      <p class="section-foot"><a href="https://github.com/shawntz/slick/blob/main/docs/ARCHITECTURE.md#latency-rules">View performance benchmarks</a></p>
     </div>
   </div>
 </section>
@@ -208,22 +122,21 @@
   <div class="wrap">
     <header class="section-head section-head--wide">
       <p class="kicker">Built in</p>
-      <h2 id="built-in-title">Twenty-one features in one glass panel</h2>
-      <p class="lede">The panel is real system glass, an NSGlassEffectView. Each of the twenty-one built-in features is its own Swift package, and its lists, grids and detail panes draw inside that panel. Pick a clip to see four of them.</p>
+      <h2 id="built-in-title">Calculator, clipboard and file search</h2>
     </header>
     <figure class="shot viewer" id="tour">
       <div class="views">
-        <div class="frame view" data-view="calc" data-crop="panel" data-clip="clip-calc-dark.mp4"><img data-media="clip-calc-dark-poster.png" src="media/clip-calc-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in dark mode with “1250 * 1.08” typed and the answer 1,350 selected at the top, above searches on Google and Wikipedia. A frame from a recording of the assembled app." loading="lazy" decoding="async"></div>
-        <div class="frame view" data-view="clipboard" data-crop="panel-whole" data-clip="clip-detail-dark.mp4"><img data-media="clip-detail-dark-poster.png" src="media/clip-detail-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s Clipboard History in dark mode. Four copied items are on the left, and the selected note&#x27;s text, type, character and word count, size and copy time are on the right. A frame from a recording of the assembled app with made-up copied items." loading="lazy" decoding="async"></div>
-        <div class="frame view" data-view="emoji" data-crop="panel-whole" data-clip="clip-emoji-light.mp4"><img data-media="clip-emoji-light-poster.png" src="media/clip-emoji-light-poster.png" width="1880" height="1480" alt="Slick&#x27;s emoji grid in light mode with “heart” typed. It shows four rows of hearts and heart-themed emoji, with one selected and its name in the bar at the bottom. A frame from a recording of the assembled app." loading="lazy" decoding="async"></div>
-        <div class="frame view" data-view="files" data-crop="panel-whole" data-clip="clip-files-light.mp4"><img data-media="clip-files-light-poster.png" src="media/clip-files-light-poster.png" width="1880" height="1480" alt="Slick&#x27;s Search Files page in light mode with “budget” typed. Matching files are on the left, and the selected file&#x27;s kind, size, date and folder are on the right. A frame from a recording of the assembled app over a made-up file index." loading="lazy" decoding="async"></div>
+        <div class="frame view" data-view="calc" data-crop="panel" data-clip="clip-calc-dark.mp4"><img data-media="clip-calc-dark-poster.png" src="media/clip-calc-dark-poster.png" width="1880" height="1480" alt="Slick in dark mode. The calculator shows 1,350 for the expression 1250 × 1.08." loading="lazy" decoding="async"></div>
+        <div class="frame view" data-view="clipboard" data-crop="panel-whole" data-clip="clip-detail-dark.mp4"><img data-media="clip-detail-dark-poster.png" src="media/clip-detail-dark-poster.png" width="1880" height="1480" alt="Slick in dark mode. Clipboard history with four sample items and a preview of the selected note." loading="lazy" decoding="async"></div>
+        <div class="frame view" data-view="emoji" data-crop="panel-whole" data-clip="clip-emoji-light.mp4"><img data-media="clip-emoji-light-poster.png" src="media/clip-emoji-light-poster.png" width="1880" height="1480" alt="Slick in light mode. An emoji grid filtered to hearts, with the selected emoji named below." loading="lazy" decoding="async"></div>
+        <div class="frame view" data-view="files" data-crop="panel-whole" data-clip="clip-files-light.mp4"><img data-media="clip-files-light-poster.png" src="media/clip-files-light-poster.png" width="1880" height="1480" alt="Slick in light mode. Sample files matching “budget”, with details for the selected file." loading="lazy" decoding="async"></div>
       </div>
       <figcaption class="figure-bar">
         <p class="view-captions">
-          <span class="view" data-view="calc">The calculator answers as you type, and Return copies the answer.</span>
-          <span class="view" data-view="clipboard">Clipboard History opens as a list with a detail pane beside it. <span class="figure-note">The copied items are made up for the clip.</span></span>
-          <span class="view" data-view="emoji">Search Emoji and Symbols opens a grid that filters as you type.</span>
-          <span class="view" data-view="files">Search Files lists matching files, with each file&#x27;s kind, size, date and folder beside them. <span class="figure-note">The files come from a made-up sample index.</span></span>
+          <span class="view" data-view="calc">Calculate as you type. Press Return to copy the answer.</span>
+          <span class="view" data-view="clipboard">Find something you copied and paste it again.</span>
+          <span class="view" data-view="emoji">Search emoji by name.</span>
+          <span class="view" data-view="files">Search files by name and see their details.</span>
         </p>
         <div class="figure-controls">
           <fieldset class="segmented view-switch">
@@ -236,7 +149,7 @@
         </div>
       </figcaption>
     </figure>
-    <p class="section-foot"><a href="#all-features">All features</a> lists the rest.</p>
+    <p class="section-foot"><a href="#all-features">Browse all features</a></p>
   </div>
 </section>
 
@@ -244,26 +157,19 @@
   <div class="wrap split-grid">
     <header class="section-head">
       <p class="kicker">Learning</p>
-      <h2 id="learning-title">It learns what you pick, on your Mac</h2>
-      <p class="lede">Slick records which result you run for each query and ranks with that. The record is a log in <code>~/Library/Application Support/Slick</code> on your Mac.</p>
+      <h2 id="learning-title">Your picks come first</h2>
+      <p class="lede">Choose the same result twice for a search and Slick moves it to the top.</p>
     </header>
     <div class="section-body">
       <figure class="shot">
-        <div class="frame" data-crop="panel" data-clip-dark="clip-learn-dark.mp4" data-clip-light="clip-learn-light.mp4"><img class="look-dark" data-media="clip-learn-dark-poster.png" src="media/clip-learn-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in dark mode with “bo” typed. Font Book is the first result and Books the second. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"><img class="look-light" data-media="clip-learn-light-poster.png" src="media/clip-learn-light-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in light mode with “bo” typed. Font Book is the first result and Books the second. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
-        <figcaption class="figure-bar"><p>Pick a lower result twice for the same query, and it becomes the first.</p></figcaption>
+        <div class="frame" data-crop="panel" data-clip-dark="clip-learn-dark.mp4" data-clip-light="clip-learn-light.mp4"><img class="look-dark" data-media="clip-learn-dark-poster.png" src="media/clip-learn-dark-poster.png" width="1880" height="1480" alt="Slick in dark mode. Font Book appears above Books for the search “bo”." loading="lazy" decoding="async"><img class="look-light" data-media="clip-learn-light-poster.png" src="media/clip-learn-light-poster.png" width="1880" height="1480" alt="Slick in light mode. Font Book appears above Books for the search “bo”." loading="lazy" decoding="async"></div>
+        <figcaption class="figure-bar"><p>Pick Font Book twice for “bo” and it moves above Books.</p></figcaption>
       </figure>
 
       <ul class="facts facts--spaced">
-        <li><strong>Two picks flip a habit.</strong> One stray pick never does. A learned pick outranks an exact title match on purpose. Pick Terminal twice for <code>term</code>, and it wins <code>term</code> even if another app is named Term.</li>
-        <li><strong>Suggestions before you type.</strong> With an empty query, the panel ranks what you are likely to open next from the time of day, the app in front and what you just used. It never suggests the app that is already in front.</li>
-        <li><strong>Learning stays on the Mac.</strong> There is no account and no telemetry. Nothing Slick learns is sent anywhere.</li>
-        <li><strong>The log survives a crash.</strong> Every record in it carries a checksum. If the app stops in the middle of a write, the torn record is dropped at the next start.</li>
+        <li>Before you type, Slick suggests apps based on the time of day and what you've been using.</li>
+        <li>Your search history stays on your Mac. Pause or reset learning in Settings.</li>
       </ul>
-
-      <figure class="shot shot--spaced">
-        <div class="frame" data-crop="settings"><img class="look-dark" data-media="settings-learning-dark.png" src="media/settings-learning-dark.png" width="1880" height="1360" alt="Slick&#x27;s settings window in dark mode over a purple gradient wallpaper, on the Learning pane. A note says everything learned stays on this Mac. It reports 7 runs of 5 items and 11 queries, its size on disk in bytes and the day learning started, then a Pause learning switch. Most used lists Font Book and Calendar with 2 runs each and TextEdit, Maps and Notes with 1 run, each with its real icon and a delete button. The picks were made by the scenario. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario." loading="lazy" decoding="async"><img class="look-light" data-media="settings-learning-light.png" src="media/settings-learning-light.png" width="1880" height="1360" alt="Slick&#x27;s settings window in light mode over a pale lilac gradient wallpaper, on the Learning pane. A note says everything learned stays on this Mac. It reports 7 runs of 5 items and 11 queries, its size on disk in bytes and the day learning started, then a Pause learning switch. Most used lists Font Book and Calendar with 2 runs each and TextEdit, Maps and Notes with 1 run, each with its real icon and a delete button. The picks were made by the scenario. The window is shown without focus, as the scenario opens it, so its selection and switches are grey. Captured from the assembled app running a scripted scenario." loading="lazy" decoding="async"></div>
-        <figcaption class="shot-caption">The Learning pane shows what the launcher learned from your picks on this Mac, and it can forget an item. <span class="figure-note">The same pane can pause learning or erase everything.</span></figcaption>
-      </figure>
     </div>
   </div>
 </section>
@@ -272,54 +178,37 @@
   <div class="wrap">
     <header class="section-head section-head--wide">
       <p class="kicker">Themes</p>
-      <h2 id="themes-title">Every color and size comes from a theme</h2>
-      <p class="lede">A theme is a JSON file. It sets the panel's glass and its layout, the tint, clarity, lens style, accent, text size and row height. Pick another theme, and the open panel changes at once.</p>
+      <h2 id="themes-title">Choose a theme</h2>
+      <p class="lede">Seven built-in themes with adjustable glass, colors and text size.</p>
     </header>
     <figure class="shot">
-      <div class="frame" data-crop="panel-whole" data-clip="clip-themes-dark.mp4"><img data-media="clip-themes-dark-poster.png" src="media/clip-themes-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in dark mode with “ca” typed, in the Ocean theme. The glass is tinted blue, and the second row, Calculator, is selected under a blue lens. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
+      <div class="frame" data-crop="panel-whole" data-clip="clip-themes-dark.mp4"><img data-media="clip-themes-dark-poster.png" src="media/clip-themes-dark-poster.png" width="1880" height="1480" alt="Slick in dark mode. The Ocean theme with blue glass and Calculator selected." loading="lazy" decoding="async"></div>
       <figcaption class="figure-bar">
-        <p>Switching themes restyles the open panel at once. <span class="figure-note">Standard, Graphite, Ocean, Ember and Violet, picked through the theme setting.</span></p>
+        <p>Change themes in Settings under Appearance.</p>
       </figcaption>
     </figure>
     <div class="looks">
-      <p class="looks-lead">Spotlight and Glass are two of the seven built-in themes. Pick any of them in the Theme picker of the settings window's Appearance pane.</p>
-
       <article class="look" aria-labelledby="spotlight-title">
         <header class="look-head">
           <h3 id="spotlight-title">Spotlight</h3>
-          <p>Spotlight is modeled on Spotlight in macOS 27. The query sits in a capsule of glass, and the results sit in a separate container below it. The first nine rows of a list show the Command-digit shortcut that runs them.</p>
+          <p>Spotlight is modeled on Spotlight in macOS 27.</p>
         </header>
         <figure class="shot">
-          <div class="frame" data-crop="spotlight" data-clip-dark="clip-spotlight-dark.mp4" data-clip-light="clip-spotlight-light.mp4"><img class="look-dark" data-media="clip-spotlight-dark-poster.png" src="media/clip-spotlight-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Spotlight theme, dark mode, with “cal” typed in the capsule and Calculator selected in the results container below it. Each row has a Command-digit shortcut at the right. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"><img class="look-light" data-media="clip-spotlight-light-poster.png" src="media/clip-spotlight-light-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Spotlight theme, light mode, with “cal” typed in the capsule and Calculator selected in the results container below it. Each row has a Command-digit shortcut at the right. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
-          <figcaption class="figure-bar"><p>The Spotlight theme puts the query in a capsule of glass and the results in a separate container below it.</p></figcaption>
+          <div class="frame" data-crop="spotlight" data-clip-dark="clip-spotlight-dark.mp4" data-clip-light="clip-spotlight-light.mp4"><img class="look-dark" data-media="clip-spotlight-dark-poster.png" src="media/clip-spotlight-dark-poster.png" width="1880" height="1480" alt="Slick in dark mode. The Spotlight theme with “cal” in the search field and Calculator selected below." loading="lazy" decoding="async"><img class="look-light" data-media="clip-spotlight-light-poster.png" src="media/clip-spotlight-light-poster.png" width="1880" height="1480" alt="Slick in light mode. The Spotlight theme with “cal” in the search field and Calculator selected below." loading="lazy" decoding="async"></div>
+          <figcaption class="figure-bar"><p>A separate search field above the results.</p></figcaption>
         </figure>
       </article>
 
       <article class="look" aria-labelledby="glass-title">
         <header class="look-head">
           <h3 id="glass-title">Glass</h3>
-          <p>Glass is Standard's panel in the system's clear glass with no tint, the most translucent of the system's glass styles. Nothing frosts the window behind it, so the panel's text carries a soft halo instead.</p>
-          <p><strong>Text over a busy window is harder to read in Glass.</strong> The capture tests measure the lowest contrast of any title over six test backdrops. They are busy, white and dark, each in light and in dark mode. Over five of them it falls to between 1.0 and 2.4 to 1. Only a dark backdrop in dark mode clears the 4.5 to 1 that the project asks of titles. Turn on Reduce Transparency, and Glass draws regular glass.</p>
+          <p>Text can be harder to read over bright or busy windows with this theme.</p>
         </header>
         <figure class="shot">
-          <div class="frame" data-crop="panel-whole" data-clip-dark="clip-glass-dark.mp4" data-clip-light="clip-glass-light.mp4"><img class="look-dark" data-media="clip-glass-dark-poster.png" src="media/clip-glass-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Glass theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick&#x27;s settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"><img class="look-light" data-media="clip-glass-light-poster.png" src="media/clip-glass-light-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Glass theme, light mode, with “cal” typed and Calculator selected, over the About page of Slick&#x27;s settings window. The app icon and the lines of the page show sharp through the glass. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
-          <figcaption class="figure-bar"><p>The Glass theme uses the system's most translucent glass. The window behind the panel stays sharp. <span class="figure-note">The panel sits over the settings window, open on its About page.</span></p></figcaption>
+          <div class="frame" data-crop="panel-whole" data-clip-dark="clip-glass-dark.mp4" data-clip-light="clip-glass-light.mp4"><img class="look-dark" data-media="clip-glass-dark-poster.png" src="media/clip-glass-dark-poster.png" width="1880" height="1480" alt="Slick in dark mode. Calculator selected in the Glass theme, with the settings window visible behind it." loading="lazy" decoding="async"><img class="look-light" data-media="clip-glass-light-poster.png" src="media/clip-glass-light-poster.png" width="1880" height="1480" alt="Slick in light mode. Calculator selected in the Glass theme, with the settings window visible behind it." loading="lazy" decoding="async"></div>
+          <figcaption class="figure-bar"><p>Clear glass keeps the window behind Slick visible.</p></figcaption>
         </figure>
-        <div class="pair">
-          <figure class="shot">
-            <div class="frame" data-crop="panel-whole"><img data-media="compare-standard-dark.png" src="media/compare-standard-dark.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Standard theme, dark mode, with “cal” typed and Calculator selected, over the About page of Slick&#x27;s settings window. The frosted, tinted glass blurs the app icon and the lines of text behind it into soft shapes. The picture beside it shows the same scene in the Glass theme. Captured from the assembled app running a scripted scenario, with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
-            <figcaption class="shot-caption">In the Standard theme, frosted glass blurs the window behind the panel.</figcaption>
-          </figure>
-          <figure class="shot">
-            <div class="frame" data-crop="panel-whole"><img data-media="compare-glass-dark.png" src="media/compare-glass-dark.png" width="1880" height="1480" alt="Slick&#x27;s search panel in the Glass theme, dark mode, with “cal” typed and Calculator selected, over the same About page. The glass has no tint and no frost, so the app icon, the name Slick, the version and the license and privacy lines show sharp through it, and the panel&#x27;s text carries a soft dark halo. The picture beside it shows the same scene in the Standard theme. Captured from the assembled app running a scripted scenario, with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
-            <figcaption class="shot-caption">In the Glass theme, the same window stays sharp through the panel.</figcaption>
-          </figure>
-        </div>
       </article>
-    </div>
-    <div class="owner-notes">
-      <p><strong>Every part is in this repository.</strong> The engine, the interface, the features and this website are MIT-licensed code in one repository.</p>
-      <p><strong>One package per feature.</strong> Each feature is its own Swift package, written against a contract package called Kit. <a href="https://github.com/shawntz/slick/blob/main/docs/FEATURES.md">docs/FEATURES.md</a> walks through writing one.</p>
     </div>
   </div>
 </section>
@@ -328,29 +217,25 @@
   <div class="wrap split-grid">
     <header class="section-head">
       <p class="kicker">Keyboard</p>
-      <h2 id="keys-title">The keyboard model</h2>
-      <p class="lede"><span class="keys"><span class="visually-hidden">Command-Space</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>space</kbd></span></span> opens the panel. On a new Mac that shortcut opens Spotlight. When you press Continue on onboarding's Hotkey step, Slick turns off Spotlight's shortcut and takes it. These keys move you around inside the panel.</p>
+      <h2 id="keys-title">Use it from the keyboard</h2>
+      <p class="lede"><span class="keys"><span class="visually-hidden">Command-Space</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>space</kbd></span></span> opens Slick. You can choose a different shortcut during setup.</p>
     </header>
     <div class="section-body">
       <table class="keys-table">
         <caption class="visually-hidden">Keyboard shortcuts in the panel</caption>
         <tbody>
-          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Return</span><span class="keycaps" aria-hidden="true"><kbd>↩</kbd></span></span> <span class="keys"><span class="visually-hidden">Command-Return</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>↩</kbd></span></span></th><td>Run the primary or the secondary action</td></tr>
+          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Return</span><span class="keycaps" aria-hidden="true"><kbd>↩</kbd></span></span></th><td>Run the selected action</td></tr>
           <tr><th scope="row"><span class="keys"><span class="visually-hidden">Command-K</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>K</kbd></span></span></th><td>Open the action panel</td></tr>
-          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Command-1</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>1</kbd></span></span> to <span class="keys"><span class="visually-hidden">9</span><span class="keycaps" aria-hidden="true"><kbd>9</kbd></span></span></th><td>Run the row with that number</td></tr>
-          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Tab</span><span class="keycaps" aria-hidden="true"><kbd>tab</kbd></span></span></th><td>Accept the completion, or move to the next argument</td></tr>
-          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Up</span><span class="keycaps" aria-hidden="true"><kbd>↑</kbd></span></span> <span class="keys"><span class="visually-hidden">Down</span><span class="keycaps" aria-hidden="true"><kbd>↓</kbd></span></span> <span class="keys"><span class="visually-hidden">Control-N</span><span class="keycaps" aria-hidden="true"><kbd>⌃</kbd><kbd>N</kbd></span></span> <span class="keys"><span class="visually-hidden">Control-P</span><span class="keycaps" aria-hidden="true"><kbd>⌃</kbd><kbd>P</kbd></span></span></th><td>Move the selection</td></tr>
-          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Command-Up</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>↑</kbd></span></span> <span class="keys"><span class="visually-hidden">Command-Down</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>↓</kbd></span></span></th><td>Jump between sections</td></tr>
-          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Escape</span><span class="keycaps" aria-hidden="true"><kbd>esc</kbd></span></span></th><td>Clear the query, then go back, then close the panel</td></tr>
-          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Command-Escape</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>esc</kbd></span></span></th><td>Go back to the root search</td></tr>
-          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Command-P</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>P</kbd></span></span></th><td>Open the filter menu</td></tr>
-          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Command-Y</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>Y</kbd></span></span></th><td>Quick Look the selection</td></tr>
+          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Command-1</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>1</kbd></span></span> to <span class="keys"><span class="visually-hidden">9</span><span class="keycaps" aria-hidden="true"><kbd>9</kbd></span></span></th><td>Run a result by number</td></tr>
+          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Tab</span><span class="keycaps" aria-hidden="true"><kbd>tab</kbd></span></span></th><td>Complete the name or move to the next argument</td></tr>
+          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Up</span><span class="keycaps" aria-hidden="true"><kbd>↑</kbd></span></span> <span class="keys"><span class="visually-hidden">Down</span><span class="keycaps" aria-hidden="true"><kbd>↓</kbd></span></span></th><td>Move the selection</td></tr>
+          <tr><th scope="row"><span class="keys"><span class="visually-hidden">Escape</span><span class="keycaps" aria-hidden="true"><kbd>esc</kbd></span></span></th><td>Clear search, go back or close Slick</td></tr>
           <tr><th scope="row"><span class="keys"><span class="visually-hidden">Command-comma</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>,</kbd></span></span></th><td>Open settings</td></tr>
         </tbody>
       </table>
       <figure class="shot shot--spaced">
-        <div class="frame" data-crop="panel-whole" data-clip-dark="actions-dark.mp4" data-clip-light="actions-light.mp4"><img class="look-dark" data-media="actions-dark-poster.png" src="media/actions-dark-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in dark mode with “cal” typed and the action panel open beside the results, listing actions for Calendar with their keyboard shortcuts. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"><img class="look-light" data-media="actions-light-poster.png" src="media/actions-light-poster.png" width="1880" height="1480" alt="Slick&#x27;s search panel in light mode with “cal” typed and the action panel open beside the results, listing actions for Calendar with their keyboard shortcuts. A frame from a recording of the assembled app with Apple&#x27;s own apps." loading="lazy" decoding="async"></div>
-        <figcaption class="figure-bar"><p>Command-K opens the action panel for the selected result, and typing filters it.</p></figcaption>
+        <div class="frame" data-crop="panel-whole" data-clip-dark="actions-dark.mp4" data-clip-light="actions-light.mp4"><img class="look-dark" data-media="actions-dark-poster.png" src="media/actions-dark-poster.png" width="1880" height="1480" alt="Slick in dark mode. The action panel for Calendar, with Open, Show in Finder and Add to Favorites." loading="lazy" decoding="async"><img class="look-light" data-media="actions-light-poster.png" src="media/actions-light-poster.png" width="1880" height="1480" alt="Slick in light mode. The action panel for Calendar, with Open, Show in Finder and Add to Favorites." loading="lazy" decoding="async"></div>
+        <figcaption class="figure-bar"><p>Press Command-K to see actions. Type to filter them.</p></figcaption>
       </figure>
     </div>
   </div>
@@ -361,48 +246,47 @@
     <header class="section-head section-head--wide">
       <p class="kicker">All features</p>
       <h2 id="all-features-title">What it does</h2>
-      <p class="lede">The launcher itself, then its <span class="nowrap">twenty-one</span> built-in features.</p>
     </header>
     <div class="feature-groups" id="features" data-source="data/features.json">
 <!-- features:start. Written by scripts/sync-features.py from support/features.json, for readers without JavaScript. main.js redraws it from data/features.json. -->
 <section class="feature-group" aria-labelledby="feature-group-1">
 <h3 class="feature-group-title" id="feature-group-1">Core</h3>
 <ul class="feature-list">
-<li class="feature"><h4>Liquid Glass panel</h4><p>A real system glass panel, not a blur imitation, with a selection lens that glides between rows.</p></li>
-<li class="feature"><h4>Fuzzy search</h4><p>An in-house matcher that understands prefixes, acronyms, camelCase, word order and typos.</p></li>
-<li class="feature"><h4>Learns your habits</h4><p>Pick a result twice for a query and it becomes the top hit. Everything it learns stays on your Mac.</p></li>
-<li class="feature"><h4>Suggestions before you type</h4><p>Ranks what you are likely to open next from the time of day, the app in front and what you just used.</p></li>
-<li class="feature"><h4>Apps and System Settings</h4><p>Open, quit, hide or reveal any app, and jump straight to a System Settings pane.</p></li>
-<li class="feature"><h4>Hotkeys, aliases and favorites</h4><p>Give any item a global hotkey or a short alias, and pin favorites to the top.</p></li>
-<li class="feature"><h4>Themes</h4><p>Seven built-in themes, among them Spotlight, with the query in a capsule above the results, and Glass, the system&#x27;s clear glass with no tint. Change tint, clarity, lens style, accent, text size and row height. The preview shows each change, and the launcher uses it at once. Save a copy under a new name, and share any theme as a file. Keep the launcher light or dark, or let it follow the system.</p></li>
-<li class="feature"><h4>Action panel</h4><p>Every result has more actions behind Command-K, with their own shortcuts.</p></li>
-<li class="feature"><h4>Updates</h4><p>Once you agree, checks GitHub once a day for a new version and offers it. Sparkle installs an update only when you choose to, after checking its signature. A build from source updates with git instead.</p></li>
+<li class="feature"><h4>Liquid Glass panel</h4><p>A native macOS Liquid Glass panel.</p></li>
+<li class="feature"><h4>Fuzzy search</h4><p>Find results by partial name, abbreviation or typo.</p></li>
+<li class="feature"><h4>Learns your habits</h4><p>Choose a result twice for the same search to move it to the top.</p></li>
+<li class="feature"><h4>Suggestions before you type</h4><p>Get suggestions based on the time of day and the apps you use.</p></li>
+<li class="feature"><h4>Apps and System Settings</h4><p>Open, quit or reveal apps and jump to System Settings panes.</p></li>
+<li class="feature"><h4>Hotkeys, aliases and favorites</h4><p>Assign keyboard shortcuts and aliases, or pin items as favorites.</p></li>
+<li class="feature"><h4>Themes</h4><p>Choose from seven themes and adjust the glass, colors and text size.</p></li>
+<li class="feature"><h4>Action panel</h4><p>Press Command-K for actions on the selected result.</p></li>
+<li class="feature"><h4>Updates</h4><p>Optional daily update checks. You choose when to install.</p></li>
 </ul>
 </section>
 <section class="feature-group" aria-labelledby="feature-group-2">
 <h3 class="feature-group-title" id="feature-group-2">Built-in tools</h3>
 <ul class="feature-list">
-<li class="feature"><h4>File search</h4><p>Slick keeps its own index of file names, which answers in milliseconds, and lets you browse folders.</p></li>
-<li class="feature"><h4>Calculator</h4><p>Math, percentages, units, dates and time zones, answered as you type and copied with Return. Currency conversions fetch rates the first time you ask for one.</p></li>
-<li class="feature"><h4>Clipboard history</h4><p>Search text, links, images and files you copied, and paste them back.</p></li>
-<li class="feature"><h4>Snippets</h4><p>Saved text with placeholders that you find and paste from the launcher.</p></li>
-<li class="feature"><h4>Window management</h4><p>Halves, thirds, quarters, centering and moving windows between displays.</p></li>
-<li class="feature"><h4>System commands</h4><p>Sleep, lock, restart or shut down the Mac, empty the Trash, eject disks, toggle dark mode, set the volume and quit processes.</p></li>
-<li class="feature"><h4>Quicklinks and web search</h4><p>Open sites and searches with a keyword, and fall back to the web when nothing local matches.</p></li>
-<li class="feature"><h4>Emoji picker</h4><p>Search emoji and symbols by name and paste them.</p></li>
-<li class="feature"><h4>Script commands</h4><p>Run your own scripts from the launcher, with arguments and live output.</p></li>
-<li class="feature"><h4>Universal actions</h4><p>Act on the text or files selected in any app.</p></li>
-<li class="feature"><h4>Dictionary</h4><p>Look up a word with define, check its spelling, and copy or paste the definition.</p></li>
-<li class="feature"><h4>Calendar and reminders</h4><p>Your day&#x27;s events, a meeting to join when it is about to start, and new events and reminders from the launcher.</p></li>
-<li class="feature"><h4>Contacts</h4><p>Find a person and call, message, email or FaceTime them.</p></li>
-<li class="feature"><h4>Browser bookmarks</h4><p>Search the bookmarks of Safari, Chrome, Firefox and other browsers and open them.</p></li>
-<li class="feature"><h4>Menu items</h4><p>Search and run any menu command of the app in front.</p></li>
-<li class="feature"><h4>AI, with your own key</h4><p>Ask questions with Apple&#x27;s on-device model or a provider you configure. Nothing is sent unless you ask.</p></li>
-<li class="feature"><h4>Shell commands</h4><p>Type &gt; and a command to run it in your login shell and see its output, with a history of past commands.</p></li>
-<li class="feature"><h4>Notes</h4><p>Quick notes kept as Markdown files that any editor opens. Save one from root search, search titles and text, append, pin, tag, rename and paste them.</p></li>
-<li class="feature"><h4>Color picker</h4><p>Pick a color on screen, keep the colors you use, and convert hex, RGB, HSL, HWB and OKLCH as you type, with WCAG contrast.</p></li>
-<li class="feature"><h4>Translate</h4><p>Translate typed or selected text with the languages installed on the Mac, on a page or with tr in root search. Translate sends nothing over the network itself.</p></li>
-<li class="feature"><h4>Media controls</h4><p>Play, pause and skip tracks in Music and Spotify, and see what is playing.</p></li>
+<li class="feature"><h4>File search</h4><p>Search files by name and browse folders.</p></li>
+<li class="feature"><h4>Calculator</h4><p>Calculate, convert units and currencies, and work with dates and time zones. Return copies the answer.</p></li>
+<li class="feature"><h4>Clipboard history</h4><p>Find and paste text, links, images and files you copied.</p></li>
+<li class="feature"><h4>Snippets</h4><p>Save text with placeholders and paste it when you need it.</p></li>
+<li class="feature"><h4>Window management</h4><p>Resize, center and move windows between displays.</p></li>
+<li class="feature"><h4>System commands</h4><p>Lock or sleep your Mac, adjust volume, eject disks and quit processes.</p></li>
+<li class="feature"><h4>Quicklinks and web search</h4><p>Open websites or search the web with a keyword.</p></li>
+<li class="feature"><h4>Emoji picker</h4><p>Find emoji and symbols by name, then paste them.</p></li>
+<li class="feature"><h4>Script commands</h4><p>Run scripts with arguments and view their output.</p></li>
+<li class="feature"><h4>Universal actions</h4><p>Run actions on text or files selected in another app.</p></li>
+<li class="feature"><h4>Dictionary</h4><p>Look up definitions and check spelling.</p></li>
+<li class="feature"><h4>Calendar and reminders</h4><p>Check your calendar, join meetings and create events or reminders.</p></li>
+<li class="feature"><h4>Contacts</h4><p>Find contacts to call, message or email.</p></li>
+<li class="feature"><h4>Browser bookmarks</h4><p>Search and open bookmarks from Safari, Chrome and Firefox.</p></li>
+<li class="feature"><h4>Menu items</h4><p>Find and run menu commands in the current app.</p></li>
+<li class="feature"><h4>AI</h4><p>Ask questions using Apple’s on-device model or a provider you configure.</p></li>
+<li class="feature"><h4>Shell commands</h4><p>Type &gt; to run a shell command and see its output.</p></li>
+<li class="feature"><h4>Notes</h4><p>Write, search and organize notes saved as Markdown files.</p></li>
+<li class="feature"><h4>Color picker</h4><p>Pick colors from your screen, convert color values and check contrast.</p></li>
+<li class="feature"><h4>Translate</h4><p>Translate text using languages installed on your Mac.</p></li>
+<li class="feature"><h4>Media controls</h4><p>Play, pause and skip tracks in Music and Spotify.</p></li>
 </ul>
 </section>
 <!-- features:end -->
@@ -413,9 +297,9 @@
 <section class="section split" id="try" aria-labelledby="try-title">
   <div class="wrap split-grid">
     <header class="section-head">
-      <p class="kicker">Try it</p>
-      <h2 id="try-title">Install it, or build it yourself</h2>
-      <p class="lede">Version 0.1.1 is signed with a Developer ID and notarized by Apple. Install it with Homebrew, or download it from the <a href="https://github.com/shawntz/slick/releases/latest">releases page</a>. It needs macOS 26 or later on Apple silicon.</p>
+      <p class="kicker">Download</p>
+      <h2 id="try-title">Install Slick</h2>
+      <p class="lede">Use Homebrew or <a href="https://github.com/shawntz/slick/releases/latest">download version 0.1.1</a>. Requires Apple silicon and macOS 26 or later.</p>
     </header>
     <div class="section-body">
       <div class="terminal">
@@ -429,39 +313,8 @@
         <p class="copy-status visually-hidden" role="status" aria-live="polite"></p>
       </div>
 
-      <h3 class="subhead">Or build it from source</h3>
-      <p class="subhead-note">Four commands build the app and open it. Building needs macOS 27 with Xcode 27 and stable Rust.</p>
-      <div class="terminal">
-        <div class="terminal-bar">
-          <span class="terminal-title">Four commands</span>
-          <button type="button" class="copy-button" data-copy-target="build-commands" hidden>Copy</button>
-        </div>
-<code class="terminal-body" id="build-commands">
-          <span class="line"><span class="cmd">git clone https://github.com/<wbr>shawntz/<wbr>slick.git</span></span>
-          <span class="line"><span class="cmd">cd slick</span></span>
-          <span class="line"><span class="cmd">make bootstrap</span><span class="comment"># check the tools, build the Rust core</span></span>
-          <span class="line"><span class="cmd">make run</span><span class="comment"># build build/Slick.app, then open it</span></span>
-        </code>
-        <p class="copy-status visually-hidden" role="status" aria-live="polite"></p>
-      </div>
-
-      <h3 class="subhead">What you see at first launch</h3>
-      <ol class="steps">
-        <li><strong>A bolt in the menu bar.</strong> Slick has no Dock icon. The onboarding window opens in front.</li>
-        <li><strong>Slick takes <span class="keys"><span class="visually-hidden">Command-Space</span><span class="keycaps" aria-hidden="true"><kbd>⌘</kbd><kbd>space</kbd></span></span> when you continue.</strong> On a new Mac that shortcut opens Spotlight, and the Hotkey step tells you so. When you press Continue, Slick turns off Spotlight's shortcut and takes it. To keep it for Spotlight, record another hotkey first. If another macOS shortcut uses your keys, turn it off in System Settings, under Keyboard. Until then, Open in the bolt menu opens the panel.</li>
-        <li><strong>You choose the optional features.</strong> Clipboard History starts off. File Search's switch starts on, because onboarding suggests it. The switches take effect when you press Continue.</li>
-        <li><strong>Nothing is asked before you press Allow.</strong> The Permissions step lists what the features you kept may need, with each feature's reason, under headings such as Files and Folders. You can skip every row. A feature asks again the first time you run something that needs it.</li>
-        <li><strong>A theme, then Done.</strong> Picking a theme applies it.</li>
-      </ol>
-
-      <ul class="facts facts--spaced">
-        <li><strong>Nothing leaves the Mac until you ask.</strong> A request happens when you ask for something that needs the network, such as a web search or a currency conversion, and once a day to GitHub to check for a new version if you turned that on.</li>
-        <li><strong>What it learns stays in one folder.</strong> What Slick learns and each feature's files go to <code>~/Library/Application Support/Slick</code>. Quit from the bolt menu, and Slick takes up to 5 seconds to write what it learned.</li>
-        <li><strong>Signing keeps your grants.</strong> <code>make run</code> signs the app with your Apple Development identity when you have one, so permission grants survive a rebuild. A build signed ad hoc loses them each time you rebuild.</li>
-        <li><strong>Something not working?</strong> <a href="https://github.com/shawntz/slick/issues">Open an issue</a> and say what you saw.</li>
-      </ul>
-
-      <p class="section-foot">To work on the code, read <a href="https://github.com/shawntz/slick/blob/main/docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</a> first. <code>make test</code> runs every Rust and Swift test, <code>make selftest</code> checks the app without showing a window, and <code>make help</code> prints every target. <a href="https://github.com/shawntz/slick/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> says how to contribute.</p>
+      <p class="subhead-note">Clipboard history is off by default. You can skip permissions during setup.</p>
+      <p class="section-foot"><a href="https://github.com/shawntz/slick#build-from-source">Build from source</a> · <a href="https://github.com/shawntz/slick/blob/main/docs/FIRST-LAUNCH.md">Setup guide</a> · <a href="https://github.com/shawntz/slick/issues">Report a bug</a></p>
     </div>
   </div>
 </section>
@@ -469,46 +322,20 @@
 <section class="section split" id="faq" aria-labelledby="faq-title">
   <div class="wrap split-grid">
     <header class="section-head">
-      <p class="kicker">FAQ</p>
-      <h2 id="faq-title">Questions</h2>
-      <p class="lede">If yours is not here, <a href="https://github.com/shawntz/slick/issues">open an issue on GitHub</a>.</p>
+      <h2 id="faq-title">Common questions</h2>
     </header>
     <div class="section-body faq">
-      <details id="faq-download">
-        <summary>Can I download it?</summary>
-        <p>Yes. Version 0.1.1 is on the <a href="https://github.com/shawntz/slick/releases/latest">releases page on GitHub</a>, and <code>brew install --cask shawntz/tap/slick</code> installs it with Homebrew. Slick needs macOS 26 or later on Apple silicon.</p>
+      <details>
+        <summary>Does Slick send my data anywhere?</summary>
+        <p>Slick has no account or telemetry. Web searches, currency conversions and online AI providers use the network when you use those features. If you enable update checks, Slick checks GitHub once a day.</p>
       </details>
       <details>
-        <summary>How fast is it?</summary>
-        <p>Every number on this page was measured inside Slick's own app bundle on one Apple M5 with macOS 27.2. Nobody has measured other launchers on that machine, so the page compares Slick only with its own budgets.</p>
-      </details>
-      <details>
-        <summary>Does it send anything over the network?</summary>
-        <p>Only when you ask. Slick makes a request when you ask for something that needs one, such as a web search, a currency conversion or an AI provider you set up, and once a day to GitHub to check for a new version if you turned that on. There is no account and no telemetry.</p>
-      </details>
-      <details>
-        <summary>Which Macs will it run on?</summary>
-        <p>Macs with Apple silicon on macOS 26 or later. Slick is developed and tested on macOS 27.</p>
-      </details>
-      <details>
-        <summary>Does it replace Spotlight?</summary>
-        <p>It takes Spotlight's shortcut, and Spotlight keeps running. Slick opens with Command-Space, which opens Spotlight on a new Mac. When you press Continue on onboarding's Hotkey step, Slick turns off Spotlight's shortcut and takes Command-Space. To keep Command-Space for Spotlight, record another hotkey on that step first.</p>
-      </details>
-      <details>
-        <summary>How do I get Spotlight's shortcut back?</summary>
-        <p>Move Slick to another hotkey in Settings, under General, and the pane offers to turn Spotlight's shortcut back on. You can also turn it on in System Settings, under Keyboard.</p>
+        <summary>What happens to Spotlight?</summary>
+        <p>Slick uses Command-Space by default and disables Spotlight's shortcut when you confirm it during setup. Choose another shortcut to keep Command-Space for Spotlight. You can change this later in Settings under General.</p>
       </details>
       <details>
         <summary>Can I add my own commands?</summary>
-        <p>Each feature is a Swift package written against a documented API, and docs/FEATURES.md walks through writing one. Script commands run your own scripts from the panel.</p>
-      </details>
-      <details>
-        <summary>Are the clips real?</summary>
-        <p>Yes. Each clip is a recording of the assembled app running a scripted scenario on a Mac, with Apple's own apps from /System/Applications and their real icons. Opening an app is recorded instead of done, and the copied text and files are made up for the clip. The settings pictures show the real settings window, taken during the same kind of run.</p>
-      </details>
-      <details>
-        <summary>Is it free?</summary>
-        <p>It is open source under the MIT license. There is no account and no subscription.</p>
+        <p>Run scripts from Slick with arguments and live output. You can also <a href="https://github.com/shawntz/slick/blob/main/docs/FEATURES.md">write a feature in Swift</a>.</p>
       </details>
     </div>
   </div>
@@ -520,7 +347,7 @@
   <div class="wrap footer-grid">
     <div class="footer-brand">
       <img src="assets/icon/icon-128.png" width="48" height="48" alt="" loading="lazy" decoding="async">
-      <p><strong>Slick</strong><br>A native macOS launcher. Open source under the MIT license.</p>
+      <p><strong>Slick</strong><br>A free, open-source macOS launcher.</p>
     </div>
     <nav class="footer-nav" aria-label="Project">
       <ul>
@@ -532,8 +359,8 @@
       </ul>
     </nav>
     <div class="footer-fine">
-      <p>Every clip and screenshot on this page was recorded from the assembled app running a scripted scenario.</p>
-      <p>This site loads nothing from other servers and sets no cookies.</p>
+      <p>Demos use the real app with sample data and simulated app launches.</p>
+      <p>This site uses no cookies or analytics.</p>
       <p>Spotlight is a trademark of Apple Inc. Slick is not affiliated with Apple.</p>
     </div>
   </div>

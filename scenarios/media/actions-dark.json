@@ -5,10 +5,10 @@
   "media": {
     "file": "actions-dark",
     "appearance": "dark",
-    "caption": "Command-K opens the action panel for the selected result, and typing filters it.",
-    "alt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel suggests Calendar, Music and Mail. Typing “cal” selects Calendar and completes the field to “calendar”. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path, each with a keyboard shortcut, then Add to Favorites and Set Alias. The selection moves down two entries. Typing “f” narrows the list to three entries and “fav” to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "gifAlt": "A recording of Slick's search panel in dark mode over a purple gradient wallpaper. The panel suggests Calendar, Music and Mail. Typing “cal” selects Calendar and completes the field to “calendar”. Command-K opens the action panel beside the results. It lists Open, Show in Finder, Show Package Contents, Copy Name, Copy Bundle Identifier and Copy Path, each with a keyboard shortcut, then Add to Favorites and Set Alias. The selection moves down two entries. Typing “f” narrows the list to three entries and “fav” to Add to Favorites. Return runs it, the action panel closes and the bar at the bottom shows “Added to Favorites”. Recorded from the assembled app running a scripted scenario, with Apple's own apps and their real icons.",
-    "posterAlt": "Slick's search panel in dark mode with “cal” typed and the action panel open beside the results, listing actions for Calendar with their keyboard shortcuts. A frame from a recording of the assembled app with Apple's own apps."
+    "caption": "Press Command-K to see actions. Type to filter them.",
+    "alt": "Slick in dark mode. Command-K opens the actions for Calendar. Typing “fav” finds Add to Favorites.",
+    "gifAlt": "Slick in dark mode. Command-K opens the actions for Calendar. Typing “fav” finds Add to Favorites.",
+    "posterAlt": "Slick in dark mode. The action panel for Calendar, with Open, Show in Finder and Add to Favorites."
   },
   "steps": [
     {

@@ -2,7 +2,7 @@
 // - adds the download button and the version line when data/release.json turns the download on,
 // - redraws the feature list from data/features.json,
 // - takes alt text from media/manifest.json and plays the recording behind each clip slot,
-// - switches the hero clip between dark and light, and copies the install and build commands.
+// - switches the hero clip between dark and light, and copies the install command.
 // It makes no request outside this site.
 (() => {
   'use strict';
@@ -43,8 +43,8 @@
   }
 
   // Download switch. Only when data/release.json has enabled: true and a URL does this add the
-  // download button and set the version line. The answer to "Can I download it?" and the Try it
-  // section are plain HTML, edited by hand for each release.
+  // download button and set the version line. The Install section
+  // is plain HTML, edited by hand for each release.
 
   function applyRelease(release) {
     const download = release && release.download;
