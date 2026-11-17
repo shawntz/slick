@@ -14,7 +14,8 @@
 #                         temporary folder that never reaches the Mac or the site
 #   make bench            latency tables from the app bundle (NAME=<bench> picks one)
 #   make scenario S=<f>   scripted UI run from scenario file <f>
-#   make lint             rustfmt, clippy, swift format, manifest, brand, LaunchServices and media checks
+#   make lint             rustfmt, clippy, swift format, manifest, brand, LaunchServices, media and
+#                         feature list checks
 #   make fmt              format Rust and Swift sources in place
 #   make xcode            generate the optional Xcode project with XcodeGen
 #   make clean            remove every build output
@@ -103,6 +104,7 @@ lint:
 	@$(SCRIPTS)/check-launchservices.sh --self-test
 	@$(SCRIPTS)/check-launchservices.sh
 	@python3 -I scenarios/media/check.py
+	@python3 -I scripts/sync-features.py --check
 
 fmt:
 	@$(CARGO) fmt --all
