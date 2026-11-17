@@ -20,9 +20,11 @@ struct HotkeyTarget {
 
 /// A hotkey recorder's state and rules, apart from the control that draws it.
 ///
-/// The control calls ``beginRecording()`` when it takes focus, ``handle(key:modifiers:)`` for each
-/// key press it receives from its own window, and ``endRecording()`` when it loses focus. Nothing
-/// here listens to the system's key events.
+/// The control calls ``beginRecording()`` when a click or a press starts a recording,
+/// ``handle(key:modifiers:)`` for each key press it receives from its own window, and
+/// ``endRecording()`` on a second click or press, on a click elsewhere in its window, and when it
+/// loses focus, its window stops being key or it leaves its window. Focus alone starts nothing.
+/// Nothing here listens to the system's key events.
 ///
 /// Rules: a combination needs Command, Option or Control, unless its key is F1 to F20. Escape stops
 /// recording, Delete clears the hotkey, and Tab moves focus on. A combination that something else
