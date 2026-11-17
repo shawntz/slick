@@ -36,9 +36,11 @@ struct OnboardingView: View {
             HStack(spacing: 8) {
                 StepDots(current: model.step)
                 Spacer()
+                // While the hotkey recorder records, Escape and Return go to it, not to Back and
+                // Continue.
                 if model.canGoBack {
                     Button("Back") { model.back() }
-                        .keyboardShortcut(.cancelAction)
+                        .keyboardShortcut(model.hotkey.isRecording ? nil : .cancelAction)
                 }
                 if model.step == .done {
                     Button("Start") { model.finish() }
@@ -46,7 +48,7 @@ struct OnboardingView: View {
                         .buttonStyle(.borderedProminent)
                 } else {
                     Button(model.step == .welcome ? "Get Started" : "Continue") { Task { await model.next() } }
-                        .keyboardShortcut(.defaultAction)
+                        .keyboardShortcut(model.hotkey.isRecording ? nil : .defaultAction)
                         .buttonStyle(.borderedProminent)
                         .disabled(model.isTakingKeys)
                 }
