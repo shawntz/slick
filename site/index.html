@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self' https://cdn.seline.com; connect-src 'self' https://api.seline.com; font-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>Slick, a native macOS launcher</title>
 <meta name="description" content="Slick is a free, open-source macOS launcher. Open apps, find files, reuse clipboard history and run commands from your keyboard.">
 <link rel="canonical" href="https://slick.computer/">
@@ -15,6 +15,7 @@
 <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
 <link rel="stylesheet" href="styles.css">
 <script src="main.js" defer></script>
+<script async src="https://cdn.seline.com/seline.js" data-token="eb8a4157faaa883"></script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Slick">
 <meta property="og:url" content="https://slick.computer/">
@@ -360,7 +361,7 @@
     </nav>
     <div class="footer-fine">
       <p>Demos use the real app with sample data and simulated app launches.</p>
-      <p>This site uses no cookies or analytics.</p>
+      <p>This site uses <a href="https://seline.com">Seline</a> analytics without cookies.</p>
       <p>Spotlight is a trademark of Apple Inc. Slick is not affiliated with Apple.</p>
     </div>
   </div>

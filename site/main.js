@@ -3,7 +3,7 @@
 // - redraws the feature list from data/features.json,
 // - takes alt text from media/manifest.json and plays the recording behind each clip slot,
 // - switches the hero clip between dark and light, and copies the install command.
-// It makes no request outside this site.
+// This file only requests local assets. The HTML loads Seline analytics separately.
 (() => {
   'use strict';
 
