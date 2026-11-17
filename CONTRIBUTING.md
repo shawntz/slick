@@ -16,7 +16,7 @@ in the same change.
 | `make selftest` | Build, then run `--selftest` directly and through LaunchServices |
 | `make test` | Every Rust and Swift test. `make -j4 test` runs them in parallel |
 | `make test-rust` | Every Rust test, ended after `RUST_TEST_TIMEOUT` seconds, 900 by default, so a hung test fails the run |
-| `make test-<Pkg>` | One Swift package's tests, for example `make test-Kit` |
+| `make test-<Pkg>` | One Swift package's tests, for example `make test-Kit`. LauncherUI, SettingsUI, Host and App run one test at a time, because every test there needs the main thread |
 | `make test-scripts` | The tests of the install, showcase, bundle and time limit scripts, in a temporary folder |
 | `make bench` | Latency tables from the app bundle. `NAME=<bench>` picks one |
 | `make scenario S=<file>` | A scripted UI run |
