@@ -6,6 +6,12 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 
 ## Unreleased
 
+### Fixed
+
+- Recording a hotkey: a click on a hotkey field in settings or onboarding now starts recording
+  every time, and a second click or a click anywhere else in the window stops it. Before, a click
+  on the field never started a recording.
+
 ## 0.1.0
 
 The first release. It needs macOS 26 or later on Apple silicon, and it has been tested only on
