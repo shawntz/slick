@@ -10,16 +10,16 @@ Until the domain is attached, the site is at https://shawntz.github.io/slick/. I
 |---|---|
 | `index.html` | The landing page. It reads well with JavaScript off. |
 | `styles.css` | Every style. Dark is the base look, and light has its own palette under `prefers-color-scheme`. |
-| `main.js` | Small enhancements: the download switch, the feature list and status chips, the clip slots, the hero's appearance switch and the copy button. |
+| `main.js` | Small enhancements: the download switch, the feature list, the clip slots, the hero's appearance switch and the copy button. |
 | `404.html` | The page GitHub Pages serves for a missing address. It uses root paths such as `/styles.css`, because it can be served at any depth. Under `shawntz.github.io/slick/` those paths miss, so the page shows without its styles until the domain is attached. |
-| `data/features.json` | A copy of `support/features.json`. The feature list on the page is drawn from it. |
-| `data/release.json` | The download switch. Off today. |
+| `data/features.json` | The website's own form of `support/features.json`, which `scripts/sync-features.py` writes. It holds each group's title and each feature's id, title and summary, and nothing else. The feature list on the page is drawn from it. |
+| `data/release.json` | The download switch. It is on for 0.1.0. |
 | `media/` | Recordings of the assembled app with their posters, stills of its settings window, and `manifest.json`, which holds their sizes, captions and alt text. The folder also keeps older stills from the interface code, which the page does not use. |
 | `assets/icon/`, `favicon.ico` | The app icon at several sizes. |
 | `assets/og.png` | The 1200 by 630 picture that link previews show. `assets/og-card.html` is its source. |
 | `CNAME`, `robots.txt`, `sitemap.xml`, `.nojekyll` | Domain record, crawler rules, the one-page sitemap, and a marker that turns Jekyll off for branch publishing. |
 
-The page makes no request to any other server. A Content Security Policy in each page's `<meta>` tag enforces that: scripts, styles, images, media and fetches must come from the site itself. There are no web fonts, no analytics and no cookies. HTML, CSS and JavaScript together must stay under 120 KB. On 16 November 2026 they were 112,906 bytes.
+The page makes no request to any other server. A Content Security Policy in each page's `<meta>` tag enforces that: scripts, styles, images, media and fetches must come from the site itself. There are no web fonts, no analytics and no cookies. HTML, CSS and JavaScript together must stay under 120 KB. On 16 November 2026 `index.html`, `404.html`, `styles.css` and `main.js` came to 104,200 bytes.
 
 Recordings do not count toward that limit, but they are the heaviest part of the page. A visitor downloads only the posters of the clips they scroll near and only the recordings that play. The posters are 0.3 to 0.8 MB each and the recordings 0.7 to 2.9 MB.
 
@@ -125,32 +125,33 @@ To check a layout without a browser, `scripts/site-snapshot.swift` loads a page 
 
     swiftc -O scripts/site-snapshot.swift -o build/site-snapshot
 
-Before a change goes live, look at full-page captures at 390, 834 and 1440 pixels wide in dark and in light, and check these by hand or in a test page: no sideways scroll from 320 to 1920 pixels, the section links at every width, one current step in the Status track, the clip picker on each of its clips, the hero's Dark and Light switch, Pause and Play, and no request to another server. Stop the local server afterwards.
+Before a change goes live, look at full-page captures at 390, 834 and 1440 pixels wide in dark and in light, and check these by hand or in a test page: no sideways scroll from 320 to 1920 pixels, the section links at every width, the same feature list, item for item and laid out the same inside its section, with JavaScript on and off, the clip picker on each of its clips, the hero's Dark and Light switch, Pause and Play, and no request to another server. Stop the local server afterwards.
 
 ## Common changes
 
 ### The feature list
 
-`support/features.json` is the only source for what the site may call available. Run `scripts/sync-features.py` after every change to it. With `--check` it changes nothing and exits 1 when the copy is stale.
+The All features section lists what Slick does. It does not say how far along a feature is. That lives in `support/features.json`, and the README shows it.
 
-The script writes three things: the tables in `README.md`, the copy in `site/data/features.json`, and the static list in `index.html` between the `<!-- features:start` and `<!-- features:end -->` comments. `main.js` draws the list from `data/features.json` on every visit. The static list is there for readers without JavaScript and for search engines, and it uses the same markup as `main.js`, so the redraw moves nothing:
+In `support/features.json`, each feature's `summary` says what the feature does. Its `standing`, where it has one, says how far along it is, and its `status` is available, in-progress or planned. Leave `standing` out when there is nothing to say. The script refuses an empty one. Run `scripts/sync-features.py` after every change to the file. With `--check` it changes nothing and exits 1 when an output is stale. `make lint`, and so CI, runs it with `--check`.
 
-- One `<section class="feature-group">` per status, in the order available, in progress, planned. A status with no features gets no section.
-- Each section has a heading with the status name, the number of features, the status definition and one line per feature:
+The script writes three things. It writes the tables in `README.md`, with each feature's status and its summary followed by its standing. It writes `site/data/features.json`, which holds only what the page shows: the groups in order, each with its title, and each feature's id, title and summary. And it writes the static list in `index.html` between the `<!-- features:start` and `<!-- features:end -->` comments. `main.js` draws the list from `data/features.json` on every visit. If that file is missing or has any other shape, such as an older copy with more fields, `main.js` leaves the static list as it is. The static list is there for readers without JavaScript and for search engines, and it uses the same markup as `main.js`, so the redraw moves nothing:
 
+- One `<section class="feature-group">` per group, in the order of the file: Core, then Built-in tools.
+- Each section has the group's title as its heading, then the group's features in the order of the file, one line each:
+
+      <section class="feature-group" aria-labelledby="feature-group-1">
+      <h3 class="feature-group-title" id="feature-group-1">Core</h3>
+      <ul class="feature-list">
       <li class="feature"><h4>Title</h4><p>Summary</p></li>
 
-- The definitions are in `DEFINITION` in `main.js` and `DEFINITIONS` in the script: available "Works in the app today.", in progress "Code exists or is being written. Not usable in the app yet.", planned "On the list. Not usable in the app yet."
+- The heading ids number the groups from 1 in the order of the file. The script and `main.js` number them the same way.
+
+The list shows one feature per row on a phone, two from 640 pixels and three from 1024 pixels. The features in a row share one height, so the lines between rows run straight across.
 
 To change that markup, change `renderFeatures` in `main.js` and `render_page_block` in the script together. The script stops with an error instead of writing over a list whose tags or classes it does not write.
 
-A clip of one feature carries a status chip, so the clip never suggests more than the data says:
-
-    <span class="chip" data-feature="files" data-status="in-progress"><span class="chip-dot" aria-hidden="true"></span>In progress</span>
-
-The script rewrites every chip's `data-status` and label from the feature with that id, `--check` fails when one is stale, and `main.js` updates them from `data/features.json` too. Today the page has seven. They are the four clips in Built in, and the themes, Spotlight and Glass clips in Themes. All three in Themes name the `themes` feature.
-
-Above the list, the three-step track headed Done, Now and Not yet is hand-written. It follows where the whole project stands, not the JSON file. Today it reads: done, version 0.1.0 is out; now, first runs on a real Mac, which began on 16 November 2026; not yet, every feature proven on a real Mac. When a step is reached, move the `data-stage` values along: `done`, `now`, `next`. The step marked `now` also carries `aria-current="step"`. The Now step and the "You would be early" note in Try it both say when the live launcher first ran and that most features have not been tried on a real Mac. Change them together as that changes.
+The page shows no status. The script fails, with or without `--check`, when `index.html` has a `data-status` attribute or when `main.js` reads or writes one.
 
 ### Turning on the download button
 
@@ -167,7 +168,7 @@ Edit `site/data/release.json`:
 
 With the switch on, `main.js` adds the download button first in the hero and makes the GitHub button the second one. It also sets the line above the name to the version. The URL must be HTTPS or on this site. Both need JavaScript.
 
-Everything else about a release is plain HTML, so readers without JavaScript see it too. For each release, edit these by hand in `index.html`: the version line above the name, the "Can I download it?" answer, the Try it section with its Homebrew command, and the Status track. In the README, edit the line under the hero and the Install section. They were last edited for 0.1.0 on 16 November 2026.
+Everything else about a release is plain HTML, so readers without JavaScript see it too. For each release, edit these by hand in `index.html`: the version line above the name, the "Can I download it?" answer, and the Try it section with its Homebrew command. In the README, edit the line under the hero and the Install section. They were last edited for 0.1.0 on 16 November 2026.
 
 ### Clip slots
 
@@ -222,7 +223,7 @@ The card shows a crop of `media/hero-dark-poster.png`, the poster of the hero re
 
 ### Words on the page
 
-Every claim on the site must be backed by `support/features.json` or by a measurement in the project's reports. The numbers on the page were measured on 15 November 2026 inside the release app bundle with sixteen features registered, on an Apple M5 with macOS 27.2 and a 120 Hz display, while other builds kept the load average at 6 to 8. `docs/ARCHITECTURE.md`, under "Latency rules", carries the same numbers. Quote them with those conditions. Do not say the app is faster than another launcher, because nobody has measured one on that machine, and do not call a feature available before the data does. Alt text and captions come from `media/manifest.json`. Change the manifest first, then copy the text into `index.html`.
+Every claim on the site must be backed by `support/features.json` or by a measurement in the project's reports. The numbers on the page were measured on 15 November 2026 inside the release app bundle with sixteen features registered, on an Apple M5 with macOS 27.2 and a 120 Hz display, while other builds kept the load average at 6 to 8. `docs/ARCHITECTURE.md`, under "Latency rules", carries the same numbers. Quote them with those conditions. Do not say the app is faster than another launcher, because nobody has measured one on that machine. The page says what Slick does and not how far along it is, so it never names a feature's status. Alt text and captions come from `media/manifest.json`. Change the manifest first, then copy the text into `index.html`.
 
 The owner's rules for words apply to every sentence on the page. Say what happens, in the order it happens, in the words a person would use out loud. Write short sentences with one idea each, in the active voice, and name who does it. Use no colon in the middle of a sentence, no semicolon, no dash as punctuation, no parentheses and no "and more". Praise nothing. Say what the thing does and give the number. Headings on the page use sentence case.
 
