@@ -13,7 +13,7 @@ Until the domain is attached, the site is at https://shawntz.github.io/slick/. I
 | `main.js` | Small enhancements: the download switch, the feature list, the clip slots, the hero's appearance switch and the copy button. |
 | `404.html` | The page GitHub Pages serves for a missing address. It uses root paths such as `/styles.css`, because it can be served at any depth. Under `shawntz.github.io/slick/` those paths miss, so the page shows without its styles until the domain is attached. |
 | `data/features.json` | The website's own form of `support/features.json`, which `scripts/sync-features.py` writes. It holds each group's title and each feature's id, title and summary, and nothing else. The feature list on the page is drawn from it. |
-| `data/release.json` | The download switch. It is on for 0.1.0. |
+| `data/release.json` | The download switch. It is on for 0.1.1. |
 | `media/` | Recordings of the assembled app with their posters, stills of its settings window, and `manifest.json`, which holds their sizes, captions and alt text. The folder also keeps older stills from the interface code, which the page does not use. |
 | `assets/icon/`, `favicon.ico` | The app icon at several sizes. |
 | `assets/og.png` | The 1200 by 630 picture that link previews show. `assets/og-card.html` is its source. |
@@ -162,13 +162,13 @@ Edit `site/data/release.json`:
         "enabled": true,
         "url": "https://github.com/shawntz/slick/releases/latest",
         "label": "Download for Mac",
-        "version": "0.1.0"
+        "version": "0.1.1"
       }
     }
 
 With the switch on, `main.js` adds the download button first in the hero and makes the GitHub button the second one. It also sets the line above the name to the version. The URL must be HTTPS or on this site. Both need JavaScript.
 
-Everything else about a release is plain HTML, so readers without JavaScript see it too. For each release, edit these by hand in `index.html`: the version line above the name, the "Can I download it?" answer, and the Try it section with its Homebrew command. In the README, edit the line under the hero and the Install section. They were last edited for 0.1.0 on 16 November 2026.
+Everything else about a release is plain HTML, so readers without JavaScript see it too. For each release, edit these by hand in `index.html`: the version line above the name, the "Can I download it?" answer, and the Try it section with its Homebrew command. In the README, edit the line under the hero and the Install section. They were last edited for 0.1.1 on 16 November 2026.
 
 ### Clip slots
 
