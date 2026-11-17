@@ -7,11 +7,14 @@ import SwiftUI
 /// Recording is the model's state. Keyboard focus only routes keys to the field, and focus alone
 /// never starts a recording: not when the window opens, and not when Tab reaches the field. A click
 /// starts a recording when none runs and stops the one that runs. The click that brings the window
-/// forward counts too, and the field ignores the second click of a double-click. With the field
-/// focused, Space or Return starts a recording. A window's default button takes Return first, as
-/// onboarding's Continue does while no recording runs. The accessibility press starts a recording
-/// only in the key window, since it doesn't bring the window forward as a click does. Tab reaches
-/// the field only while the Mac's keyboard navigation is on, as it reaches a button.
+/// forward counts too. A double-click starts one recording: its second click doesn't stop what its
+/// first click started, and a quick click after a recording ended starts the next one. A
+/// Command-click in a window that isn't key starts nothing, since it leaves the window in the
+/// background. With the field focused, Space or Return starts a recording. A window's default
+/// button takes Return first, as onboarding's Continue does while no recording runs. The
+/// accessibility press starts a recording only in the key window, since it doesn't bring the window
+/// forward as a click does. Tab reaches the field only while the Mac's keyboard navigation is on,
+/// as it reaches a button.
 ///
 /// Any key but a modifier or Tab ends a recording, by the model's rules, and so does the field
 /// losing focus, its window losing key status, a click anywhere else in a ``SettingsWindow`` or the
@@ -89,8 +92,13 @@ final class HotkeyRecorderField: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        // The second click of a double-click would stop the recording the first one started.
-        guard event.clickCount <= 1 else { return }
+        // A Command-click reaches a window that isn't key without making it key, and no key would
+        // reach a recording there.
+        if event.modifierFlags.contains(.command), window?.isKeyWindow != true { return }
+        // The second click of a double-click would stop the recording the first one started. Any
+        // other click counts, however soon it follows the one before, so a quick click after a
+        // recording ended starts the next one.
+        if event.clickCount > 1, start == .click, model?.isRecording == true { return }
         toggleRecording(.click)
     }
 
