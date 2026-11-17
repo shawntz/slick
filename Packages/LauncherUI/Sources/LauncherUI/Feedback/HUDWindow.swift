@@ -34,6 +34,8 @@ public final class HUDWindow: NSPanel {
     private let label = FixedLabel()
     /// The label showing the text, for tests.
     var textLabel: NSTextField? { label }
+    /// The colour that fills the capsule, for tests.
+    var backingColor: CGColor? { body.layer?.backgroundColor }
     /// Counts shows, so a hide scheduled by an earlier show does not hide a later one.
     private var generation = 0
 
@@ -164,10 +166,13 @@ public final class HUDWindow: NSPanel {
         let width = ceil(padding * 2 + symbolWidth + textWidth)
         glass.cornerRadius = height / 2
         glass.tintColor = resolved.feedback.hudTint
-        // A never-key glass barely shows its tint, so the same tint also fills the capsule.
+        // A never-key glass barely shows its tint, so the same tint also fills the capsule, resolved
+        // for the HUD's own appearance, which can differ from the app's.
         body.wantsLayer = true
         body.layer?.cornerRadius = height / 2
-        body.layer?.backgroundColor = resolved.feedback.hudTint?.cgColor
+        var backing: CGColor?
+        resolved.appearance.performAsCurrentDrawingAppearance { backing = resolved.feedback.hudTint?.cgColor }
+        body.layer?.backgroundColor = backing
         setContentSize(CGSize(width: width + inset * 2, height: height + inset * 2))
         root.frame = CGRect(x: 0, y: 0, width: width + inset * 2, height: height + inset * 2)
         glass.frame = CGRect(x: inset, y: inset, width: width, height: height)

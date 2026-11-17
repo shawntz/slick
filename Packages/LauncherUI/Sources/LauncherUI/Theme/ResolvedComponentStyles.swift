@@ -16,6 +16,15 @@ struct ColorResolver {
     func ns(_ color: ThemeColor, boost: Double = 1) -> NSColor {
         NSColor(cgColor: self(color, boost: boost)) ?? .labelColor
     }
+
+    /// The colour as AppKit sees it, made in this appearance. A system colour at full alpha stays
+    /// dynamic. One with less alpha is fixed when AppKit makes it, so it takes this appearance's
+    /// variant, not the app's: the panel and the HUD can draw in another appearance than the app.
+    func appKit(_ color: ThemeColor) -> NSColor {
+        var made = NSColor.clear
+        appearance.performAsCurrentDrawingAppearance { made = color.nsColor }
+        return made
+    }
 }
 
 /// Fonts and colours for grid cells.
@@ -94,7 +103,7 @@ public struct ResolvedCardStyle {
         confirmTitleFont = fonts.confirmTitle.nsFont
         confirmMessageFont = fonts.confirmMessage.nsFont
         buttonFont = fonts.button.ctFont
-        tint = reduceTransparency ? nil : palette.cardTint.scaled(by: theme.clarity).nsColor
+        tint = reduceTransparency ? nil : resolve.appKit(palette.cardTint.scaled(by: theme.clarity))
         selection = resolve(palette.cardSelection, boost: 1.6)
         destructive = resolve(palette.destructive)
         prominent = resolve(palette.prominent)
@@ -144,6 +153,6 @@ public struct ResolvedFeedbackStyle {
         emptyHintFont = fonts.emptyHint.nsFont
         hudFont = fonts.hud.nsFont
         loadingBar = resolve(palette.loadingBar)
-        hudTint = reduceTransparency ? nil : palette.hudTint.scaled(by: theme.clarity).nsColor
+        hudTint = reduceTransparency ? nil : resolve.appKit(palette.hudTint.scaled(by: theme.clarity))
     }
 }

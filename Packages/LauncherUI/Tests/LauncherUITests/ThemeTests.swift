@@ -29,6 +29,37 @@ struct ThemeTests {
         #expect(ThemeColor(text) == nil)
     }
 
+    /// The panel can draw in another appearance than the app's, as the appearance setting asks. A
+    /// tint that is a system colour with less than full alpha, such as the lens's accent, then takes
+    /// the variant of the appearance the theme resolves for, not the app's.
+    @Test func tintsResolveForTheThemesAppearanceNotTheApps() throws {
+        _ = NSApplication.shared
+        let appIsDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let appearance = try #require(NSAppearance(named: appIsDark ? .aqua : .darkAqua))
+        let label = ThemeColor(.label, alpha: 0.5)
+        var theme = Theme.standard
+        theme.light.glassTint = label
+        theme.dark.glassTint = label
+        theme.light.lensGlassTint = label
+        theme.dark.lensGlassTint = label
+        theme.light.cardTint = label
+        theme.dark.cardTint = label
+        theme.light.hudTint = label
+        theme.dark.hudTint = label
+        let resolved = ResolvedTheme(theme: theme, appearance: appearance, accessibility: DisplayAccessibility())
+        func components(_ color: NSColor?) -> [CGFloat] {
+            var cg: CGColor?
+            appearance.performAsCurrentDrawingAppearance { cg = color?.cgColor }
+            return cg?.components ?? []
+        }
+        let expected = label.scaled(by: theme.clarity).cgColor(in: appearance).components ?? []
+        #expect(expected != label.scaled(by: theme.clarity).cgColor(in: NSApp.effectiveAppearance).components)
+        #expect(components(resolved.glassTint) == expected)
+        #expect(components(resolved.card.tint) == expected)
+        #expect(components(resolved.feedback.hudTint) == expected)
+        #expect(components(resolved.lensGlassTint) == label.cgColor(in: appearance).components)
+    }
+
     @Test func glassHeightIsQueryRowAloneWithoutContent() {
         let theme = Theme.standard
         #expect(theme.glassHeight(contentHeight: 0) == theme.queryRow.height)

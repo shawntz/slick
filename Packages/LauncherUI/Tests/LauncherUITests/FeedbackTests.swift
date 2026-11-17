@@ -36,6 +36,33 @@ struct FeedbackTests {
         #expect(hud.content == HUDContent("Copied to Clipboard", symbolName: "checkmark.circle.fill"))
     }
 
+    /// The appearance setting can draw the HUD light on a dark Mac, or dark on a light one. A theme
+    /// whose HUD tint is a system colour then fills the capsule with that colour as the HUD's own
+    /// appearance resolves it, not as the app's does.
+    /// AppKit fixes a system colour with less than full alpha when it makes it, and keeps one at
+    /// full alpha dynamic until it is turned into a CGColor, so both kinds are checked.
+    @Test(arguments: [0.5, 1])
+    func theHUDFillsItsCapsuleForItsOwnAppearance(alpha: Double) throws {
+        _ = NSApplication.shared
+        let appIsDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let appearance = try #require(NSAppearance(named: appIsDark ? .aqua : .darkAqua))
+        let tint = ThemeColor(.label, alpha: alpha)
+        var theme = Theme.standard
+        theme.clarity = 1
+        theme.light.hudTint = tint
+        theme.dark.hudTint = tint
+        let hud = HUDWindow(theme: theme)
+        defer { hud.close() }
+        hud.accessibilityOverride = DisplayAccessibility(reduceMotion: true)
+        hud.appearance = appearance
+        hud.setFrameOrigin(TestSupport.offscreen.origin)
+        hud.prewarm()
+
+        let expected = tint.cgColor(in: appearance)
+        #expect(expected != tint.cgColor(in: NSApp.effectiveAppearance), "label differs between light and dark")
+        #expect(hud.backingColor == expected)
+    }
+
     @Test func theEmptyStateAsksForItsHeightOnlyWithATitle() {
         let view = EmptyStateView(frame: CGRect(x: 0, y: 0, width: 760, height: 500))
         view.apply(TestSupport.lightTheme)
