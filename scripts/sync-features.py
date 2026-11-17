@@ -4,24 +4,31 @@
     scripts/sync-features.py           rewrite whatever is stale
     scripts/sync-features.py --check   write nothing; exit 1 when an output is stale (for CI)
 
-Three outputs, all from the one source:
+In the source, a feature's summary says what it does, and its standing, where it has one, says how
+far along it is. Three outputs, all from the one source:
 
 - README.md, between the README markers below: a count line, then per group a heading one level
   below the README's own "Every feature and its status" heading, a count line for the group, and
-  one table per status with no status column. A status no feature has is left out. Everything
-  outside the markers is hand-written and left alone.
+  one table per status with no status column. Each row shows the summary, then the standing. A
+  status no feature has is left out. Everything outside the markers is hand-written and left alone.
 - site/index.html, between the start marker's comment and the end marker: the static copy of the
-  feature list that readers without JavaScript and search engines see, one section per status
-  that has features. The start comment's own text is kept. The markup is the same that
-  renderFeatures in site/main.js draws, so a redraw moves nothing. When
-  one of them changes, change the other to match. If the page's list uses a tag or class this
-  script does not write, the script stops instead of writing over that work. The page's status
-  chips that carry data-feature="<id>" also get that feature's status and label.
-- site/data/features.json: a byte-for-byte copy of the source, which site/main.js reads.
+  feature list that readers without JavaScript and search engines see, one section per group, each
+  feature with its title and its summary. The start comment's own text is kept. The markup is the
+  same that renderFeatures in site/main.js draws, so a redraw moves nothing. When one of them
+  changes, change the other to match. If the page's list uses a tag or class this script does not
+  write, the script stops instead of writing over that work.
+- site/data/features.json: the website's own form of the source, which site/main.js reads. It holds
+  the groups in order, each with its title and its features, and each feature's id, title and
+  summary. It leaves out the status, the standing and the date. site/main.js redraws the list only
+  from a file of exactly this shape, so a new field goes into both or into neither.
+
+The website does not show status. In both modes the script fails when site/index.html has a
+data-status attribute, and then leaves the page as it is. It also fails when site/main.js reads or
+writes data-status.
 
 Exit status: 0 when everything is in sync or was rewritten, 1 when --check finds a stale output,
-2 when the data, a marker, a chip or the page's list markup is wrong. A problem in one output does
-not stop the others from being checked or written.
+2 when the data, a marker or the page's list markup is wrong, or when the website shows a status.
+A problem in one output does not stop the others from being checked or written.
 
 Standard library only, Python 3.9 or later.
 """
@@ -33,12 +40,14 @@ import os
 import re
 import sys
 import tempfile
+from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "support" / "features.json"
 README = ROOT / "README.md"
 SITE_PAGE = ROOT / "site" / "index.html"
+SITE_SCRIPT = ROOT / "site" / "main.js"
 SITE_COPY = ROOT / "site" / "data" / "features.json"
 
 START = "<!-- features:start -->"
@@ -55,28 +64,16 @@ README_GROUP_HEADING = "####"
 # prefix and keeps the rest of that comment as it is.
 PAGE_START = "<!-- features:start"
 
-# The statuses support/features.json may use, in the order every output lists them.
+# The statuses support/features.json may use, in the order the README lists them.
 STATUS_LABELS = {
     "available": "Available",
     "in-progress": "In progress",
     "planned": "Planned",
 }
 
-# What each status means, as the website's legend says it. Keep in step with DEFINITION in
-# site/main.js.
-DEFINITIONS = {
-    "available": "Works in the app today.",
-    "in-progress": "Code exists or is being written. Not usable in the app yet.",
-    "planned": "On the list. Not usable in the app yet.",
-}
-
-MONTHS = (
-    "January February March April May June July August September October November December".split()
-)
-
 
 class DataError(Exception):
-    """The source data, a marker or a chip is not in the shape this script expects."""
+    """The source data, a marker or the page is not in the shape this script expects."""
 
 
 def relative(path):
@@ -126,11 +123,15 @@ def load_groups(raw):
             if status not in STATUS_LABELS:
                 allowed = ", ".join(STATUS_LABELS)
                 raise DataError(f"{where}.status {status!r} is not one of: {allowed}")
+            standing = None
+            if "standing" in feature:
+                standing = require_text(feature["standing"], f"{where}.standing")
             rows.append(
                 {
                     "id": feature_id,
                     "title": require_text(feature.get("title"), f"{where}.title"),
                     "summary": require_text(feature.get("summary"), f"{where}.summary"),
+                    "standing": standing,
                     "status": status,
                 }
             )
@@ -221,6 +222,13 @@ def group_line(rows):
     return f"{join_words(status_parts(counts, f'of these {len(rows)}'))}."
 
 
+def readme_text(row):
+    """What the README says a feature does: the summary, then the standing where there is one."""
+    if row["standing"]:
+        return f"{row['summary']} {row['standing']}"
+    return row["summary"]
+
+
 def render_readme_block(updated, groups):
     lines = [START, NOTICE, "", summary_line(updated, groups)]
     for title, rows in groups:
@@ -230,8 +238,29 @@ def render_readme_block(updated, groups):
             if not matching:
                 continue
             lines += ["", f"| {label} | What it does |", "|---|---|"]
-            lines += [f"| {cell(row['title'])} | {cell(row['summary'])} |" for row in matching]
+            lines += [f"| {cell(row['title'])} | {cell(readme_text(row))} |" for row in matching]
     lines += ["", END]
+    return "\n".join(lines)
+
+
+# site/data/features.json: only what the page shows, one feature per line.
+
+
+def render_site_copy(groups):
+    def dump(value):
+        return json.dumps(value, ensure_ascii=False)
+
+    lines = ["{", '  "groups": [']
+    for g, (title, rows) in enumerate(groups):
+        lines += ["    {", f'      "title": {dump(title)},', '      "features": [']
+        for r, row in enumerate(rows):
+            comma = "," if r < len(rows) - 1 else ""
+            lines.append(
+                f'        {{ "id": {dump(row["id"])}, "title": {dump(row["title"])}, '
+                f'"summary": {dump(row["summary"])} }}{comma}'
+            )
+        lines += ["      ]", "    }" + ("," if g < len(groups) - 1 else "")]
+    lines += ["  ]", "}", ""]
     return "\n".join(lines)
 
 
@@ -242,68 +271,72 @@ def text(value):
     return html.escape(value, quote=True)
 
 
-def render_page_block(start, updated, groups):
-    """One section per status, in STATUS_LABELS order. A status no feature has is left out."""
-    rows = every_row(groups)
-    day = f"{int(updated[8:10])} {MONTHS[int(updated[5:7]) - 1]} {updated[:4]}"
-    lines = [
-        start,
-        f'<p class="status-updated">Updated <time datetime="{text(updated)}">{day}</time></p>',
-        '<div class="feature-groups">',
-    ]
-    for status, label in STATUS_LABELS.items():
-        matching = [row for row in rows if row["status"] == status]
-        if not matching:
-            continue
-        group_id = f"fs-{status}"
-        noun = "feature" if len(matching) == 1 else "features"
+def render_page_block(start, groups):
+    """One section per group, in file order, each feature with its title and summary."""
+    lines = [start]
+    for g, (title, rows) in enumerate(groups, start=1):
+        group_id = f"feature-group-{g}"
         lines += [
-            f'<section class="feature-group" data-status="{status}" aria-labelledby="{group_id}">',
-            f'<header class="feature-group-head"><h3 id="{group_id}">'
-            f'<span class="status-mark" aria-hidden="true"></span>{text(label)}</h3>'
-            f"<p>{len(matching)} {noun}</p></header>",
-            f'<p class="feature-group-def">{text(DEFINITIONS[status])}</p>',
+            f'<section class="feature-group" aria-labelledby="{group_id}">',
+            f'<h3 class="feature-group-title" id="{group_id}">{text(title)}</h3>',
             '<ul class="feature-list">',
         ]
         lines += [
             f'<li class="feature"><h4>{text(row["title"])}</h4><p>{text(row["summary"])}</p></li>'
-            for row in matching
+            for row in rows
         ]
         lines += ["</ul>", "</section>"]
-    lines += ["</div>", END]
+    lines += [END]
     return "\n".join(lines)
 
 
-# A status chip that names a feature: <span class="chip" data-feature="id" data-status="s">
-# <span class="chip-dot" aria-hidden="true"></span>Label</span>, attributes in any order.
-FEATURE_CHIP = re.compile(
-    r'(?P<open><span\b(?=[^>]*\bclass="chip")(?=[^>]*\bdata-feature="(?P<id>[^"]*)")[^>]*>)'
-    r'(?P<dot><span class="chip-dot" aria-hidden="true"></span>)'
-    r"(?P<label>[^<]*)</span>"
-)
-STATUS_ATTRIBUTE = re.compile(r'\bdata-status="[^"]*"')
+# The website does not show status. A data-status attribute on any element of the page, or code in
+# main.js that reads or writes one, would bring it back.
+SCRIPT_STATUS = re.compile(r"""data-status|dataset\s*\.\s*status\b|dataset\s*\[\s*['"]status['"]\s*\]""")
 
 
-def update_chips(page, statuses):
-    """Gives every chip with data-feature the status and label of that feature."""
+class StatusAttributes(HTMLParser):
+    """Collects the line of every tag on the page that has a data-status attribute.
 
-    def rewrite(match):
-        feature_id = match.group("id")
-        if feature_id not in statuses:
-            raise DataError(
-                f'{relative(SITE_PAGE)} has a chip with data-feature="{feature_id}", '
-                f"which is not an id in {relative(SOURCE)}"
-            )
-        status = statuses[feature_id]
-        opening = match.group("open")
-        wanted = f'data-status="{status}"'
-        if STATUS_ATTRIBUTE.search(opening):
-            opening = STATUS_ATTRIBUTE.sub(wanted, opening, count=1)
-        else:
-            opening = opening[:-1] + f" {wanted}>"
-        return f"{opening}{match.group('dot')}{text(STATUS_LABELS[status])}</span>"
+    The parser reads attribute names the way a browser does, so DATA-STATUS counts. A name such as
+    data-status-note does not, and neither do the words data-status inside a value or a comment.
+    """
 
-    return FEATURE_CHIP.sub(rewrite, page)
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.lines = []
+
+    def handle_starttag(self, tag, attrs):
+        if any(name == "data-status" for name, _ in attrs):
+            self.lines.append(self.getpos()[0])
+
+
+def line_numbers(lines):
+    """"line 12" or "lines 12, 30" for a list of line numbers."""
+    found = sorted(set(lines))
+    return ("line " if len(found) == 1 else "lines ") + ", ".join(map(str, found))
+
+
+def check_page_shows_no_status(page):
+    parser = StatusAttributes()
+    parser.feed(page)
+    parser.close()
+    if parser.lines:
+        raise DataError(
+            f"{relative(SITE_PAGE)} has a data-status attribute on {line_numbers(parser.lines)}. "
+            "The website does not show status, so remove it. How far along a feature is belongs in "
+            f"{relative(SOURCE)}, and the README shows it."
+        )
+
+
+def check_script_shows_no_status(script):
+    lines = [script.count("\n", 0, match.start()) + 1 for match in SCRIPT_STATUS.finditer(script)]
+    if lines:
+        raise DataError(
+            f"{relative(SITE_SCRIPT)} reads or writes data-status on {line_numbers(lines)}. "
+            "The website does not show status, so remove that code. How far along a feature is "
+            f"belongs in {relative(SOURCE)}, and the README shows it."
+        )
 
 
 OPENING_TAG = re.compile(r'<([a-z][a-z0-9]*)\b(?:[^>]*?\bclass="([^"]*)")?[^>]*>')
@@ -339,8 +372,9 @@ def check_markup(current, wanted):
     )
 
 
-def render_page(page, updated, groups):
-    """Returns the page with the static feature list and the section chips brought up to date."""
+def render_page(page, groups):
+    """Returns the page with the static feature list brought up to date."""
+    check_page_shows_no_status(page)
     first = page.find(PAGE_START)
     if first < 0 or page.count(PAGE_START) != 1:
         found = page.count(PAGE_START)
@@ -350,12 +384,11 @@ def render_page(page, updated, groups):
     start = page[first : close + len("-->")] if close >= 0 else ""
     if not start or END in start:
         raise DataError(f"{relative(SITE_PAGE)} never closes the {PAGE_START} comment")
-    block = render_page_block(start, updated, groups)
+    block = render_page_block(start, groups)
     wanted = splice(page, start, END, block, SITE_PAGE)
     # splice checked the markers, so the old block runs from the start comment to the end marker.
     check_markup(page[first : page.index(END) + len(END)], block)
-    # The block's own chips carry no data-feature, so this touches only the section chips.
-    return update_chips(wanted, {row["id"]: row["status"] for row in every_row(groups)})
+    return wanted
 
 
 def write_atomically(path, data):
@@ -389,19 +422,19 @@ def main():
         print(f"sync-features: {error}", file=sys.stderr)
 
     try:
-        source = SOURCE.read_bytes()
-        updated, groups = load_groups(source.decode("utf-8"))
+        updated, groups = load_groups(SOURCE.read_bytes().decode("utf-8"))
     except (OSError, UnicodeDecodeError, DataError) as error:
         fail(error)
         return 2
 
     # Each output is (path, wanted bytes, current bytes or None). One output's problem does not
     # stop the others from being checked or written.
-    outputs = [(SITE_COPY, source, SITE_COPY.read_bytes() if SITE_COPY.exists() else None)]
+    site_copy = render_site_copy(groups).encode("utf-8")
+    outputs = [(SITE_COPY, site_copy, SITE_COPY.read_bytes() if SITE_COPY.exists() else None)]
     broken = False
     for path, render in (
         (README, lambda text: splice(text, START, END, render_readme_block(updated, groups), README)),
-        (SITE_PAGE, lambda text: render_page(text, updated, groups)),
+        (SITE_PAGE, lambda text: render_page(text, groups)),
     ):
         try:
             current = path.read_text(encoding="utf-8")
@@ -409,6 +442,13 @@ def main():
         except (OSError, UnicodeDecodeError, DataError) as error:
             fail(error)
             broken = True
+
+    # main.js is not an output, but it draws the list, so it may not bring status back either.
+    try:
+        check_script_shows_no_status(SITE_SCRIPT.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, DataError) as error:
+        fail(error)
+        broken = True
 
     stale = [(path, wanted) for path, wanted, current in outputs if wanted != current]
     if args.check:

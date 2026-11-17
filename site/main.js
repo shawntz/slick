@@ -1,6 +1,6 @@
 // Slick website. The page is complete without this file. With it, the page:
 // - adds the download button and the version line when data/release.json turns the download on,
-// - redraws the feature list and the status chips from data/features.json,
+// - redraws the feature list from data/features.json,
 // - takes alt text from media/manifest.json and plays the recording behind each clip slot,
 // - switches the hero clip between dark and light, and copies the install and build commands.
 // It makes no request outside this site.
@@ -73,60 +73,35 @@
     }
   }
 
-  // Feature list. The same markup as the static copy in index.html, so a redraw moves nothing.
-  // Features are grouped by status. A status with no features is left out. A status chip with
-  // data-feature, such as the one under a clip, takes that feature's status too.
+  // Feature list. It draws the markup that scripts/sync-features.py writes into index.html, so a
+  // redraw moves nothing. Each group gets a section, and each feature its title and summary, in
+  // file order. The script writes every group with a title and features, and every feature with
+  // an id, a title and a summary and nothing else. The redraw is all or nothing. If any part of
+  // the file has another shape, as an older copy of it does, the static copy stays.
 
-  const ORDER = ['available', 'in-progress', 'planned'];
-  const LABEL = { available: 'Available', 'in-progress': 'In progress', planned: 'Planned' };
-  const DEFINITION = {
-    available: 'Works in the app today.',
-    'in-progress': 'Code exists or is being written. Not usable in the app yet.',
-    planned: 'On the list. Not usable in the app yet.',
-  };
-  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-    'September', 'October', 'November', 'December'];
+  const FEATURE_KEYS = 'id,summary,title';
+  const isText = (value) => typeof value === 'string' && value.trim() !== '';
+  const isFeature = (feature) => Boolean(feature) && typeof feature === 'object'
+    && Object.keys(feature).sort().join() === FEATURE_KEYS
+    && isText(feature.id) && isText(feature.title) && isText(feature.summary);
+  const isGroup = (group) => Boolean(group) && isText(group.title)
+    && Array.isArray(group.features) && group.features.length > 0 && group.features.every(isFeature);
 
   function renderFeatures(data) {
     const host = doc.getElementById('features');
-    if (!host || !data || !Array.isArray(data.groups)) return;
-    const every = data.groups.flatMap((group) => (Array.isArray(group.features) ? group.features : []));
-    const known = every.filter((feature) => ORDER.includes(feature.status));
-    if (!known.length) return;
-
-    const updated = h('p', { class: 'status-updated' });
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data.updated || '');
-    if (match) {
-      const text = `${Number(match[3])} ${MONTHS[Number(match[2]) - 1]} ${match[1]}`;
-      updated.append('Updated ', h('time', { datetime: data.updated }, text));
-    }
-
-    const groups = h('div', { class: 'feature-groups' });
-    for (const status of ORDER) {
-      const rows = known.filter((feature) => feature.status === status);
-      if (!rows.length) continue;
-      const id = `fs-${status}`;
-      const count = `${rows.length} ${rows.length === 1 ? 'feature' : 'features'}`;
+    if (!host || !data || !Array.isArray(data.groups) || !data.groups.length) return;
+    if (!data.groups.every(isGroup)) return;
+    const sections = data.groups.map((group, index) => {
+      const id = `feature-group-${index + 1}`;
       const list = h('ul', { class: 'feature-list' });
-      for (const feature of rows) {
-        list.append(h('li', { class: 'feature' }, h('h4', null, String(feature.title)), h('p', null, String(feature.summary))));
+      for (const feature of group.features) {
+        list.append(h('li', { class: 'feature' }, h('h4', null, feature.title), h('p', null, feature.summary)));
       }
-      groups.append(h('section', { class: 'feature-group', 'data-status': status, 'aria-labelledby': id },
-        h('header', { class: 'feature-group-head' },
-          h('h3', { id }, h('span', { class: 'status-mark', 'aria-hidden': 'true' }), LABEL[status]),
-          h('p', null, count)),
-        h('p', { class: 'feature-group-def' }, DEFINITION[status]),
-        list));
-    }
-    host.replaceChildren(updated, groups);
-
-    const statusOf = new Map(known.map((feature) => [feature.id, feature.status]));
-    for (const chip of doc.querySelectorAll('.chip[data-feature]')) {
-      const status = statusOf.get(chip.dataset.feature);
-      if (!status) continue;
-      chip.dataset.status = status;
-      chip.replaceChildren(h('span', { class: 'chip-dot', 'aria-hidden': 'true' }), LABEL[status]);
-    }
+      return h('section', { class: 'feature-group', 'aria-labelledby': id },
+        h('h3', { class: 'feature-group-title', id }, group.title),
+        list);
+    });
+    host.replaceChildren(...sections);
   }
 
   // Clip slots. A frame with data-clip, or with data-clip-dark and data-clip-light, stands for a

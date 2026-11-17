@@ -254,34 +254,6 @@ kbd {
   box-shadow: inset 0 0 0 1px var(--key-edge), 0 1px 0 var(--key-drop);
 }
 
-/* Status marks: a filled dot is done or available, a half dot is in progress, a ring is planned or
-   not yet. The shape carries the meaning, so it does not rely on color. */
-
-.status-mark {
-  display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%;
-  color: var(--chip-prog-ink); box-shadow: inset 0 0 0 1.5px currentColor;
-}
-[data-status="available"] .status-mark, [data-stage="done"] .status-mark,
-.chip[data-status="available"] .chip-dot { background: currentColor; }
-[data-status="in-progress"] .status-mark, [data-stage="now"] .status-mark,
-.chip[data-status="in-progress"] .chip-dot {
-  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
-}
-[data-status="planned"] .status-mark, [data-stage="next"] .status-mark { color: var(--ink-3); }
-
-/* A status chip names one feature's status beside a clip of it. scripts/sync-features.py and
-   main.js keep its data-status and label equal to support/features.json. */
-.chip {
-  display: inline-flex; align-items: center; gap: 7px; margin-right: 6px; padding: 2px 10px 2px 8px;
-  border-radius: 999px; vertical-align: 0.08em; white-space: nowrap;
-  color: var(--chip-prog-ink); background: var(--chip-prog-bg); box-shadow: inset 0 0 0 1px var(--chip-prog-edge);
-  font-size: 0.8125rem; font-weight: 600; line-height: 1.5;
-}
-.chip-dot {
-  flex: none; width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor;
-}
-.chip[data-status="planned"] { color: var(--ink-3); }
-
 /* Hero */
 
 /* The bottom padding leaves room for the glow under the hero picture, which the clip would cut. */
@@ -501,6 +473,8 @@ kbd {
   font-size: clamp(1.0625rem, 0.98rem + 0.4vw, 1.25rem); line-height: 1.55; text-wrap: pretty;
 }
 .lede kbd { font-size: 0.78em; }
+/* Keeps a hyphenated word on one line where a break at its hyphen would read badly. */
+.nowrap { white-space: nowrap; }
 .section-head--wide { max-width: 50rem; margin-bottom: clamp(40px, 5vw, 64px); }
 .split-grid > .section-head { margin-bottom: clamp(40px, 6vw, 56px); }
 @media (min-width: 1024px) {
@@ -625,64 +599,24 @@ kbd {
 .keys-table td { color: var(--ink-1); }
 .keys-table kbd { font-size: 0.8125rem; }
 
-/* Status: a three-step track, then the features grouped by status. */
+/* All features. Each group has a heading, then its features in one column on a phone, two on a
+   tablet and three on a wide screen. The items in a row share one height, so the lines between
+   rows run straight across. */
 
-.stages {
-  display: grid; gap: 0; margin: 0 0 clamp(48px, 6vw, 72px); padding: 0; list-style: none;
-}
-.stage { position: relative; padding: 0 0 26px 30px; }
-.stage::before {
-  content: ""; position: absolute; left: 4px; top: 22px; bottom: 0; width: 2px; border-radius: 1px;
-  background: var(--line-strong);
-}
-.stage:last-child { padding-bottom: 0; }
-.stage:last-child::before { display: none; }
-.stage[data-stage="done"]::before { background: var(--chip-prog-ink); opacity: 0.6; }
-.stage-state {
-  display: flex; align-items: center; gap: 10px; margin-left: -30px;
-  color: var(--ink-3); font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.01em;
-}
-.stage-state .status-mark { margin-right: 10px; }
-.stage[data-stage="now"] .stage-state { color: var(--chip-prog-ink); }
-.stage h3 { margin-top: 4px; font-size: 1.1875rem; font-weight: 650; letter-spacing: -0.015em; }
-.stage p:last-child { margin-top: 4px; color: var(--ink-2); font-size: 0.9375rem; max-width: 34rem; }
-.stage[data-stage="next"] h3 { color: var(--ink-2); }
-@media (min-width: 768px) {
-  .stages { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
-  .stage { padding: 22px 0 0; border-top: 2px solid var(--line-strong); }
-  .stage[data-stage="done"] { border-top-color: color-mix(in srgb, var(--chip-prog-ink) 60%, transparent); }
-  .stage[data-stage="now"] {
-    border-image: linear-gradient(90deg, var(--chip-prog-ink) 50%, var(--line-strong) 50%) 1;
-  }
-  .stage::before { display: none; }
-  .stage-state { margin-left: 0; }
-  .stage-state .status-mark { margin-right: 0; }
-}
-
-.status-updated { margin-bottom: 20px; color: var(--ink-3); font-size: 0.875rem; }
-.feature-groups { display: grid; gap: 56px; align-items: start; }
-.feature-group-head {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+.feature-groups { display: grid; gap: clamp(48px, 6vw, 72px); }
+.feature-group-title {
   padding-bottom: 12px; border-bottom: 1px solid var(--line-strong);
-}
-.feature-group-head h3 {
-  display: inline-flex; align-items: center; gap: 10px;
   font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em;
 }
-.feature-group-head p { color: var(--ink-3); font-size: 0.875rem; text-align: right; white-space: nowrap; }
-.feature-group-def { margin-top: 12px; color: var(--ink-3); font-size: 0.875rem; }
-.feature-list { margin: 6px 0 0; padding: 0; list-style: none; }
+.feature-list { display: grid; column-gap: 32px; margin: 0; padding: 0; list-style: none; }
 .feature { padding: 16px 0; border-bottom: 1px solid var(--line); }
 .feature h4 { font-size: 1.0625rem; font-weight: 650; letter-spacing: -0.01em; }
 .feature p { margin-top: 4px; max-width: 48ch; color: var(--ink-2); font-size: 0.9375rem; }
-.feature-group[data-status="planned"] .feature { padding: 12px 0; }
-.feature-group[data-status="planned"] .feature h4 { color: var(--ink-2); font-size: 1rem; font-weight: 600; }
-.feature-group[data-status="planned"] .feature p { color: var(--ink-3); font-size: 0.875rem; }
-@media (min-width: 640px) and (max-width: 1023px) {
-  .feature-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
+@media (min-width: 640px) {
+  .feature-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1024px) {
-  .feature-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .feature-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* Build */
@@ -806,8 +740,8 @@ kbd {
 }
 
 @media (forced-colors: active) {
-  .status-pill, .segmented, .budget, .terminal, .chip { border: 1px solid CanvasText; }
-  .chart-bar, .swatch, .status-mark, .chip-dot { forced-color-adjust: none; }
+  .status-pill, .segmented, .budget, .terminal { border: 1px solid CanvasText; }
+  .chart-bar, .swatch { forced-color-adjust: none; }
   .segmented input:checked + span { outline: 2px solid Highlight; }
 }
 
