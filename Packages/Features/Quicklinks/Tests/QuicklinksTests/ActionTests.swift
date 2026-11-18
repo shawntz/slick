@@ -161,13 +161,14 @@ struct ActionTests {
         #expect(try await quicklinks.storedFile()?.removedDefaults == ["bing"])
     }
 
+    /// The panel closes before the link opens, so a failure shows as a HUD.
     @Test func aRefusedOpenShowsAFailure() async throws {
         let quicklinks = try await QuicklinksHarness(file: Samples.file)
         quicklinks.fakes.workspace.failsToOpen = true
         quicklinks.harness.throwsActionErrors = false
         try await quicklinks.harness.performRoot("open", on: try await quicklinks.catalogRow("Sample Docs"))
-        #expect(quicklinks.harness.toasts.last?.title == Strings.couldNotOpen)
-        #expect(quicklinks.harness.toasts.last?.message == docsLink)
+        #expect(quicklinks.harness.isClosed)
+        #expect(quicklinks.harness.huds.last == .failure(Strings.couldNotOpen))
     }
 
     @Test func aLinkThatRendersBadlyIsNotOpened() async throws {

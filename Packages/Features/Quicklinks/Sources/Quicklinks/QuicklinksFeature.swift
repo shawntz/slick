@@ -215,6 +215,7 @@ public final class QuicklinksFeature: Feature {
 
     /// Opens a link through the workspace service, with an app when one is named.
     func open(_ url: URL, with app: String?, context: ActionContext) async throws {
+        context.dismiss()
         do {
             if let app, !app.isEmpty {
                 try await context.workspace.open([url], withApplication: app)

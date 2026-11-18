@@ -6,6 +6,12 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 
 ## Unreleased
 
+### Fixed
+
+- Opening an app, file or link: the panel now closes as soon as you press Return. Before, it stayed
+  on screen until the app it opened had finished launching, which could take seconds. When the
+  open fails, a HUD says so after the panel closes.
+
 ## 0.1.1
 
 Two fixes in settings, and a choice of light or dark for the launcher.

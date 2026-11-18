@@ -107,6 +107,7 @@ struct HistoryActions {
         Action(Strings.Actions.openLink, id: "open-link", icon: .symbol("safari"), shortcut: .open) {
             [store] context in
             guard case .url(let url) = try await store.content(item.key) else { throw Strings.Actions.missing }
+            context.dismiss()
             try await context.workspace.open(url)
             return .close()
         }
@@ -121,6 +122,7 @@ struct HistoryActions {
             if urls.count > Self.filesOpenedWithoutAsking {
                 guard await context.confirm(Strings.Actions.openManyConfirmation(urls.count)) else { return .keepOpen }
             }
+            context.dismiss()
             for url in urls { try await context.workspace.open(url) }
             return .close()
         }

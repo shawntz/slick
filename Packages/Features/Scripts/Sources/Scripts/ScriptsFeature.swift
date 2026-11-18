@@ -118,6 +118,7 @@ public final class ScriptsFeature: Feature {
             Command(id: "open-folder", title: Strings.openFolderTitle, icon: .symbol("folder")) {
                 [self] context in
                 try await library.makeFolder(defaultFolder)
+                context.dismiss()
                 try await context.workspace.open(defaultFolder)
                 await watchFolders().value
                 return .close()
