@@ -136,6 +136,7 @@ public final class ShellFeature: Feature {
         } catch .write(let reason) {
             throw ActionFailure(Strings.Failures.terminalFailed, message: reason)
         }
+        context.dismiss()
         try await context.workspace.open([script], withApplication: TerminalScript.terminalBundleID)
         return .close()
     }

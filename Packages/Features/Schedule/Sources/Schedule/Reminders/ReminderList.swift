@@ -76,6 +76,7 @@ enum ReminderActions {
         Action(
             Strings.Reminders.openInReminders, id: "open-in-reminders", icon: .symbol("checklist"), shortcut: .open
         ) { context in
+            context.dismiss()
             if let url = CalendarAppLinks.reminder(id: summary.id), (try? await context.workspace.open(url)) != nil {
                 return .close()
             }

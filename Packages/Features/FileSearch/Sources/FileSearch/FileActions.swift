@@ -91,6 +91,7 @@ import Kit
 
     private func openInTerminal(_ file: File) -> Action {
         Action(Strings.Actions.openInTerminal, id: "open-in-terminal", icon: .symbol("terminal")) { context in
+            context.dismiss()
             try await context.workspace.open([file.url], withApplication: Self.terminalBundleID)
             return .close()
         }

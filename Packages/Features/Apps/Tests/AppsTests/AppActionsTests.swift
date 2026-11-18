@@ -54,6 +54,19 @@ struct AppActionsTests {
         #expect(apps.fakes.workspace.opened.last?.lastPathComponent == "Nameless.app")
     }
 
+    /// The workspace call waits until an app that was not running finishes launching, so the panel
+    /// closes before it rather than after. A launch that fails then shows as a HUD, not a toast.
+    @Test func openClosesThePanelBeforeTheAppLaunches() async throws {
+        let apps = try await AppsHarness()
+        apps.fakes.workspace.refusesToLaunch = ["com.example.editor"]
+        apps.harness.throwsActionErrors = false
+        try await apps.harness.performRoot("open", on: try await apps.appRow("Sample Editor"))
+        #expect(apps.harness.isClosed)
+        #expect(apps.harness.toasts.isEmpty)
+        #expect(apps.harness.huds.count == 1, "the panel closed first, so a HUD")
+        #expect(apps.fakes.workspace.launched.isEmpty)
+    }
+
     @Test func finderAndCopyActionsGoThroughKitServices() async throws {
         let apps = try await AppsHarness()
         let editor = try await apps.appRow("Sample Editor")

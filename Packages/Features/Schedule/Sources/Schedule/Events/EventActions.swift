@@ -36,6 +36,7 @@ enum EventActions {
 
     static func join(_ link: MeetingLink) -> Action {
         Action(Strings.Actions.joinMeeting, id: "join", icon: .symbol("video.fill")) { context in
+            context.dismiss()
             try await context.workspace.open(link.url)
             return .close()
         }
@@ -45,6 +46,7 @@ enum EventActions {
     static func openInCalendar(_ summary: EventSummary) -> Action {
         Action(Strings.Actions.openInCalendar, id: "open-in-calendar", icon: .symbol("calendar"), shortcut: .open) {
             context in
+            context.dismiss()
             if let url = CalendarAppLinks.event(externalID: summary.externalID, eventID: summary.eventID),
                 (try? await context.workspace.open(url)) != nil
             {

@@ -308,6 +308,17 @@ import Testing
         #expect(fixture.hud.shown == ["Done Later"])
     }
 
+    /// As the open actions do: the handler closes the panel first, then returns a close.
+    @Test func aCloseAfterTheHandlerDismissedClearsTheQuery() async {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        fixture.type("e")
+        await fixture.runtime.runtime.pipeline.runCommand(RuntimeFixture.command("close-twice"), launch: .root).value
+        #expect(!fixture.panel.isPanelVisible)
+        #expect(fixture.field.text.isEmpty)
+        #expect(fixture.panel.stack.count == 1)
+    }
+
     @Test func escapeStillKeepsThePlace() async {
         let fixture = await PanelFixture.make()
         defer { fixture.close() }
