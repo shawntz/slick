@@ -6,6 +6,13 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 
 ## Unreleased
 
+### Fixed
+
+- Opening an app, or running anything else that closes the launcher, now leaves the search field
+  empty for the next launch. Before, the launcher opened again with the old text in it for 90
+  seconds, so typing the next app's name added to the last one's. Pressing Escape still keeps your
+  place, as the Reset to Root setting says.
+
 ## 0.1.1
 
 Two fixes in settings, and a choice of light or dark for the launcher.
