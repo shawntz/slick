@@ -284,9 +284,9 @@ import Testing
     @Test func aRunThatClosesThePanelClearsTheQueryAtOnce() async {
         let fixture = await PanelFixture.make()
         defer { fixture.close() }
-        fixture.type("e")
+        fixture.type("Examp")
         fixture.press(.submit([]))
-        #expect(await waitUntil { !fixture.opened.value.isEmpty })
+        #expect(await waitUntil { fixture.opened.value == [SampleRows.editor.id] })
         #expect(!fixture.panel.isPanelVisible)
         #expect(fixture.field.text.isEmpty, "the next summon starts empty, not 90 seconds later")
         #expect(fixture.panel.stack.count == 1)
@@ -330,10 +330,10 @@ import Testing
     @Test func neverResettingKeepsTheQueryAfterAClose() async {
         let fixture = await PanelFixture.make(settings: ["resetToRootAfter": .int(-1)])
         defer { fixture.close() }
-        fixture.type("e")
+        fixture.type("Examp")
         fixture.press(.submit([]))
-        #expect(await waitUntil { !fixture.opened.value.isEmpty })
-        #expect(fixture.field.text == "e")
+        #expect(await waitUntil { fixture.opened.value == [SampleRows.editor.id] })
+        #expect(fixture.field.text == "Examp")
     }
 
     @Test func aRunStartedWhileHiddenLeavesThePageTheUserLeft() async {
