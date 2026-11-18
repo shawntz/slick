@@ -294,6 +294,18 @@ import LauncherUI
         }
     }
 
+    /// Called when a run closed the panel, or found it already closed by the session it started in,
+    /// as when an opened app takes the keyboard before the run ends. The task is done, so the next
+    /// summon starts on an empty root search instead of the text that ran it. A user who chose to
+    /// never leave their page keeps it.
+    func didFinishByClosing() {
+        guard !summoner.isShown else { return }
+        guard HostSettings.resetToRootDelay(general[HostSettings.resetToRootAfter]) != nil else { return }
+        resetTask?.cancel()
+        resetTask = nil
+        resetToRoot()
+    }
+
     /// Pops every page and clears root search, while the panel is hidden.
     public func resetToRoot() {
         while stack.count > 1 { stack.removeLast().pageWillClose() }

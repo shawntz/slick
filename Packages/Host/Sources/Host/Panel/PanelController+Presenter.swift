@@ -149,6 +149,9 @@ extension PanelController: RunPresenter {
         // on from. A close still shows its HUD.
         if let session = origin.session, session != sessionID || !isPanelVisible {
             if case .close(let hud?) = outcome { self.hud.show(hud) }
+            // The panel closed under the run, as it does when an opened app takes the keyboard,
+            // and no new session has started: the run still finished what the user typed.
+            if case .close = outcome, session == sessionID { didFinishByClosing() }
             // Like a HUD, Large Type still shows, unless the user is in the panel again.
             if case .showLargeType(let text) = outcome, !isPanelVisible { showLargeType(text) }
             return
@@ -156,6 +159,9 @@ extension PanelController: RunPresenter {
         switch outcome {
         case .close(let hud):
             dismiss()
+            // A run the panel started finished what the user typed. A run started while the panel
+            // was hidden, as by a hotkey, leaves the page the user left alone.
+            if origin.session != nil { didFinishByClosing() }
             if let hud { self.hud.show(hud) }
         case .keepOpen, .run, .needsPermission:
             break

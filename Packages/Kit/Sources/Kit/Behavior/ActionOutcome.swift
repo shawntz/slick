@@ -1,7 +1,8 @@
 /// What the panel does after an action or a command has run.
 public enum ActionOutcome: Sendable {
-    /// Closes the panel, then shows the HUD when one is given. The next summon starts at root or
-    /// where the user left off, as their settings say.
+    /// Closes the panel, then shows the HUD when one is given. When the run started in the panel,
+    /// the next summon starts on an empty root search, unless the user chose to never leave their
+    /// page.
     case close(hud: HUD? = nil)
     /// Keeps the panel as it is. Combine with ``ActionContext/reload()`` or
     /// ``ActionContext/showToast(_:)`` to show what changed.

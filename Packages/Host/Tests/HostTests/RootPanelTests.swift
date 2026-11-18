@@ -281,6 +281,74 @@ import Testing
         #expect(await waitUntil { fixture.panel.stack.count == 1 })
     }
 
+    @Test func aRunThatClosesThePanelClearsTheQueryAtOnce() async {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        fixture.type("Examp")
+        fixture.press(.submit([]))
+        #expect(await waitUntil { fixture.opened.value == [SampleRows.editor.id] })
+        #expect(!fixture.panel.isPanelVisible)
+        #expect(fixture.field.text.isEmpty, "the next summon starts empty, not 90 seconds later")
+        #expect(fixture.panel.stack.count == 1)
+    }
+
+    /// An opened app takes the keyboard, and the panel closes before the open action returns.
+    @Test func aCloseAfterThePanelLostFocusStillClearsTheQuery() async {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let clock = fixture.runtime.fakes.clock
+        fixture.type("e")
+        let close = fixture.runtime.runtime.pipeline.runCommand(RuntimeFixture.command("late-close"), launch: .root)
+        await clock.waitForSleepers(1)
+        fixture.panel.summoner.dismiss(returnFocus: false)
+        #expect(fixture.field.text == "e", "a dismiss alone keeps the query")
+        clock.advance(by: .seconds(1))
+        await close.value
+        #expect(fixture.field.text.isEmpty)
+        #expect(fixture.hud.shown == ["Done Later"])
+    }
+
+    /// As the open actions do: the handler closes the panel first, then returns a close.
+    @Test func aCloseAfterTheHandlerDismissedClearsTheQuery() async {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        fixture.type("e")
+        await fixture.runtime.runtime.pipeline.runCommand(RuntimeFixture.command("close-twice"), launch: .root).value
+        #expect(!fixture.panel.isPanelVisible)
+        #expect(fixture.field.text.isEmpty)
+        #expect(fixture.panel.stack.count == 1)
+    }
+
+    @Test func escapeStillKeepsThePlace() async {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        fixture.type("e")
+        fixture.panel.dismiss()
+        #expect(fixture.field.text == "e")
+    }
+
+    @Test func neverResettingKeepsTheQueryAfterAClose() async {
+        let fixture = await PanelFixture.make(settings: ["resetToRootAfter": .int(-1)])
+        defer { fixture.close() }
+        fixture.type("Examp")
+        fixture.press(.submit([]))
+        #expect(await waitUntil { fixture.opened.value == [SampleRows.editor.id] })
+        #expect(fixture.field.text == "Examp")
+    }
+
+    @Test func aRunStartedWhileHiddenLeavesThePageTheUserLeft() async {
+        let fixture = await PanelFixture.make()
+        defer { fixture.close() }
+        let clock = fixture.runtime.fakes.clock
+        fixture.type("e")
+        fixture.panel.dismiss()
+        let close = fixture.runtime.runtime.pipeline.runCommand(RuntimeFixture.command("late-close"), launch: .hotkey)
+        await clock.waitForSleepers(2)
+        clock.advance(by: .seconds(1))
+        await close.value
+        #expect(fixture.field.text == "e")
+    }
+
     @Test func fixedSizingNeverResizesTheGlassWhileTyping() async {
         let fixture = await PanelFixture.make()
         defer { fixture.close() }

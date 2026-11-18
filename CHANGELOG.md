@@ -11,6 +11,10 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 - Opening an app, file or link: the panel now closes as soon as you press Return. Before, it stayed
   on screen until the app it opened had finished launching, which could take seconds. When the
   open fails, a HUD says so after the panel closes.
+- Opening an app, or running anything else that closes the launcher, now leaves the search field
+  empty for the next launch. Before, the launcher opened again with the old text in it for 90
+  seconds, so typing the next app's name added to the last one's. Pressing Escape still keeps your
+  place, as the Reset to Root setting says.
 
 ## 0.1.1
 
