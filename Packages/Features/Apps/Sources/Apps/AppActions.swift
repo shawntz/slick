@@ -32,6 +32,9 @@ extension AppsFeature {
         guard let app = reference(for: row) else { return [] }
         var actions: [Action] = [
             Action("Open", id: "open", icon: .symbol("arrow.up.forward.app")) { context in
+                // An app that is not running finishes launching seconds after the request, and the
+                // workspace call waits for it. Close the panel first so it does not sit on screen.
+                context.dismiss()
                 try await Self.open(app, context: context)
                 return .close()
             },

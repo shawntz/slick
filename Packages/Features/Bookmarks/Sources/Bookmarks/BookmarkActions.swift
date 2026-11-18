@@ -59,6 +59,7 @@ final class BookmarkActions {
         let inDefault = Action(
             Strings.Actions.openInDefaultBrowser, id: "open-default", icon: .symbol("globe")
         ) { context in
+            context.dismiss()
             try await context.workspace.open(url)
             return .close()
         }
@@ -66,6 +67,7 @@ final class BookmarkActions {
         let inSource = Action(
             Strings.Actions.openIn(app.name), id: "open-source", icon: .app(bundleID: browser.bundleID)
         ) { context in
+            context.dismiss()
             try await context.workspace.open([url], withApplication: browser.bundleID)
             return .close()
         }
@@ -83,6 +85,7 @@ final class BookmarkActions {
                 Strings.Actions.openLinkQuestion, message: Strings.Actions.openLinkMessage(scheme: scheme),
                 confirmTitle: Strings.Actions.openLink)
         ) { context in
+            context.dismiss()
             try await context.workspace.open(url)
             return .close()
         }
@@ -96,6 +99,7 @@ final class BookmarkActions {
                 Strings.Actions.openFileQuestion(name: url.lastPathComponent), message: Strings.Actions.openFileMessage,
                 confirmTitle: Strings.Actions.openFile)
         ) { context in
+            context.dismiss()
             try await context.workspace.open(url)
             return .close()
         }

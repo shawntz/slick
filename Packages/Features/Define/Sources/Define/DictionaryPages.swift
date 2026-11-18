@@ -178,6 +178,7 @@ final class DictionaryPages {
             guard let url = Self.dictionaryURL(for: word) else {
                 throw ActionFailure(DefineStrings.noDefinitionTitle, message: DefineStrings.noDefinitionMessage(word))
             }
+            context.dismiss()
             try await context.workspace.open(url)
             return .close()
         }

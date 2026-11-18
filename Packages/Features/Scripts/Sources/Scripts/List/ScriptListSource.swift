@@ -155,6 +155,7 @@ final class ScriptListSource: ListSource {
                 await context.workspace.reveal(urls)
                 return .close(hud: HUD(Strings.shownInFinder))
             }
+            context.dismiss()
             for url in urls { try await context.workspace.open(url) }
             return .close()
         }

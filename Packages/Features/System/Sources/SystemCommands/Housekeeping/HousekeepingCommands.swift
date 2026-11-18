@@ -12,6 +12,7 @@ extension SystemFeature {
                 // Finder shows the Trash for its folder. Opening it reads nothing in it, so it needs
                 // no permission.
                 let trash = context.storage.homeDirectory.appending(path: ".Trash", directoryHint: .isDirectory)
+                context.dismiss()
                 do {
                     try await context.workspace.open(trash)
                 } catch {

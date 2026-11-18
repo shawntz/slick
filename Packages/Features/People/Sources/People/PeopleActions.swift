@@ -210,6 +210,7 @@ import Kit
     private static func reach(
         _ failure: String, in context: ActionContext, _ body: (any WorkspaceService) async throws -> Void
     ) async throws {
+        context.dismiss()
         do {
             try await body(context.workspace)
         } catch is CancellationError {

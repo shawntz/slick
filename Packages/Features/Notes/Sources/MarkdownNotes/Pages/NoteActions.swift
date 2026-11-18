@@ -50,7 +50,9 @@ final class NoteActions {
             Action(Strings.openInEditor, id: "open", icon: .symbol("arrow.up.forward.app"), shortcut: .secondaryAction)
             {
                 context in
-                try await context.workspace.open(try await library.liveFile(fileName))
+                let file = try await library.liveFile(fileName)
+                context.dismiss()
+                try await context.workspace.open(file)
                 return .close()
             },
             Action.copy(title: Strings.copyMarkdown, hud: Strings.copiedMarkdown, shortcut: .copy) { _ in

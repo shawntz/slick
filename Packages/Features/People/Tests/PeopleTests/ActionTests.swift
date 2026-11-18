@@ -161,13 +161,14 @@ struct ActionTests {
         #expect(harness.fakes.workspace.opened == [URL(string: "addressbook://p-lea")])
     }
 
+    /// The panel closes before the app opens, so a failure shows as a HUD.
     @Test func aFailedOpenSaysWhatFailed() async throws {
         let (harness, _) = try await select(Cast.bruno)
         harness.fakes.workspace.failsToOpen = true
         harness.throwsActionErrors = false
         try await harness.perform("call")
-        #expect(harness.visibleToast?.title == Strings.Failures.call)
-        #expect(harness.visibleToast?.message == Strings.Failures.openMessage)
+        #expect(harness.isClosed)
+        #expect(harness.huds.last == .failure(Strings.Failures.call))
     }
 
     @Test func aRowTheDirectoryNoLongerKnowsStillOpensTheCard() async throws {

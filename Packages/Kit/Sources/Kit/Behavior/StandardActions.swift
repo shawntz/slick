@@ -10,11 +10,13 @@ extension Action {
         open([url], title: title, icon: icon, shortcut: shortcut)
     }
 
-    /// Opens URLs or files, each in its default app, then closes the panel.
+    /// Opens URLs or files, each in its default app. The panel closes before the first opens, since
+    /// the workspace call waits until an app that was not running finishes launching.
     public static func open(_ urls: [URL], title: String = "Open", icon: Icon? = nil, shortcut: KeyCombo? = nil)
         -> Action
     {
         Action(title, id: "open", icon: icon ?? .symbol("arrow.up.forward.app"), shortcut: shortcut) { context in
+            context.dismiss()
             for url in urls { try await context.workspace.open(url) }
             return .close()
         }
@@ -40,6 +42,7 @@ extension Action {
             guard let first = targets.first else { return [] }
             return await context.workspace.applications(toOpen: first).map { app in
                 Action(app.name, id: "open-with." + app.bundleID, icon: .app(bundleID: app.bundleID)) { context in
+                    context.dismiss()
                     try await context.workspace.open(targets, withApplication: app.bundleID)
                     return .close()
                 }
