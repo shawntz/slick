@@ -6,6 +6,10 @@ heading to the version, such as `## 0.1.0`, and start a new, empty `## Unrelease
 
 ## Unreleased
 
+## 0.1.2
+
+One fix: the panel closes as soon as you open an app, file or link.
+
 ### Fixed
 
 - Opening an app, file or link: the panel now closes as soon as you press Return. Before, it stayed
