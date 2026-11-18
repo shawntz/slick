@@ -11,7 +11,6 @@
     { "expect": { "visible": false } },
     { "app": { "hud": "Copied 2,469,134", "pasteboardText": "2,469,134" } },
     { "summon": true },
-    { "press": "escape" },
     { "type": "calculator history" },
     { "waitUntilIdle": 3 },
     { "app": { "select": "Calculator History" } },

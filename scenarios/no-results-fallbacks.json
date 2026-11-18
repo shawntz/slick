@@ -17,7 +17,6 @@
     { "expect": { "visible": false } },
     { "app": { "opened": ["https://en.wikipedia.org/wiki/Special:Search?search=qwzxv%20kit"], "launched": [] } },
     { "summon": true },
-    { "press": "escape" },
     { "type": "zz" },
     { "waitUntilIdle": 3 },
     { "press": "return" },

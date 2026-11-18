@@ -25,7 +25,6 @@
     { "waitUntilIdle": 3 },
     { "app": { "launched": ["com.example.notes"] } },
     { "summon": true },
-    { "press": "escape" },
     { "type": "notes" },
     { "expect": { "selection": "Calendar" } },
     { "waitUntilIdle": 3 },

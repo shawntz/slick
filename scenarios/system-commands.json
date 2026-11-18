@@ -22,7 +22,6 @@
     { "waitUntilIdle": 3 },
     { "app": { "hud": "Volume 40%" } },
     { "summon": true },
-    { "press": "escape" },
     { "type": "toggle dark mode" },
     { "waitUntilIdle": 3 },
     { "press": "return" },
