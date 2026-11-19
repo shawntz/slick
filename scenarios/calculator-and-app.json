@@ -45,7 +45,11 @@
       "summon": true
     },
     {
-      "press": "escape"
+      "expect": {
+        "query": "",
+        "page": "root",
+        "visible": true
+      }
     },
     {
       "type": "12 * 12"

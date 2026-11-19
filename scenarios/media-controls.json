@@ -11,7 +11,7 @@
     { "expect": { "visible": false } },
     { "app": { "hud": "Playing “Example Song One” by Example Artist" } },
     { "summon": true },
-    { "press": "escape" },
+    { "expect": { "query": "", "page": "root", "visible": true } },
     { "type": "next track" },
     { "waitUntilIdle": 3 },
     { "app": { "select": "Next Track" } },

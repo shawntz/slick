@@ -12,8 +12,6 @@
     { "expect": { "visible": false } },
     { "app": { "launched": ["com.example.browser"] } },
     { "summon": true },
-    { "expect": { "query": "web", "selection": "Web Browser" } },
-    { "press": "escape" },
     { "expect": { "query": "", "visible": true } },
     { "type": "cal" },
     { "waitUntilIdle": 3 },
