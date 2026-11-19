@@ -32,7 +32,6 @@
     { "waitUntilIdle": 3 },
     { "expect": { "visible": false } },
     { "summon": true },
-    { "press": "escape" },
     { "expect": { "query": "", "page": "root", "visible": true } },
     { "type": "notes" },
     { "expect": { "selection": "Notes" } },

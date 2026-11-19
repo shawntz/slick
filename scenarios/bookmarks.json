@@ -12,7 +12,7 @@
     { "expect": { "visible": false } },
     { "app": { "opened": ["https://wiki.example.org/release"] } },
     { "summon": true },
-    { "press": "escape" },
+    { "expect": { "query": "", "page": "root", "visible": true } },
     { "type": "search bookmarks" },
     { "waitUntilIdle": 3 },
     { "app": { "select": "Search Bookmarks" } },

@@ -25,7 +25,7 @@
     { "expect": { "visible": false } },
     { "summon": true },
     { "summon": true },
-    { "expect": { "visible": true, "query": "notes" } },
+    { "expect": { "query": "", "page": "root", "visible": true } },
     { "dismiss": true },
     { "dismiss": true },
     { "expect": { "visible": false } }

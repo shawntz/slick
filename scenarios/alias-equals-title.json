@@ -25,7 +25,7 @@
     { "waitUntilIdle": 3 },
     { "app": { "launched": ["com.example.notes"] } },
     { "summon": true },
-    { "press": "escape" },
+    { "expect": { "query": "", "page": "root", "visible": true } },
     { "type": "notes" },
     { "expect": { "selection": "Calendar" } },
     { "waitUntilIdle": 3 },

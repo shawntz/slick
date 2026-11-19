@@ -19,6 +19,7 @@ struct HardeningTests {
         #expect(try await fixture.rootPaths("desktop-shot") == ["Desktop/desktop-shot.png"])
         #expect(fixture.fakes.permissions.openStreamCount == 0, "nothing is followed while access is there")
 
+        let scopeChanges = fixture.feature.declarations.stream()
         fixture.fakes.permissions.set(.protectedFolder(.desktop), to: .denied)
         try fixture.tree.write("Desktop/after-revoke.png")
         try fixture.tree.write("Projects/after-revoke.txt")
@@ -26,6 +27,9 @@ struct HardeningTests {
         fixture.fakes.fileWatcher.simulateChange([
             fixture.tree.url("Desktop/after-revoke.png"), fixture.tree.url("Projects/after-revoke.txt"),
         ])
+        // The index reports lost access from its queue. Wait for the feature to process that
+        // report and subscribe before the test grants access again.
+        for await _ in scopeChanges where fixture.feature.openAccessWaits > 0 { break }
         try await fixture.idle()
         let applied = fixture.maker.batches.dropFirst(batchesBefore).flatMap { $0.map(\.path) }
         #expect(!applied.contains(fixture.tree.path("Desktop/after-revoke.png")), "nothing below Desktop is read")
